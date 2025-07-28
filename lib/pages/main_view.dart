@@ -43,9 +43,9 @@ class _MainViewState extends State<MainView> {
             TabItem(icon: FontAwesomeIcons.bookOpen, title: 'Library'),
             TabItem(icon: FontAwesomeIcons.user, title: 'Profile'),
           ],
-          backgroundColor: prussianBlue,
-          color: ivory,
-          colorSelected: ivory,
+          backgroundColor: pastelBlue,
+          color: indigoDye,
+          colorSelected: white,
           borderRadius: BorderRadius.circular(50),
           indexSelected: _currentIndex,
           iconSize: 20,
@@ -60,64 +60,3 @@ class _MainViewState extends State<MainView> {
     );
   }
 }
-/*
-import 'package:flutter/material.dart';
-import 'package:awesome_bottom_bar/awesome_bottom_bar.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-
-import '../constants/colors.dart';
-
-import 'home_page.dart';
-import 'practice_page.dart';
-import 'simulation_page.dart';
-import 'library_page.dart';
-import 'profile_page.dart';
-
-class MainView extends StatefulWidget {
-  const MainView({super.key});
-
-  @override
-  State<MainView> createState() => _MainViewState();
-}
-
-class _MainViewState extends State<MainView> {
-  int _currentIndex = 0;
-
-  final List<Widget> _screens = const [
-    HomePage(),
-    PracticePage(),
-    SimulationPage(),
-    LibraryPage(),
-    ProfilePage(),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: prussionBlue,
-      body: _screens[_currentIndex],
-      bottomNavigationBar: BottomBarDefault(
-        items: const [
-          TabItem(icon: Icons.home, title: 'Home'),
-          TabItem(icon: FontAwesomeIcons.penToSquare, title: 'Practice'),
-          TabItem(icon: FontAwesomeIcons.stopwatch, title: 'Simulate'),
-          TabItem(icon: FontAwesomeIcons.bookOpen, title: 'Library'),
-          TabItem(icon: FontAwesomeIcons.user, title: 'Profile'),
-        ],
-        backgroundColor: prussionBlue,
-        color: ivory,
-        colorSelected: prussionBlue,
-        indexSelected: _currentIndex,
-        onTap: (int index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-      ),
-    );
-  }
-}
-
-
-
- */
