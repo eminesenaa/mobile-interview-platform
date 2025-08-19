@@ -10,6 +10,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:interview_project/constants/colors.dart';
+import 'package:interview_project/pages/question_types/short_answer_page.dart';
 
 import '../controllers/question_controller.dart';
 import '../models/question.dart';
@@ -48,27 +49,32 @@ class PracticePage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Get Started Cards
+              // Get Started Cards
               SizedBox(
                 height: 150,
                 child: PageView.builder(
-                  itemCount: 5, // dosya sayın kadar
+                  // Kart başlıklarını burada kontrol edebilirsin
+                  itemCount: 5,
                   itemBuilder: (context, index) {
-                    final path = 'assets/images/get_started_${index + 1}.jpg';
+                    final imgPath = 'assets/images/get_started_${index + 1}.jpg';
+                    // Basit başlık örnekleri (istersen değiştir)
+                    const titles = [
+                      'Warm-up • Quick Win',
+                      'Today’s Challenge',
+                      'Revise Core Topics',
+                      'Mock Interview Prep',
+                      'Tips & Tricks'
+                    ];
+
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Image.asset(
-                          path,
-                          fit: BoxFit.cover,
-                          // Hata olduğunda nedenini görmek için:
-                          errorBuilder: (ctx, err, stack) => Container(
-                            color: Colors.grey.shade300,
-                            alignment: Alignment.center,
-                            child: Text('Missing: $path',
-                                style: const TextStyle(fontSize: 12)),
-                          ),
-                        ),
+                      child: GetStartedCard(
+                        title: titles[index % titles.length],
+                        imagePath: imgPath,
+                        onTap: () {
+                          // Şimdilik basit bir aksiyon; istersen soru listesine scroll/focus ekleyebiliriz
+                          Get.snackbar('Let’s go!', 'Scroll down and start solving 🚀');
+                        },
                       ),
                     );
                   },
@@ -185,7 +191,7 @@ class PracticePage extends StatelessWidget {
                             Get.to(() => McqQuestionPage(question: question));
                             break;
                           case QuestionType.shortAnswer:
-                            Get.snackbar('Coming Soon', 'Short Answer UI not implemented yet');
+                            Get.to(() => ShortAnswerPage(question: question));
                             break;
                           case QuestionType.coding:
                             Get.snackbar('Coming Soon', 'Coding Editor coming soon!');
