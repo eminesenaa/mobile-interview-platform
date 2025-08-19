@@ -21,7 +21,9 @@ enum QuestionType {
 /// Soru zorluk seviyeleri
 enum Difficulty {
   easy,
+  easy_medium,
   medium,
+  medium_hard,
   hard,
 }
 
