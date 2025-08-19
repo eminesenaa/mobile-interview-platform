@@ -1,3 +1,11 @@
+// ===================== File: lib/widgets/get_started_card.dart =====================
+// Purpose: Practice sayfasının üst kısmında görünen "Get Started" kartını temsil eder.
+//          İçinde bir görsel (assets/images/...), üstüne gradient/overlay ve
+//          kısa bir yönlendirme mesajı barındırabilir.
+//
+// Kullanım:
+// - PracticePage içinde:  GetStartedCard(imagePath: "assets/images/get_started_1.png")
+// ================================================================================
 import 'package:flutter/material.dart';
 
 class GetStartedCard extends StatelessWidget {

@@ -1,15 +1,25 @@
+// ===================== File: lib/controllers/question_controller.dart =====================
+// Purpose: Soru listesini yönetir (yükleme, filtreleme, arama, ekleme).
+//          GetX Controller kullanılarak reactive state yönetimi yapılır.
+//
+// Notlar:
+// - UI (View) içinde çağırılır: final controller = Get.put(QuestionController());
+// - Sorular reactive (`RxList`) tutulduğu için filtreleme/arama yapıldığında
+//   UI otomatik güncellenir (Obx widget'ı sayesinde).
+// ==========================================================================
 import 'package:get/get.dart';
 import '../models/question.dart';
 
 class QuestionController extends GetxController {
+  /// Tüm soruların listesi
   final RxList<Question> allQuestions = <Question>[].obs;
 
-  // 🎯 Filtreler enum oldu
   final RxString selectedTopic = 'All'.obs;
   final Rx<Difficulty?> selectedDifficulty = Rx<Difficulty?>(null);
   final Rx<Status?> selectedStatus = Rx<Status?>(null);
   final RxString searchQuery = ''.obs;
 
+  /// Filtrelenmiş soruların listesi
   List<Question> get filteredQuestions {
     return allQuestions.where((q) {
       final matchesTopic = selectedTopic.value == 'All' || q.topic == selectedTopic.value;
@@ -20,12 +30,15 @@ class QuestionController extends GetxController {
     }).toList();
   }
 
+  /// Soru listesini yükler (ör: mock data veya API çağrısı)
   void loadDummyQuestions() {
+    // TODO: Burayı backend API’den veri çekme ile değiştirebilirsin.
     allQuestions.addAll([
       Question(
         id: 'mcq1',
         title: 'What is Flutter?',
         topic: 'Mobile Development',
+        description: "Easy level flutter question.",
         difficulty: Difficulty.easy,
         status: Status.todo,
         tags: ['flutter', 'framework'],
@@ -37,6 +50,7 @@ class QuestionController extends GetxController {
         id: 'short1',
         title: 'Explain the use of "final" in Dart.',
         topic: 'Dart',
+        description: "Medium level Dart question.",
         difficulty: Difficulty.medium,
         status: Status.todo,
         tags: ['variables', 'final'],
@@ -46,6 +60,7 @@ class QuestionController extends GetxController {
         id: 'code1',
         title: 'Write a function to reverse a linked list.',
         topic: 'Data Structures',
+        description: "Hard level data structure question.",
         difficulty: Difficulty.hard,
         status: Status.todo,
         tags: ['linked list'],
@@ -54,6 +69,7 @@ class QuestionController extends GetxController {
     ]);
   }
 
+  /// Soruları filtrele (örn: konuya göre)
   void updateFilters({String? topic, Difficulty? difficulty, Status? status}) {
     if (topic != null) selectedTopic.value = topic;
     if (difficulty != null) selectedDifficulty.value = difficulty;
@@ -71,3 +87,5 @@ class QuestionController extends GetxController {
     return list.first;
   }
 }
+
+
