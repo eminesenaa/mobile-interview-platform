@@ -66,6 +66,17 @@ class QuestionController extends GetxController {
         tags: ['linked list'],
         type: QuestionType.coding,
       ),
+      Question(
+        id: 'short1',
+        title: 'What is the time complexity of binary search?',
+        topic: 'Algorithms',
+        description: 'Classic question on search algorithms.',
+        difficulty: Difficulty.easy,
+        status: Status.todo,
+        tags: ['binary search', 'time complexity'],
+        type: QuestionType.shortAnswer,
+        correctAnswer: 'O(log n)',
+      ),
     ]);
   }
 
