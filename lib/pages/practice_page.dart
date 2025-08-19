@@ -1,3 +1,12 @@
+// ===================== File: lib/pages/practice_page.dart =====================
+// Purpose: Kullanıcının soru çözme pratiği yapacağı ana sayfa.
+//          QuestionController üzerinden sorular çekilir, filtrelenir ve listelenir.
+//
+// Notlar:
+// - GetX Obx kullanılarak reactive UI sağlanır (controller.filteredQuestions değiştikçe UI yenilenir).
+// - ListView.builder ile dinamik soru kartları oluşturulur.
+// - onTap: soru tipine göre ilgili sayfaya yönlendirilebilir.
+// ==============================================================================
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:interview_project/constants/colors.dart';
@@ -17,7 +26,8 @@ class PracticePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(QuestionController());
+    // Controller'ı sayfaya bağla
+    final QuestionController controller = Get.put(QuestionController());
     controller.loadDummyQuestions();
 
     return Scaffold(
@@ -39,19 +49,27 @@ class PracticePage extends StatelessWidget {
             children: [
               // Get Started Cards
               SizedBox(
-                height: 120,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemCount: 5,
+                height: 150,
+                child: PageView.builder(
+                  itemCount: 5, // dosya sayın kadar
                   itemBuilder: (context, index) {
-                    final imagePath = 'assets/images/get_started_\${index + 1}.jpg';
-                    return GetStartedCard(
-                      title: 'Get Started \${index + 1}',
-                      imagePath: imagePath,
-                      onTap: () {
-                        // özel soru seti açılır
-                      },
+                    final path = 'assets/images/get_started_${index + 1}.jpg';
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.asset(
+                          path,
+                          fit: BoxFit.cover,
+                          // Hata olduğunda nedenini görmek için:
+                          errorBuilder: (ctx, err, stack) => Container(
+                            color: Colors.grey.shade300,
+                            alignment: Alignment.center,
+                            child: Text('Missing: $path',
+                                style: const TextStyle(fontSize: 12)),
+                          ),
+                        ),
+                      ),
                     );
                   },
                 ),

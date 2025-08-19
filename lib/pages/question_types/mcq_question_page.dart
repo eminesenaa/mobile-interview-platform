@@ -1,3 +1,15 @@
+// ========== File: lib/pages/question_types/mcq_question_page.dart ==========
+// Purpose:
+// - Çoktan Seçmeli (MCQ) soru çözüm ekranı.
+// - Question modelini alır; seçenekler (options) ve doğru şık indeksi
+//   sayfaya parametre olarak geçirilir.
+//
+// Neler var?
+// - Soru başlığı + meta (difficulty, topic)
+// - Şık listesi (tek seçim)
+// - "Check Answer" butonu ile doğru/yanlış geri bildirim
+// - (Opsiyonel) Doğru çözüldüyse QuestionController.updateStatus(...) çağrısı
+// ===========================================================================
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../constants/constants.dart';
@@ -32,7 +44,7 @@ class _McqQuestionPageState extends State<McqQuestionPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              question.title,
+              question.title, // burası description diye değişecek soru metni gelecek yani.
               style: AppTextStyles.headline,
             ),
             const SizedBox(height: 24),
