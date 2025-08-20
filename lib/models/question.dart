@@ -13,7 +13,7 @@ enum QuestionType {
   mcq,
   shortAnswer,
   coding,
-  fillInTheBlanks,
+  fillBlank,
   debugging,
   // TODO: İleride yeni tip eklenirse buraya eklenecek.
 }

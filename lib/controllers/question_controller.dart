@@ -77,6 +77,19 @@ class QuestionController extends GetxController {
         type: QuestionType.shortAnswer,
         correctAnswer: 'O(log n)',
       ),
+      Question(
+        id: 'fib_single_1',
+        title: 'Fill the blank',
+        description: 'Flutter is a ***.', // Excel/Firebase’den bu şekilde gelecek
+        topic: 'Flutter',
+        difficulty: Difficulty.easy,
+        status: Status.todo,
+        tags: ['flutter', 'basics'],
+        type: QuestionType.fillBlank,     // switch’te FillInBlankPage’e yönlendir
+        correctAnswer: 'framework',       // doğru cevap
+        options: ['language', 'sdk', 'framework', 'package', 'library'], // decoy + doğru
+      ),
+
     ]);
   }
 
