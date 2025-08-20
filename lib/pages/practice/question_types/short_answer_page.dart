@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../models/question.dart';
-import '../../controllers/short_answer_controller.dart';
+import '../../../models/question.dart';
+import '../../../controllers/short_answer_controller.dart';
 
 class ShortAnswerPage extends StatelessWidget {
   final Question question;

@@ -10,18 +10,19 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:interview_project/constants/colors.dart';
-import 'package:interview_project/pages/question_types/fill_in_blank_page.dart';
-import 'package:interview_project/pages/question_types/short_answer_page.dart';
+import 'package:interview_project/pages/practice/question_types/fill_in_blank_page.dart';
+import 'package:interview_project/pages/practice/question_types/mcq_question_page.dart';
+import 'package:interview_project/pages/practice/question_types/short_answer_page.dart';
 
-import '../controllers/question_controller.dart';
-import '../models/question.dart';
-import '../widgets/get_started_card.dart';
-import '../widgets/question_card.dart';
-import '../widgets/topic_chip_scroll.dart';
-import '../widgets/search_add_bar.dart';
-import '../widgets/filter_popup.dart';
-import '../constants/constants.dart';
-import 'question_types/mcq_question_page.dart';
+import '../../controllers/question_controller.dart';
+import '../../models/question.dart';
+import 'widgets/get_started_card.dart';
+import 'widgets/question_card.dart';
+import 'widgets/topic_chip_scroll.dart';
+import 'widgets/search_add_bar.dart';
+import 'widgets/filter_popup.dart';
+import '../../constants/constants.dart';
+
 
 class PracticePage extends StatelessWidget {
   const PracticePage({super.key});

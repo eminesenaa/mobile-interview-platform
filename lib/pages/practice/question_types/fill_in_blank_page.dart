@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../models/question.dart';
-import '../../controllers/fill_blank_controller.dart';
+import '../../../models/question.dart';
+import '../../../controllers/fill_blank_controller.dart';
 
 class FillInBlankPage extends StatelessWidget {
   final Question question;
