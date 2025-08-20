@@ -20,11 +20,11 @@ import '../constants/colors.dart';
 // - constants/colors.dart (tema renkleri için; isme göre uyarlayın)
 // ==========================================================================
 
-import 'home_page.dart';
-import 'practice_page.dart';
-import 'simulation_page.dart';
-import 'library_page.dart';
-import 'profile_page.dart';
+import 'home/home_page.dart';
+import 'practice/practice_page.dart';
+import 'exam/exam_page.dart';
+import 'library/library_page.dart';
+import 'profile/profile_page.dart';
 
 class MainView extends StatefulWidget {
   const MainView({super.key});
@@ -41,7 +41,7 @@ class _MainViewState extends State<MainView> {
   final List<Widget> _screens = const [
     HomePage(),
     PracticePage(),
-    SimulationPage(),
+    ExamPage(),
     LibraryPage(),
     ProfilePage(),
   ];
@@ -56,7 +56,7 @@ class _MainViewState extends State<MainView> {
           items: const [
             TabItem(icon: Icons.home, title: 'Home'),
             TabItem(icon: FontAwesomeIcons.penToSquare, title: 'Practice'),
-            TabItem(icon: FontAwesomeIcons.stopwatch, title: 'Simulate'),
+            TabItem(icon: FontAwesomeIcons.stopwatch, title: 'Exam'),
             TabItem(icon: FontAwesomeIcons.bookOpen, title: 'Library'),
             TabItem(icon: FontAwesomeIcons.user, title: 'Profile'),
           ],
