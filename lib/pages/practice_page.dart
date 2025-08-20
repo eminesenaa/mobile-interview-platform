@@ -10,6 +10,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:interview_project/constants/colors.dart';
+import 'package:interview_project/pages/question_types/fill_in_blank_page.dart';
 import 'package:interview_project/pages/question_types/short_answer_page.dart';
 
 import '../controllers/question_controller.dart';
@@ -196,8 +197,8 @@ class PracticePage extends StatelessWidget {
                           case QuestionType.coding:
                             Get.snackbar('Coming Soon', 'Coding Editor coming soon!');
                             break;
-                          case QuestionType.fillInTheBlanks:
-                            Get.snackbar('Coming Soon', 'Fill-in-the-Blank screen not ready');
+                          case QuestionType.fillBlank:
+                            Get.to(() => FillInBlankPage(question: question));
                             break;
                           case QuestionType.debugging:
                             Get.snackbar('Coming Soon', 'Debugging environment coming soon!');
