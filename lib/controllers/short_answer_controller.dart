@@ -1,7 +1,7 @@
 import 'package:get/get.dart';
 import '../models/question.dart';
 // (opsiyonel) solved güncellemek istersen:
-// import 'question_controller.dart';
+// import 'practice_controller.dart';
 
 class ShortAnswerController extends GetxController {
   ShortAnswerController(this.question);
