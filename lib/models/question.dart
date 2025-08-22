@@ -54,6 +54,9 @@ class Question {
   final List<String>? options;
   final String? correctAnswer;
 
+  /// XP hesaplanan özellik (difficulty + type’a göre)
+  int get xp => _calculateXp();
+
   Question({
     required this.id,
     required this.title,
@@ -66,4 +69,30 @@ class Question {
     this.options,
     this.correctAnswer,
   });
+
+  // ---- XP Hesaplama Mantığı -------------------------------------------------
+  // Tip başına taban puanlar (kolayca değiştirilebilir)
+  static const Map<QuestionType, int> _typeBase = {
+    QuestionType.mcq: 5,
+    QuestionType.shortAnswer: 6,
+    QuestionType.fillBlank: 6,
+    QuestionType.debugging: 9,
+    QuestionType.coding: 10,
+  };
+
+  // Zorluk çarpanları (kolayca değiştirilebilir)
+  static const Map<Difficulty, double> _diffMul = {
+    Difficulty.easy: 1.00,
+    Difficulty.easy_medium: 1.25,
+    Difficulty.medium: 1.50,
+    Difficulty.medium_hard: 1.75,
+    Difficulty.hard: 2.00,
+  };
+
+  int _calculateXp() {
+    final base = _typeBase[type] ?? 5;
+    final mul = _diffMul[difficulty] ?? 1.0;
+    // İstersen minimum/maximum sınır koyabilirsin
+    return (base * mul).round();
+  }
 }
