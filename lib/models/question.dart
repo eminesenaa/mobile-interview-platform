@@ -1,15 +1,6 @@
 // ===================== File: lib/models/question.dart =====================
 // Purpose: Uygulamadaki soruların veri modelini tanımlar.
-//          JSON (API/Local) ile dönüştürülebilir, filtreleme/arayüz için kullanılır.
-//
-// Notlar:
-// - `enum` yapısı ile QuestionType / Difficulty gibi sabit değerler tutulur.
-// - `Question` class'ı: bir sorunun başlık, açıklama, zorluk, konu, etiketler,
-//   tip (MCQ, Coding vs.) gibi tüm alanlarını kapsar.
 // ==========================================================================
-
-/// Soru tipleri (ör. çoktan seçmeli, kodlama, vb.)
-// ===================== File: lib/models/question.dart =====================
 
 enum QuestionType {
   mcq,
@@ -45,7 +36,6 @@ class Question {
   final List<String>? options;
   final String? correctAnswer;
 
-  /// 🔹 LLM yorumlaması için ipucu
   final String? aiPromptHelper;
 
   int get xp => _calculateXp();
@@ -112,15 +102,30 @@ class Question {
 
     return Question(
       id: documentId,
-      title: data['title'] ?? data['Question Title'] ?? extra['Question Title'] ?? '',
-      description: data['description'] ?? data['Question Text'] ?? extra['Question Text'],
-      topic: data['topic'] ?? data['Category'] ?? extra['Category'] ?? 'General',
+      title: data['title'] ??
+          data['Question Title'] ??
+          extra['Question Title'] ??
+          '',
+      description: data['description'] ??
+          data['text'] ?? // 🔥 Firestore’daki asıl field
+          data['Question Text'] ??
+          data['question_text'] ??
+          extra['Question Text'] ??
+          '',
+      topic: data['topic'] ??
+          data['Category'] ??
+          extra['Category'] ??
+          'General',
       difficulty: _parseDifficulty(data['difficulty']),
       status: _parseStatus(data['status']),
       tags: data['tags'] != null
           ? List<String>.from(data['tags'])
           : (extra['Tags'] != null
-              ? extra['Tags'].toString().split(',').map((e) => e.trim()).toList()
+              ? extra['Tags']
+                  .toString()
+                  .split(',')
+                  .map((e) => e.trim())
+                  .toList()
               : []),
       type: _parseType(data['type'] ?? extra['Question Format']),
       options: opts,
@@ -162,9 +167,25 @@ class Question {
 
   static QuestionType _parseType(dynamic val) {
     if (val == null) return QuestionType.mcq;
-    return QuestionType.values.firstWhere(
-      (e) => e.name == val,
-      orElse: () => QuestionType.mcq,
-    );
+
+    final normalized =
+        val.toString().toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
+
+    switch (normalized) {
+      case 'mcq':
+        return QuestionType.mcq;
+      case 'short':
+      case 'shortanswer':
+        return QuestionType.shortAnswer;
+      case 'coding':
+        return QuestionType.coding;
+      case 'fill':
+      case 'fillblank':
+        return QuestionType.fillBlank;
+      case 'debugging':
+        return QuestionType.debugging;
+      default:
+        return QuestionType.mcq;
+    }
   }
 }

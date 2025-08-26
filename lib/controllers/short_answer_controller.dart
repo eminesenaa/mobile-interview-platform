@@ -1,52 +1,37 @@
+// ===================== File: lib/controllers/short_answer_controller.dart =====================
+// Purpose: Short Answer tipi sorular için controller.
+//          Kullanıcının cevabını tutar ve AI ile değerlendirilmesini sağlar.
+// ==========================================================================
+
 import 'package:get/get.dart';
 import '../models/question.dart';
-// (opsiyonel) solved güncellemek istersen:
-// import 'practice_controller.dart';
 
 class ShortAnswerController extends GetxController {
-  ShortAnswerController(this.question);
   final Question question;
 
-  final text = ''.obs;                 // kullanıcının yazdığı cevap
-  final attemptedWrongOnce = false.obs;
-  final revealAnswer = false.obs;
-  final isCorrect = false.obs;
+  ShortAnswerController(this.question);
 
-  void onChanged(String v) => text.value = v;
+  // 🔹 Kullanıcının yazdığı cevap
+  var answer = ''.obs;
 
-  void submit() {
-    final input = text.value.trim();
-    if (input.isEmpty) {
-      Get.snackbar('Oops', 'Lütfen bir cevap yaz 🙈',
-          snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 2));
-      return;
-    }
+  // 🔹 AI değerlendirme sonucu
+  var aiResult = ''.obs;
 
-    final ok = _norm(input) == _norm(question.correctAnswer ?? '');
-    if (ok) {
-      isCorrect.value = true;
-      // try { Get.find<QuestionController>().updateStatus(question.id, Status.solved); } catch (_) {}
-      Get.snackbar('Tebrikler 🎉', 'Doğru cevap!',
-          snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 2));
-    } else {
-      if (!attemptedWrongOnce.value) {
-        attemptedWrongOnce.value = true;
-        text.value = ''; // ilk yanlışta temizle
-        Get.snackbar('Tekrar dene ✍️', 'Ufak bir yazım hatası yapmış olabilirsin.',
-            snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 2));
-      } else {
-        Get.snackbar('Yanlış', 'İstersen "Show answer" ile doğru cevabı görebilirsin.',
-            snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 2));
-      }
-    }
+  /// Kullanıcının cevabını AI Prompt Helper ile birleştirip değerlendirme yapar
+  Future<void> submitAnswerWithAI() async {
+    final userAns = answer.value.trim();
+    if (userAns.isEmpty) return;
+
+    // 🔹 Prompt hazırlama
+    final prompt = """
+Question: ${question.description}
+AI Prompt Helper: ${question.aiPromptHelper}
+User Answer: $userAns
+""";
+
+    // 🔹 Burada LLM API çağrısı yapılmalı (ör. OpenAI, Gemini, vs.)
+    // Şimdilik mock cevap
+    aiResult.value =
+        "✅ AI değerlendirmesi (mock):\nCevabın: \"$userAns\"\n\nPrompt Helper ipucu: ${question.aiPromptHelper}";
   }
-
-  void reset() {
-    text.value = '';
-    attemptedWrongOnce.value = false;
-    revealAnswer.value = false;
-    isCorrect.value = false;
-  }
-
-  String _norm(String s) => s.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
 }
