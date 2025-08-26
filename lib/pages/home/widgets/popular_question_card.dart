@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../practice/question_types/mcq_question_page.dart';
-import 'package:interview_project/pages/practice/question_types/fill_in_blank_page.dart';
-import 'package:interview_project/pages/practice/question_types/short_answer_page.dart';
+
 import '../../../models/question.dart';
+import '../../../navigation/question_navigator.dart';
 
 class PopularQuestionCard extends StatelessWidget {
   final Question question;
@@ -25,21 +24,7 @@ class PopularQuestionCard extends StatelessWidget {
     required double this.width,
   }) : padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 16);
 
-  void _openQuestion() {
-    switch (question.type) {
-      case QuestionType.mcq:
-        Get.to(() => McqQuestionPage(question: question));
-        break;
-      case QuestionType.shortAnswer:
-        Get.to(() => ShortAnswerPage(question: question));
-        break;
-      case QuestionType.fillBlank:
-        Get.to(() => FillInBlankPage(question: question));
-        break;
-      default:
-        Get.snackbar('Coming soon', 'This question type is not implemented yet');
-    }
-  }
+  void _openQuestion() => QuestionNavigator.open(question);
 
   @override
   Widget build(BuildContext context) {

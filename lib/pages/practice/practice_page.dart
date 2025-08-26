@@ -10,15 +10,17 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:interview_project/constants/colors.dart';
-import 'package:interview_project/pages/practice/question_types/fill_in_blank_page.dart';
-import 'package:interview_project/pages/practice/question_types/mcq_question_page.dart';
-import 'package:interview_project/pages/practice/question_types/short_answer_page.dart';
+
 import 'package:interview_project/pages/practice/widgets/todays_question_card.dart';
 
+import '../../navigation/question_navigator.dart';
+import '../question_types/fill_in_blank_page.dart';
+import '../question_types/mcq_question_page.dart';
+import '../question_types/short_answer_page.dart';
 import 'controllers/practice_controller.dart';
 import '../../models/question.dart';
 import 'widgets/get_started_card.dart';
-import 'widgets/question_card.dart';
+import '../../widgets/question_card.dart';
 import 'widgets/topic_chip_scroll.dart';
 import 'widgets/search_add_bar.dart';
 import 'widgets/filter_popup.dart';
@@ -200,23 +202,7 @@ class PracticePage extends StatelessWidget {
   }
 
   // Tip bazlı yönlendirme
-  void _openQuestion(Question q) {
-    switch (q.type) {
-      case QuestionType.mcq:
-        Get.to(() => McqQuestionPage(question: q));
-        break;
-      case QuestionType.shortAnswer:
-        Get.to(() => ShortAnswerPage(question: q));
-        break;
-      case QuestionType.fillBlank:
-        Get.to(() => FillInBlankPage(question: q));
-        break;
-      default:
-        Get.snackbar('Not Implemented', 'This type is not yet supported.',
-            snackPosition: SnackPosition.BOTTOM,
-            duration: const Duration(seconds: 2));
-    }
-  }
+  void _openQuestion(Question q) => QuestionNavigator.open(q);
 }
 
 class _EmptyState extends StatelessWidget {
