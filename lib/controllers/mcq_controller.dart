@@ -2,131 +2,93 @@ import 'package:get/get.dart';
 import '../models/question.dart';
 
 /// Çoktan Seçmeli (MCQ) controller
-/// - Seçim, doğrulama, reset akışı
-/// - Hem index tabanlı (correctIndex) hem string tabanlı (correctAnswer) kontrolü destekler
+/// - Kullanıcı seçimi
+/// - Submit sonrası hem local kontrol (doğru/yanlış renklendirme)
+/// - Hem de LLM yorumlaması (aiPromptHelper ile)
 class McqController extends GetxController {
   McqController(this.question, {this.shuffleOptions = false});
 
   final Question question;
   final bool shuffleOptions;
 
-  /// Görüntülenecek seçenekler (gerekirse karıştırılmış)
   final options = <String>[].obs;
+  final selectedIndex = (-1).obs;
 
-  /// Kullanıcının seçtiği seçenek index'i (options içinde)
-  final selectedIndex = RxnInt();
-
-  /// Doğru/yanlış durumu
   final isSubmitted = false.obs;
   final isCorrect = false.obs;
 
-  /// Eğer question doğru cevabı index ile veriyorsa (örn: correctIndex),
-  /// bu alana normalize ederiz. Yoksa string tabanlı kontrol yapılır.
-  int? _correctIndexInOptions;
+  final aiFeedback = "".obs;
+
+  int? _correctIndex;
 
   @override
   void onInit() {
     super.onInit();
 
-    // 1) Options’u hazırla
     final base = (question.options ?? <String>[]).map((e) => e.trim()).toList();
-    if (shuffleOptions) {
-      base.shuffle();
-    }
+    if (shuffleOptions) base.shuffle();
     options.assignAll(base);
 
-    // 2) Doğru index'i belirlemeye çalış (varsa)
-    //   - Öncelik: question.correctIndex
-    //   - Alternatif: question.correctAnswer (string) -> options içinde bul
-    final idxFromModel = _readCorrectIndexFromModel();
-    if (idxFromModel != null && idxFromModel >= 0 && idxFromModel < options.length) {
-      // Eğer shuffle yaptıysan index mapping zaten options dizisine göre
-      _correctIndexInOptions = idxFromModel;
-    } else {
-      // String tabanlı eşleştirme (case-insensitive/trim)
-      final ans = (question.correctAnswer ?? '').trim();
-      if (ans.isNotEmpty) {
-        final normAns = _norm(ans);
-        final found = options.indexWhere((o) => _norm(o) == normAns);
-        _correctIndexInOptions = found == -1 ? null : found;
-      } else {
-        _correctIndexInOptions = null;
-      }
+    // Doğru şıkkın indexini bul
+    final ans = (question.correctAnswer ?? '').trim();
+    if (ans.isNotEmpty) {
+      final idx = options.indexWhere(
+          (o) => o.trim().toLowerCase() == ans.toLowerCase());
+      _correctIndex = idx == -1 ? null : idx;
     }
+
+    print("Options: $options");
+    print("Correct Answer (from Firestore): ${question.correctAnswer}");
+    print("Correct Index: $_correctIndex");
+    print("AI Helper Prompt: ${question.aiPromptHelper}");
   }
 
-  /// Kullanıcı bir seçenek seçti
   void select(int index) {
-    if (isSubmitted.value) return; // submit sonrası kilitliyse değiştirme
+    if (isSubmitted.value) return;
     selectedIndex.value = index;
   }
 
-  /// Cevabı kontrol et
-  void submit() {
-    if (selectedIndex.value == null) {
+  Future<void> submit() async {
+    if (selectedIndex.value == -1) {
       Get.snackbar('Seçim yok', 'Lütfen bir seçenek seç.',
-          snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 2));
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 2));
       return;
     }
 
-    final ok = _checkCorrect(selectedIndex.value!);
-    isCorrect.value = ok;
+    // ✅ local doğru/yanlış kontrolü
+    final chosen = options[selectedIndex.value];
+    final correct = question.correctAnswer ?? '';
+    isCorrect.value =
+        chosen.trim().toLowerCase() == correct.trim().toLowerCase();
+
     isSubmitted.value = true;
 
-    Get.snackbar(
-      ok ? 'Tebrikler 🎉' : 'Yanlış',
-      ok ? 'Doğru cevap!' : 'Bir kez daha dene ya da doğru cevabı kontrol et.',
-      snackPosition: SnackPosition.BOTTOM,
-      duration: const Duration(seconds: 2),
-    );
+    // 🔹 AI yorumlama
+    final helper = question.aiPromptHelper ??
+        "Evaluate the selected answer logically. Explain if it is correct or not.";
+    final prompt =
+        "Question: ${question.title}\nOptions: ${options.join(", ")}\nUser Answer: $chosen\nHelper: $helper";
 
-    // (Opsiyonel) doğruysa solved işaretle
-    // try { Get.find<QuestionController>().updateStatus(question.id, Status.solved); } catch (_) {}
+    final response = await _fakeLLMResponse(chosen, helper);
+    aiFeedback.value = response;
   }
 
-  /// Baştan dene
-  void reset() {
-    selectedIndex.value = null;
-    isSubmitted.value = false;
-    isCorrect.value = false;
-  }
-
-  /// UI renklendirme için: bu index doğru mu?
+  /// UI renklendirme için
   bool isOptionCorrect(int index) {
-    if (_correctIndexInOptions != null) {
-      return index == _correctIndexInOptions;
-    }
-    // String tabanlı kontrol fallback
-    final ans = (question.correctAnswer ?? '').trim();
-    if (ans.isEmpty) return false;
-    return _norm(options[index]) == _norm(ans);
+    if (_correctIndex == null) return false;
+    return index == _correctIndex;
   }
 
-  /// Doğru seçeneğin index'i (varsa) – highlight için işine yarar
-  int? get correctIndex => _correctIndexInOptions;
+  int? get correctIndex => _correctIndex;
 
-  // --- internal helpers ---
-
-  bool _checkCorrect(int chosenIndex) {
-    if (_correctIndexInOptions != null) {
-      return chosenIndex == _correctIndexInOptions;
-    }
-    final ans = (question.correctAnswer ?? '').trim();
-    if (ans.isEmpty) return false;
-    return _norm(options[chosenIndex]) == _norm(ans);
-  }
-
-  int? _readCorrectIndexFromModel() {
-    // Modelinde correctIndex alanı varsa buradan çekmek istersin.
-    // Örn: return question.correctIndex;  // yoksa null döndür
-    try {
-      final dynamic maybeIndex = (question as dynamic).correctIndex;
-      if (maybeIndex is int) return maybeIndex;
-      return null;
-    } catch (_) {
-      return null;
+  Future<String> _fakeLLMResponse(String chosen, String helper) async {
+    await Future.delayed(const Duration(seconds: 1));
+    final correct = question.correctAnswer ?? "";
+    if (chosen.toLowerCase().trim() == correct.toLowerCase().trim()) {
+      return "✅ Doğru! $helper";
+    } else {
+      return "❌ Yanlış. Doğru cevap: $correct\n$helper";
     }
   }
-
-  String _norm(String s) => s.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
 }
