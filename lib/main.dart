@@ -1,40 +1,37 @@
-// ===================== File: lib/main.dart =====================
-// Purpose: Uygulamanın giriş noktası. GetX ile sarmalanmış MaterialApp
-//          oluşturarak `MainView`'i başlangıç sayfası olarak açar.
-//
-// Tech stack:
-// - Flutter Material
-// - GetX (navigation, state management, snackbar vs. için)
-//
-// Notlar:
-// - `GetMaterialApp`, `MaterialApp`'in GetX özellikli versiyonudur.
-// - Routing yapısı büyürse `getPages` ve `initialRoute` kullanabilirsiniz.
-// ===============================================================
-
+// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'controllers/question_controller.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+
 import 'package:interview_project/pages/main_view.dart';
+import 'controllers/question_controller.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
-  // ⬇️ Global olarak kaydet (tüm sayfalarda kullanılacak)
-  Get.put(QuestionController(), permanent: true);
+  // Controller'i Firebase hazır olduktan SONRA enjekte et
+  Get.put<QuestionController>(QuestionController(), permanent: true);
 
   runApp(const MyApp());
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const GetMaterialApp(
+    return GetMaterialApp(
       title: 'Mock Interview App',
       debugShowCheckedModeBanner: false,
-      home: MainView(),
+      initialBinding: BindingsBuilder(() {
+        Get.put<QuestionController>(QuestionController(), permanent: true);
+      }),
+      home: const MainView(),
     );
   }
 }
-

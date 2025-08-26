@@ -5,6 +5,7 @@
 // =========================================================================================================
 
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../models/question.dart';
 
 class PracticeController extends GetxController {
@@ -79,7 +80,6 @@ class PracticeController extends GetxController {
     if (status != null) selectedStatus.value = status;
   }
 
-
   /// (Önceden var olan) filtrelenmiş listeden rastgele bir soru
   Question? getRandomQuestion() {
     final list = filteredQuestions;
@@ -87,6 +87,7 @@ class PracticeController extends GetxController {
     list.shuffle();
     return list.first;
   }
+
   /// Soru listesini yükler (ör: mock data veya API çağrısı)
   void loadDummyQuestions() {
     // TODO: Burayı backend API’den veri çekme ile değiştirebilirsin.
@@ -124,7 +125,7 @@ class PracticeController extends GetxController {
         type: QuestionType.coding,
       ),
       Question(
-        id: 'short1',
+        id: 'short2',
         title: 'What is the time complexity of binary search?',
         topic: 'Algorithms',
         description: 'Classic question on search algorithms.',
@@ -144,9 +145,8 @@ class PracticeController extends GetxController {
         tags: ['flutter', 'basics'],
         type: QuestionType.fillBlank,     // switch’te FillInBlankPage’e yönlendir
         correctAnswer: 'framework',       // doğru cevap
-        options: ['language', 'sdk', 'framework', 'package', 'library'], // decoy + doğru
+        options: ['language', 'sdk', 'framework', 'package', 'library'],
       ),
-
     ]);
   }
 
@@ -190,5 +190,23 @@ class PracticeController extends GetxController {
 
   void onRandomQuestion() {
     // TODO: rastgele soruya yönlendirme (UI tarafında getRandomQuestion() sonucu ile)
+  }
+
+  // ===========================
+  // 🔹 FIREBASE ENTEGRASYONU
+  // ===========================
+  Future<void> loadQuestionsFromFirebase() async {
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance.collection("questions").get();
+
+      final items = snapshot.docs.map((doc) {
+        return Question.fromFirestore(doc.data(), doc.id);
+      }).toList();
+
+      setAllQuestions(items);
+    } catch (e) {
+      print("🔥 Firestore load error: $e");
+    }
   }
 }

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1034529822481",
+    "project_id": "mipp-4fcd9",
+    "storage_bucket": "mipp-4fcd9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1034529822481:android:7a75056c9a58bb8a2c9eb0",
+        "android_client_info": {
+          "package_name": "com.example.interview_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4gWO2Wxmze_T2niaEUw-ddYbs9bhnv6M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

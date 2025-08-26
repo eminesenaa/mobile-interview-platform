@@ -4,25 +4,10 @@
 /// Amaç:
 /// - Uygulama genelinde (Home, Practice, Exam, Progress vb.) ortak soru havuzunu
 ///   yönetmek. Erişim tek bir yerden olsun ve tekrar eden kod olmasın.
-///
-/// Veri Kaynağı:
-/// - İlk sürümde lokal/Mock veri seti kullanılabilir.
-/// - Üretimde Firebase (Cloud Firestore veya Realtime DB) üzerinden okunacak.
-///   Aşağıdaki `fetchFromFirebase()` bu iş için ayrılmıştır; içi bilerek boştur.
-///   Yorumlarda nasıl entegre edileceğine dair kısa yönergeler mevcut.
-///
-/// Kullanım:
-/// - `Get.put(QuestionController())` ile uygulama açılışında oluşturup,
-///   sayfalarda `Get.find<QuestionController>()` ile erişebilirsin.
-/// - `setQuestions(mockList)` ile geçici veri basıp geliştirme yapabilirsin.
-///
-/// Not:
-/// - Model sınıfının adları/propları projendeki `Question` tanımıyla uyumlu
-///   olacak şekilde kullanıldı. Gerekirse küçük isim düzeltmeleri yapabilirsin.
 /// ============================================================================
-
 import 'dart:math';
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/question.dart';
 
 class QuestionController extends GetxController {
@@ -36,20 +21,13 @@ class QuestionController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    loadDummyQuestions(); // DEV: mock veri
-    // PROD: fetchFromFirebase();
-    // Üretimde: uygulama başlarken Firebase'den çekmek için açarsın.
-    // fetchFromFirebase();
+    fetchFromFirebase();   // 🔹 Artık uygulama açıldığında Firestore’dan çekiyor
   }
 
   /// ----------------------------------------------------------------------------
-  /// Firebase'den verileri çek (PLACEHOLDER)
+  /// Firebase'den verileri çek
   /// ----------------------------------------------------------------------------
   Future<void> fetchFromFirebase() async {
-    /*
-    // Örnek Firestore entegrasyonu (yorum, içi bilerek boş):
-    // import 'package:cloud_firestore/cloud_firestore.dart';
-
     try {
       isLoading.value = true;
       error.value = '';
@@ -60,11 +38,7 @@ class QuestionController extends GetxController {
 
       final items = snap.docs.map((d) {
         final data = d.data();
-        // Question.fromJson / fromMap senin modeline göre
-        return Question.fromJson({
-          'id': d.id,
-          ...data,
-        });
+        return Question.fromFirestore(data, d.id);
       }).toList();
 
       allQuestions.assignAll(items);
@@ -73,11 +47,10 @@ class QuestionController extends GetxController {
     } finally {
       isLoading.value = false;
     }
-    */
   }
 
   /// ----------------------------------------------------------------------------
-  /// Dummy / Mock veri yükle (statik)
+  /// Dummy / Mock veri (geliştirme amaçlı)
   /// ----------------------------------------------------------------------------
   void loadDummyQuestions() {
     allQuestions.clear();
@@ -93,6 +66,7 @@ class QuestionController extends GetxController {
         type: QuestionType.mcq,
         options: ['Framework', 'IDE', 'Database', 'Language'],
         correctAnswer: 'Framework',
+        aiPromptHelper: "Explain why Flutter is categorized as a framework.",
       ),
       Question(
         id: 'short1',
@@ -103,43 +77,12 @@ class QuestionController extends GetxController {
         status: Status.todo,
         tags: ['variables', 'final'],
         type: QuestionType.shortAnswer,
-      ),
-      Question(
-        id: 'code1',
-        title: 'Write a function to reverse a linked list.',
-        topic: 'Data Structures',
-        description: "Hard level data structure question.",
-        difficulty: Difficulty.hard,
-        status: Status.todo,
-        tags: ['linked list'],
-        type: QuestionType.coding,
-      ),
-      Question(
-        id: 'short2',
-        title: 'What is the time complexity of binary search?',
-        topic: 'Algorithms',
-        description: 'Classic question on search algorithms.',
-        difficulty: Difficulty.easy,
-        status: Status.todo,
-        tags: ['binary search', 'time complexity'],
-        type: QuestionType.shortAnswer,
-        correctAnswer: 'O(log n)',
-      ),
-      Question(
-        id: 'fib_single_1',
-        title: 'Fill the blank',
-        description: 'Flutter is a ***.',
-        topic: 'Flutter',
-        difficulty: Difficulty.easy,
-        status: Status.todo,
-        tags: ['flutter', 'basics'],
-        type: QuestionType.fillBlank,
-        correctAnswer: 'framework',
-        options: ['language', 'sdk', 'framework', 'package', 'library'],
+        aiPromptHelper: "Clarify immutability in Dart using 'final'.",
       ),
     ]);
   }
-  /// Geliştirme sırasında veya testte dışarıdan set edebilmek için
+
+  /// Geliştirme sırasında dışarıdan set edebilmek için
   void setQuestions(List<Question> questions) {
     allQuestions.assignAll(questions);
   }
@@ -149,14 +92,14 @@ class QuestionController extends GetxController {
       allQuestions.where((q) => q.difficulty == d).toList();
 
   List<Question> byTopic(String topic) =>
-      allQuestions.where((q) => (q.topic ?? '').toLowerCase() == topic.toLowerCase()).toList();
+      allQuestions.where((q) => q.topic.toLowerCase() == topic.toLowerCase()).toList();
 
   List<Question> search(String term) {
     final t = term.trim().toLowerCase();
     return allQuestions.where((q) {
-      final title = (q.title).toLowerCase();
-      final topic = (q.topic ?? '').toLowerCase();
-      final tags  = (q.tags ?? <String>[]).map((e) => e.toLowerCase()).join(' ');
+      final title = q.title.toLowerCase();
+      final topic = q.topic.toLowerCase();
+      final tags = q.tags.map((e) => e.toLowerCase()).join(' ');
       return title.contains(t) || topic.contains(t) || tags.contains(t);
     }).toList();
   }
@@ -176,17 +119,16 @@ class QuestionController extends GetxController {
       randomByDifficulty(Difficulty.hard),
     ].whereType<Question>().toList();
 
-    // aynı soru iki kez seçilmesin diye benzersizleştir
     final seen = <String>{};
     final unique = <Question>[];
     for (final q in picks) {
-      final key = q.id?.toString() ?? q.title; // modeline göre id alanını kullan
+      final key = q.id;
       if (seen.add(key)) unique.add(q);
     }
     return unique;
   }
 
-  /// Basit istatistikler (Progress için işine yarayabilir)
+  /// Basit istatistikler
   int get totalCount => allQuestions.length;
 
   Map<Difficulty, int> countByDifficulty() {

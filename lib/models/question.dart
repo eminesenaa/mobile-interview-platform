@@ -9,16 +9,16 @@
 // ==========================================================================
 
 /// Soru tipleri (ör. çoktan seçmeli, kodlama, vb.)
+// ===================== File: lib/models/question.dart =====================
+
 enum QuestionType {
   mcq,
   shortAnswer,
   coding,
   fillBlank,
   debugging,
-  // TODO: İleride yeni tip eklenirse buraya eklenecek.
 }
 
-/// Soru zorluk seviyeleri
 enum Difficulty {
   easy,
   easy_medium,
@@ -32,15 +32,6 @@ enum Status {
   solved,
 }
 
-/// Bir soru nesnesini temsil eder.
-/// - `id`: veritabanı veya local JSON içindeki benzersiz kimlik
-/// - `title`: soru başlığı
-/// - `description`: açıklama / soru metni
-/// - `topic`: soru kategorisi (ör. "Algorithms", "OOP", "Networking")
-/// - `difficulty`: kolay-orta-zor
-/// - `status`: çözülme durumu (örn. "unsolved", "in-progress", "solved")
-/// - `tags`: ekstra anahtar kelimeler (örn. ["array", "binary search"])
-/// - `type`: QuestionType (mcq, coding, essay)
 class Question {
   final String id;
   final String title;
@@ -54,7 +45,9 @@ class Question {
   final List<String>? options;
   final String? correctAnswer;
 
-  /// XP hesaplanan özellik (difficulty + type’a göre)
+  /// 🔹 LLM yorumlaması için ipucu
+  final String? aiPromptHelper;
+
   int get xp => _calculateXp();
 
   Question({
@@ -68,10 +61,9 @@ class Question {
     required this.type,
     this.options,
     this.correctAnswer,
+    this.aiPromptHelper,
   });
 
-  // ---- XP Hesaplama Mantığı -------------------------------------------------
-  // Tip başına taban puanlar (kolayca değiştirilebilir)
   static const Map<QuestionType, int> _typeBase = {
     QuestionType.mcq: 5,
     QuestionType.shortAnswer: 6,
@@ -80,7 +72,6 @@ class Question {
     QuestionType.coding: 10,
   };
 
-  // Zorluk çarpanları (kolayca değiştirilebilir)
   static const Map<Difficulty, double> _diffMul = {
     Difficulty.easy: 1.00,
     Difficulty.easy_medium: 1.25,
@@ -92,7 +83,88 @@ class Question {
   int _calculateXp() {
     final base = _typeBase[type] ?? 5;
     final mul = _diffMul[difficulty] ?? 1.0;
-    // İstersen minimum/maximum sınır koyabilirsin
     return (base * mul).round();
+  }
+
+  // 🔹 Firestore dönüşümü
+  factory Question.fromFirestore(Map<String, dynamic> data, String documentId) {
+    final extra = data['extra'] != null
+        ? Map<String, dynamic>.from(data['extra'])
+        : <String, dynamic>{};
+
+    List<String> opts = [];
+    if (data['options'] != null) {
+      opts = List<String>.from(data['options']);
+    } else if (extra['options'] != null) {
+      opts = List<String>.from(extra['options']);
+    } else {
+      for (var key in ['Option A', 'Option B', 'Option C', 'Option D']) {
+        if (data[key] != null) opts.add(data[key]);
+        if (extra[key] != null) opts.add(extra[key]);
+      }
+    }
+
+    final correct = data['correctAnswer'] ??
+        data['Correct Option'] ??
+        extra['Correct Option'];
+
+    final helper = data['aiPromptHelper'] ?? extra['AI Prompt Helper'];
+
+    return Question(
+      id: documentId,
+      title: data['title'] ?? data['Question Title'] ?? extra['Question Title'] ?? '',
+      description: data['description'] ?? data['Question Text'] ?? extra['Question Text'],
+      topic: data['topic'] ?? data['Category'] ?? extra['Category'] ?? 'General',
+      difficulty: _parseDifficulty(data['difficulty']),
+      status: _parseStatus(data['status']),
+      tags: data['tags'] != null
+          ? List<String>.from(data['tags'])
+          : (extra['Tags'] != null
+              ? extra['Tags'].toString().split(',').map((e) => e.trim()).toList()
+              : []),
+      type: _parseType(data['type'] ?? extra['Question Format']),
+      options: opts,
+      correctAnswer: correct,
+      aiPromptHelper: helper,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'title': title,
+      'description': description,
+      'topic': topic,
+      'difficulty': difficulty.name,
+      'status': status.name,
+      'tags': tags,
+      'type': type.name,
+      'options': options,
+      'correctAnswer': correctAnswer,
+      'aiPromptHelper': aiPromptHelper,
+    };
+  }
+
+  static Difficulty _parseDifficulty(dynamic val) {
+    if (val == null) return Difficulty.easy;
+    return Difficulty.values.firstWhere(
+      (e) => e.name == val,
+      orElse: () => Difficulty.easy,
+    );
+  }
+
+  static Status _parseStatus(dynamic val) {
+    if (val == null) return Status.todo;
+    return Status.values.firstWhere(
+      (e) => e.name == val,
+      orElse: () => Status.todo,
+    );
+  }
+
+  static QuestionType _parseType(dynamic val) {
+    if (val == null) return QuestionType.mcq;
+    return QuestionType.values.firstWhere(
+      (e) => e.name == val,
+      orElse: () => QuestionType.mcq,
+    );
   }
 }

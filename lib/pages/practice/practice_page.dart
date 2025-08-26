@@ -35,6 +35,9 @@ class PracticePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.put(PracticeController());
 
+    /// 🔹 Firebase’den soruları yükle
+    controller.loadQuestionsFromFirebase();
+
     final bottomInset = MediaQuery.of(context).padding.bottom + 12;
 
     return Scaffold(
@@ -94,7 +97,6 @@ class PracticePage extends StatelessWidget {
                   padding: const EdgeInsets.all(12),
                   child: TodaysQuestionCard(
                     question: controller.todaysQuestion,
-                    // henüz yönlendirme bağlanmadıysa boş bırakılabilir
                     // onSolve: () => _openQuestion(controller.todaysQuestion!),
                   ),
                 ),
@@ -110,7 +112,7 @@ class PracticePage extends StatelessWidget {
                     child: Column(
                       children: [
                         TopicChipScroll(
-                          topics: ['All', 'Data Structures', 'Algorithms'],
+                          topics: controller.allTopics,
                           selectedTopic: controller.selectedTopic.value,
                           onTopicSelected: (topic) {
                             controller.updateFilters(topic: topic);
@@ -127,16 +129,15 @@ class PracticePage extends StatelessWidget {
                               context: context,
                               shape: const RoundedRectangleBorder(
                                 borderRadius:
-                                BorderRadius.vertical(top: Radius.circular(20)),
+                                    BorderRadius.vertical(top: Radius.circular(20)),
                               ),
                               builder: (_) {
                                 return FilterPopup(
-                                  topics: ['All', 'Data Structures', 'Algorithms'],
+                                  topics: controller.allTopics,
                                   difficulties: [null, ...Difficulty.values],
                                   statuses: [null, ...Status.values],
                                   selectedTopic: controller.selectedTopic.value,
-                                  selectedDifficulty:
-                                  controller.selectedDifficulty.value,
+                                  selectedDifficulty: controller.selectedDifficulty.value,
                                   selectedStatus: controller.selectedStatus.value,
                                   onApply: ({
                                     required topic,
@@ -153,11 +154,11 @@ class PracticePage extends StatelessWidget {
                               },
                             );
                           },
-                          onAddPressed: () {},
+                          onAddPressed: () => controller.onAddQuestion(),
                           onRandomPressed: () {
                             final random = controller.getRandomQuestion();
                             if (random != null) {
-                              Get.snackbar("Random Question", random.title);
+                              _openQuestion(random);
                             }
                           },
                           canAdd: controller.filteredQuestions.isNotEmpty,
@@ -180,8 +181,7 @@ class PracticePage extends StatelessWidget {
                   padding: EdgeInsets.fromLTRB(10, 10, 10, bottomInset),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                        // separated efekti: çift indeks item, tek indeks spacer
+                      (context, index) {
                         if (index.isOdd) return const SizedBox(height: 10);
                         final itemIndex = index ~/ 2;
                         final q = questions[itemIndex];
