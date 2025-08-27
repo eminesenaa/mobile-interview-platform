@@ -2,23 +2,26 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
 
-import 'package:interview_project/pages/main_view.dart';
+import 'firebase_options.dart';
+import 'pages/main_view.dart';
 import 'controllers/question_controller.dart';
+
+// AI wrapper
+import 'services/ai/ai_service.dart';
+
+Future<void> _initAi() async {
+  // OpenAIService statik çalışıyor; yalnızca wrapper'ı DI'a koymamız yeterli
+  Get.put<AiService>(AiService(), permanent: true);
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Controller'i Firebase hazır olduktan SONRA enjekte et
-  Get.put<QuestionController>(QuestionController(), permanent: true);
-
+  await _initAi();
   runApp(const MyApp());
 }
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

@@ -14,7 +14,7 @@ import 'package:get/get.dart';
 
 import '../../../constants/constants.dart';
 import '../../../models/question.dart';
-import '../../../controllers/mcq_controller.dart';
+import 'controllers/mcq_controller.dart';
 
 
 class McqQuestionPage extends StatelessWidget {

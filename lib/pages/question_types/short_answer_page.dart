@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../models/question.dart';
-import '../../../controllers/short_answer_controller.dart';
+import 'controllers/short_answer_controller.dart';
 
 class ShortAnswerPage extends StatelessWidget {
   final Question question;
@@ -52,33 +52,39 @@ class ShortAnswerPage extends StatelessWidget {
               const SizedBox(height: 16),
 
               // 🔹 Tek seferlik gönder butonu
-              Obx(() => ElevatedButton(
-                    onPressed: c.answer.value.trim().isEmpty
-                        ? null
-                        : () => c.submitAnswerWithAI(),
-                    child: const Text("Send"),
-                  )),
+              Obx(() => FilledButton(
+                onPressed: c.isEvaluating.value ? null : () => c.submit(),
+                child: c.isEvaluating.value
+                    ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text('Send'),
+              )),
+
 
               const SizedBox(height: 24),
 
               // 🔹 AI değerlendirme çıktısı
               Obx(() {
-                if (c.aiResult.value.isEmpty) {
-                  return const SizedBox.shrink();
-                }
-                return Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    c.aiResult.value,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
+                if (c.aiFeedback.value.isEmpty) return const SizedBox.shrink();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 12),
+                    const Divider(),
+                    if (c.aiMeta.value != null) Row(
+                      children: [
+                        Chip(label: Text(c.aiMeta.value!.correct ? 'Correct' : 'Incorrect')),
+                        if (c.aiMeta.value!.score != null) ...[
+                          const SizedBox(width: 8),
+                          Chip(label: Text('Score: ${c.aiMeta.value!.score}/5')),
+                        ],
+                      ],
+                    ),
+                    if (c.aiMeta.value != null) const SizedBox(height: 8),
+                    Text(c.aiFeedback.value),
+                  ],
                 );
               }),
+
             ],
           ),
         ),
