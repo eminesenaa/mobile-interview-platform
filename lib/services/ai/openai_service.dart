@@ -17,12 +17,43 @@ class GradeResult {
   });
 
   factory GradeResult.fromMap(Map<String, dynamic> m) {
+    // Küçük Şema
+    if (m.containsKey('correct')) {
+      return GradeResult(
+        correct: m['correct'] == true,
+        expected: (m['expected'] ?? '').toString(),
+        reason: (m['reason'] ?? '').toString(),
+      );
+    }
+
+    // Detaylı Şema
+    if (m.containsKey('subscores') || m.containsKey('decision')) {
+      final subscores = m['subscores'] as Map<String, dynamic>? ?? {};
+      final correctnessScore = subscores['correctness'] ?? 0;
+      final decision = (m['decision'] ?? '').toString();
+
+      final strengths = (m['strengths'] is List)
+          ? (m['strengths'] as List).join(", ")
+          : "";
+      final weaknesses = (m['weaknesses'] is List)
+          ? (m['weaknesses'] as List).join(", ")
+          : "";
+
+      return GradeResult(
+        correct: (decision.toLowerCase() == "advance") || (correctnessScore == 5),
+        expected: "Based on scoring (correctness=$correctnessScore, decision=$decision)",
+        reason: "Strengths: $strengths; Weaknesses: $weaknesses",
+      );
+    }
+
+    // Fallback
     return GradeResult(
-      correct: (m['correct'] is bool) ? m['correct'] as bool : false,
-      expected: (m['expected'] ?? '').toString(),
-      reason: (m['reason'] ?? '').toString(),
+      correct: false,
+      expected: "",
+      reason: "Unrecognized schema: $m",
     );
   }
+
 
   static GradeResult fromSafeFallback(String rawText) {
     // JSON gelmediyse ama yine de UI çökmemesi için anlamlı bir fallback
@@ -37,7 +68,7 @@ class GradeResult {
 }
 
 class OpenAIService {
-  static const _apiKey = "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";
+  static const _apiKey = "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";
   static const _endpoint = 'https://api.openai.com/v1/chat/completions';
   static const _model = 'gpt-4o-mini';
 
@@ -90,7 +121,6 @@ class OpenAIService {
     required String userAnswer,
     Duration timeout = const Duration(seconds: 45),
   }) async {
-    _ensureApiKey();
 
     final body = {
       "model": _model,
@@ -124,7 +154,6 @@ class OpenAIService {
     required String candidateAnswer,
     Duration timeout = const Duration(seconds: 60),
   }) async {
-    _ensureApiKey();
 
     final template = await _loadPromptTemplate();
     final systemRole = _buildSystemRole(category);
@@ -193,6 +222,8 @@ class OpenAIService {
   /// JSON mode’a uygun, savunmacı ayrıştırma + debug
   static GradeResult _extractGradeResult(http.Response res) {
     final raw = res.body;
+    //Nasıl bir cevap geldi printi:
+    //print(raw);
     Map<String, dynamic> data;
 
     try {
@@ -219,6 +250,14 @@ class OpenAIService {
     try {
       final parsed = jsonDecode(text);
       if (parsed is Map<String, dynamic>) {
+
+        /*
+        doğru parse'landı mı diye kontrol etme printleri
+        print(GradeResult.fromMap(parsed).correct);
+        print(GradeResult.fromMap(parsed).expected);
+        print(GradeResult.fromMap(parsed).reason);
+        */
+
         return GradeResult.fromMap(parsed);
       } else {
         // bazı durumlarda model yine de açıklama basarsa:
@@ -245,15 +284,6 @@ class OpenAIService {
         }
       }
       return GradeResult.fromSafeFallback(text);
-    }
-  }
-
-  static void _ensureApiKey() {
-    if (_apiKey.isEmpty) {
-      // Bu hatayı UI'de net görmek, 401 şüphesini ayıklamak için önemli
-      throw Exception(
-        'Missing OPENAI_API_KEY. Run with: --dart-define=OPENAI_API_KEY=sk-XXXX',
-      );
     }
   }
 }
