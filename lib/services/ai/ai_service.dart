@@ -9,27 +9,30 @@ class AiService {
   Future<AiEvaluateResult> evaluate({
     required Question question,
     required dynamic userAnswer,
+    //Belki eklenebilir, dışardan almak için: required PromptType promptType
   }) async {
-    // OpenAIService -> statik gradeWithTemplate kullanıyoruz
     final meta = _toMeta(question);
     final candidate = _candidateFromAnswer(question, userAnswer);
     final category = _mapTopicToCategory(question.topic);
 
+    // burada karar verilecek: training mi interview mu
+    const promptType = PromptType.training;
+
     final result = await OpenAIService.gradeWithTemplate(
+      promptType: promptType,
       category: category,
       qMeta: meta,
       candidateAnswer: candidate,
     );
 
-    // Arkadaşının GradeResult modeli: correct / expected / reason
     return AiEvaluateResult(
       finalAnswer: result.expected,
       explanation: result.reason,
-      // Şimdilik puan yok; AI ekibi ekleyince dolacak.
       score: null,
       correct: result.correct,
     );
   }
+
 
   // ---------- helpers ----------
   Map<String, String> _toMeta(Question q) {
