@@ -17,43 +17,25 @@ class GradeResult {
   });
 
   factory GradeResult.fromMap(Map<String, dynamic> m) {
-    // Küçük Şema
-    if (m.containsKey('correct')) {
-      return GradeResult(
-        correct: m['correct'] == true,
-        expected: (m['expected'] ?? '').toString(),
-        reason: (m['reason'] ?? '').toString(),
-      );
-    }
 
-    // Detaylı Şema
-    if (m.containsKey('subscores') || m.containsKey('decision')) {
       final subscores = m['subscores'] as Map<String, dynamic>? ?? {};
       final correctnessScore = subscores['correctness'] ?? 0;
       final decision = (m['decision'] ?? '').toString();
-
-      final strengths = (m['strengths'] is List)
-          ? (m['strengths'] as List).join(", ")
-          : "";
-      final weaknesses = (m['weaknesses'] is List)
-          ? (m['weaknesses'] as List).join(", ")
-          : "";
+      final expected = m['diff_with_reference'] is List && (m['diff_with_reference'] as List).isNotEmpty
+          ? (m['diff_with_reference'] as List).join("; ")
+          : (m['expected'] ?? ""); // fallback
+      final strengths = (m['strengths'] is List) ? (m['strengths'] as List).join(", ") : "";
+      final weaknesses = (m['weaknesses'] is List) ? (m['weaknesses'] as List).join(", ") : "";
+      final reason = decision.toLowerCase() == "advance" || correctnessScore == 5 ?
+          strengths : "$weaknesses, $expected";
 
       return GradeResult(
         correct: (decision.toLowerCase() == "advance") || (correctnessScore == 5),
         expected: "Based on scoring (correctness=$correctnessScore, decision=$decision)",
-        reason: "Strengths: $strengths; Weaknesses: $weaknesses",
+        reason: reason,
       );
-    }
 
-    // Fallback
-    return GradeResult(
-      correct: false,
-      expected: "",
-      reason: "Unrecognized schema: $m",
-    );
   }
-
 
   static GradeResult fromSafeFallback(String rawText) {
     // JSON gelmediyse ama yine de UI çökmemesi için anlamlı bir fallback
@@ -68,7 +50,7 @@ class GradeResult {
 }
 
 class OpenAIService {
-  static const _apiKey = "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";
+  static const _apiKey = "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";
   static const _endpoint = 'https://api.openai.com/v1/chat/completions';
   static const _model = 'gpt-4o-mini';
 
@@ -115,39 +97,6 @@ class OpenAIService {
     }
   }
 
-  /// Basit kullanım (JSON mode + debug)
-  static Future<GradeResult> gradeSimple({
-    required String question,
-    required String userAnswer,
-    Duration timeout = const Duration(seconds: 45),
-  }) async {
-
-    final body = {
-      "model": _model,
-      "temperature": 0,
-      "response_format": {"type": "json_object"}, // JSON mode
-      "messages": [
-        {
-          "role": "system",
-          "content":
-              "You are a strict grader for short CS questions. "
-              "Return ONLY a single JSON object with fields: correct(boolean), expected(string), reason(string).",
-        },
-        {
-          "role": "user",
-          "content":
-              "Question: $question\nUser answer: $userAnswer\n"
-              "Evaluate strictly. If the answer matches the key idea, correct=true.\n"
-              "Output only JSON.",
-        },
-      ],
-    };
-
-    final resp = await _post(body, timeout: timeout);
-    return _extractGradeResult(resp);
-  }
-
-  /// PromptEnglishFinal.txt ile gelişmiş kullanım (JSON mode + debug)
   static Future<GradeResult> gradeWithTemplate({
     required String category,
     required Map<String, String> qMeta,
@@ -228,6 +177,7 @@ class OpenAIService {
 
     try {
       data = jsonDecode(raw);
+      //print(data);
     } catch (e) {
       // Sunucu başka bir şey dönderdiyse
       return GradeResult.fromSafeFallback(raw);
@@ -256,9 +206,12 @@ class OpenAIService {
         print(GradeResult.fromMap(parsed).correct);
         print(GradeResult.fromMap(parsed).expected);
         print(GradeResult.fromMap(parsed).reason);
+        print()
         */
 
+        //Beklenen Return
         return GradeResult.fromMap(parsed);
+
       } else {
         // bazı durumlarda model yine de açıklama basarsa:
         final start = text.indexOf('{');
