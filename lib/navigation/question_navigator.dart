@@ -3,30 +3,51 @@ import '../models/question.dart';
 import '../pages/question_types/mcq_question_page.dart';
 import '../pages/question_types/short_answer_page.dart';
 import '../pages/question_types/fill_in_blank_page.dart';
-// coding vs. ekleyebilirsin
+// TODO: coding, debugging için sayfalar eklenebilir.
 
 class QuestionNavigator {
   static void open(Question q) {
     switch (q.type) {
       case QuestionType.mcq:
         Get.to(() => McqQuestionPage(question: q));
-        return;
+        break;
+
       case QuestionType.shortAnswer:
         Get.to(() => ShortAnswerPage(question: q));
-        return;
+        break;
+
       case QuestionType.fillBlank:
         Get.to(() => FillInBlankPage(question: q));
-        return;
-    // case QuestionType.coding: Get.to(() => CodingQuestionPage(question: q)); return;
-      case null:
-      default:
+        break;
+
+      case QuestionType.coding:
+        // Get.to(() => CodingQuestionPage(question: q));
         Get.snackbar(
           'Not Implemented',
-          'This type is not yet supported.',
+          'Coding question page not yet implemented.',
           snackPosition: SnackPosition.BOTTOM,
           duration: const Duration(seconds: 2),
         );
-        return;
+        break;
+
+      case QuestionType.debugging:
+        // Get.to(() => DebuggingQuestionPage(question: q));
+        Get.snackbar(
+          'Not Implemented',
+          'Debugging question page not yet implemented.',
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 2),
+        );
+        break;
+
+      default:
+        Get.snackbar(
+          'Not Implemented',
+          'This question type is not yet supported.',
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 2),
+        );
+        break;
     }
   }
 }

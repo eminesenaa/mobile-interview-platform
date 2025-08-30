@@ -1,12 +1,8 @@
 // ===================== File: lib/pages/practice_page.dart =====================
 // Purpose: Kullanıcının soru çözme pratiği yapacağı ana sayfa.
-//          QuestionController üzerinden sorular çekilir, filtrelenir ve listelenir.
-//
-// Notlar:
-// - GetX Obx kullanılarak reactive UI sağlanır (controller.filteredQuestions değiştikçe UI yenilenir).
-// - ListView.builder ile dinamik soru kartları oluşturulur.
-// - onTap: soru tipine göre ilgili sayfaya yönlendirilebilir.
+//          Firestore’dan sorular yüklenir, filtrelenir ve listelenir.
 // ==============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:interview_project/constants/colors.dart';
@@ -14,10 +10,7 @@ import 'package:interview_project/constants/colors.dart';
 import 'package:interview_project/pages/practice/widgets/todays_question_card.dart';
 
 import '../../navigation/question_navigator.dart';
-import '../question_types/fill_in_blank_page.dart';
-import '../question_types/mcq_question_page.dart';
-import '../question_types/short_answer_page.dart';
-import 'controllers/practice_controller.dart';
+import './controllers/practice_controller.dart';
 import '../../models/question.dart';
 import 'widgets/get_started_card.dart';
 import '../../widgets/question_card.dart';
@@ -35,8 +28,7 @@ class PracticePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.put(PracticeController());
 
-    /// 🔹 Firebase’den soruları yükle
-    controller.loadQuestionsFromFirebase();
+
 
     final bottomInset = MediaQuery.of(context).padding.bottom + 12;
 
@@ -65,9 +57,11 @@ class PracticePage extends StatelessWidget {
                     child: PageView.builder(
                       itemCount: 5,
                       itemBuilder: (context, index) {
-                        final path = 'assets/images/get_started_${index + 1}.jpg';
+                        final path =
+                            'assets/images/get_started_${index + 1}.jpg';
                         return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 8),
                           child: GetStartedCard(
                             title: const [
                               'Warm-up • Quick Win',
@@ -97,7 +91,6 @@ class PracticePage extends StatelessWidget {
                   padding: const EdgeInsets.all(12),
                   child: TodaysQuestionCard(
                     question: controller.todaysQuestion,
-                    // onSolve: () => _openQuestion(controller.todaysQuestion!),
                   ),
                 ),
               ),
@@ -123,13 +116,14 @@ class PracticePage extends StatelessWidget {
 
                         SearchAddBar(
                           searchText: controller.searchQuery.value,
-                          onSearchChanged: (val) => controller.updateSearch(val),
+                          onSearchChanged: (val) =>
+                              controller.updateSearch(val),
                           onFilterPressed: () {
                             showModalBottomSheet(
                               context: context,
                               shape: const RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.vertical(top: Radius.circular(20)),
+                                borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(20)),
                               ),
                               builder: (_) {
                                 return FilterPopup(
@@ -137,8 +131,10 @@ class PracticePage extends StatelessWidget {
                                   difficulties: [null, ...Difficulty.values],
                                   statuses: [null, ...Status.values],
                                   selectedTopic: controller.selectedTopic.value,
-                                  selectedDifficulty: controller.selectedDifficulty.value,
-                                  selectedStatus: controller.selectedStatus.value,
+                                  selectedDifficulty:
+                                      controller.selectedDifficulty.value,
+                                  selectedStatus:
+                                      controller.selectedStatus.value,
                                   onApply: ({
                                     required topic,
                                     required difficulty,
@@ -170,8 +166,13 @@ class PracticePage extends StatelessWidget {
                 ),
               ),
 
-              // ========== (4) QUESTION LIST (SCROLLS UNDER PINNED) ==========
-              if (questions.isEmpty)
+              // ========== (4) QUESTION LIST ==========
+              if (questions.isEmpty && controller.allQuestions.isEmpty)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (questions.isEmpty)
                 const SliverFillRemaining(
                   hasScrollBody: false,
                   child: _EmptyState(),

@@ -78,59 +78,18 @@ class Question {
 
   // 🔹 Firestore dönüşümü
   factory Question.fromFirestore(Map<String, dynamic> data, String documentId) {
-    final extra = data['extra'] != null
-        ? Map<String, dynamic>.from(data['extra'])
-        : <String, dynamic>{};
-
-    List<String> opts = [];
-    if (data['options'] != null) {
-      opts = List<String>.from(data['options']);
-    } else if (extra['options'] != null) {
-      opts = List<String>.from(extra['options']);
-    } else {
-      for (var key in ['Option A', 'Option B', 'Option C', 'Option D']) {
-        if (data[key] != null) opts.add(data[key]);
-        if (extra[key] != null) opts.add(extra[key]);
-      }
-    }
-
-    final correct = data['correctAnswer'] ??
-        data['Correct Option'] ??
-        extra['Correct Option'];
-
-    final helper = data['aiPromptHelper'] ?? extra['AI Prompt Helper'];
-
     return Question(
       id: documentId,
-      title: data['title'] ??
-          data['Question Title'] ??
-          extra['Question Title'] ??
-          '',
-      description: data['description'] ??
-          data['text'] ?? // 🔥 Firestore’daki asıl field
-          data['Question Text'] ??
-          data['question_text'] ??
-          extra['Question Text'] ??
-          '',
-      topic: data['topic'] ??
-          data['Category'] ??
-          extra['Category'] ??
-          'General',
+      title: data['title'] ?? '',
+      description: data['description'] ?? data['text'] ?? '',
+      topic: data['topic'] ?? 'General',
       difficulty: _parseDifficulty(data['difficulty']),
       status: _parseStatus(data['status']),
-      tags: data['tags'] != null
-          ? List<String>.from(data['tags'])
-          : (extra['Tags'] != null
-              ? extra['Tags']
-                  .toString()
-                  .split(',')
-                  .map((e) => e.trim())
-                  .toList()
-              : []),
-      type: _parseType(data['type'] ?? extra['Question Format']),
-      options: opts,
-      correctAnswer: correct,
-      aiPromptHelper: helper,
+      tags: data['tags'] != null ? List<String>.from(data['tags']) : [],
+      type: _parseType(data['type']),
+      options: data['options'] != null ? List<String>.from(data['options']) : [],
+      correctAnswer: data['correctAnswer'],
+      aiPromptHelper: data['aiPromptHelper'],
     );
   }
 
@@ -151,10 +110,28 @@ class Question {
 
   static Difficulty _parseDifficulty(dynamic val) {
     if (val == null) return Difficulty.easy;
-    return Difficulty.values.firstWhere(
-      (e) => e.name == val,
-      orElse: () => Difficulty.easy,
-    );
+
+    String raw = val.toString().trim().replaceAll("–", "-").toLowerCase();
+
+    switch (raw) {
+      case '1 - easy':
+      case 'easy':
+        return Difficulty.easy;
+      case '2 - easy-medium':
+      case 'easy_medium':
+        return Difficulty.easy_medium;
+      case '3 - medium':
+      case 'medium':
+        return Difficulty.medium;
+      case '4 - medium-hard':
+      case 'medium_hard':
+        return Difficulty.medium_hard;
+      case '5 - hard':
+      case 'hard':
+        return Difficulty.hard;
+      default:
+        return Difficulty.easy;
+    }
   }
 
   static Status _parseStatus(dynamic val) {

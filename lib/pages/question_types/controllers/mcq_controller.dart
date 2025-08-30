@@ -46,16 +46,10 @@ class McqController extends GetxController {
     final ans = (question.correctAnswer ?? '').trim();
     if (ans.isNotEmpty) {
       final idx = options.indexWhere(
-            (o) => o.trim().toLowerCase() == ans.toLowerCase(),
+        (o) => o.trim().toLowerCase() == ans.toLowerCase(),
       );
       _correctIndex = idx == -1 ? null : idx;
     }
-
-    // debug
-    // print("Options: $options");
-    // print("Correct Answer (from Firestore): ${question.correctAnswer}");
-    // print("Correct Index: $_correctIndex");
-    // print("AI Helper Prompt: ${question.aiPromptHelper}");
   }
 
   void select(int index) {
@@ -66,8 +60,8 @@ class McqController extends GetxController {
   Future<void> submit() async {
     if (selectedIndex.value == -1) {
       Get.snackbar(
-        'Seçim yok',
-        'Lütfen bir seçenek seç.',
+        'No selection',
+        'Please select an option.',
         snackPosition: SnackPosition.BOTTOM,
         duration: const Duration(seconds: 2),
       );
@@ -77,7 +71,8 @@ class McqController extends GetxController {
     // ✅ Lokal doğru/yanlış kontrolü (UI renklendirme için)
     final chosen = options[selectedIndex.value];
     final correct = (question.correctAnswer ?? '').trim();
-    isCorrect.value = chosen.trim().toLowerCase() == correct.toLowerCase();
+    isCorrect.value =
+        chosen.trim().toLowerCase() == correct.trim().toLowerCase();
 
     isSubmitted.value = true;
 
@@ -95,32 +90,30 @@ class McqController extends GetxController {
 
   // ------------------- AI -------------------
 
-  /// Gerçek AI çağrısı; hata olursa mevcut fake/mesaj davranışını korur
+  /// Gerçek AI çağrısı; hata olursa lokal sonucu korur
   Future<void> _evaluateWithAi(String chosen) async {
     isEvaluating.value = true;
     try {
-      // Seçenekler shuffle edilmiş olabileceği için **metni** gönderiyoruz.
       final res = await _ai.evaluate(
         question: question,
         userAnswer: chosen,
       );
       aiResult.value = res;
 
-      final verdict = res.correct ? "✅ Doğru." : "❌ Yanlış.";
+      // Eğer AI'dan gelen sonuç varsa onu kullan
+      final verdict = isCorrect.value ? "✅ Correct." : "❌ Incorrect.";
       final explain =
-      (res.explanation.isNotEmpty) ? "\n${res.explanation}" : "";
-
-      // 👉 ESKİ DAVRANIŞ: ekranda görünen alan aiFeedback
+          (res.explanation.isNotEmpty) ? "\n${res.explanation}" : "";
       aiFeedback.value = "$verdict$explain";
     } catch (e, st) {
       // debug’da gerçek hatayı görebil
-      // ignore: avoid_print
       print("AI error (mcq): $e\n$st");
 
-      // Fallback – önceki fake davranışı bozmadan:
+      // Fallback – lokal kontrol sonucunu göster
+      final verdict = isCorrect.value ? "✅ Correct." : "❌ Incorrect.";
       final helper = question.aiPromptHelper ??
           "Evaluate the selected answer logically. Explain if it is correct or not.";
-      aiFeedback.value = "❌ Yanlış.\n$helper";
+      aiFeedback.value = "$verdict\n$helper";
     } finally {
       isEvaluating.value = false;
     }

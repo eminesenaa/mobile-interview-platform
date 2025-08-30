@@ -45,3 +45,4 @@ app.*.map.json
 # Secrets
 .env
 service_account.json
+sync_sheets_to_firestore.py
