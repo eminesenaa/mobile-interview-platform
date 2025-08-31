@@ -1,0 +1,218 @@
+// lib/services/ai/openai_service.dart
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter/services.dart' show rootBundle;
+
+/// Promt çeşitleri (AiService buradan import ediyor)
+enum PromptType {
+  training,
+  interview,
+  detailedTraining,
+}
+
+/// Basit sonuç modeli
+class GradeResult {
+  final bool correct;
+  final String expected;
+  final String reason;
+
+  GradeResult({
+    required this.correct,
+    required this.expected,
+    required this.reason,
+  });
+
+  static GradeResult fromSafeFallback(String rawText) {
+    // JSON beklenmiyor ama yine de ham içerik dönerse UI çökmesin
+    final preview = rawText.length > 200 ? rawText.substring(0, 200) : rawText;
+    return GradeResult(
+      correct: false,
+      expected: "",
+      reason: "Model returned unexpected content: $preview",
+    );
+  }
+}
+
+class GradeResultMapper {
+  // JSON tabanlı çıktılar için (ileride tekrar JSON istersek)
+  static GradeResult fromTraining(Map<String, dynamic> json) {
+    return GradeResult(
+      correct: (json['correct'] ?? false) as bool,
+      expected: json['expected']?.toString() ?? "",
+      reason: json['reason']?.toString() ?? "",
+    );
+  }
+
+  static GradeResult fromInterview(Map<String, dynamic> json) {
+    final subscores = json['subscores'] ?? {};
+    final correctness = (subscores['correctness'] ?? 0) as num;
+    final decision = json['decision']?.toString() ?? '';
+    final strengths = (json['strengths'] as List?)?.join(', ') ?? '';
+    final weaknesses = (json['weaknesses'] as List?)?.join(', ') ?? '';
+    return GradeResult(
+      correct: decision == "advance" || correctness >= 5,
+      expected: "overall_score=${json['overall_score']}, decision=$decision",
+      reason: strengths.isNotEmpty ? strengths : weaknesses,
+    );
+  }
+
+  static GradeResult fromDetailedTraining(Map<String, dynamic> json) {
+    final subscores = json['subscores'] ?? {};
+    final correctness = (subscores['correctness'] ?? 0) as num;
+    final decision = json['decision']?.toString() ?? '';
+    final strengths = (json['strengths'] as List?)?.join(', ') ?? '';
+    final weaknesses = (json['weaknesses'] as List?)?.join(', ') ?? '';
+    return GradeResult(
+      correct: decision == "advance" || correctness >= 0.8, // [0,1] ölçek
+      expected: "overall_score=${json['overall_score']}, decision=$decision",
+      reason: strengths.isNotEmpty ? strengths : weaknesses,
+    );
+  }
+}
+
+class OpenAIService {
+  // Kullanıcı isteği: şimdilik hard-coded key (dev için)
+  static const _apiKey =
+      "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";
+  static const _endpoint = 'https://api.openai.com/v1/chat/completions';
+  static const _model = 'gpt-4o-mini';
+
+  // Şablon seçimi (şimdilik hepsini destekliyoruz)
+  static Future<String> _loadPromptTemplate(PromptType type) async {
+    switch (type) {
+      case PromptType.training:
+        return await rootBundle
+            .loadString('assets/prompts/TrainingAnalysis.txt');
+      case PromptType.interview:
+        return await rootBundle
+            .loadString('assets/prompts/InterviewAnalysis.txt');
+      case PromptType.detailedTraining:
+        return await rootBundle
+            .loadString('assets/prompts/TrainingDetailedAnalysis.txt');
+    }
+  }
+
+  static String _renderTemplate(String template, Map<String, String> vars) {
+    var out = template;
+    vars.forEach((k, v) => out = out.replaceAll('{{$k}}', v));
+    return out;
+  }
+
+  static String _buildSystemRole(String category) {
+    switch (category.toLowerCase()) {
+      case 'algorithm':
+        return 'You are an algorithm expert.';
+      case 'data structure':
+        return 'You are a data structures expert.';
+      case 'git':
+        return 'You are a Git/version control expert.';
+      case 'oop':
+        return 'You are an OOP expert.';
+      case 'sql':
+        return 'You are an SQL/query optimization expert.';
+      case 'behavioral hr questions':
+        return 'You are a senior HR interviewer evaluating with the STAR technique.';
+      case 'ml basics':
+        return 'You are a machine learning fundamentals expert.';
+      case 'network':
+        return 'You are a computer networking expert.';
+      case 'java':
+        return 'You are a senior Java software engineer.';
+      case 'c/c++':
+        return 'You are a senior C/C++ systems programming expert.';
+      case 'python':
+        return 'You are a senior Python software engineer.';
+      case 'data science':
+        return 'You are a senior Data Science expert.';
+      default:
+        return 'You are a senior technical interviewer.';
+    }
+  }
+
+  /// DÜZ METİN: JSON zorlamıyoruz; içerik doğrudan metin.
+  static Future<GradeResult> gradeWithTemplate({
+    required String category,
+    required Map<String, String> qMeta,
+    required String candidateAnswer,
+    required PromptType promptType,
+    Duration timeout = const Duration(seconds: 60),
+  }) async {
+    final template = await _loadPromptTemplate(promptType);
+    final systemRole = _buildSystemRole(category);
+
+    final userContent = _renderTemplate(template, {
+      "Category": category,
+      "Question Content Type": qMeta["Question Content Type"] ?? "",
+      "Difficulty Level (1–5)": qMeta["Difficulty Level (1–5)"] ?? "",
+      "Source Reference": qMeta["Source Reference"] ?? "",
+      "Question Title": qMeta["Question Title"] ?? "",
+      "Question Text": qMeta["Question Text"] ?? "",
+      "Question Format": qMeta["Question Format"] ?? "",
+      "Option A": qMeta["Option A"] ?? "",
+      "Option B": qMeta["Option B"] ?? "",
+      "Option C": qMeta["Option C"] ?? "",
+      "Option D": qMeta["Option D"] ?? "",
+      "Correct Option": qMeta["Correct Option"] ?? "",
+      "Tags": qMeta["Tags"] ?? "",
+      "AI Prompt Helper": qMeta["AI Prompt Helper"] ?? "",
+      "candidate_answer_or_choice": candidateAnswer,
+    });
+
+    final body = {
+      "model": _model,
+      "temperature": 0,
+      "messages": [
+        {"role": "system", "content": systemRole},
+        // JSON istemiyoruz: prompt dosyası formatı belirlesin, burada dayatma yok
+        {"role": "user", "content": userContent},
+      ],
+    };
+
+    final resp = await _post(body, timeout: timeout);
+    return _extractTextResult(resp); // <-- düz metin ayrıştırma
+  }
+
+  /// --- HTTP yardımcıları ---
+  static Future<http.Response> _post(
+    Map<String, dynamic> body, {
+    required Duration timeout,
+  }) async {
+    final res = await http
+        .post(
+          Uri.parse(_endpoint),
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer $_apiKey",
+          },
+          body: jsonEncode(body),
+        )
+        .timeout(timeout);
+
+    // HTTP hata kodlarını erken yakala
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      // Ham hatayı fırlat (UI tarafı görebilsin)
+      throw Exception('OpenAI error ${res.statusCode}: ${res.body}');
+    }
+    return res;
+  }
+
+  /// Düz metni çıkarır; boşsa fallback.
+  static GradeResult _extractTextResult(http.Response res) {
+    final raw = res.body;
+    try {
+      final outer = jsonDecode(raw);
+      final content = outer['choices']?[0]?['message']?['content'];
+      final text = (content is String ? content : content?.toString())?.trim();
+      if (text == null || text.isEmpty) {
+        return GradeResult.fromSafeFallback(raw);
+      }
+      return GradeResult(
+        correct: true, // JSON modunda değiliz; “yanlış” uyarısı göstermeyelim
+        expected: '',
+        reason: text,
+      );
+    } catch (_) {
+      return GradeResult.fromSafeFallback(raw);
+    }
+  }
+}
