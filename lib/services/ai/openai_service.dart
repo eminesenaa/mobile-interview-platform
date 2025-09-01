@@ -15,11 +15,13 @@ class GradeResult {
   final bool correct;
   final String expected;
   final String reason;
+  final double score;
 
   GradeResult({
     required this.correct,
     required this.expected,
     required this.reason,
+    required this.score
   });
 
   static GradeResult fromSafeFallback(String rawText) {
@@ -29,6 +31,7 @@ class GradeResult {
       expected: "",
       reason:
           "Model returned non-JSON content: ${rawText.substring(0, rawText.length > 200 ? 200 : rawText.length)}",
+      score: 0.0,
     );
     // Dilersen burayı daha akıllı hale getirip içinden bazı ipuçlarını çekebilirsin.
   }
@@ -40,6 +43,7 @@ class GradeResultMapper {
       correct: json['correct'] ?? false,
       expected: json['expected']?.toString() ?? "",
       reason: json['reason']?.toString() ?? "",
+      score: (json['score'] is num) ? (json['score'] as num).toDouble() : 0.0,
     );
   }
 
