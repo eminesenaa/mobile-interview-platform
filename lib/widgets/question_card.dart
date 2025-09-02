@@ -1,80 +1,132 @@
+// lib/widgets/question_card.dart
+
 import 'package:flutter/material.dart';
 import '../models/question.dart';
 
+/// Soru kartı widget'ı.
+/// - Kartın tamamına basınca [onTap] tetiklenir.
+/// - Sağ üst köşedeki kaydetme ikonuna basınca [onSaveTap] tetiklenir.
+/// - [isSaved] true olduğunda ikon dolu görünür.
 class QuestionCard extends StatelessWidget {
-  final Question question;
-  final VoidCallback onTap;
-
   const QuestionCard({
     super.key,
     required this.question,
-    required this.onTap,
+    this.onTap,
+    this.onSaveTap,
+    this.isSaved = false,
   });
 
-  Color getDifficultyColor(Difficulty? difficulty) {
-    switch (difficulty) {
-      case Difficulty.easy:
-        return Colors.green;
-      case Difficulty.medium:
-        return Colors.orange;
-      case Difficulty.hard:
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
+  final Question question;
+  final VoidCallback? onTap;
+  final VoidCallback? onSaveTap;
+  final bool isSaved;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Card(
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        elevation: 2,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                question.title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: getDifficultyColor(question.difficulty).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      question.difficulty?.name.toUpperCase() ?? 'UNKNOWN',
-                      style: TextStyle(
-                        color: getDifficultyColor(question.difficulty),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    question.topic,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ],
+    final radius = BorderRadius.circular(16);
+
+    return Stack(
+      children: [
+        // --- Ana Kart ---
+        Material(
+          color: Theme.of(context).cardColor,
+          borderRadius: radius,
+          child: InkWell(
+            borderRadius: radius,
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: _CardBody(question: question),
+            ),
           ),
         ),
-      ),
+
+        // --- Sağ üst köşe ikon ---
+        Positioned(
+          top: 8,
+          right: 8,
+          child: IconButton(
+            onPressed: onSaveTap,
+            tooltip: isSaved ? 'Saved' : 'Save',
+            splashRadius: 18,
+            padding: const EdgeInsets.all(4),
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            icon: Icon(
+              isSaved ? Icons.bookmark : Icons.bookmark_border,
+              color: isSaved
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
+              size: 22,
+            ),
+          ),
+        ),
+      ],
     );
+  }
+}
+
+/// Kartın içerik kısmı.
+/// Başlık, zorluk etiketi, kategori vs. burada çiziliyor.
+class _CardBody extends StatelessWidget {
+  const _CardBody({required this.question});
+  final Question question;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Başlık
+        Text(
+          question.title,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+
+        // Zorluk etiketi
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: _difficultyColor(question.difficulty, context)
+                    .withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                question.difficulty.name.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: _difficultyColor(question.difficulty, context),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Dil / kategori
+            Text(
+              question.topic,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Color _difficultyColor(Difficulty difficulty, BuildContext context) {
+    switch (difficulty) {
+      case Difficulty.easy:
+        return Colors.green;
+      case Difficulty.easy_medium:
+        return Colors.lightGreen;
+      case Difficulty.medium:
+        return Colors.orange;
+      case Difficulty.medium_hard:
+        return Colors.deepOrange;
+      case Difficulty.hard:
+        return Colors.red;
+    }
   }
 }
