@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../models/collection.dart';
+
 class CollectionCard extends StatelessWidget {
   final String name;
   final int count;
@@ -17,6 +19,27 @@ class CollectionCard extends StatelessWidget {
     this.icon = Icons.collections_bookmark_outlined,
     this.padding = const EdgeInsets.all(14),
   });
+
+  /// NEW: Model tabanlı named constructor
+  CollectionCard.fromCollection({
+    Key? key,
+    required Collection collection,
+    VoidCallback? onTap,
+    VoidCallback? onLongPress,
+    IconData icon = Icons.collections_bookmark_outlined,
+    EdgeInsets padding = const EdgeInsets.all(14),
+  }) : this(
+    key: key,
+    name: collection.name,
+    count: collection.itemCount,
+    onTap: onTap ?? () {},
+    onLongPress: onLongPress,
+    icon: icon,
+    padding: padding,
+  );
+
+
+
 
   @override
   Widget build(BuildContext context) {

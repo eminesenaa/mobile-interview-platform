@@ -1,7 +1,8 @@
 // lib/pages/library/controllers/library_controller.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../models/question.dart'; // Question & Difficulty modelin buradaysa yol doğru
+import '../../../models/question.dart';
+import '../services/library_service.dart'; // Question & Difficulty modelin buradaysa yol doğru
 
 enum LibraryTab { all, collections, exams }
 
@@ -155,6 +156,38 @@ class LibraryController extends GetxController with GetSingleTickerProviderState
       onCancel: () => Get.back(result: null),
     );
   }
+
+  /// Soru 'All' listesinde mi?
+  Future<bool> isSaved(String questionId) async {
+    try {
+      return await LibraryService.instance.isSavedToAll(questionId);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Soru hangi koleksiyonlarda? (koleksiyon id listesi)
+  Future<List<String>> getCollectionsOfQuestion(String questionId) async {
+    try {
+      return await LibraryService.instance.getCollectionsOfQuestion(questionId);
+    } catch (_) {
+      return <String>[];
+    }
+  }
+
+  /// (İleride popup 'Apply' için kullanacağız) All toggle
+  Future<void> saveToAll(String questionId) =>
+      LibraryService.instance.saveToAll(questionId);
+
+  Future<void> removeFromAll(String questionId) =>
+      LibraryService.instance.removeFromAll(questionId);
+
+  /// (İleride popup 'Apply' için) koleksiyon ekle/çıkar
+  Future<void> saveToCollection(String questionId, String collectionId) =>
+      LibraryService.instance.addToCollection(collectionId, questionId);
+
+  Future<void> removeFromCollection(String questionId, String collectionId) =>
+      LibraryService.instance.removeFromCollection(collectionId, questionId);
 }
 
 // basit collection mock modeli

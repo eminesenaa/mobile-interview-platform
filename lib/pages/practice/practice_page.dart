@@ -10,6 +10,8 @@ import 'package:interview_project/constants/colors.dart';
 import 'package:interview_project/pages/practice/widgets/todays_question_card.dart';
 
 import '../../navigation/question_navigator.dart';
+import '../library/controllers/library_controller.dart';
+import '../library/widgets/save_to_collection_sheet.dart';
 import './controllers/practice_controller.dart';
 import '../../models/question.dart';
 import 'widgets/get_started_card.dart';
@@ -189,6 +191,41 @@ class PracticePage extends StatelessWidget {
                         return QuestionCard(
                           question: q,
                           onTap: () => _openQuestion(q),
+                          onSaveTap: () async {
+                            // 1) Soru ID’sini çıkar
+                            final questionId = _extractQuestionId(q);
+
+                            // 2) (Varsa) LibraryController’dan ön-verileri çek
+                            Set<String> initialSelected = {};
+                            bool initialSavedToAll = false;
+
+                            try {
+                              final lib = Get.find<LibraryController>();
+                              initialSelected = (await lib.getCollectionsOfQuestion(questionId)).toSet();
+                              initialSavedToAll = await lib.isSaved(questionId);
+                            } catch (_) {
+                              // Controller yoksa sorun değil; sheet mock listeyle açılır
+                            }
+
+                            // 3) Sheet’i aç
+                            final result = await Get.bottomSheet(
+                              SaveToCollectionSheet(
+                                questionId: questionId,
+                                initialSelected: initialSelected,
+                                initialSavedToAll: initialSavedToAll,
+                              ),
+                              isScrollControlled: true,
+                              ignoreSafeArea: false,
+                              backgroundColor: Colors.transparent,
+                            );
+
+                            // 4) (Opsiyonel) dönüşü kullan
+                            if (result is Map) {
+                              // örn. ikon durumunu tazelemek için setState / controller notify
+                              // print(result); // {'selectedCollectionIds': Set<String>, 'saveToAll': bool}
+                            }
+                          },
+                          isSaved: false,
                         );
                       },
                       childCount: questions.length * 2 - 1,
@@ -222,3 +259,21 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
+String _extractQuestionId(Question q) {
+  // Modelinde hangi alan varsa onu kullan.
+  // Aşağıdaki sıralama en yaygın 3 senaryoyu kapsar:
+  try {
+    final dynamic v = (q as dynamic).id;
+    if (v != null) return v.toString();
+  } catch (_) {}
+
+  try {
+    final dynamic v = (q as dynamic).docId; // Firestore doc id kullanıyorsan
+    if (v != null) return v.toString();
+  } catch (_) {}
+
+  // Geçici fallback: benzersiz değilse ileride kaldır
+  return q.title.toString();
+}
+
+

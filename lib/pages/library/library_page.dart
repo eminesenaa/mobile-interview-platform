@@ -8,6 +8,7 @@ import '../../constants/colors.dart';          // pastelBlue
 import '../../constants/text_styles.dart';
 import '../../navigation/question_navigator.dart';
 import '../../widgets/question_card.dart';
+import 'collection_detail_page.dart';
 import 'controllers/library_controller.dart';
 
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -276,7 +277,7 @@ class _CollectionsTab extends StatelessWidget {
             return CollectionCard(
               name: col.name,
               count: col.count,
-              onTap: () => c.onCollectionTap(col.id),
+              onTap: () => Get.to(() => CollectionDetailPage(collectionId: col.id)),
               // onLongPress: () => c.showCollectionMenu(col.id), // (istersen)
             );
           },
