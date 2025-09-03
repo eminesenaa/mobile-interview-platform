@@ -80,4 +80,31 @@ class LibraryService {
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
+  DocumentReference<Map<String, dynamic>> get _libraryMeta =>
+      _db.collection('users').doc(_uid).collection('meta').doc('library');
+
+  Future<void> bumpSavedCount(int delta) async {
+    await _libraryMeta.set({
+      'savedCount': FieldValue.increment(delta),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> bumpCollectionsCount(int delta) async {
+    await _libraryMeta.set({
+      'collectionsCount': FieldValue.increment(delta),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> bumpExamsCount(int delta) async {
+    await _libraryMeta.set({
+      'examsCount': FieldValue.increment(delta),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<DocumentSnapshot<Map<String, dynamic>>> getLibraryMeta() async {
+    return _libraryMeta.get();
+  }
 }

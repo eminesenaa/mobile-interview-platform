@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
 
+import 'constants/colors.dart';
 import 'firebase_options.dart';
 import 'pages/main_view.dart';
 import 'controllers/question_controller.dart';
@@ -34,6 +35,20 @@ class MyApp extends StatelessWidget {
       initialBinding: BindingsBuilder(() {
         Get.put<QuestionController>(QuestionController(), permanent: true);
       }),
+      theme: ThemeData(
+        appBarTheme: const AppBarTheme(
+          backgroundColor: primaryColor, // constants’tan gelen renk
+          elevation: 0,
+          iconTheme: IconThemeData(
+            color: headlineColor,        // geri ok rengi
+          ),
+          titleTextStyle: TextStyle(    // AppBar başlık yazısı stili
+            color: headlineColor,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
       home: const MainView(),
     );
   }

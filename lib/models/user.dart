@@ -5,6 +5,7 @@
 // =====================================================================
 
 import 'package:interview_project/models/progress.dart';
+import 'package:interview_project/models/user_library.dart';
 
 import 'streak.dart';
 
@@ -19,10 +20,12 @@ class User {
   final String? photoUrl;
   final Streak streak;
 
-  // TODO: Progress, Library, StudyPlan modelleri eklenince buraya konacak.
+  // TODO: Progress, StudyPlan modelleri eklenince buraya konacak.
   // final Progress progress;
-  // final UserLibrary library;
   // final StudyPlan plan;
+
+  /// Kullanıcının Library özet bilgileri (savedCount, collectionsCount vb.)
+  final UserLibrary librarySummary;
 
   const User({
     required this.id,
@@ -34,6 +37,7 @@ class User {
     this.password,
     this.photoUrl,
     required this.streak,
+    required this.librarySummary,
   });
 
   factory User.initial({
@@ -53,6 +57,7 @@ class User {
         email: email,
         photoUrl: photoUrl,
         streak: Streak.empty(timezone: timezone),
+        librarySummary: UserLibrary.empty(),
       );
 
   // ---- JSON ----
@@ -68,6 +73,9 @@ class User {
     streak: json['streak'] == null
         ? Streak.empty()
         : Streak.fromJson(json['streak'] as Map<String, dynamic>),
+    librarySummary: json['library'] == null
+        ? UserLibrary.empty()
+        : UserLibrary.fromJson(json['library'] as Map<String, dynamic>),
   );
 
   // Kimlik doğrulama için Firebase Auth kullanın.
@@ -80,6 +88,7 @@ class User {
     'email': email,
     'photoUrl': photoUrl,
     'streak': streak.toJson(),
+    'library': librarySummary.toJson(),
   };
 
   User copyWith({
@@ -92,6 +101,7 @@ class User {
     String? password,
     String? photoUrl,
     Streak? streak,
+    UserLibrary? librarySummary,
   }) =>
       User(
         id: id ?? this.id,
@@ -103,5 +113,6 @@ class User {
         password: password ?? this.password,
         photoUrl: photoUrl ?? this.photoUrl,
         streak: streak ?? this.streak,
+        librarySummary: librarySummary ?? this.librarySummary,
       );
 }

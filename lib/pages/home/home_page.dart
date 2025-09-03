@@ -52,11 +52,11 @@ class HomePage extends StatelessWidget {
             // ---- GREETING & STREAK ----
             const SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                padding:  EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const StreakCard.preview(),
+                     StreakCard.preview(),
                   ],
                 ),
               ),
