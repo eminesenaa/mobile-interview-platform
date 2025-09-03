@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../models/question.dart';
+import '../../../models/user_library.dart';
 import '../services/library_service.dart'; // Question & Difficulty modelin buradaysa yol doğru
 
 enum LibraryTab { all, collections, exams }
@@ -188,6 +189,16 @@ class LibraryController extends GetxController with GetSingleTickerProviderState
 
   Future<void> removeFromCollection(String questionId, String collectionId) =>
       LibraryService.instance.removeFromCollection(collectionId, questionId);
+
+  Future<UserLibrary> fetchLibrarySummary() async {
+    try {
+      final doc = await LibraryService.instance.getLibraryMeta();
+      if (!doc.exists) return UserLibrary.empty();
+      return UserLibrary.fromMetaDoc(doc);
+    } catch (_) {
+      return UserLibrary.empty();
+    }
+  }
 }
 
 // basit collection mock modeli

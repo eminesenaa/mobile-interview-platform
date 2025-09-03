@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 
 
+const Color primaryColor = Color(0xFFB13BFF);
+const Color secondaryColor = Color(0xFFFFCC00);
+
+const Color headlineColor = Color(0xFFFBFBFB);
+
 const Color pastelBlue = Color(0xFFC6E7FF);
 const Color pastelBlue2 = Color(0xFFD4F6FF);
-const Color white = Color(0xFFFBFBFB);
 
 
 const Color prussianBlue = Color(0xFF004BA8);
