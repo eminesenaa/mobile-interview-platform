@@ -58,6 +58,9 @@ class GradeResultMapper {
       correct: decision == "advance" || correctness >= 5,
       expected: "overall_score=${json['overall_score']}, decision=$decision",
       reason: strengths.isNotEmpty ? strengths : weaknesses,
+      score: (json['overall_score'] is num)
+          ? (json['overall_score'] as num).toDouble()
+          : 0.0,
     );
   }
 
@@ -72,6 +75,9 @@ class GradeResultMapper {
       correct: decision == "advance" || correctness >= 0.8, // çünkü bu prompt [0,1] scale
       expected: "overall_score=${json['overall_score']}, decision=$decision",
       reason: strengths.isNotEmpty ? strengths : weaknesses,
+      score: (json['overall_score'] is num)
+          ? (json['overall_score'] as num).toDouble()
+          : 0.0,
     );
   }
 
