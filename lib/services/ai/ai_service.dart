@@ -28,7 +28,7 @@ class AiService {
     return AiEvaluateResult(
       finalAnswer: result.expected,
       explanation: result.reason,
-      score: null,
+      score: result.score,
       correct: result.correct,
     );
   }
@@ -83,7 +83,7 @@ class AiService {
 class AiEvaluateResult {
   final String finalAnswer;
   final String explanation;
-  final int? score;   // 1..5 (opsiyonel)
+  final double? score;   // 0...5
   final bool correct; // arkadaşın servisinden geliyor
   AiEvaluateResult({
     required this.finalAnswer,

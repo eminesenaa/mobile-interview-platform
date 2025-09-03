@@ -17,7 +17,8 @@ OUTPUT FORMAT (return ONLY raw JSON with this exact schema)
   "correct": true,
   "expected": "",
   "reason": "",
-  "tips": []
+  "tips": [],
+  "score": 0.0
 }
 
 QUESTION METADATA
@@ -42,12 +43,16 @@ CANDIDATE INPUT
 ---
 
 ## EVALUATION RULES
-- Return ONLY the JSON object defined above.
-- Non-STAR categories → Binary judgement only:
-  * "correct" = true/false
-  * "expected" = concise ideal answer or key points
-  * "reason" = 1–2 sentence justification, written in a professional yet approachable tone
-  * "tips" = [] or up to 3 short, constructive suggestions (supportive, never dismissive)
+- Always return JSON with `"score"` between 0 and 5 (float).
+- `"correct"` is still binary (true/false).
+- MCQ:
+  * correct → score = 5.0
+  * incorrect → score = 0.0
+- Fill in Blank / Short Answer / Code Writing:
+  * grade cautiously with partial credit (e.g., 1.5, 3.0, 4.5).
+- `"expected"` = concise ideal answer or key points.
+- `"reason"` = 1–2 sentence justification, written in a professional yet approachable tone.
+- `"tips"` = [] or up to 3 short, constructive suggestions, constructive suggestions (supportive, never dismissive).
 
 - STAR category (behavioral hr questions) → Also binary for training quick view:
   * "correct" = whether the answer meaningfully covers STAR (S,T,A,R) for the asked scenario
