@@ -13,6 +13,7 @@ import 'package:interview_project/pages/exam/widgets/question_header.dart';
 import 'package:interview_project/pages/exam/widgets/mcq_view.dart';
 
 
+import '../../constants/colors.dart';
 import '../../models/question.dart';
 
 // lib/pages/exam/exam_page.dart
@@ -37,10 +38,24 @@ class ExamPage extends StatelessWidget {
       return Scaffold(
         appBar: AppBar(
           title: Text(exam.title),
-          actions: [Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: Center(child: TimerBadge(secondsLeft: st.secondsLeft)),
-          )],
+          actions: [
+            // Sayaç önce (solda), Navigator en sağda
+            Padding(
+              //PROGRESS BAR
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Center(child: TimerBadge(secondsLeft: st.secondsLeft)),
+            ),
+            IconButton(
+              tooltip: 'Navigator',
+              icon: const Icon(Icons.grid_view_rounded),
+              onPressed: () {
+                // TODO: question navigator sheet
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Navigator coming soon')),
+                );
+              },
+            ),
+          ],
         ),
         body: Column(
           children: [
@@ -48,11 +63,9 @@ class ExamPage extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // İnce progress üstü (mevcut ProgressBar)
-                  ProgressBar(total: exam.questions.length, answered: st.answers.length),
-                  const SizedBox(height: 12),
-                  // 3 kutu: Answered / Flagged / Unanswered
+                  ProgressBar(total: exam.questions.length, answered: st.answers.length, current: c.currentNumber),
                   StatsRow(
                     answered: c.answeredCount,
                     flagged: c.flaggedCount,
@@ -69,12 +82,35 @@ class ExamPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    QuestionHeader(current: c.currentNumber, total: c.total),
-                    // MCQ içerik
-                    McqView(
-                      question: q,
-                      onAnswer: c.answerCurrent,
-                      onToggleFlag: c.toggleFlag,
+                    // ⬇️ TEK BÜYÜK KART: border yok, soft mavi back
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: secondaryColor.withValues(alpha: 0.35), // 💡 çok açık mavi
+                        borderRadius: BorderRadius.circular(16),
+                        // border: yok
+                        boxShadow: [
+                          // çok hafif derinlik
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          QuestionHeader(current: c.currentNumber, total: c.total),
+                          const SizedBox(height: 12),
+                          McqView(
+                            question: q,
+                            onAnswer: c.answerCurrent,
+                            onToggleFlag: c.toggleFlag,
+                            embedded: true, // dış kapsayıcı bizde, içte ekstra border yok
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),

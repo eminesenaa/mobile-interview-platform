@@ -47,7 +47,13 @@ class ExamController extends GetxController {
   void answerCurrent(dynamic value) {
     final q = currentQuestion;
     final newAnswers = Map<String, dynamic>.from(state.value.answers);
-    newAnswers[q.id] = value;
+
+    if (value == null) {
+      newAnswers.remove(q.id); // null gelirse sil
+    } else {
+      newAnswers[q.id] = value;
+    }
+
     state.value = state.value.copyWith(answers: newAnswers);
     state.refresh();
   }
@@ -57,6 +63,14 @@ class ExamController extends GetxController {
     final f = Set<String>.from(state.value.flagged);
     f.contains(id) ? f.remove(id) : f.add(id);
     state.value = state.value.copyWith(flagged: f);
+    state.refresh();
+  }
+
+  void clearCurrent() {
+    final q = currentQuestion;
+    final newAnswers = Map<String, dynamic>.from(state.value.answers);
+    newAnswers.remove(q.id); // cevabı kaldır
+    state.value = state.value.copyWith(answers: newAnswers);
     state.refresh();
   }
 

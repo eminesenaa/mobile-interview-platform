@@ -36,7 +36,6 @@ class McqQuestionPage extends StatelessWidget {
           'Question',
           style: AppTextStyles.headline.copyWith(color: Colors.white),
         ),
-        backgroundColor: pastelBlue,
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
