@@ -20,9 +20,9 @@ import '../constants/colors.dart';
 // - constants/colors.dart (tema renkleri için; isme göre uyarlayın)
 // ==========================================================================
 
+import 'exam/exam_home_page.dart';
 import 'home/home_page.dart';
 import 'practice/practice_page.dart';
-import 'exam/exam_page.dart';
 import 'library/library_page.dart';
 import 'profile/profile_page.dart';
 
@@ -41,7 +41,7 @@ class _MainViewState extends State<MainView> {
   final List<Widget> _screens = const [
     HomePage(),
     PracticePage(),
-    ExamPage(),
+    ExamHomePage(),
     LibraryPage(),
     ProfilePage(),
   ];
