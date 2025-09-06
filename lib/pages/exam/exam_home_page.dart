@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:interview_project/constants/colors.dart';
 
 import 'package:interview_project/models/exam.dart';
 import 'package:interview_project/models/question.dart';
@@ -74,7 +75,7 @@ class ExamHomePage extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Exam')),
+      appBar: AppBar(title: const Center(child:  Text('Exam'))),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Center(
@@ -95,7 +96,7 @@ class ExamHomePage extends StatelessWidget {
                   width: 1,
                   margin: const EdgeInsets.symmetric(horizontal: 24),
                   height: 220,
-                  color: Theme.of(context).dividerColor.withValues(alpha: .4),
+                  color: ashGrey,
                 ),
                 // RIGHT: Create Your Exam
                 _TapArea(
@@ -135,7 +136,11 @@ class _TapArea extends StatelessWidget {
         child: Text(
           title,
           textAlign: textAlign,
-          style: ts?.copyWith(letterSpacing: 0.5),
+          style: const TextStyle(
+            color: primaryColor,
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+          ),
         ),
       ),
     );
