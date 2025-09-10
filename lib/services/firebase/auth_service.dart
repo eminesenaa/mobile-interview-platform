@@ -7,7 +7,7 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// 🔹 Kullanıcı kaydı (sign up)
+  /// 🔹 Kullanıcı kaydı (sign up) + Username kontrol
   Future<User?> signUp({
     required String email,
     required String password,
@@ -16,6 +16,21 @@ class AuthService {
     required String username,
   }) async {
     try {
+      // ✅ Username Firestore’da daha önce alınmış mı kontrol et
+      final existing = await _db
+          .collection("users")
+          .where("username", isEqualTo: username)
+          .limit(1)
+          .get();
+
+      if (existing.docs.isNotEmpty) {
+        throw FirebaseAuthException(
+          code: "username-already-in-use",
+          message: "This username is already taken.",
+        );
+      }
+
+      // ✅ Firebase Authentication’da kullanıcı oluştur
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -24,13 +39,13 @@ class AuthService {
       final user = credential.user;
 
       if (user != null) {
-        // Firestore’da users/{uid} dökümanı oluştur
+        // ✅ Firestore’da users/{uid} dökümanı oluştur
         await _db.collection("users").doc(user.uid).set({
           "id": user.uid,
           "email": email,
           "name": name,
           "surname": surname,
-          "username": username, // ✅ artık email’den değil, kullanıcıdan gelen değer
+          "username": username, // 🔹 kullanıcıdan gelen değer
           "photoUrl": null,
           "age": null,
 
@@ -54,10 +69,10 @@ class AuthService {
 
       return user;
     } on FirebaseAuthException catch (e) {
-      print("SignUp error: ${e.code} - ${e.message}");
-      return null;
+      print("❌ SignUp error: ${e.code} - ${e.message}");
+      rethrow; // UI'da snackbar gösterebilmek için hata fırlatıyoruz
     } catch (e) {
-      print("Unexpected error: $e");
+      print("❌ Unexpected error: $e");
       return null;
     }
   }
@@ -71,10 +86,10 @@ class AuthService {
       );
       return credential.user;
     } on FirebaseAuthException catch (e) {
-      print("SignIn error: ${e.code} - ${e.message}");
+      print("❌ SignIn error: ${e.code} - ${e.message}");
       return null;
     } catch (e) {
-      print("Unexpected error: $e");
+      print("❌ Unexpected error: $e");
       return null;
     }
   }

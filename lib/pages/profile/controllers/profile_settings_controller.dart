@@ -1,150 +1,167 @@
-import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
-// Eğer profilden veri çekmek istersen:
-// import '../../controllers/profile_controller.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+import 'package:overlay_support/overlay_support.dart';
 
 class ProfileSettingsController extends GetxController {
-  // UI'de göstereceğimiz reaktif alanlar
-  final name = ''.obs;
-  final surname = ''.obs;
-  final username = ''.obs;
-  final email = ''.obs;
+  final RxString name = ''.obs;
+  final RxString surname = ''.obs;
+  final RxString username = ''.obs;
+  final RxString email = ''.obs;
+  final RxString language = 'English'.obs;
 
-  final language = 'English'.obs;
-
-  // Durum
-  final isSaving = false.obs;
-  final savedBanner = 'All changes saved'.obs;
-
-  Timer? _debounce;
+  final RxBool isLoading = false.obs;
+  final RxnString error = RxnString();
 
   @override
   void onInit() {
     super.onInit();
-
-    // Başlangıç değerleri (mock). Burayı kendi user’ından doldur.
-    name.value = 'Rümeysa';
-    surname.value = 'Yavuzkanat';
-    username.value = 'rumeysayvz';
-    email.value = 'rumeysa@example.com';
-
-    // Eğer ProfileController kullanıyorsan buradan senkronlayabilirsin:
-    // try {
-    //   final p = Get.find<ProfileController>();
-    //   name.value = p.name.value;
-    //   surname.value = p.surname.value;
-    //   username.value = p.username.value;
-    //   email.value = p.email.value;
-    // } catch (_) {}
+    loadUser();
   }
 
-  // -------- Validation helpers --------
+  /// Load user data from Firestore
+  Future<void> loadUser() async {
+    try {
+      isLoading.value = true;
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+
+      final snap =
+          await FirebaseFirestore.instance.collection("users").doc(uid).get();
+      final data = snap.data() ?? {};
+
+      name.value = data['name'] ?? '';
+      surname.value = data['surname'] ?? '';
+      username.value = data['username'] ?? '';
+      email.value = data['email'] ?? '';
+      language.value = data['language'] ?? 'English';
+    } catch (e) {
+      error.value = e.toString();
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // ---- Validators ----
   String? validateNotEmpty(String? v, String field) {
-    if (v == null || v.trim().isEmpty) return '$field cannot be empty';
+    if (v == null || v.trim().isEmpty) {
+      return '$field cannot be empty';
+    }
     return null;
   }
 
   String? validateEmail(String? v) {
-    if (v == null || v.trim().isEmpty) return 'Email cannot be empty';
-    final ok = RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(v.trim());
-    if (!ok) return 'Invalid email';
+    if (v == null || !v.contains('@')) {
+      return 'Enter a valid email address';
+    }
     return null;
   }
 
-  // -------- Setters (tile/dialog sonrası çağırılır) --------
-  Future<void> setName(String v) async {
-    final err = validateNotEmpty(v, 'Name');
-    if (err != null) return _toast(err);
-    name.value = v.trim();
-    await saveProfile();
+  // ---- Firestore Update Methods ----
+  Future<void> setName(String v) async => _updateField("name", v, name, "Name");
+  Future<void> setSurname(String v) async =>
+      _updateField("surname", v, surname, "Surname");
+  Future<void> setUsername(String v) async =>
+      _updateField("username", v, username, "Username");
+  Future<void> setEmail(String v) async =>
+      _updateField("email", v, email, "Email");
+  Future<void> setLanguage(String v) async =>
+      _updateField("language", v, language, "Language");
+
+Future<void> _updateField(
+    String field, String value, RxString localVar, String label) async {
+  try {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    await FirebaseFirestore.instance
+        .collection("users")
+        .doc(uid)
+        .update({field: value});
+
+    localVar.value = value;
+
+    // Make first letter lowercase
+    final labelLower = label[0].toLowerCase() + label.substring(1);
+
+    _showNotification(
+      "Updated",
+      "Your $labelLower has been updated successfully ✅",
+      Colors.green,
+    );
+  } catch (e) {
+    final labelLower = label[0].toLowerCase() + label.substring(1);
+
+    _showNotification(
+      "Error",
+      "Failed to update your $labelLower: $e",
+      Colors.red,
+    );
   }
+}
 
-  Future<void> setSurname(String v) async {
-    final err = validateNotEmpty(v, 'Surname');
-    if (err != null) return _toast(err);
-    surname.value = v.trim();
-    await saveProfile();
-  }
 
-  Future<void> setUsername(String v) async {
-    final err = validateNotEmpty(v, 'Username');
-    if (err != null) return _toast(err);
-    username.value = v.trim();
-    await saveProfile();
-  }
 
-  Future<void> setEmail(String v) async {
-    final err = validateEmail(v);
-    if (err != null) return _toast(err);
-    email.value = v.trim();
-    await saveProfile();
-  }
-
-  // Dil picker değişince çağır
-  Future<void> setLanguage(String v) async {
-    language.value = v;
-    // küçük bir debounce ile kaydet (isteğe bağlı)
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 350), () => saveProfile());
-  }
-
-  // -------- Persist (mock) --------
-  Future<void> saveProfile() async {
-    savedBanner.value = 'Saving…';
-    isSaving.value = true;
-    try {
-      // TODO: backend/Firebase update çağrısı
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      // Profili ana sayfaya da yansıtmak istersen:
-      // try {
-      //   final p = Get.find<ProfileController>();
-      //   p.name.value = name.value;
-      //   p.surname.value = surname.value;
-      //   p.email.value = email.value;
-      //   // p.update(); // GetBuilder kullanıyorsan
-      // } catch (_) {}
-
-      savedBanner.value = 'All changes saved';
-    } catch (e) {
-      savedBanner.value = 'Failed to save';
-      _toast('Save failed: $e');
-    } finally {
-      isSaving.value = false;
-    }
-  }
-
-  // -------- Password --------
+  // ---- Password Change ----
   Future<void> changePassword(String current, String next) async {
-    if (next.length < 6) {
-      _toast('Password must be at least 6 characters');
-      return;
-    }
-    isSaving.value = true;
-    savedBanner.value = 'Saving…';
     try {
-      // TODO: re-auth + update password
-      await Future.delayed(const Duration(milliseconds: 700));
-      _toast('Password updated 🔐');
-      savedBanner.value = 'All changes saved';
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      // Re-authenticate with the current password
+      final cred = EmailAuthProvider.credential(
+        email: user.email!,
+        password: current,
+      );
+      await user.reauthenticateWithCredential(cred);
+
+      // Prevent using the same password
+      if (current == next) {
+        _showNotification(
+            "Error", "New password cannot be the same as current password ❌",
+            Colors.red);
+        return;
+      }
+
+      // Update the password
+      await user.updatePassword(next);
+
+      // ✅ Success → close dialog + show notification
+      Get.back(); // closes the password change dialog
+      _showNotification(
+          "Success", "Your password has been changed successfully 🎉",
+          Colors.green);
+    } on FirebaseAuthException catch (e) {
+      String message;
+      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        message = "The current password is incorrect ❌";
+      } else if (e.code == 'weak-password') {
+        message = "The new password is too weak (minimum 6 characters) ❌";
+      } else if (e.code == 'requires-recent-login') {
+        message = "Please sign in again to update your password ⚠️";
+      } else {
+        message = e.message ?? "Password change failed ❌";
+      }
+
+      _showNotification("Error", message, Colors.red);
     } catch (e) {
-      _toast('Password change failed: $e');
-      savedBanner.value = 'Failed to save';
-    } finally {
-      isSaving.value = false;
+      _showNotification("Error", e.toString(), Colors.red);
     }
   }
 
-  // -------- Utils --------
-  void _toast(String msg) {
-    Get.snackbar('Info', msg, snackPosition: SnackPosition.BOTTOM);
-  }
-
-  @override
-  void onClose() {
-    _debounce?.cancel();
-    super.onClose();
+  // ---- Overlay Notification Helper ----
+  void _showNotification(String title, String message, Color bgColor) {
+    print("🔔 Notification triggered: $title - $message"); // debug log
+    showSimpleNotification(
+      Text(title,
+          style:
+              const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+      subtitle: Text(message, style: const TextStyle(color: Colors.white)),
+      background: bgColor,
+      autoDismiss: true,
+      duration: const Duration(seconds: 3),
+      slideDismissDirection: DismissDirection.up,
+    );
   }
 }

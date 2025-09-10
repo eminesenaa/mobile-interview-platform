@@ -22,22 +22,11 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final hc = Get.put(HomeController());
 
-    // TODO: İleride UserController’dan çekilecek
-    // final user = Get.find<UserController>().currentUser.value;
-    // final name = user?.name ?? 'there';
-    // final photo = user?.photoUrl;
-    const name = 'Rümeysa';
-    const String? photo = null;
-
-
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
-        title: const UserGreetingTitle(
-          name: name,
-          photoUrl: photo,
-          // onAvatarTap: () => Get.to(() => const ProfilePage()),
-        ),
+        // ✅ Firestore’dan giriş yapan kullanıcının adını otomatik alacak
+        title: const UserGreetingTitle(),
         actions: const [
           Padding(
             padding: EdgeInsets.only(right: 12),
@@ -52,11 +41,11 @@ class HomePage extends StatelessWidget {
             // ---- GREETING & STREAK ----
             const SliverToBoxAdapter(
               child: Padding(
-                padding:  EdgeInsets.fromLTRB(16, 12, 16, 4),
+                padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                     StreakCard.preview(),
+                    StreakCard.preview(),
                   ],
                 ),
               ),
@@ -127,21 +116,24 @@ class HomePage extends StatelessWidget {
                     Obx(() {
                       final pc = Get.find<HomeController>().pc;
                       final p = pc.progress.value;
-                      final acc = (p.questionStats.accuracy * 100).toStringAsFixed(0);
+                      final acc =
+                          (p.questionStats.accuracy * 100).toStringAsFixed(0);
 
                       final cards = [
                         ProgressSummaryCard(
                           icon: Icons.check_circle_rounded,
                           title: 'Accuracy',
                           value: '$acc%',
-                          caption: '${p.questionStats.correct}/${p.questionStats.total} correct',
+                          caption:
+                              '${p.questionStats.correct}/${p.questionStats.total} correct',
                           onTap: () => Get.to(() => const ProgressPage()),
                         ),
                         ProgressSummaryCard(
                           icon: Icons.workspace_premium_rounded,
                           title: 'Level ${p.level}',
                           value: '${p.xpInLevel}/${p.xpCapInLevel} XP',
-                          caption: 'to next: ${p.xpCapInLevel - p.xpInLevel} XP',
+                          caption:
+                              'to next: ${p.xpCapInLevel - p.xpInLevel} XP',
                           onTap: () => Get.to(() => const ProgressPage()),
                         ),
                         ProgressSummaryCard(
@@ -153,16 +145,25 @@ class HomePage extends StatelessWidget {
                         ),
                       ];
 
-                      return SizedBox(
-                        height: 130,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          physics: const BouncingScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(horizontal: 0),
-                          itemBuilder: (_, i) => cards[i],
-                          separatorBuilder: (_, __) => const SizedBox(width: 12),
-                          itemCount: cards.length,
-                        ),
+                      return Column(
+                        children: [
+                          SizedBox(
+                            height: 130,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 0),
+                              itemBuilder: (_, i) => cards[i],
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 12),
+                              itemCount: cards.length,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          // ✅ Weekly XP Bar Chart
+                          _MiniBarChart(values: p.weeklyXpLast7),
+                        ],
                       );
                     }),
                   ],
@@ -177,7 +178,6 @@ class HomePage extends StatelessWidget {
 }
 
 // ===== helper widgets =====
-
 class _MiniBarChart extends StatelessWidget {
   final List<int> values;
   const _MiniBarChart({super.key, required this.values});

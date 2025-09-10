@@ -9,6 +9,8 @@ import 'pages/main_view.dart';
 import 'controllers/question_controller.dart';
 import 'controllers/auth_controller.dart';
 import 'services/ai/ai_service.dart';
+import 'package:overlay_support/overlay_support.dart';
+
 
 Future<void> _initAi() async {
   Get.put<AiService>(AiService(), permanent: true);
@@ -18,7 +20,12 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await _initAi();
-  runApp(const MyApp());
+
+  runApp(
+    OverlaySupport.global(   // 🔑 tüm app burada sarıldı
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
