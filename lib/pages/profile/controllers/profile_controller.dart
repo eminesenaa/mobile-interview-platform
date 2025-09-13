@@ -1,6 +1,9 @@
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:io';
 
 class ProfileController extends GetxController {
   // ---- Normalized fields for UI ----
@@ -49,6 +52,44 @@ class ProfileController extends GetxController {
     }, onError: (err) {
       error.value = err.toString();
     });
+  }
+
+  // ---- Profil fotoğrafı seçme & yükleme ----
+  Future<void> pickAndUploadProfilePhoto() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      final file = File(pickedFile.path);
+
+      try {
+        // Storage referansı
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('profile_photos')
+            .child('$uid.jpg');
+
+        // Yükle
+        await ref.putFile(file);
+
+        // URL al
+        final url = await ref.getDownloadURL();
+
+        // Firestore’a kaydet
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .update({'photoUrl': url});
+
+        // Local state güncelle
+        photoUrl.value = url;
+      } catch (e) {
+        error.value = e.toString();
+      }
+    }
   }
 
   // ---- Navigation / Actions ----
