@@ -69,20 +69,44 @@ class FillInBlankPage extends StatelessWidget {
 
                 // 🔹 AI değerlendirme sonucu
                 Obx(() {
-                  if (c.aiResult.value.isEmpty) {
+                  if (c.aiResult.value.isEmpty &&
+                      c.aiMeta.value == null) {
                     return const SizedBox.shrink();
                   }
-                  return Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      c.aiResult.value,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (c.aiMeta.value != null)
+                        Row(
+                          children: [
+                            Chip(
+                              label: Text(c.aiMeta.value!.correct
+                                  ? 'Correct'
+                                  : 'Incorrect'),
+                            ),
+                            if (c.aiMeta.value!.score != null) ...[
+                              const SizedBox(width: 8),
+                              Chip(
+                                label: Text(
+                                    'Score: ${c.aiMeta.value!.score!.toStringAsFixed(1)}/5'),
+                              ),
+                            ],
+                          ],
+                        ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          c.aiResult.value,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ),
+                    ],
                   );
                 }),
               ],

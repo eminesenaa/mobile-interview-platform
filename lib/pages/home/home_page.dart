@@ -1,14 +1,12 @@
 // ===================== File: lib/pages/home/home_page.dart =====================
 // Purpose: Home sayfası. Streak kartı, Today’s Popular Questions (yatay scroll)
 //          ve Your Progress bölümlerini içerir.
-// Notes:
-// - User verisi yokken greeting statik, ileride UserController’dan alınacak.
-// - ProgressController bağlandı (XP, level, weekly bar chart).
 // ==============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:interview_project/pages/home/progress_page.dart';
+import 'package:interview_project/controllers/progress_controller.dart';
 import 'package:interview_project/pages/home/widgets/progress_summary_card.dart';
 import 'controllers/home_controller.dart';
 import 'widgets/streak_card.dart';
@@ -25,13 +23,12 @@ class HomePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
-        // ✅ Firestore’dan giriş yapan kullanıcının adını otomatik alacak
         title: const UserGreetingTitle(),
         actions: const [
           Padding(
             padding: EdgeInsets.only(right: 12),
             child: Icon(Icons.notifications_none),
-          )
+          ),
         ],
       ),
       body: RefreshIndicator(
@@ -55,12 +52,9 @@ class HomePage extends StatelessWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text("Today’s Popular Questions",
-                        style: Theme.of(context).textTheme.titleMedium),
-                  ],
+                child: Text(
+                  "Today’s Popular Questions",
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
             ),
@@ -71,21 +65,30 @@ class HomePage extends StatelessWidget {
                 final items = hc.popularQuestions;
                 if (items.isEmpty) {
                   return const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text("No questions available"),
+                    padding: EdgeInsets.all(24),
+                    child: Center(
+                      child: Text(
+                        "No questions available today",
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
                   );
                 }
+
                 return SizedBox(
                   height: 160,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    primary: false,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    physics: const BouncingScrollPhysics(),
                     itemCount: items.length,
                     separatorBuilder: (_, __) => const SizedBox(width: 12),
                     itemBuilder: (_, i) => PopularQuestionCard.horizontal(
                       question: items[i],
-                      width: MediaQuery.of(_).size.width * 0.78,
+                      // 🔹 genişliği biraz küçült ki scroll bariz olsun
+                      width: MediaQuery.of(context).size.width * 0.7,
                     ),
                   ),
                 );
@@ -101,8 +104,10 @@ class HomePage extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Text('Your Progress',
-                            style: Theme.of(context).textTheme.titleMedium),
+                        Text(
+                          'Your Progress',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                         const Spacer(),
                         TextButton(
                           onPressed: () => Get.to(() => const ProgressPage()),
@@ -114,26 +119,26 @@ class HomePage extends StatelessWidget {
 
                     // --- HORIZONTAL 3 SUMMARY CARDS ---
                     Obx(() {
-                      final pc = Get.find<HomeController>().pc;
+                      final pc = hc.pc;
                       final p = pc.progress.value;
                       final acc =
                           (p.questionStats.accuracy * 100).toStringAsFixed(0);
 
                       final cards = [
                         ProgressSummaryCard(
+                          icon: Icons.workspace_premium_rounded,
+                          title: 'Level ${p.level}',
+                          value: '${pc.totalXp.value} XP',
+                          caption:
+                              'to next: ${p.xpCapInLevel - p.xpInLevel} XP',
+                          onTap: () => Get.to(() => const ProgressPage()),
+                        ),
+                        ProgressSummaryCard(
                           icon: Icons.check_circle_rounded,
                           title: 'Accuracy',
                           value: '$acc%',
                           caption:
                               '${p.questionStats.correct}/${p.questionStats.total} correct',
-                          onTap: () => Get.to(() => const ProgressPage()),
-                        ),
-                        ProgressSummaryCard(
-                          icon: Icons.workspace_premium_rounded,
-                          title: 'Level ${p.level}',
-                          value: '${p.xpInLevel}/${p.xpCapInLevel} XP',
-                          caption:
-                              'to next: ${p.xpCapInLevel - p.xpInLevel} XP',
                           onTap: () => Get.to(() => const ProgressPage()),
                         ),
                         ProgressSummaryCard(
@@ -152,8 +157,8 @@ class HomePage extends StatelessWidget {
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               physics: const BouncingScrollPhysics(),
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 0),
+                              shrinkWrap: true,
+                              primary: false,
                               itemBuilder: (_, i) => cards[i],
                               separatorBuilder: (_, __) =>
                                   const SizedBox(width: 12),
@@ -161,7 +166,6 @@ class HomePage extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          // ✅ Weekly XP Bar Chart
                           _MiniBarChart(values: p.weeklyXpLast7),
                         ],
                       );
@@ -184,9 +188,7 @@ class _MiniBarChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final max = (values.isEmpty
-        ? 1
-        : values.reduce((a, b) => a > b ? a : b))
+    final max = (values.isEmpty ? 1 : values.reduce((a, b) => a > b ? a : b))
         .toDouble();
 
     return Container(
