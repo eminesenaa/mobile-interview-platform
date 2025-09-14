@@ -19,6 +19,20 @@ class _SaveToCollectionSheetState extends State<SaveToCollectionSheet> {
   bool _isSaving = false;
 
   @override
+  void initState() {
+    super.initState();
+    _loadInitialSelection(); // ✅ açıldığında mevcut koleksiyonları getir
+  }
+
+  Future<void> _loadInitialSelection() async {
+    final lib = LibraryService.instance;
+    final collections = await lib.getCollectionsOfQuestion(widget.questionId);
+    setState(() {
+      _selected = collections.toSet(); // ✅ zaten içinde olanlar tikli
+    });
+  }
+
+  @override
   void dispose() {
     _search.dispose();
     super.dispose();
@@ -34,7 +48,6 @@ class _SaveToCollectionSheetState extends State<SaveToCollectionSheet> {
     for (final c in cols) {
       final isIn = await lib.isInCollection(c.id, widget.questionId);
       if (isIn && !_selected.contains(c.id)) {
-        // ✅ Tüm koleksiyonlardan ve All'dan kaldır
         await lib.removeQuestionEverywhere(widget.questionId);
       }
     }
