@@ -1,17 +1,20 @@
-// lib/pages/library/library_page.dart
+// ===================== File: lib/pages/library/library_page.dart =====================
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:interview_project/pages/library/widgets/collection_card.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
-import '../../constants/colors.dart';          // pastelBlue
+import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
 import '../../navigation/question_navigator.dart';
 import '../../widgets/question_card.dart';
+import '../practice/controllers/practice_controller.dart';
+import 'widgets/collection_card.dart';
 import 'collection_detail_page.dart';
 import 'controllers/library_controller.dart';
-
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import '../../models/question.dart';
+import 'services/library_service.dart';
+import 'widgets/save_to_collection_sheet.dart';
 
 class LibraryPage extends StatelessWidget {
   const LibraryPage({super.key});
@@ -25,9 +28,7 @@ class LibraryPage extends StatelessWidget {
         backgroundColor: primaryColor,
         elevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
-        title: const Text(
-          'Library',
-        ),
+        title: const Text('Library'),
         centerTitle: true,
         actions: [
           IconButton(
@@ -42,7 +43,6 @@ class LibraryPage extends StatelessWidget {
           ),
         ],
       ),
-
       body: SafeArea(
         child: Column(
           children: [
@@ -56,7 +56,6 @@ class LibraryPage extends StatelessWidget {
               padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: _SearchBar(),
             ),
-
             // CONTENT
             Expanded(
               child: TabBarView(
@@ -83,13 +82,10 @@ class _SegmentedTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-
     return Container(
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(.6),
         borderRadius: BorderRadius.circular(14),
-
-        // 👇 burayı ekledik
         border: Border.all(
           color: AppTextStyles.headline.color ?? cs.primary,
           width: 1.5,
@@ -134,13 +130,15 @@ class _SearchBar extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: c.searchCtrl,
-              onChanged: c.onSearchChanged,           // ✅ controller'da mevcut
+              onChanged: c.onSearchChanged,
               decoration: InputDecoration(
                 hintText: hint,
                 prefixIcon: const Icon(Icons.search),
                 isDense: true,
-                contentPadding:
-                const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 12,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -187,110 +185,135 @@ class _RoundIconButton extends StatelessWidget {
   }
 }
 
+// ===================== ALL TAB =====================
 class _AllTab extends StatelessWidget {
   const _AllTab();
 
   @override
   Widget build(BuildContext context) {
     final c = Get.find<LibraryController>();
-    return Obx(() {
-      final items = c.filteredQuestions;
-      if (items.isEmpty) {
-        return const _EmptyState(
-          title: 'No saved questions',
-          subtitle: 'Start saving questions to see them here.',
-          icon: Icons.bookmark_border_rounded,
-        );
-      }
-      return  ListView.separated(
-        padding: const EdgeInsets.all(16),
-        physics: const BouncingScrollPhysics(),
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (_, i) {
-          final q = items[i];
-          return QuestionCard(
-            question: q,
-            onTap: () => QuestionNavigator.open(q),
+    return StreamBuilder<List<Question>>(
+      stream: c.savedQuestionsStream,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final items = snapshot.data!;
+        if (items.isEmpty) {
+          return const _EmptyState(
+            title: 'No saved questions',
+            subtitle: 'Start saving questions to see them here.',
+            icon: Icons.bookmark_border_rounded,
           );
-        },
-      );
-
-    });
-  }
-}
-
-class _DifficultyChip extends StatelessWidget {
-  final String d;
-  const _DifficultyChip({required this.d});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Theme.of(context).dividerColor),
-      ),
-      child: Text(d, style: Theme.of(context).textTheme.labelMedium),
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          physics: const BouncingScrollPhysics(),
+          itemCount: items.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (_, i) {
+            final q = items[i];
+            return QuestionCard(
+              question: q,
+              isSaved: true,
+              onTap: () => QuestionNavigator.open(q),
+              onSaveTap: () async {
+                await showModalBottomSheet(
+                  context: context,
+                  builder: (_) => SafeArea(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ListTile(
+                          leading:
+                              const Icon(Icons.delete_outline, color: Colors.red),
+                          title: const Text("Remove from Library"),
+                          onTap: () async {
+                            Navigator.pop(context);
+                            await LibraryService.instance
+                                .removeQuestionEverywhere(q.id);
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.folder_outlined,
+                              color: Colors.blue),
+                          title: const Text("Move to Collection"),
+                          onTap: () async {
+                            Navigator.pop(context);
+                            await showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              builder: (_) =>
+                                  SaveToCollectionSheet(questionId: q.id),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 }
 
+// ===================== COLLECTIONS TAB =====================
 class _CollectionsTab extends StatelessWidget {
   const _CollectionsTab();
 
   @override
   Widget build(BuildContext context) {
     final c = Get.find<LibraryController>();
-
-    return Obx(() {
-      final collections = c.filteredCollections; // rename ettiğin liste
-      if (collections.isEmpty) {
-        return const _EmptyState(
-          title: 'No collections yet',
-          subtitle: 'Create your first collection to group saved questions.',
-          icon: Icons.collections_bookmark_outlined,
+    return StreamBuilder(
+      stream: c.collectionsStream,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final collections = snapshot.data!;
+        if (collections.isEmpty) {
+          return const _EmptyState(
+            title: 'No collections yet',
+            subtitle: 'Create your first collection to group saved questions.',
+            icon: Icons.collections_bookmark_outlined,
+          );
+        }
+        return GridView.custom(
+          padding: const EdgeInsets.all(16),
+          physics: const BouncingScrollPhysics(),
+          gridDelegate: SliverQuiltedGridDelegate(
+            crossAxisCount: 2,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            pattern: const [
+              QuiltedGridTile(1, 1),
+              QuiltedGridTile(1, 1),
+              QuiltedGridTile(1, 2),
+            ],
+          ),
+          childrenDelegate: SliverChildBuilderDelegate(
+            (context, i) {
+              final col = collections[i];
+              return CollectionCard(
+                name: col.name,
+                count: col.count,
+                onTap: () =>
+                    Get.to(() => CollectionDetailPage(collectionId: col.id)),
+              );
+            },
+            childCount: collections.length,
+          ),
         );
-      }
-
-      return GridView.custom(
-        padding: const EdgeInsets.all(16),
-        physics: const BouncingScrollPhysics(),
-
-        // 🔸 2 sütunlu; pattern: [1x1, 1x1, 1x2] tekrarı
-        gridDelegate: SliverQuiltedGridDelegate(
-          crossAxisCount: 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-
-          // 1 satır = 1 “row unit”; 1x2 = tam genişlik, 1x1 = yarım genişlik
-          pattern: const [
-            QuiltedGridTile(1, 1),
-            QuiltedGridTile(1, 1),
-            QuiltedGridTile(1, 2),
-          ],
-          // repeatPattern: QuiltedGridRepeatPattern.inverted, // istersen invert dene
-        ),
-
-        childrenDelegate: SliverChildBuilderDelegate(
-              (context, i) {
-            final col = collections[i];
-            return CollectionCard(
-              name: col.name,
-              count: col.count,
-              onTap: () => Get.to(() => CollectionDetailPage(collectionId: col.id)),
-              // onLongPress: () => c.showCollectionMenu(col.id), // (istersen)
-            );
-          },
-          childCount: collections.length,
-        ),
-      );
-    });
+      },
+    );
   }
 }
 
-
+// ===================== EXAMS TAB =====================
 class _ExamsTab extends StatelessWidget {
   const _ExamsTab();
 
@@ -304,6 +327,7 @@ class _ExamsTab extends StatelessWidget {
   }
 }
 
+// ===================== EMPTY STATE =====================
 class _EmptyState extends StatelessWidget {
   final String title;
   final String subtitle;

@@ -49,16 +49,42 @@ class ProfilePage extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundColor: Colors.white,
-                        backgroundImage: (c.photoUrl.value != null &&
-                            c.photoUrl.value!.isNotEmpty)
-                            ? NetworkImage(c.photoUrl.value!)
-                            : null,
-                        child: (c.photoUrl.value == null || c.photoUrl.value!.isEmpty)
-                            ? const Icon(Icons.person, size: 40, color: Colors.black45)
-                            : null,
+                      // --- PROFİL RESMİ + KAMERA BUTONU ---
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          CircleAvatar(
+                            radius: 40,
+                            backgroundColor: Colors.white,
+                            backgroundImage: (c.photoUrl.value != null &&
+                                c.photoUrl.value!.isNotEmpty)
+                                ? NetworkImage(c.photoUrl.value!)
+                                : null,
+                            child: (c.photoUrl.value == null ||
+                                    c.photoUrl.value!.isEmpty)
+                                ? const Icon(Icons.person,
+                                    size: 40, color: Colors.black45)
+                                : null,
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: GestureDetector(
+                              onTap: () async {
+                                await c.pickAndUploadProfilePhoto();
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white,
+                                ),
+                                child: const Icon(Icons.camera_alt,
+                                    size: 18, color: Colors.blue),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 12),
                       Text(
@@ -73,7 +99,7 @@ class ProfilePage extends StatelessWidget {
                       Text(
                         'Level ${c.level.value}',
                         style: const TextStyle(
-                          color: Colors.white70,      // isim beyaz, level daha grimsi
+                          color: Colors.white70, // isim beyaz, level daha grimsi
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
                           letterSpacing: .2,
@@ -115,21 +141,22 @@ class ProfilePage extends StatelessWidget {
                       leading: const Icon(Icons.query_stats_rounded),
                       title: const Text("View Detailed Progress"),
                       subtitle:
-                      const Text("Open the full analytics dashboard"),
+                          const Text("Open the full analytics dashboard"),
                       onTap: c.goToProgress,
                     ),
                     ListTile(
                       leading: const Icon(Icons.assignment_turned_in_rounded),
                       title: const Text("Interview Results"),
                       subtitle:
-                      const Text("See results submitted by companies"),
+                          const Text("See results submitted by companies"),
                       onTap: c.goToInterviewResults,
                     ),
                     ListTile(
                       leading: const Icon(Icons.edit_rounded),
                       title: const Text("Edit Profile"),
-                      subtitle: const Text("Name, email, username, password"),
-                        onTap: () => Get.to(() => const ProfileSettingsPage()),
+                      subtitle:
+                          const Text("Name, email, username, password"),
+                      onTap: () => Get.to(() => const ProfileSettingsPage()),
                     ),
                   ],
                 ),

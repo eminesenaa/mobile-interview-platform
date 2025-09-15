@@ -16,7 +16,6 @@ import '../../../constants/constants.dart';
 import '../../../models/question.dart';
 import 'controllers/mcq_controller.dart';
 
-
 class McqQuestionPage extends StatelessWidget {
   final Question question;
 
@@ -120,12 +119,13 @@ class McqQuestionPage extends StatelessWidget {
                                   fontWeight: isSelected
                                       ? FontWeight.w600
                                       : FontWeight.normal,
-                                 color: c.isSubmitted.value
-                                   ? (isCorrect
-                                  ? Colors.green.shade700
-                                      : (isWrong ? Colors.red.shade700 : Colors.black))
+                                  color: c.isSubmitted.value
+                                      ? (isCorrect
+                                          ? Colors.green.shade700
+                                          : (isWrong
+                                              ? Colors.red.shade700
+                                              : Colors.black))
                                       : Colors.black,
-
                                 ),
                               ),
                             ),
@@ -175,6 +175,26 @@ class McqQuestionPage extends StatelessWidget {
                           : "Yanıt yorumlanamadı.",
                       style: AppTextStyles.subtitle,
                     ),
+                    const SizedBox(height: 12),
+                    if (c.aiResult.value != null)
+                      Row(
+                        children: [
+                          Chip(
+                            label: Text(
+                              c.aiResult.value!.correct
+                                  ? 'Correct'
+                                  : 'Incorrect',
+                            ),
+                          ),
+                          if (c.aiResult.value!.score != null) ...[
+                            const SizedBox(width: 8),
+                            Chip(
+                              label: Text(
+                                  'Score: ${c.aiResult.value!.score!.toStringAsFixed(1)}/5'),
+                            ),
+                          ],
+                        ],
+                      ),
                   ],
                 ),
             ],

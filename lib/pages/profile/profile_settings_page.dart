@@ -5,6 +5,8 @@ import 'package:interview_project/pages/profile/widgets/edit_text_tile.dart';
 import 'package:interview_project/pages/profile/widgets/picker_tile.dart';
 import 'package:interview_project/pages/profile/widgets/section_title.dart';
 import 'package:interview_project/pages/profile/widgets/settings_action_tile.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:interview_project/pages/auth/login_page.dart';
 
 import 'controllers/profile_settings_controller.dart';
 
@@ -97,15 +99,39 @@ class ProfileSettingsPage extends StatelessWidget {
                     subtitle: 'Update your account password',
                     onTap: () => _showChangePasswordDialog(context, c),
                   ),
-                  SettingsActionTile(
-                    icon: Icons.logout_rounded,
-                    title: 'Sign Out',
-                    subtitle: 'Sign out from this device',
-                    onTap: () {
-                      // TODO: signOut
-                      Get.snackbar('Signed out', 'Mock sign out');
-                    },
-                  ),
+               SettingsActionTile(
+  icon: Icons.logout_rounded,
+  title: 'Sign Out',
+  subtitle: 'Sign out from this device',
+  onTap: () async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Sign Out"),
+        content: const Text("Are you sure you want to sign out?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text("Yes, Sign Out"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await FirebaseAuth.instance.signOut();
+      Get.offAll(() => LoginPage());
+      Get.snackbar('Signed out', 'You have been logged out.');
+    }
+  },
+),
+
+
+
                 ],
               ),
             ),

@@ -1,27 +1,25 @@
 // ===================== File: lib/pages/practice_page.dart =====================
-// Purpose: Kullanıcının soru çözme pratiği yapacağı ana sayfa.
-//          Firestore’dan sorular yüklenir, filtrelenir ve listelenir.
-// ==============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:interview_project/constants/colors.dart';
-
-import 'package:interview_project/pages/practice/widgets/todays_question_card.dart';
-
-import '../../navigation/question_navigator.dart';
-import '../library/controllers/library_controller.dart';
-import '../library/widgets/save_to_collection_sheet.dart';
-import './controllers/practice_controller.dart';
-import '../../models/question.dart';
-import 'widgets/get_started_card.dart';
-import '../../widgets/question_card.dart';
-import 'widgets/topic_chip_scroll.dart';
-import 'widgets/search_add_bar.dart';
-import 'widgets/filter_popup.dart';
-import '../../constants/constants.dart';
-
 import 'package:sliver_tools/sliver_tools.dart';
+
+import 'package:interview_project/constants/colors.dart';
+import 'package:interview_project/constants/constants.dart';
+
+import 'package:interview_project/navigation/question_navigator.dart';
+import 'package:interview_project/pages/practice/widgets/todays_question_card.dart';
+import 'package:interview_project/pages/practice/controllers/practice_controller.dart';
+import 'package:interview_project/pages/practice/widgets/get_started_card.dart';
+import 'package:interview_project/pages/practice/widgets/topic_chip_scroll.dart';
+import 'package:interview_project/pages/practice/widgets/search_add_bar.dart';
+import 'package:interview_project/pages/practice/widgets/filter_popup.dart';
+
+import 'package:interview_project/widgets/question_card.dart';
+import 'package:interview_project/pages/library/widgets/save_to_collection_sheet.dart';
+import 'package:interview_project/pages/library/services/library_service.dart';
+
+import '../../models/question.dart';
 
 class PracticePage extends StatelessWidget {
   const PracticePage({super.key});
@@ -29,8 +27,6 @@ class PracticePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(PracticeController());
-
-
 
     final bottomInset = MediaQuery.of(context).padding.bottom + 12;
 
@@ -190,44 +186,75 @@ class PracticePage extends StatelessWidget {
                         if (index.isOdd) return const SizedBox(height: 10);
                         final itemIndex = index ~/ 2;
                         final q = questions[itemIndex];
-                        return QuestionCard(
-                          question: q,
-                          onTap: () => _openQuestion(q),
-                          onSaveTap: () async {
-                            // 1) Soru ID’sini çıkar
-                            final questionId = _extractQuestionId(q);
+                        final qId = _extractQuestionId(q);
 
-                            // 2) (Varsa) LibraryController’dan ön-verileri çek
-                            Set<String> initialSelected = {};
-                            bool initialSavedToAll = false;
-
-                            try {
-                              final lib = Get.find<LibraryController>();
-                              initialSelected = (await lib.getCollectionsOfQuestion(questionId)).toSet();
-                              initialSavedToAll = await lib.isSaved(questionId);
-                            } catch (_) {
-                              // Controller yoksa sorun değil; sheet mock listeyle açılır
-                            }
-
-                            // 3) Sheet’i aç
-                            final result = await Get.bottomSheet(
-                              SaveToCollectionSheet(
-                                questionId: questionId,
-                                initialSelected: initialSelected,
-                                initialSavedToAll: initialSavedToAll,
-                              ),
-                              isScrollControlled: true,
-                              ignoreSafeArea: false,
-                              backgroundColor: Colors.transparent,
+                        return StreamBuilder<bool>(
+                          stream: LibraryService.instance.isSavedStream(qId),
+                          builder: (context, snapshot) {
+                            final saved = snapshot.data ?? false;
+                            return QuestionCard(
+                              question: q,
+                              onTap: () => _openQuestion(q),
+                              onSaveTap: () async {
+                                if (saved) {
+                                  // 🔹 Kaydedilmişse → seçenek sun
+                                  await showModalBottomSheet(
+                                    context: context,
+                                    builder: (_) {
+                                      return SafeArea(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            ListTile(
+                                              leading: const Icon(
+                                                Icons.delete_outline,
+                                                color: Colors.red,
+                                              ),
+                                              title: const Text(
+                                                  "Remove from My Library"),
+                                              onTap: () async {
+                                                Navigator.pop(context);
+                                                await LibraryService.instance
+                                                    .removeQuestionEverywhere(
+                                                        qId);
+                                              },
+                                            ),
+                                            ListTile(
+                                              leading: const Icon(
+                                                Icons.folder_outlined,
+                                                color: Colors.blue,
+                                              ),
+                                              title: const Text(
+                                                  "Move to Collection"),
+                                              onTap: () async {
+                                                Navigator.pop(context);
+                                                await showModalBottomSheet(
+                                                  context: context,
+                                                  isScrollControlled: true,
+                                                  builder: (_) =>
+                                                      SaveToCollectionSheet(
+                                                          questionId: qId),
+                                                );
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  );
+                                } else {
+                                  // 🔹 Kaydedilmemişse → direkt koleksiyona ekle
+                                  await showModalBottomSheet(
+                                    context: context,
+                                    isScrollControlled: true,
+                                    builder: (_) =>
+                                        SaveToCollectionSheet(questionId: qId),
+                                  );
+                                }
+                              },
+                              isSaved: saved,
                             );
-
-                            // 4) (Opsiyonel) dönüşü kullan
-                            if (result is Map) {
-                              // örn. ikon durumunu tazelemek için setState / controller notify
-                              // print(result); // {'selectedCollectionIds': Set<String>, 'saveToAll': bool}
-                            }
                           },
-                          isSaved: false,
                         );
                       },
                       childCount: questions.length * 2 - 1,
@@ -261,21 +288,17 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
+
 String _extractQuestionId(Question q) {
-  // Modelinde hangi alan varsa onu kullan.
-  // Aşağıdaki sıralama en yaygın 3 senaryoyu kapsar:
   try {
     final dynamic v = (q as dynamic).id;
     if (v != null) return v.toString();
   } catch (_) {}
 
   try {
-    final dynamic v = (q as dynamic).docId; // Firestore doc id kullanıyorsan
+    final dynamic v = (q as dynamic).docId;
     if (v != null) return v.toString();
   } catch (_) {}
 
-  // Geçici fallback: benzersiz değilse ileride kaldır
   return q.title.toString();
 }
-
-

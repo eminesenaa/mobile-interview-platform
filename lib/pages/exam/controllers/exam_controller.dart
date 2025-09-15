@@ -1,12 +1,17 @@
+// lib/pages/exam/controllers/exam_controller.dart
 import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:interview_project/models/exam.dart';
 import 'package:interview_project/models/question.dart';
+import 'package:interview_project/pages/exam/exam_result_page.dart';
 
 class ExamController extends GetxController {
   final Exam exam;
   ExamController(this.exam);
+
+  final _db = FirebaseFirestore.instance;
 
   late Rx<ExamStateModel> state;
   Timer? _ticker;
@@ -15,10 +20,9 @@ class ExamController extends GetxController {
 
   int get total => exam.questions.length;
   int get answeredCount => state.value.answers.length;
-  int get flaggedCount  => state.value.flagged.length;
+  int get flaggedCount => state.value.flagged.length;
   int get unansweredCount => total - answeredCount;
   int get currentNumber => state.value.currentIndex + 1;
-
 
   @override
   void onInit() {
@@ -49,7 +53,7 @@ class ExamController extends GetxController {
     final newAnswers = Map<String, dynamic>.from(state.value.answers);
 
     if (value == null) {
-      newAnswers.remove(q.id); // null gelirse sil
+      newAnswers.remove(q.id);
     } else {
       newAnswers[q.id] = value;
     }
@@ -69,30 +73,44 @@ class ExamController extends GetxController {
   void clearCurrent() {
     final q = currentQuestion;
     final newAnswers = Map<String, dynamic>.from(state.value.answers);
-    newAnswers.remove(q.id); // cevabı kaldır
+    newAnswers.remove(q.id);
     state.value = state.value.copyWith(answers: newAnswers);
     state.refresh();
   }
 
   void next() {
     if (state.value.currentIndex < exam.questions.length - 1) {
-      state.value = state.value.copyWith(currentIndex: state.value.currentIndex + 1);
+      state.value =
+          state.value.copyWith(currentIndex: state.value.currentIndex + 1);
       state.refresh();
     }
   }
 
   void prev() {
     if (state.value.currentIndex > 0) {
-      state.value = state.value.copyWith(currentIndex: state.value.currentIndex - 1);
+      state.value =
+          state.value.copyWith(currentIndex: state.value.currentIndex - 1);
       state.refresh();
     }
   }
 
-  void submit({bool auto = false}) {
+  Future<void> submit({bool auto = false}) async {
     _ticker?.cancel();
     state.value = state.value.copyWith(submitted: true);
     state.refresh();
-    // TODO: skor hesaplama + result sayfasına yönlendirme
+
+    // 🔹 Firestore’a kaydet
+    await _db.collection("examResults").add({
+      "examId": exam.id,
+      "submittedAt": Timestamp.now(),
+      "auto": auto,
+      "answers": state.value.answers,
+      "score": null, // ileride hesaplanacak
+      "feedback": null,
+    });
+
+    // 🔹 Sonuç sayfasına yönlendir
+    Get.offAll(() => const ExamResultPage());
   }
 
   @override

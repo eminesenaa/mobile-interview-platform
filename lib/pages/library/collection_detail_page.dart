@@ -1,11 +1,12 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+// ===================== File: lib/pages/library/collection_detail_page.dart =====================
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../models/collection.dart';
 import '../../models/question.dart';
+import 'services/library_service.dart';
 import '../../widgets/question_card.dart';
+import '../../navigation/question_navigator.dart';
+import 'widgets/save_to_collection_sheet.dart';
 
 class CollectionDetailPage extends StatelessWidget {
   final String collectionId;
@@ -13,66 +14,89 @@ class CollectionDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-    final docRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('collections')
-        .doc(collectionId);
-
     return Scaffold(
-      appBar: AppBar(title: const Text('Collection')),
-      body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: docRef.snapshots(),
-        builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting) {
+      appBar: AppBar(
+        title: const Text('Collection'),
+      ),
+      body: StreamBuilder<List<Question>>(
+        stream: LibraryService.instance.questionsInCollectionStream(collectionId),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (!snap.hasData || !snap.data!.exists) {
-            return const Center(child: Text('Collection not found'));
+          final questions = snapshot.data!;
+          if (questions.isEmpty) {
+            return const Center(child: Text('No questions in this collection.'));
           }
 
-          final collection = Collection.fromDoc(snap.data!);
-          final ids = collection.questionIds;
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: questions.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (_, i) {
+              final q = questions[i];
+              final qId = q.id; // Firestore doc id
 
-          if (ids.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  '${collection.name}\n\nNo items yet.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-            );
-          }
+              return StreamBuilder<bool>(
+                stream: LibraryService.instance.isSavedStream(qId),
+                builder: (context, snap) {
+                  final isSaved = snap.data ?? false;
 
-          return FutureBuilder<List<Question>>(
-            future: _fetchQuestionsByIds(ids),
-            builder: (context, qsnap) {
-              if (qsnap.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final questions = qsnap.data ?? const <Question>[];
-
-              return ListView.separated(
-                padding: const EdgeInsets.all(12),
-                itemCount: questions.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (_, i) {
-                  final q = questions[i];
                   return QuestionCard(
                     question: q,
-                    onTap: () {
-                      // soru sayfasına git
-                      // Get.to(() => McqQuestionPage(question: q));
+                    isSaved: isSaved,
+                    onTap: () => QuestionNavigator.open(q),
+                    onSaveTap: () async {
+                      if (isSaved) {
+                        // 🔹 Kaydedilmişse → seçenek sun
+                        await showModalBottomSheet(
+                          context: context,
+                          builder: (_) => SafeArea(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ListTile(
+                                  leading: const Icon(
+                                    Icons.delete_outline,
+                                    color: Colors.red,
+                                  ),
+                                  title: const Text("Remove from My Library"),
+                                  onTap: () async {
+                                    Navigator.pop(context);
+                                    await LibraryService.instance
+                                        .removeQuestionEverywhere(qId);
+                                  },
+                                ),
+                                ListTile(
+                                  leading: const Icon(
+                                    Icons.folder_outlined,
+                                    color: Colors.blue,
+                                  ),
+                                  title: const Text("Move to Collection"),
+                                  onTap: () async {
+                                    Navigator.pop(context);
+                                    await showModalBottomSheet(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      builder: (_) =>
+                                          SaveToCollectionSheet(questionId: qId),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      } else {
+                        // 🔹 Kaydedilmemişse → direkt koleksiyon seçtir
+                        await showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          builder: (_) =>
+                              SaveToCollectionSheet(questionId: qId),
+                        );
+                      }
                     },
-                    onSaveTap: () {
-                      // mevcut save sheet’i question.id ile aç
-                      // openSaveSheet(q);
-                    },
-                    isSaved: true, // koleksiyon içindeyiz
                   );
                 },
               );
@@ -82,27 +106,4 @@ class CollectionDetailPage extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Firestore whereIn 10 sınırı: id’leri 10’arlı gruplar halinde çek.
-Future<List<Question>> _fetchQuestionsByIds(List<String> ids) async {
-  const chunk = 10;
-  final db = FirebaseFirestore.instance;
-  final List<Question> result = [];
-
-  for (var i = 0; i < ids.length; i += chunk) {
-    final batch = ids.sublist(i, (i + chunk > ids.length) ? ids.length : i + chunk);
-    final q = await db
-        .collection('questions')
-        .where(FieldPath.documentId, whereIn: batch)
-        .get();
-    // geçici olarak hata vermemesi için kapatıldı backend yapılırken açılıp düzenlenir.
-    // result.addAll(q.docs.map((d) => Question.fromDoc(d)));
-  }
-
-  // istersen collection’daki sırayı korumak için id sırasına göre tekrar sırala
-  final index = {for (var i = 0; i < ids.length; i++) ids[i]: i};
-  result.sort((a, b) => (index[a.id] ?? 0).compareTo(index[b.id] ?? 0));
-
-  return result;
 }
