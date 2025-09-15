@@ -1,85 +1,61 @@
+// lib/pages/exam/exam_home_page.dart
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:interview_project/constants/colors.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:interview_project/models/exam.dart';
 import 'package:interview_project/models/question.dart';
 import 'package:interview_project/pages/exam/exam_page.dart';
 import 'package:interview_project/pages/exam/create_exam_sheet.dart';
 
-// services
-import 'package:interview_project/pages/exam/services/ai_duration_service.dart';
-import 'package:interview_project/pages/exam/services/exam_factory.dart';
+import '../../constants/colors.dart';
 
-/// EXAM HOME
-/// ---------
-/// Exam sekmesine girince açılan basit landing ekranı.
-/// Solda "Random Exam", sağda "Create Your Exam".
-/// Random: soru havuzundan (şimdilik demo) sınav oluşturup ExamPage'e gider.
-/// Create: filtre sayfasına götürür; oradan oluşturulan sınav ExamPage'de açılır.
+/// Exam Home Page
+/// Random exam: Firestore'dan random 10 soru çeker.
+/// Create exam: filtreli sayfaya yönlendirir.
 class ExamHomePage extends StatelessWidget {
   const ExamHomePage({super.key});
 
-  // Geçici soru havuzu (Firebase bağlayınca burayı değiştireceğiz)
-  Future<List<Question>> _getPool() async {
-    return [
-      Question(
-        id: 'q1',
-        title: 'What is the time complexity of accessing an element in a HashMap?',
-        difficulty: Difficulty.medium,
-        type: QuestionType.mcq,
-        topic: 'Data Structures',
-        tags: ['hashmap', 'complexity'],
-        options: [
-          'O(1) - Constant time',
-          'O(log n) - Logarithmic time',
-          'O(n) - Linear time',
-          'O(n log n)',
-        ], description: '', status: Status.todo,
-      ),
-      Question(
-        id: 'q2',
-        title: 'Which sorting has the best average-case time complexity?',
-        difficulty: Difficulty.easy,
-        type: QuestionType.mcq,
-        topic: 'Algorithms',
-        tags: ['sorting'],
-        options: ['Bubble Sort', 'Quick Sort', 'Selection Sort', 'Insertion Sort'], description: '', status: Status.todo,
-      ),
-      Question(
-        id: 'q3',
-        title: 'Pick the correct Big-O for binary search.',
-        difficulty: Difficulty.easy_medium,
-        type: QuestionType.mcq,
-        topic: 'Algorithms',
-        tags: ['binary-search'],
-        options: ['O(1)', 'O(log n)', 'O(n)', 'O(n log n)'], description: '', status: Status.todo,
-      ),
-      Question(
-        id: 'q4',
-        title: 'Which DS is best for LRU cache?',
-        difficulty: Difficulty.medium,
-        type: QuestionType.mcq,
-        topic: 'Data Structures',
-        tags: ['cache', 'lru'],
-        options: ['Stack + Array', 'DLL + HashMap', 'Queue only', 'BST only'], description: '', status: Status.todo,
-      ),
-    ];
-  }
+  Future<Exam> _createRandomExam() async {
+    final db = FirebaseFirestore.instance;
 
-  ExamFactory _factory() =>
-      ExamFactoryStub(AiDurationServiceStub(), getPool: _getPool);
+    // 1) Tüm soruları çek
+    final snapshot = await db.collection('questions').get();
+    final allQuestions = snapshot.docs
+        .map((d) => Question.fromFirestore(d.data(), d.id))
+        .toList();
+
+    if (allQuestions.isEmpty) {
+      throw Exception("No questions found in Firestore");
+    }
+
+    // 2) Rastgele sırala
+    allQuestions.shuffle(Random());
+
+    // 3) İlk 10 taneyi seç
+    final selected = allQuestions.take(10).toList();
+
+    // 4) Exam nesnesi oluştur
+    return Exam(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: "Random Exam",
+      duration: const Duration(minutes: 30),
+      questions: selected,
+      createdAt: DateTime.now(),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Center(child:  Text('Exam'))),
+      appBar: AppBar(title: const Center(child: Text('Exam'))),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Center(
-          child: IntrinsicHeight( // dikey çizgi tam ortada uzasın
+          child: IntrinsicHeight(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -87,8 +63,14 @@ class ExamHomePage extends StatelessWidget {
                 _TapArea(
                   title: 'RANDOM EXAM',
                   onTap: () async {
-                    final exam = await _factory().fromRandom(count: 10);
-                    Get.to(() => const ExamPage(), arguments: exam);
+                    try {
+                      final exam = await _createRandomExam();
+                      Get.to(() => const ExamPage(), arguments: exam);
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("Error: $e")),
+                      );
+                    }
                   },
                 ),
                 // middle divider
@@ -109,7 +91,6 @@ class ExamHomePage extends StatelessWidget {
           ),
         ),
       ),
-      // arka planı hafif yumuşat (opsiyonel)
       backgroundColor: scheme.surface,
     );
   }
@@ -127,7 +108,6 @@ class _TapArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ts = Theme.of(context).textTheme.titleMedium;
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: onTap,
