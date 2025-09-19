@@ -20,6 +20,8 @@ import 'package:interview_project/pages/library/widgets/save_to_collection_sheet
 import 'package:interview_project/pages/library/services/library_service.dart';
 
 import '../../models/question.dart';
+import '../runner/question_feed.dart';
+import '../runner/question_runner_page.dart';
 
 class PracticePage extends StatelessWidget {
   const PracticePage({super.key});
@@ -154,8 +156,14 @@ class PracticePage extends StatelessWidget {
                           onRandomPressed: () {
                             final random = controller.getRandomQuestion();
                             if (random != null) {
-                              _openQuestion(random);
+                              final idx = questions.indexWhere(
+                                    (qq) => _extractQuestionId(qq) == _extractQuestionId(random),
+                              );
+                              if (idx >= 0) {
+                                _openRunner(questions, idx);
+                              }
                             }
+
                           },
                           canAdd: controller.filteredQuestions.isNotEmpty,
                         ),
@@ -194,7 +202,8 @@ class PracticePage extends StatelessWidget {
                             final saved = snapshot.data ?? false;
                             return QuestionCard(
                               question: q,
-                              onTap: () => _openQuestion(q),
+                              //onTap: () => _openQuestion(q),
+                              onTap: () => _openRunner(questions, itemIndex),
                               onSaveTap: () async {
                                 if (saved) {
                                   // 🔹 Kaydedilmişse → seçenek sun
@@ -268,8 +277,29 @@ class PracticePage extends StatelessWidget {
     );
   }
 
+  void _openRunner(List<Question> questions, int startIndex) {
+    // “Practice • All / Practice • <Topic>” etiketi
+    final controller = Get.find<PracticeController>();
+    final selected = controller.selectedTopic.value;
+    final isAll = selected == null || selected == 'All';
+
+    final feed = QuestionFeed(
+      questionIds: questions.map((q) => _extractQuestionId(q)).toList(),
+      questions: questions,                 // hazır listeyi de veriyoruz
+      startIndex: startIndex,               // tıklanan itemIndex
+      source: QuestionSourceContext(
+        kind: isAll
+            ? QuestionSourceKind.practiceAll
+            : QuestionSourceKind.practiceFilter,
+        label: isAll ? 'Practice • All' : 'Practice • $selected',
+      ),
+    );
+
+    Get.to(() => QuestionRunnerPage(feed: feed));
+  }
+
   // Tip bazlı yönlendirme
-  void _openQuestion(Question q) => QuestionNavigator.open(q);
+  //void _openQuestion(Question q) => QuestionNavigator.open(q);
 }
 
 class _EmptyState extends StatelessWidget {

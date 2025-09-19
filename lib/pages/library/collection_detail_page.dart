@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../models/question.dart';
+import '../runner/question_feed.dart';
+import '../runner/question_runner_page.dart';
+import 'library_page.dart';
 import 'services/library_service.dart';
 import '../../widgets/question_card.dart';
 import '../../navigation/question_navigator.dart';
@@ -10,7 +13,14 @@ import 'widgets/save_to_collection_sheet.dart';
 
 class CollectionDetailPage extends StatelessWidget {
   final String collectionId;
-  const CollectionDetailPage({super.key, required this.collectionId});
+  final String? collectionName;
+  final OpenRunner openRunner;
+  const CollectionDetailPage({
+    super.key,
+    required this.collectionId,
+    this.collectionName,
+    required this.openRunner,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +55,12 @@ class CollectionDetailPage extends StatelessWidget {
                   return QuestionCard(
                     question: q,
                     isSaved: isSaved,
-                    onTap: () => QuestionNavigator.open(q),
+                    onTap: () =>  _openRunnerFromCollection(
+                      questions,
+                      i,
+                      collectionId: collectionId,
+                      collectionName: collectionName,
+                    ),
                     onSaveTap: () async {
                       if (isSaved) {
                         // 🔹 Kaydedilmişse → seçenek sun
@@ -105,5 +120,27 @@ class CollectionDetailPage extends StatelessWidget {
         },
       ),
     );
+  }
+
+  void _openRunnerFromCollection(
+      List<Question> questions,
+      int startIndex, {
+        required String collectionId,
+        String? collectionName,
+      }) {
+    final feed = QuestionFeed(
+      questionIds: questions.map((q) => q.id).toList(),
+      questions: questions,               // ekranda gördüğün sırayı korur
+      startIndex: startIndex,             // tıklanan index
+      source: QuestionSourceContext(
+        kind: QuestionSourceKind.collection,
+        label: collectionName != null
+            ? 'Collection: $collectionName'
+            : 'Collection',
+        refId: collectionId,
+      ),
+    );
+
+    Get.to(() => QuestionRunnerPage(feed: feed));
   }
 }
