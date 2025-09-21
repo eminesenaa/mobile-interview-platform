@@ -6,9 +6,10 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
-import '../../navigation/question_navigator.dart';
 import '../../widgets/question_card.dart';
 import '../practice/controllers/practice_controller.dart';
+import '../runner/question_feed.dart';
+import '../runner/question_runner_page.dart';
 import 'widgets/collection_card.dart';
 import 'collection_detail_page.dart';
 import 'controllers/library_controller.dart';
@@ -28,7 +29,7 @@ class LibraryPage extends StatelessWidget {
         backgroundColor: primaryColor,
         elevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
-        title: const Text('Library'),
+        title: const Text('My Library'),
         centerTitle: true,
         actions: [
           IconButton(
@@ -61,10 +62,10 @@ class LibraryPage extends StatelessWidget {
               child: TabBarView(
                 controller: controller.tabController,
                 physics: const BouncingScrollPhysics(),
-                children: const [
-                  _AllTab(),
-                  _CollectionsTab(),
-                  _ExamsTab(),
+                children: [
+                  _AllTab(openRunner: _openRunner),
+                  _CollectionsTab(openRunner: _openRunner),
+                  const _ExamsTab(),
                 ],
               ),
             ),
@@ -73,7 +74,29 @@ class LibraryPage extends StatelessWidget {
       ),
     );
   }
+
+  void _openRunner(
+      List<Question> questions,
+      int startIndex, {
+        required QuestionSourceKind kind,
+        String? label,
+        String? refId, // collectionId vs.
+      }) {
+    final feed = QuestionFeed(
+      questionIds: questions.map((q) => q.id).toList(), // id çıkarma metodun farklıysa uyarlayabilirsin
+      questions: questions, // hazır liste varsa veriyoruz
+      startIndex: startIndex,
+      source: QuestionSourceContext(
+        kind: kind,
+        label: label,
+        refId: refId,
+      ),
+    );
+
+    Get.to(() => QuestionRunnerPage(feed: feed));
+  }
 }
+
 
 class _SegmentedTabBar extends StatelessWidget {
   final TabController controller;
@@ -185,9 +208,19 @@ class _RoundIconButton extends StatelessWidget {
   }
 }
 
+typedef OpenRunner = void Function(
+    List<Question> questions,
+    int startIndex, {
+    required QuestionSourceKind kind,
+    String? label,
+    String? refId,
+    });
+
+
 // ===================== ALL TAB =====================
 class _AllTab extends StatelessWidget {
-  const _AllTab();
+  final OpenRunner openRunner;
+  const _AllTab({required this.openRunner});
 
   @override
   Widget build(BuildContext context) {
@@ -216,7 +249,12 @@ class _AllTab extends StatelessWidget {
             return QuestionCard(
               question: q,
               isSaved: true,
-              onTap: () => QuestionNavigator.open(q),
+              onTap: () => openRunner(
+                items,
+                i,
+                kind: QuestionSourceKind.libraryAll,
+                label: 'Library • All',
+              ),
               onSaveTap: () async {
                 await showModalBottomSheet(
                   context: context,
@@ -263,7 +301,8 @@ class _AllTab extends StatelessWidget {
 
 // ===================== COLLECTIONS TAB =====================
 class _CollectionsTab extends StatelessWidget {
-  const _CollectionsTab();
+  final OpenRunner openRunner;
+  const _CollectionsTab({required this.openRunner});
 
   @override
   Widget build(BuildContext context) {
@@ -302,7 +341,12 @@ class _CollectionsTab extends StatelessWidget {
                 name: col.name,
                 count: col.count,
                 onTap: () =>
-                    Get.to(() => CollectionDetailPage(collectionId: col.id)),
+                    Get.to(() => CollectionDetailPage(
+                        collectionId: col.id,
+                      collectionName: col.name,
+                      openRunner: openRunner,
+                    )
+                    ),
               );
             },
             childCount: collections.length,

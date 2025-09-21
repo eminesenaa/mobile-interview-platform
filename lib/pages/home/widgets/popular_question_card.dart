@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../models/question.dart';
-import '../../../navigation/question_navigator.dart';
+
 
 class PopularQuestionCard extends StatelessWidget {
   final Question question;
@@ -24,7 +24,7 @@ class PopularQuestionCard extends StatelessWidget {
     required double this.width,
   }) : padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 16);
 
-  void _openQuestion() => QuestionNavigator.open(question);
+  //void _openQuestion() => QuestionNavigator.open(question);
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +35,7 @@ class PopularQuestionCard extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: _openQuestion, // tüm karta tıklama
+          //onTap: _openQuestion, // tüm karta tıklama
           child: Padding(
             padding: padding,
             child: Row(
