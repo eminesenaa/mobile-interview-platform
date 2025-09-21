@@ -7,7 +7,6 @@ import 'package:sliver_tools/sliver_tools.dart';
 import 'package:interview_project/constants/colors.dart';
 import 'package:interview_project/constants/constants.dart';
 
-import 'package:interview_project/navigation/question_navigator.dart';
 import 'package:interview_project/pages/practice/widgets/todays_question_card.dart';
 import 'package:interview_project/pages/practice/controllers/practice_controller.dart';
 import 'package:interview_project/pages/practice/widgets/get_started_card.dart';

@@ -12,6 +12,7 @@ class RunnerBottomBar extends StatelessWidget {
     required this.onNext,
     required this.onFinish,
     this.submitLabel = 'Send',
+    this.submitBlocked = false,
   });
 
   final bool hasPrev;
@@ -26,8 +27,12 @@ class RunnerBottomBar extends StatelessWidget {
 
   final String submitLabel;
 
+  /// Coding editör açıkken Submit’i kilitlemek için
+  final bool submitBlocked;
+
   @override
   Widget build(BuildContext context) {
+    final bool sendEnabled = canSubmit && !isSubmitting && !submitBlocked;
     return SafeArea(
       top: false,
       child: Padding(
@@ -45,9 +50,8 @@ class RunnerBottomBar extends StatelessWidget {
                   label: const Text('Previous'),
                 ),
                 TextButton.icon(
-                  onPressed: !isSubmitting
-                      ? (hasNext ? onNext : onFinish)
-                      : null,
+                  onPressed:
+                      !isSubmitting ? (hasNext ? onNext : onFinish) : null,
                   icon: Icon(hasNext ? Icons.chevron_right : Icons.check),
                   label: Text(hasNext ? 'Next' : 'Finish'),
                 ),
@@ -60,7 +64,7 @@ class RunnerBottomBar extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: (canSubmit && !isSubmitting) ? onSubmit : null,
+                onPressed: sendEnabled ? onSubmit : null,
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(48),
                   shape: RoundedRectangleBorder(
@@ -71,18 +75,18 @@ class RunnerBottomBar extends StatelessWidget {
                   duration: const Duration(milliseconds: 180),
                   child: isSubmitting
                       ? const SizedBox(
-                    key: ValueKey('loading'),
-                    height: 22,
-                    width: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.2,
-                      valueColor: AlwaysStoppedAnimation(Colors.white),
-                    ),
-                  )
+                          key: ValueKey('loading'),
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            valueColor: AlwaysStoppedAnimation(Colors.white),
+                          ),
+                        )
                       : Text(
-                    submitLabel,
-                    key: const ValueKey('label'),
-                  ),
+                          submitLabel,
+                          key: const ValueKey('label'),
+                        ),
                 ),
               ),
             ),

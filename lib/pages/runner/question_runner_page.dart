@@ -4,27 +4,36 @@ import 'package:get/get.dart';
 import 'package:interview_project/pages/runner/question_feed.dart';
 import 'package:interview_project/pages/runner/widgets/runner_bottom_bar.dart';
 import '../../models/question.dart';
+import '../question_types/widgets/coding_question_view.dart';
 import '../question_types/widgets/fill_blank_view.dart';
 import '../question_types/widgets/mcq_question_view.dart';
 import '../question_types/widgets/short_answer_view.dart';
 import 'controller/question_runner_controller.dart';
 
-// import your tip widgets & model
-// import 'package:.../question_types/widgets/mcq_question_view.dart' gibi
-
 class QuestionRunnerPage extends StatelessWidget {
   final QuestionFeed feed;
+
   QuestionRunnerPage({super.key, required this.feed});
 
   final _pageCtrl = PageController();
 
+
+
   @override
   Widget build(BuildContext context) {
+
     final c = Get.put(QuestionRunnerController(), permanent: false);
     // init only once
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (c.feed.value == null) {
         c.init(feed);
+        // DIAGNOSTIC LOG
+        debugPrint('--- FEED DUMP ---');
+        for (final q in feed.questions ?? const []) {
+          debugPrint('[FeedDump] id=${q.id} type=${q.type} title=${q.title}');
+        }
+        debugPrint('[FeedDump] startIndex=${feed.startIndex}');
+        // -------------
         _pageCtrl.jumpToPage(feed.startIndex);
       }
     });
@@ -40,26 +49,17 @@ class QuestionRunnerPage extends StatelessWidget {
         appBar: AppBar(
           leading: BackButton(),
           title: Text(
-          titleText,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Center(
-                  child: Text(
-                    c.positionLabel,
-                    style: Theme.of(context).textTheme.labelLarge,
-                  )),
-            ),
-          ],
+            titleText,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
         body: PageView.builder(
           controller: _pageCtrl,
           physics: const PageScrollPhysics(),
           onPageChanged: (page) async {
             // PageView sürüklenince state’i senkronla
+            c.closeEditor();
             final delta = page - c.currentIndex.value;
             if (delta == 1) {
               await c.next();
@@ -80,37 +80,47 @@ class QuestionRunnerPage extends StatelessWidget {
             if (idx != c.currentIndex.value) {
               return const SizedBox.shrink();
             }
+            print(
+                '[Runner] id=${c.currentQuestion.value!.id} type=${c.currentQuestion.value!.type}');
             return _buildQuestionBody(context, c);
           },
         ),
 
         // Bottom action bar
         bottomNavigationBar: Obx(() {
-          final c = Get.find<QuestionRunnerController>();
+          final q = c.currentQuestion.value;
+          final isCoding = (q?.type == QuestionType.coding);
+          final submitBlocked = (isCoding == true) && c.isEditorOpen.value;
+
+          //final c = Get.find<QuestionRunnerController>();
           return RunnerBottomBar(
             hasPrev: c.hasPrev,
             hasNext: c.hasNext,
             isSubmitting: c.isSubmitting.value,
             canSubmit: c.canSubmit.value,
+            submitBlocked: submitBlocked,
             onPrev: () {
+              c.flushCodingDraftIfAny();
               _pageCtrl.previousPage(
                 duration: const Duration(milliseconds: 220),
                 curve: Curves.easeOut,
               );
             },
-            onSubmit: c.submit, // mevcut submit metodun
+            onSubmit: c.submit,
+            // mevcut submit metodun
             onNext: () {
+              c.flushCodingDraftIfAny();
               _pageCtrl.nextPage(
                 duration: const Duration(milliseconds: 220),
                 curve: Curves.easeOut,
               );
             },
             onFinish: () {
+              c.flushCodingDraftIfAny();
               Get.back(); // listeye dön
             },
           );
         }),
-
       );
     });
   }
@@ -128,10 +138,8 @@ class QuestionRunnerPage extends StatelessWidget {
             locked: c.isLocked.value,
             onAnswerChanged: (payload, valid) =>
                 c.onAnswerChanged(payload, valid: valid),
-            // onSubmitRequested: c.submit, // istersen child’dan da tetikleyebilirsin
+            onOpenEditor: () => c.openEditor(q), // <-- buradan geçiriyoruz
           ),
-          // Feedback bölgesi: c.isLocked veya AI sonucuna göre görünür
-          // (mevcut tip sayfalarındaki feedback UI’nı buraya/child’a taşırsın)
         ],
       ),
     );
@@ -143,11 +151,13 @@ class _QuestionTypeFactory extends StatelessWidget {
   final Question question;
   final bool locked;
   final void Function(dynamic payload, bool valid) onAnswerChanged;
+  final VoidCallback onOpenEditor; // <-- coding için editor açma callback'i
 
   const _QuestionTypeFactory({
     required this.question,
     required this.locked,
     required this.onAnswerChanged,
+    required this.onOpenEditor,
   });
 
   @override
@@ -177,6 +187,15 @@ class _QuestionTypeFactory extends StatelessWidget {
             // answers: List<String>, valid: tümü dolu mu?
             onAnswerChanged(answers, valid);
           },
+        );
+      case QuestionType.coding:
+        return CodingQuestionView(
+          question: question,
+          locked: locked,
+          onChanged: (payload, valid) {
+            onAnswerChanged(payload, valid);
+          },
+          onOpenEditor: onOpenEditor,
         );
       default:
         return const Text('This question type is not supported yet.');

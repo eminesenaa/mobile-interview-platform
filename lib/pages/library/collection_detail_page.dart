@@ -8,7 +8,6 @@ import '../runner/question_runner_page.dart';
 import 'library_page.dart';
 import 'services/library_service.dart';
 import '../../widgets/question_card.dart';
-import '../../navigation/question_navigator.dart';
 import 'widgets/save_to_collection_sheet.dart';
 
 class CollectionDetailPage extends StatelessWidget {

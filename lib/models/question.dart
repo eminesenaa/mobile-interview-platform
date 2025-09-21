@@ -34,6 +34,7 @@ class Question {
   final QuestionType type;
 
   final List<String>? options;
+  final String? codeTemplate;
   final String? correctAnswer;
 
   final String? aiPromptHelper;
@@ -50,6 +51,7 @@ class Question {
     required this.tags,
     required this.type,
     this.options,
+    this.codeTemplate,
     this.correctAnswer,
     this.aiPromptHelper,
   });
@@ -78,6 +80,15 @@ class Question {
 
   // 🔹 Firestore dönüşümü
   factory Question.fromFirestore(Map<String, dynamic> data, String documentId) {
+    final parsedType = _parseType(data['type']);
+
+    // options yalnızca MCQ için dolu; diğer tiplerde kesinlikle null bırak
+    List<String>? parsedOptions;
+    if (parsedType == QuestionType.mcq && data['options'] is List) {
+      parsedOptions = List<String>.from(data['options']);
+    } else {
+      parsedOptions = null; // <- ÖNEMLİ
+    }
     return Question(
       id: documentId,
       title: data['title'] ?? '',
@@ -86,8 +97,10 @@ class Question {
       difficulty: _parseDifficulty(data['difficulty']),
       status: _parseStatus(data['status']),
       tags: data['tags'] != null ? List<String>.from(data['tags']) : [],
-      type: _parseType(data['type']),
-      options: data['options'] != null ? List<String>.from(data['options']) : [],
+      type: parsedType,
+      options: parsedOptions,
+      // <- burada null/MCQ’ya göre
+      codeTemplate: data['codeTemplate'] as String?,
       correctAnswer: data['correctAnswer'],
       aiPromptHelper: data['aiPromptHelper'],
     );
@@ -103,6 +116,7 @@ class Question {
       'tags': tags,
       'type': type.name,
       'options': options,
+      if (codeTemplate != null) 'codeTemplate': codeTemplate,
       'correctAnswer': correctAnswer,
       'aiPromptHelper': aiPromptHelper,
     };
@@ -145,8 +159,9 @@ class Question {
   static QuestionType _parseType(dynamic val) {
     if (val == null) return QuestionType.mcq;
 
-    final normalized =
-        val.toString().toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
+    final raw = val.toString().toLowerCase().trim();
+    final core = raw.contains('.') ? raw.split('.').last : raw;
+    final normalized = core.replaceAll(RegExp(r'[^a-z]'), '');
 
     switch (normalized) {
       case 'mcq':
