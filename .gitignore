@@ -43,6 +43,6 @@ app.*.map.json
 /android/app/release
 
 # Secrets
-.env
 service_account.json
+.env
 sync_sheets_to_firestore.py
