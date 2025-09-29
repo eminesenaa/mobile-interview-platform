@@ -33,6 +33,20 @@ class AiService {
     );
   }
 
+  Future<int> findQuestionTime(Question question) async {
+    final secs = await OpenAIService.findQuestionTime(question);
+    return secs;
+  }
+
+  Future<int> findExamTime(List<Question> questions) async {
+    int totalSecs = 0;
+    for (final q in questions) {
+      final secs = await findQuestionTime(q);
+      print("sunu buldum $secs");
+      totalSecs += secs;
+    }
+    return totalSecs;
+  }
 
   // ---------- helpers ----------
   Map<String, String> _toMeta(Question q) {
