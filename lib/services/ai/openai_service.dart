@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart' show rootBundle;
+import '../../models/question.dart';
 
 enum PromptType {
   training,
@@ -232,6 +233,51 @@ class OpenAIService {
     }
   }
 
+  static Future<int> findQuestionTime(Question q,
+      {Duration timeout = const Duration(seconds: 30)}) async {
+    // 1. promptu yükle
+    final template =
+    await rootBundle.loadString('assets/prompts/TimeFinding.txt');
 
+    // 2. question stringini yerine koy
+    final userContent = template.replaceAll("{{QUESTION}}", q.toString());
+
+    // 3. GPT request body
+    final body = {
+      "model": _model,
+      "temperature": 0,
+      "response_format": {"type": "json_object"},
+      "messages": [
+        {"role": "system", "content": "You are a helpful exam time estimator."},
+        {"role": "system", "content": "Output ONLY valid JSON."},
+        {"role": "user", "content": userContent},
+      ],
+    };
+
+    // 4. request at
+    final resp = await _post(body, timeout: timeout);
+
+    // 5. parse et
+    final raw = resp.body;
+    try {
+      final outer = jsonDecode(raw);
+      final content = outer['choices']?[0]?['message']?['content'];
+      if (content == null) throw Exception("No content");
+
+      final parsed = jsonDecode(content);
+      if (parsed is! Map<String, dynamic>) {
+        throw Exception("Not a JSON object: $content");
+      }
+
+      final sec = parsed['estimated_seconds'];
+      if (sec is int) return sec;
+      if (sec is num) return sec.toInt();
+
+      throw Exception("Invalid estimated_seconds: $sec");
+    } catch (e) {
+      // fallback
+      return 60; // default 1 dk
+    }
+  }
 
 }
