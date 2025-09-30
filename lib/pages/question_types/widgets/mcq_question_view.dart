@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '../../../constants/constants.dart';
 import '../../../models/question.dart';
+import '../../../utils/ai_feedback_widget.dart';
 import '../../../utils/markdown_heuristics.dart';
 import '../controllers/mcq_controller.dart';
 
@@ -40,14 +41,16 @@ class McqQuestionView extends StatefulWidget {
 class _McqQuestionViewState extends State<McqQuestionView> {
   int? _selected;
   late final McqController c;
+
   @override
   void initState() {
     super.initState();
     c = Get.put(McqController(widget.question), tag: widget.question.id);
     // (opsiyonel) controller’da seçili değer varsa al
-    try { _selected = c.selectedIndex.value; } catch (_) {}
+    try {
+      _selected = c.selectedIndex.value;
+    } catch (_) {}
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -62,13 +65,11 @@ class _McqQuestionViewState extends State<McqQuestionView> {
 
     final Widget header = hasFence
         ? MarkdownContent(
-      data: text,
-      padding: const EdgeInsets.only(bottom: 12),
-      autoFenceCode: false, // sadece fenced kodu işle
-    )
+            data: text,
+            padding: const EdgeInsets.only(bottom: 12),
+            autoFenceCode: false, // sadece fenced kodu işle
+          )
         : Text(text, style: AppTextStyles.headline);
-
-
 
     return GetX<McqController>(
       tag: widget.question.id,
@@ -113,11 +114,13 @@ class _McqQuestionViewState extends State<McqQuestionView> {
                 }
 
                 return GestureDetector(
-                  onTap: effectiveLocked ? null : () {
-                    setState(() => _selected = i);
-                    try { c.select(i); } catch (_) {}// controller ile senkron (adı farklıysa yine sorun yok)
-                    widget.onChanged?.call(i);       // Runner: canSubmit = true
-                  },
+                  onTap: effectiveLocked
+                      ? null
+                      : () {
+                          setState(() => _selected = i);
+                          c.select(i); // seçimi controller’a bildir
+                          widget.onChanged?.call(i); // opsiyonel callback
+                        },
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                         vertical: 14, horizontal: 16),
@@ -131,25 +134,29 @@ class _McqQuestionViewState extends State<McqQuestionView> {
                         Radio<int>(
                           value: i,
                           groupValue: _selected,
-                          onChanged: effectiveLocked ? null : (_) {
-                            setState(() => _selected = i);
-                            try { c.select(i); } catch (_) {}
-                            widget.onChanged?.call(i);
-                          },
+                          onChanged: effectiveLocked
+                              ? null
+                              : (_) {
+                                  setState(() => _selected = i);
+                                  c.select(i); // seçimi controller’a bildir
+                                  widget.onChanged
+                                      ?.call(i); // opsiyonel callback
+                                },
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             option,
                             style: TextStyle(
-                              fontWeight:
-                              isSelected ? FontWeight.w600 : FontWeight.normal,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
                               color: isSubmitted
                                   ? (isCorrect
-                                  ? Colors.green.shade700
-                                  : (isWrong
-                                  ? Colors.red.shade700
-                                  : Colors.black))
+                                      ? Colors.green.shade700
+                                      : (isWrong
+                                          ? Colors.red.shade700
+                                          : Colors.black))
                                   : Colors.black,
                             ),
                           ),
@@ -166,46 +173,20 @@ class _McqQuestionViewState extends State<McqQuestionView> {
             // AI Feedback (submit sonrası)
             if (isSubmitted) ...[
               const SizedBox(height: 16),
-              Text("AI Feedback:", style: AppTextStyles.headline),
-              const SizedBox(height: 8),
-
               if (c.isEvaluating.value)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8),
                   child: LinearProgressIndicator(),
-                ),
-
-              if (!c.isEvaluating.value)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      c.aiFeedback.value.isNotEmpty
-                          ? c.aiFeedback.value
-                          : "Yanıt yorumlanamadı.",
-                      style: AppTextStyles.subtitle,
-                    ),
-                    const SizedBox(height: 12),
-                    if (c.aiResult.value != null)
-                      Row(
-                        children: [
-                          Chip(
-                            label: Text(
-                              c.aiResult.value!.correct ? 'Correct' : 'Incorrect',
-                            ),
-                          ),
-                          if (c.aiResult.value!.score != null) ...[
-                            const SizedBox(width: 8),
-                            Chip(
-                              label: Text(
-                                'Score: ${c.aiResult.value!.score!.toStringAsFixed(1)}/5',
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                  ],
-                ),
+                )
+              else if (c.aiResult.value != null)
+                AiFeedbackWidget(
+                  correct: c.aiResult.value!.correct,
+                  score: c.aiResult.value!.score,
+                  explanation: c.aiResult.value!.explanation,
+                  earnedXp: c.earnedXp.value,
+                )
+              else
+                const Text("Yanıt yorumlanamadı."),
             ],
           ],
         );

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:interview_project/pages/runner/question_feed.dart';
 import 'package:interview_project/pages/runner/widgets/runner_bottom_bar.dart';
 import '../../models/question.dart';
+import '../question_types/widgets/coding_editor_page.dart';
 import '../question_types/widgets/coding_question_view.dart';
 import '../question_types/widgets/fill_blank_view.dart';
 import '../question_types/widgets/mcq_question_view.dart';
@@ -17,22 +18,13 @@ class QuestionRunnerPage extends StatelessWidget {
 
   final _pageCtrl = PageController();
 
-
-
   @override
   Widget build(BuildContext context) {
-
     final c = Get.put(QuestionRunnerController(), permanent: false);
     // init only once
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (c.feed.value == null) {
         c.init(feed);
-        // DIAGNOSTIC LOG
-        debugPrint('--- FEED DUMP ---');
-        for (final q in feed.questions ?? const []) {
-          debugPrint('[FeedDump] id=${q.id} type=${q.type} title=${q.title}');
-        }
-        debugPrint('[FeedDump] startIndex=${feed.startIndex}');
         // -------------
         _pageCtrl.jumpToPage(feed.startIndex);
       }
@@ -53,6 +45,18 @@ class QuestionRunnerPage extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
+          actions: [
+            if (q?.type == QuestionType.coding)
+              IconButton(
+                icon: const Icon(Icons.code),
+                onPressed: () async {
+                  final rc = Get.find<QuestionRunnerController>();
+                  rc.openEditor(q!); // editor state: AÇ
+                  await Get.to(() => CodingEditorPage(question: q));
+                  rc.closeEditor(); // editor state: KAPAT (her kapanışta garanti)
+                },
+              ),
+          ],
         ),
         body: PageView.builder(
           controller: _pageCtrl,
@@ -85,7 +89,6 @@ class QuestionRunnerPage extends StatelessWidget {
             return _buildQuestionBody(context, c);
           },
         ),
-
         // Bottom action bar
         bottomNavigationBar: Obx(() {
           final q = c.currentQuestion.value;
@@ -192,9 +195,6 @@ class _QuestionTypeFactory extends StatelessWidget {
         return CodingQuestionView(
           question: question,
           locked: locked,
-          onChanged: (payload, valid) {
-            onAnswerChanged(payload, valid);
-          },
           onOpenEditor: onOpenEditor,
         );
       default:

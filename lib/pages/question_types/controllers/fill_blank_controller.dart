@@ -5,9 +5,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../models/question.dart';
 import '../../../services/ai/ai_service.dart';
+import '../../runner/controller/question_runner_controller.dart';
 
 class FillBlankController extends GetxController {
   final Question question;
+
   FillBlankController(this.question);
 
   /// 🔹 Kullanıcının doldurduğu cevaplar (her boşluk için bir eleman)
@@ -25,6 +27,9 @@ class FillBlankController extends GetxController {
   /// 🔹 AI servisi (main.dart’ta Get.put(AiService(), permanent: true) ile enjekte)
   final AiService _ai = Get.find<AiService>();
 
+  /// 🔹 Kullanıcının kazandığı XP
+  final earnedXp = 0.obs;
+
   @override
   void onInit() {
     super.onInit();
@@ -38,6 +43,11 @@ class FillBlankController extends GetxController {
   void updateAnswer(int index, String value) {
     if (index >= 0 && index < answers.length) {
       answers[index] = value;
+    }
+    // ✅ Runner’a haber ver: tüm boşluklar doluysa send aktifleşsin
+    final allFilled = answers.every((e) => e.trim().isNotEmpty);
+    if (Get.isRegistered<QuestionRunnerController>()) {
+      Get.find<QuestionRunnerController>().setCanSubmit(allFilled);
     }
   }
 
@@ -67,27 +77,29 @@ class FillBlankController extends GetxController {
       // 🔹 XP hesaplama
       final baseXp = question.xp;
       final normalized = (res.score ?? 0) / 5.0;
-      final earnedXp = (normalized * baseXp).round();
+      final xp = (normalized * baseXp).round();
+      earnedXp.value = xp;
 
       final verdict = res.correct ? "✅ Doğru." : "❌ Yanlış.";
       final explain = res.explanation.isNotEmpty ? "\n${res.explanation}" : "";
 
-      aiResult.value = "$verdict$explain\n\n⭐ You earned: $earnedXp XP";
+      aiResult.value = "$verdict$explain\n\n⭐ You earned: $xp XP";
 
       // Firestore güncelle
-      await _saveResultToFirestore(res, earnedXp);
+      await _saveResultToFirestore(res, xp);
     } catch (e, st) {
       print('AI error: $e\n$st');
       final helper = question.aiPromptHelper ?? "";
       final joined = blanks.join(" | ");
       aiResult.value =
-      "AI evaluated your fill-in answers.\nYour input: $joined\nHelper: $helper\n\n(Note: fallback response due to AI error)";
+          "AI evaluated your fill-in answers.\nYour input: $joined\nHelper: $helper\n\n(Note: fallback response due to AI error)";
     } finally {
       isEvaluating.value = false;
     }
   }
 
-  Future<void> _saveResultToFirestore(AiEvaluateResult res, int earnedXp) async {
+  Future<void> _saveResultToFirestore(
+      AiEvaluateResult res, int earnedXp) async {
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) return;

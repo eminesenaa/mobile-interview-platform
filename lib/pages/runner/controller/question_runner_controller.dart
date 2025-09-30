@@ -5,12 +5,15 @@
 //                 Yalnızca bölümlere ayrılarak yeniden sıralanmıştır.
 // ============================================================================
 
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../models/question.dart';
+import '../../../services/ai/ai_service.dart';
 import '../../question_types/controllers/coding_controller.dart';
 import '../../question_types/controllers/fill_blank_controller.dart';
 import '../../question_types/controllers/mcq_controller.dart';
 import '../../question_types/controllers/short_answer_controller.dart';
+import '../../question_types/widgets/coding_editor_page.dart';
 import '../question_feed.dart';
 
 // ============================================================================
@@ -34,10 +37,17 @@ class QuestionRunnerController extends GetxController {
   // --- Soru cache'i ---
   final _cache = <String, Question>{};
 
+  // Her soru için submit & cevap cache'i
+  final Map<String, bool> _canSubmitById = {};
+  final Map<String, dynamic> _answerById = {};
+
   /// EDITOR & SUBMIT ENTEGRASYONU — Coding için eklendi
   final RxBool isEditorOpen = false.obs; // Editor açık mı? (submit bloklanır)
   final RxBool canSubmit = false.obs; // Çocuk widget'tan gelen valid bilgisi
   Map<String, dynamic>? _answerPayload; // Çocuk widget'tan gelen payload
+
+  // + AI service instance
+  final AiService _ai = AiService();
 
   // ========================================================================
   // [2] GETTER'LAR (Sadece-okunur arayüz)
@@ -78,6 +88,7 @@ class QuestionRunnerController extends GetxController {
       final id = f.questionIds[idx];
       q = _cache[id] ?? await _fetchQuestionById(id);
       _cache[id] = q!;
+      _restoreStateFor(q);
     }
 
     currentQuestion.value = q;
@@ -103,6 +114,9 @@ class QuestionRunnerController extends GetxController {
   void onQuestionIndexChanged(int i) {
     closeEditor();
     // mevcut index güncelleme mantığın burada devam eder...
+    isEditorOpen.value = false;
+    // editörden dönünce kodu runner’a yansıt, send’i buna göre ayarla
+    flushCodingDraftIfAny();
   }
 
   // ========================================================================
@@ -147,8 +161,18 @@ class QuestionRunnerController extends GetxController {
   // [6] CEVAP / VALIDASYON / SUBMIT AKIŞI
   // ========================================================================
   void onAnswerChanged(dynamic payload, {required bool valid}) {
-    answerPayload = payload;
-    canSubmit.value = valid && !isSubmitting.value && !isLocked.value;
+    // answerPayload = payload;
+    // canSubmit.value = valid && !isSubmitting.value && !isLocked.value;
+
+    final q = currentQuestion.value;
+    if (q == null) return;
+
+    _answerPayload = payload;
+    canSubmit.value = valid;
+
+    // Soru bazlı cache
+    _answerById[q.id] = payload;
+    _canSubmitById[q.id] = valid;
   }
 
   Future<void> submit() async {
@@ -183,36 +207,15 @@ class QuestionRunnerController extends GetxController {
                   'Editor is open', 'Please close the editor before sending.');
               break;
             }
-            // 2) Controller’dan veya runner’daki cache’ten payload’ı toparla
-            CodingController? cc;
+            // 2) Kodu controller’dan oku
             if (Get.isRegistered<CodingController>(tag: q.id)) {
-              cc = Get.find<CodingController>(tag: q.id);
+              final cc = Get.find<CodingController>(tag: q.id);
+              await cc
+                  .evaluateWithAi(); // Feedback artık view içinde gösterilecek
+              _answerById[q.id] = {'code': cc.getCode()};
+            } else {
+              Get.snackbar('Error', 'CodingController not found');
             }
-
-            final Map<String, dynamic>? p =
-                (_answerPayload ?? cc?.payload) as Map<String, dynamic>?;
-            final String? code = p?['code'] as String?;
-            final bool valid =
-                cc?.isValid ?? (code != null && code.trim().isNotEmpty);
-
-            if (!valid) {
-              Get.snackbar('Empty answer', 'Write some code to enable Send.');
-              break;
-            }
-
-            // 3) Gönderim (şimdilik taklit; API bağlayınca burayı değiştir)
-            final body = <String, dynamic>{
-              'questionId': q.id,
-              'type': 'coding',
-              'answer': p, // p null olabilir; API tarafında kontrol et
-            };
-            // TODO: await api.submitAnswer(body);
-            // print veya telemetry:
-            // debugPrint('[Submit] coding -> $body');
-
-            // 4) (opsiyonel) cc tarafında ekstra işlemler olacaksa:
-            // await cc?.finalize(); // ileride eklersin
-
             break;
           }
         case QuestionType.debugging:
@@ -228,9 +231,9 @@ class QuestionRunnerController extends GetxController {
     }
   }
 
-  // ========================================================================
-  // [7] EDITOR / CODING AKIŞI (flag ve payload yönetimi)
-  // ========================================================================
+// ========================================================================
+// [7] EDITOR / CODING AKIŞI (flag ve payload yönetimi)
+// ========================================================================
   void toggleEditor() => isEditorOpen.toggle();
 
   bool _isCoding(Question q) {
@@ -250,21 +253,87 @@ class QuestionRunnerController extends GetxController {
   /// Editor akışı – şimdi sadece flag; bir sonraki adımda sayfa/route açacağız
   void openEditor(Question q) {
     isEditorOpen.value = true;
-    // Örn: Get.to(() => CodingEditorView(...)) ile açılacak.
-    // Editor kapatıldığında closeEditor() çağrılacak.
+    //await Get.to(() => CodingEditorPage(question: q));
+    //closeEditor(); // dönünce flush + restore
   }
 
   void closeEditor() {
     isEditorOpen.value = false;
+    // editörden dönünce kodu runner’a yansıt, send’i buna göre ayarla
+    final q = currentQuestion.value;
+    if (q != null && Get.isRegistered<CodingController>(tag: q.id)) {
+      final cc = Get.find<CodingController>(tag: q.id);
+      final edited =
+          cc.edited; // getter eklemiştik: bool get edited => hasEdited.value;
+      canSubmit.value = edited;
+      _canSubmitById[q.id] = edited;
+    }
+    //flushCodingDraftIfAny();
+  }
+
+  // + Ekrandaki "Send" (FAB) tetikleyicisi
+  Future<void> onTapSend() async {
+    final q = currentQuestion.value;
+    if (q == null) return;
+    if (isEditorOpen.value) {
+      Get.snackbar('Editor is open', 'Please close the editor before sending.');
+      return;
+    }
+
+    if (q.type == QuestionType.coding) {
+      if (Get.isRegistered<CodingController>(tag: q.id)) {
+        final cc = Get.find<CodingController>(tag: q.id);
+        if (cc.getCode().trim().isEmpty) {
+          Get.snackbar(
+              'Empty answer', 'Please type some code (even a single space).');
+          return;
+        }
+        isSubmitting.value = true;
+        try {
+          await cc.evaluateWithAi(); // feedback UI view’de gösterilecek
+          _answerPayload = {'code': cc.getCode()};
+          _answerById[q.id] = _answerPayload;
+        } catch (e) {
+          Get.snackbar('Send failed', e.toString());
+        } finally {
+          isSubmitting.value = false;
+        }
+      }
+      return;
+    }
+
+    // coding dışındaki tiplerde submit zaten switch-case içinden çağrılıyor
+    await submit();
   }
 
   void flushCodingDraftIfAny() {
     // İstersen taslağı burada persist edebilirsin.
+    final q = currentQuestion.value;
+    if (q == null || q.type != QuestionType.coding) return;
+
+    if (Get.isRegistered<CodingController>(tag: q.id)) {
+      final cc = Get.find<CodingController>(tag: q.id);
+      final code = cc.getCode();
+      final starter = q.codeTemplate ?? '';
+      final hasEdited = (code ?? '') != starter; // boşluk dahil her fark kabul
+      _answerPayload = {'code': code};
+      canSubmit.value = hasEdited;
+
+      // Cache’le
+      _answerById[q.id] = {'code': code};
+      _canSubmitById[q.id] = hasEdited;
+    }
   }
 
-  // ========================================================================
-  // [8] DURUM SIFIRLAMA / YARDIMCI
-  // ========================================================================
+// Soru değiştiğinde cache’ten geri yükleyen küçük yardımcı
+  void _restoreStateFor(Question q) {
+    canSubmit.value = _canSubmitById[q.id] ?? false;
+    _answerPayload = _answerById[q.id];
+  }
+
+// ========================================================================
+// [8] DURUM SIFIRLAMA / YARDIMCI
+// ========================================================================
   /// Soru değiştiğinde/ileri-geri – submit & payload & editor state sıfırla
   void _resetAnswerState() {
     isEditorOpen.value = false;

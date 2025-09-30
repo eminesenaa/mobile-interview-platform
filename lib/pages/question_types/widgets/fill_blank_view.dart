@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../models/question.dart';
+import '../../../utils/ai_feedback_widget.dart';
 import '../../../utils/markdown_heuristics.dart';
 import '../controllers/fill_blank_controller.dart';
 import '../../../constants/constants.dart'; // AppTextStyles vb. için (varsa)
@@ -49,7 +50,10 @@ class _FillBlankViewState extends State<FillBlankView> {
       final tc = TextEditingController(text: _c.answers[i]);
       tc.addListener(() {
         final txt = tc.text;
-        _c.updateAnswer(i, txt); // <-- controller API’n
+        _c.updateAnswer(
+            i, txt); // controller zaten runner.canSubmit güncelliyor
+
+        // opsiyonel: parent’a da haber ver (kullanıyorsan)
         widget.onChanged?.call(
           _c.answers.toList(),
           _allFilled(_c.answers),
@@ -59,8 +63,7 @@ class _FillBlankViewState extends State<FillBlankView> {
     }
   }
 
-  bool _allFilled(List<String> list) =>
-      list.every((e) => e.trim().isNotEmpty);
+  bool _allFilled(List<String> list) => list.every((e) => e.trim().isNotEmpty);
 
   @override
   void dispose() {
@@ -85,12 +88,14 @@ class _FillBlankViewState extends State<FillBlankView> {
 
     final Widget header = (hasFence || likelyCode)
         ? MarkdownContent(
-      data: hasFence ? text : smartBreaks(text),
-      padding: const EdgeInsets.only(bottom: 12),
-      autoFenceCode: !hasFence,      // fence yoksa otomatik CodeBlock
-      smartCodeBreaks: false,        // satırı yukarıda kırdık
-      fallbackLanguage: fallbackLang,
-    )
+            data: hasFence ? text : smartBreaks(text),
+            padding: const EdgeInsets.only(bottom: 12),
+            autoFenceCode: !hasFence,
+            // fence yoksa otomatik CodeBlock
+            smartCodeBreaks: false,
+            // satırı yukarıda kırdık
+            fallbackLanguage: fallbackLang,
+          )
         : Text(text, style: AppTextStyles.headline);
 
     return GetX<FillBlankController>(
@@ -137,49 +142,31 @@ class _FillBlankViewState extends State<FillBlankView> {
                     ),
                     filled: true,
                     fillColor:
-                    effectiveLocked ? Colors.grey.shade100 : Colors.white,
-                    contentPadding:
-                    const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                        effectiveLocked ? Colors.grey.shade100 : Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                        vertical: 14, horizontal: 16),
                   ),
                 );
               },
             ),
 
-            // Submit sonrası feedback
+            // AI feedback
             if (isSubmitted) ...[
               const SizedBox(height: 20),
-              Text('AI Feedback:', style: AppTextStyles.headline),
-              const SizedBox(height: 8),
-
               if (_c.isEvaluating.value)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8),
                   child: LinearProgressIndicator(),
-                ),
-
-              if (!_c.isEvaluating.value) ...[
-                if (_c.aiResult.value.isNotEmpty)
-                  Text(_c.aiResult.value, style: AppTextStyles.subtitle),
-                const SizedBox(height: 12),
-                if (_c.aiMeta.value != null)
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      Chip(
-                        label: Text(
-                          _c.aiMeta.value!.correct ? 'Correct' : 'Incorrect',
-                        ),
-                      ),
-                      if (_c.aiMeta.value!.score != null)
-                        Chip(
-                          label: Text(
-                            'Score: ${_c.aiMeta.value!.score!.toStringAsFixed(1)}/5',
-                          ),
-                        ),
-                    ],
-                  ),
-              ],
+                )
+              else if (_c.aiMeta.value != null)
+                AiFeedbackWidget(
+                  correct: _c.aiMeta.value!.correct,
+                  score: _c.aiMeta.value!.score,
+                  explanation: _c.aiMeta.value!.explanation,
+                  earnedXp: _c.earnedXp.value,
+                )
+              else
+                const Text("Yanıt yorumlanamadı."),
             ],
           ],
         );

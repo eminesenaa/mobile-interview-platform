@@ -48,6 +48,7 @@ dependencies:
   highlight: ^0.7.0
   flutter_code_editor: ^0.3.4
   shared_preferences: ^2.5.3
+  flutter_highlight: ^0.7.0
 
 
   # The following adds the Cupertino Icons font to your application.
