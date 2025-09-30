@@ -42,7 +42,8 @@ class _ShortAnswerViewState extends State<ShortAnswerView> {
   @override
   void initState() {
     super.initState();
-    _c = Get.put(ShortAnswerController(widget.question), tag: widget.question.id);
+    _c = Get.put(ShortAnswerController(widget.question),
+        tag: widget.question.id);
     _textCtrl = TextEditingController();
 
     // Eğer controller mevcut cevabı tutuyorsa buraya set edebilirsin:
@@ -66,13 +67,11 @@ class _ShortAnswerViewState extends State<ShortAnswerView> {
 
     final Widget header = hasFence
         ? MarkdownContent(
-      data: text,
-      padding: const EdgeInsets.only(bottom: 12),
-      autoFenceCode: false, // sadece fenced kodu işle
-    )
+            data: text,
+            padding: const EdgeInsets.only(bottom: 12),
+            autoFenceCode: false, // sadece fenced kodu işle
+          )
         : Text(text, style: AppTextStyles.headline);
-
-
 
     return GetX<ShortAnswerController>(
       tag: widget.question.id,
@@ -106,20 +105,19 @@ class _ShortAnswerViewState extends State<ShortAnswerView> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 1.6),
+                  borderSide: BorderSide(
+                      color: Theme.of(context).primaryColor, width: 1.6),
                 ),
                 filled: true,
-                fillColor: effectiveLocked ? Colors.grey.shade100 : Colors.white,
-                contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                fillColor:
+                    effectiveLocked ? Colors.grey.shade100 : Colors.white,
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
               ),
               onChanged: (text) {
-                // Controller'da cevabı güncelle:
-                // NOT: Senin controller'daki setter farklıysa (örn. updateAnswer/onChanged),
-                // sadece şu satırı kendi fonksiyon adına göre değiştir.
-                _c.updateAnswer(text); // <-- kontrolöründeki mevcut setter’ı kullan
-
-                // Runner’a validasyon sinyali gönder
-                widget.onChanged?.call(text);
+                _c.updateAnswer(
+                    text); // controller zaten runner.canSubmit güncelliyor
+                widget.onChanged?.call(text); // opsiyonel callback
               },
             ),
 
@@ -128,13 +126,11 @@ class _ShortAnswerViewState extends State<ShortAnswerView> {
               const SizedBox(height: 20),
               Text('AI Feedback:', style: AppTextStyles.headline),
               const SizedBox(height: 8),
-
               if (_c.isEvaluating.value)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8),
                   child: LinearProgressIndicator(),
                 ),
-
               if (!_c.isEvaluating.value) ...[
                 if (_c.aiFeedback.value.isNotEmpty)
                   Text(

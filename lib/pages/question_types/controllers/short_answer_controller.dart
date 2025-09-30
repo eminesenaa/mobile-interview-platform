@@ -5,9 +5,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../models/question.dart';
 import '../../../services/ai/ai_service.dart';
+import '../../runner/controller/question_runner_controller.dart';
 
 class ShortAnswerController extends GetxController {
   final Question question;
+
   ShortAnswerController(this.question);
 
   /// Kullanıcının yazdığı cevap (UI'da TextField onChanged ile güncellenir)
@@ -17,12 +19,19 @@ class ShortAnswerController extends GetxController {
   final isSubmitted = false.obs;
 
   // ---------- AI entegrasyonu (yeni) ----------
-  final AiService _ai = Get.find<AiService>();     // main.dart’ta put edildi
-  final isEvaluating = false.obs;                  // "Send" loading
+  final AiService _ai = Get.find<AiService>(); // main.dart’ta put edildi
+  final isEvaluating = false.obs; // "Send" loading
   final Rx<AiEvaluateResult?> aiMeta = Rx<AiEvaluateResult?>(null);
-  final aiFeedback = ''.obs;                       // ekranda göstereceğimiz metin
+  final aiFeedback = ''.obs; // ekranda göstereceğimiz metin
 
-  void updateAnswer(String v) => answer.value = v;
+  void updateAnswer(String v) {
+    answer.value = v;
+
+    // kullanıcı yazmaya başladıysa → send aktif olsun
+    if (Get.isRegistered<QuestionRunnerController>()) {
+      Get.find<QuestionRunnerController>().setCanSubmit(v.trim().isNotEmpty);
+    }
+  }
 
   /// Kullanıcı cevabı gönderir
   Future<void> submit() async {
@@ -70,13 +79,14 @@ class ShortAnswerController extends GetxController {
       // fallback — mevcut davranışını bozma
       final helper = question.aiPromptHelper ?? '';
       aiFeedback.value =
-      "AI evaluated your answer.\nYour input: $userText\nHelper: $helper\n\n(Note: fallback response due to AI error)";
+          "AI evaluated your answer.\nYour input: $userText\nHelper: $helper\n\n(Note: fallback response due to AI error)";
     } finally {
       isEvaluating.value = false;
     }
   }
 
-  Future<void> _saveResultToFirestore(AiEvaluateResult res, int earnedXp) async {
+  Future<void> _saveResultToFirestore(
+      AiEvaluateResult res, int earnedXp) async {
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) return;
