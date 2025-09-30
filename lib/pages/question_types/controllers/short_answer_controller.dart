@@ -24,6 +24,9 @@ class ShortAnswerController extends GetxController {
   final Rx<AiEvaluateResult?> aiMeta = Rx<AiEvaluateResult?>(null);
   final aiFeedback = ''.obs; // ekranda göstereceğimiz metin
 
+  /// Kullanıcının kazandığı XP
+  final earnedXp = 0.obs;
+
   void updateAnswer(String v) {
     answer.value = v;
 
@@ -61,16 +64,17 @@ class ShortAnswerController extends GetxController {
       // 🔹 XP hesaplama
       final baseXp = question.xp;
       final normalized = (res.score ?? 0) / 5.0;
-      final earnedXp = (normalized * baseXp).round();
+      final xp = (normalized * baseXp).round();
+      earnedXp.value = xp;
 
       final verdict = res.correct ? "✅ Doğru." : "❌ Yanlış.";
       final explain = res.explanation.isNotEmpty ? "\n${res.explanation}" : "";
 
       // Kullanıcıya XP bilgisini de göster
-      aiFeedback.value = "$verdict$explain\n\n⭐ You earned: $earnedXp XP";
+      aiFeedback.value = "$verdict$explain\n\n⭐ You earned: $xp XP";
 
       // Firestore güncelle
-      await _saveResultToFirestore(res, earnedXp);
+      await _saveResultToFirestore(res, xp);
     } catch (e, st) {
       // debug için logla; istersen kaldırabilirsin
       // ignore: avoid_print

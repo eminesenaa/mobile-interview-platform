@@ -208,58 +208,14 @@ class QuestionRunnerController extends GetxController {
               break;
             }
             // 2) Kodu controller’dan oku
-            CodingController? cc;
             if (Get.isRegistered<CodingController>(tag: q.id)) {
-              cc = Get.find<CodingController>(tag: q.id);
+              final cc = Get.find<CodingController>(tag: q.id);
+              await cc
+                  .evaluateWithAi(); // Feedback artık view içinde gösterilecek
+              _answerById[q.id] = {'code': cc.getCode()};
+            } else {
+              Get.snackbar('Error', 'CodingController not found');
             }
-
-            final String? code = cc?.getCode() ??
-                (_answerPayload is Map<String, dynamic>
-                    ? (_answerPayload as Map<String, dynamic>)['code']
-                        as String?
-                    : null);
-            final bool valid = code != null && code.isNotEmpty;
-
-            // 2.5) Geçerliyse devam, değilse uyar ve çık
-            if (!valid) {
-              Get.snackbar('Empty answer',
-                  'Please type some code (even a single space).');
-              break;
-            }
-
-            // 3) Gönderim — AI değerlendirmesi
-            _answerPayload = {'code': code}; // cache güncel
-            try {
-              final res = await _ai.evaluate(
-                question: q,
-                userAnswer: code, // coding'de tüm metin
-              );
-
-              // (opsiyonel) soruya bağlı cevap/payload saklama
-              _answerById[q.id] = _answerPayload;
-
-              // Feedback UI
-              Get.bottomSheet(
-                _AiFeedbackSheet(
-                  title: q.title ?? 'AI Feedback',
-                  score: res.score,
-                  correct: res.correct,
-                  finalAnswer: res.finalAnswer,
-                  explanation: res.explanation,
-                ),
-                isScrollControlled: true,
-                backgroundColor: Get.theme.scaffoldBackgroundColor,
-              );
-            } catch (e) {
-              Get.snackbar('Send failed', e.toString());
-            }
-            // TODO: await api.submitAnswer(body);
-            // print veya telemetry:
-            // debugPrint('[Submit] coding -> $body');
-
-            // 4) (opsiyonel) cc tarafında ekstra işlemler olacaksa:
-            // await cc?.finalize(); // ileride eklersin
-
             break;
           }
         case QuestionType.debugging:
@@ -319,46 +275,35 @@ class QuestionRunnerController extends GetxController {
   Future<void> onTapSend() async {
     final q = currentQuestion.value;
     if (q == null) return;
-    // mevcut switch/case içinde olduğumuz gönderim bloğunu tetikleyen
-    // var olan akışın girişini kullan:
-    // (Kodunda varsa kendi submit handler'ını çağır. Aksi halde burada minimal tekrar:)
     if (isEditorOpen.value) {
       Get.snackbar('Editor is open', 'Please close the editor before sending.');
       return;
     }
-    // Burada var olan “coding gönderim” bloğuna giden yolunu kullanman en doğrusu;
-    // eğer onTapSend -> mevcut switch'e erişimin yoksa, minimal replikasyon:
-    // Aşağıdaki, coding için güvenli fallback (starter’a eşitse göndermemek istersen hasEdited kontrolü yap):
-    String? code;
-    if (Get.isRegistered<CodingController>(tag: q.id)) {
-      code = Get.find<CodingController>(tag: q.id).getCode();
-    }
-    if ((code == null) || code.isEmpty) {
-      Get.snackbar(
-          'Empty answer', 'Please type some code (even a single space).');
+
+    if (q.type == QuestionType.coding) {
+      if (Get.isRegistered<CodingController>(tag: q.id)) {
+        final cc = Get.find<CodingController>(tag: q.id);
+        if (cc.getCode().trim().isEmpty) {
+          Get.snackbar(
+              'Empty answer', 'Please type some code (even a single space).');
+          return;
+        }
+        isSubmitting.value = true;
+        try {
+          await cc.evaluateWithAi(); // feedback UI view’de gösterilecek
+          _answerPayload = {'code': cc.getCode()};
+          _answerById[q.id] = _answerPayload;
+        } catch (e) {
+          Get.snackbar('Send failed', e.toString());
+        } finally {
+          isSubmitting.value = false;
+        }
+      }
       return;
     }
-    isSubmitting.value = true;
-    try {
-      final res = await _ai.evaluate(question: q, userAnswer: code);
-      _answerPayload = {'code': code};
-      _answerById[q.id] = _answerPayload;
-      Get.bottomSheet(
-        _AiFeedbackSheet(
-          title: q.title ?? 'AI Feedback',
-          score: res.score,
-          correct: res.correct,
-          finalAnswer: res.finalAnswer,
-          explanation: res.explanation,
-        ),
-        isScrollControlled: true,
-        backgroundColor: Get.theme.scaffoldBackgroundColor,
-      );
-    } catch (e) {
-      Get.snackbar('Send failed', e.toString());
-    } finally {
-      isSubmitting.value = false;
-    }
+
+    // coding dışındaki tiplerde submit zaten switch-case içinden çağrılıyor
+    await submit();
   }
 
   void flushCodingDraftIfAny() {
@@ -394,52 +339,5 @@ class QuestionRunnerController extends GetxController {
     isEditorOpen.value = false;
     canSubmit.value = false;
     _answerPayload = null;
-  }
-}
-
-//  Küçük, bağımsız feedback sheet UI
-class _AiFeedbackSheet extends StatelessWidget {
-  final String title;
-  final double? score;
-  final bool correct;
-  final String finalAnswer;
-  final String explanation;
-
-  const _AiFeedbackSheet({
-    required this.title,
-    required this.score,
-    required this.correct,
-    required this.finalAnswer,
-    required this.explanation,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title,
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            if (score != null) Text('Score: ${score!.toStringAsFixed(2)}'),
-            Text('Correct: ${correct ? "Yes" : "No"}'),
-            const SizedBox(height: 12),
-            const Text('Expected / Final Answer:',
-                style: TextStyle(fontWeight: FontWeight.w600)),
-            Text(finalAnswer),
-            const SizedBox(height: 12),
-            const Text('Explanation:',
-                style: TextStyle(fontWeight: FontWeight.w600)),
-            Text(explanation),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
   }
 }

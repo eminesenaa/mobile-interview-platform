@@ -34,6 +34,8 @@ class McqController extends GetxController {
   final isEvaluating = false.obs;
   final Rx<AiEvaluateResult?> aiResult = Rx<AiEvaluateResult?>(null);
 
+  /// Kullanıcıya kazanılan XP (AI değerlendirmesinden sonra set edilir)
+  final earnedXp = 0.obs;
   int? _correctIndex;
 
   @override
@@ -110,7 +112,8 @@ class McqController extends GetxController {
       // 🔹 Kullanıcıya gösterilecek XP hesapla
       final baseXp = question.xp;
       final normalized = (res.score ?? 0) / 5.0;
-      final earnedXp = (normalized * baseXp).round();
+      final xp = (normalized * baseXp).round();
+      earnedXp.value = xp;
 
       // Eğer AI'dan gelen sonuç varsa onu kullan
       final verdict = isCorrect.value ? "✅ Correct." : "❌ Incorrect.";
@@ -118,7 +121,7 @@ class McqController extends GetxController {
           (res.explanation.isNotEmpty) ? "\n${res.explanation}" : "";
 
       // 🔹 Kullanıcıya XP bilgisini de göster
-      aiFeedback.value = "$verdict$explain\n\n⭐ You earned: $earnedXp XP";
+      aiFeedback.value = "$verdict$explain\n\n⭐ You earned: $xp XP";
 
       // 🔹 Firestore güncelle
       await _saveResultToFirestore(res);

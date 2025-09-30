@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:get/get.dart';
 import '../../../models/question.dart';
+import '../../../services/ai/ai_service.dart';
 import '../../../utils/code_template_sanitizer.dart';
 import '../../../utils/language_mapper.dart';
 import '../../runner/controller/question_runner_controller.dart';
@@ -16,6 +17,13 @@ class CodingController extends GetxController {
 
   final RxBool hasEdited = false.obs; // <— yeni
   late final String _initialCode; // <— yeni
+
+  /// AI Feedback alanları
+  final AiService _ai = Get.find<AiService>();
+  final isEvaluating = false.obs;
+  final Rx<AiEvaluateResult?> aiMeta = Rx<AiEvaluateResult?>(null);
+  final aiFeedback = ''.obs;
+  final earnedXp = 0.obs;
 
   CodingController(this.question);
 
@@ -91,6 +99,34 @@ class CodingController extends GetxController {
         return 'dart';
       default:
         return 'plaintext';
+    }
+  }
+
+  Future<void> evaluateWithAi() async {
+    final code = currentCode.value.trim();
+    if (code.isEmpty) {
+      Get.snackbar('Empty code', 'Please write some code before sending.');
+      return;
+    }
+
+    isEvaluating.value = true;
+    try {
+      final res = await _ai.evaluate(question: question, userAnswer: code);
+      aiMeta.value = res;
+
+      // XP hesapla
+      final baseXp = question.xp;
+      final normalized = (res.score ?? 0) / 5.0;
+      final xp = (normalized * baseXp).round();
+      earnedXp.value = xp;
+
+      final verdict = res.correct ? "✅ Correct." : "❌ Incorrect.";
+      final explain = res.explanation.isNotEmpty ? "\n${res.explanation}" : "";
+      aiFeedback.value = "$verdict$explain\n\n⭐ You earned: $xp XP";
+    } catch (e) {
+      Get.snackbar("AI error", e.toString());
+    } finally {
+      isEvaluating.value = false;
     }
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../models/question.dart';
+import '../../../utils/ai_feedback_widget.dart';
 import '../controllers/coding_controller.dart';
 
 class CodingQuestionView extends StatelessWidget {
@@ -31,12 +32,16 @@ class CodingQuestionView extends StatelessWidget {
               style: const TextStyle(fontSize: 16),
             ),
           ),
-
-
-        const SizedBox(height: 12),
-
-        // Kullanıcının yazdığı kodu küçük bir preview olarak gösterebiliriz
-
+        const SizedBox(height: 16),
+        Obx(() {
+          if (c.aiMeta.value == null) return const SizedBox.shrink();
+          return AiFeedbackWidget(
+            correct: c.aiMeta.value!.correct,
+            score: c.aiMeta.value!.score,
+            explanation: c.aiMeta.value!.explanation,
+            earnedXp: c.earnedXp.value,
+          );
+        }),
       ],
     );
   }

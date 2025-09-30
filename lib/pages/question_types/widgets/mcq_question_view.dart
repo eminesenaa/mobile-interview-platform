@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '../../../constants/constants.dart';
 import '../../../models/question.dart';
+import '../../../utils/ai_feedback_widget.dart';
 import '../../../utils/markdown_heuristics.dart';
 import '../controllers/mcq_controller.dart';
 
@@ -172,46 +173,20 @@ class _McqQuestionViewState extends State<McqQuestionView> {
             // AI Feedback (submit sonrası)
             if (isSubmitted) ...[
               const SizedBox(height: 16),
-              Text("AI Feedback:", style: AppTextStyles.headline),
-              const SizedBox(height: 8),
               if (c.isEvaluating.value)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8),
                   child: LinearProgressIndicator(),
-                ),
-              if (!c.isEvaluating.value)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      c.aiFeedback.value.isNotEmpty
-                          ? c.aiFeedback.value
-                          : "Yanıt yorumlanamadı.",
-                      style: AppTextStyles.subtitle,
-                    ),
-                    const SizedBox(height: 12),
-                    if (c.aiResult.value != null)
-                      Row(
-                        children: [
-                          Chip(
-                            label: Text(
-                              c.aiResult.value!.correct
-                                  ? 'Correct'
-                                  : 'Incorrect',
-                            ),
-                          ),
-                          if (c.aiResult.value!.score != null) ...[
-                            const SizedBox(width: 8),
-                            Chip(
-                              label: Text(
-                                'Score: ${c.aiResult.value!.score!.toStringAsFixed(1)}/5',
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                  ],
-                ),
+                )
+              else if (c.aiResult.value != null)
+                AiFeedbackWidget(
+                  correct: c.aiResult.value!.correct,
+                  score: c.aiResult.value!.score,
+                  explanation: c.aiResult.value!.explanation,
+                  earnedXp: c.earnedXp.value,
+                )
+              else
+                const Text("Yanıt yorumlanamadı."),
             ],
           ],
         );
