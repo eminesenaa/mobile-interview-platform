@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../models/question.dart';
 import '../../../services/ai/ai_service.dart';
+import '../../runner/controller/question_runner_controller.dart';
 
 /// Çoktan Seçmeli (MCQ) controller
 /// - Kullanıcı seçimi
@@ -57,6 +58,10 @@ class McqController extends GetxController {
   void select(int index) {
     if (isSubmitted.value) return;
     selectedIndex.value = index;
+    // kullanıcı seçenek seçti → send aktif olsun
+    if (Get.isRegistered<QuestionRunnerController>()) {
+      Get.find<QuestionRunnerController>().setCanSubmit(true);
+    }
   }
 
   Future<void> submit() async {
@@ -93,7 +98,7 @@ class McqController extends GetxController {
   // ------------------- AI + Firestore -------------------
 
   /// Gerçek AI çağrısı; hata olursa lokal sonucu korur
-   Future<void> _evaluateWithAi(String chosen) async {
+  Future<void> _evaluateWithAi(String chosen) async {
     isEvaluating.value = true;
     try {
       final res = await _ai.evaluate(
@@ -129,75 +134,74 @@ class McqController extends GetxController {
     }
   }
 
+  Future<void> _saveResultToFirestore(AiEvaluateResult res) async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
 
-Future<void> _saveResultToFirestore(AiEvaluateResult res) async {
-  try {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+      final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
+      final solvedRef = userRef.collection('solved').doc(question.id);
 
-    final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
-    final solvedRef = userRef.collection('solved').doc(question.id);
+      final snap = await solvedRef.get();
 
-    final snap = await solvedRef.get();
+      // 🔹 Base XP
+      final baseXp = question.xp;
+      final rawScore = res.score ?? 0;
+      final newScore =
+          (rawScore is int) ? rawScore.toDouble() : rawScore.toDouble();
+      final newEarnedXp = ((newScore / 5.0) * baseXp).round();
 
-    // 🔹 Base XP
-    final baseXp = question.xp;
-    final rawScore = res.score ?? 0;
-    final newScore = (rawScore is int) ? rawScore.toDouble() : rawScore.toDouble();
-    final newEarnedXp = ((newScore / 5.0) * baseXp).round();
+      print(
+          "🔍 [AI] rawScore=$rawScore | newScore=$newScore | baseXp=$baseXp | newEarnedXp=$newEarnedXp");
 
-    print("🔍 [AI] rawScore=$rawScore | newScore=$newScore | baseXp=$baseXp | newEarnedXp=$newEarnedXp");
+      if (snap.exists) {
+        final data = snap.data() ?? {};
+        final prevScore = (data['score'] is int)
+            ? (data['score'] as int).toDouble()
+            : (data['score'] as num?)?.toDouble() ?? 0.0;
+        final prevXp = (data['xpEarned'] as num?)?.toInt() ?? 0;
 
-    if (snap.exists) {
-      final data = snap.data() ?? {};
-      final prevScore = (data['score'] is int)
-          ? (data['score'] as int).toDouble()
-          : (data['score'] as num?)?.toDouble() ?? 0.0;
-      final prevXp = (data['xpEarned'] as num?)?.toInt() ?? 0;
+        print("🔍 [Firestore] prevScore=$prevScore | prevXp=$prevXp");
 
-      print("🔍 [Firestore] prevScore=$prevScore | prevXp=$prevXp");
+        // Eğer yeni skor daha yüksekse → fark kadar XP ekle
+        if (newScore > prevScore) {
+          final xpDiff = newEarnedXp - prevXp;
+          print("🔍 [XP Update] xpDiff=$xpDiff");
 
-      // Eğer yeni skor daha yüksekse → fark kadar XP ekle
-      if (newScore > prevScore) {
-        final xpDiff = newEarnedXp - prevXp;
-        print("🔍 [XP Update] xpDiff=$xpDiff");
+          if (xpDiff > 0) {
+            await userRef.update({
+              'totalXp': FieldValue.increment(xpDiff),
+            });
+          }
 
-        if (xpDiff > 0) {
-          await userRef.update({
-            'totalXp': FieldValue.increment(xpDiff),
+          await solvedRef.update({
+            'score': newScore,
+            'xpEarned': newEarnedXp,
+            'lastAttempt': FieldValue.serverTimestamp(),
+          });
+        } else {
+          print("ℹ️ Yeni skor daha yüksek değil, sadece tarih güncellendi.");
+          await solvedRef.update({
+            'lastAttempt': FieldValue.serverTimestamp(),
           });
         }
+      } else {
+        // İlk çözüm
+        print("🔍 [First Solve] earnedXp=$newEarnedXp");
 
-        await solvedRef.update({
+        await userRef.update({
+          'totalXp': FieldValue.increment(newEarnedXp),
+        });
+
+        await solvedRef.set({
+          'status': 'solved',
           'score': newScore,
           'xpEarned': newEarnedXp,
-          'lastAttempt': FieldValue.serverTimestamp(),
-        });
-      } else {
-        print("ℹ️ Yeni skor daha yüksek değil, sadece tarih güncellendi.");
-        await solvedRef.update({
-          'lastAttempt': FieldValue.serverTimestamp(),
+          'solvedAt': FieldValue.serverTimestamp(),
         });
       }
-    } else {
-      // İlk çözüm
-      print("🔍 [First Solve] earnedXp=$newEarnedXp");
-
-      await userRef.update({
-        'totalXp': FieldValue.increment(newEarnedXp),
-      });
-
-      await solvedRef.set({
-        'status': 'solved',
-        'score': newScore,
-        'xpEarned': newEarnedXp,
-        'solvedAt': FieldValue.serverTimestamp(),
-      });
+    } catch (e, st) {
+      print("❌ Firestore save error: $e\n$st");
     }
-  } catch (e, st) {
-    print("❌ Firestore save error: $e\n$st");
   }
-}
-
-
 }
