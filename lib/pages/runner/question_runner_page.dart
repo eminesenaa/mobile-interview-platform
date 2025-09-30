@@ -49,8 +49,11 @@ class QuestionRunnerPage extends StatelessWidget {
             if (q?.type == QuestionType.coding)
               IconButton(
                 icon: const Icon(Icons.code),
-                onPressed: () {
-                  Get.to(() => CodingEditorPage(question: q!));
+                onPressed: () async {
+                  final rc = Get.find<QuestionRunnerController>();
+                  rc.openEditor(q!); // editor state: AÇ
+                  await Get.to(() => CodingEditorPage(question: q));
+                  rc.closeEditor(); // editor state: KAPAT (her kapanışta garanti)
                 },
               ),
           ],
@@ -86,7 +89,6 @@ class QuestionRunnerPage extends StatelessWidget {
             return _buildQuestionBody(context, c);
           },
         ),
-
         // Bottom action bar
         bottomNavigationBar: Obx(() {
           final q = c.currentQuestion.value;

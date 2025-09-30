@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../../models/question.dart';
 import '../../../utils/code_template_sanitizer.dart';
 import '../../../utils/language_mapper.dart';
+import '../../runner/controller/question_runner_controller.dart';
 
 class CodingController extends GetxController {
   final Question question;
@@ -34,6 +35,19 @@ class CodingController extends GetxController {
       text: starter,
       language: mapTopicToMode(question.topic),
     );
+    // ilk set:
+    currentCode.value = codeController.text;
+    hasEdited.value = (codeController.text != _initialCode);
+
+    // + Her değişimde hem local state’i hem runner.canSubmit’i güncelle
+    codeController.addListener(() {
+      final text = codeController.text;
+      currentCode.value = text;
+      hasEdited.value = (text != _initialCode);
+      if (Get.isRegistered<QuestionRunnerController>()) {
+        Get.find<QuestionRunnerController>().setCanSubmit(hasEdited.value);
+      }
+    });
 
     // Kod değiştikçe güncelle
     codeController.addListener(() {
@@ -47,7 +61,7 @@ class CodingController extends GetxController {
   /// Kullanıcının yazdığı kodu döndür
   String getCode() => currentCode.value;
 
-  bool get edited => hasEdited.value;       // <— opsiyonel getter
+  bool get edited => hasEdited.value; // <— opsiyonel getter
 
   /// Kod güncelle
   void setCode(String code) {

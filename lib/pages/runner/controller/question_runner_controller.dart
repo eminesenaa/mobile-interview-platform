@@ -5,8 +5,10 @@
 //                 Yalnızca bölümlere ayrılarak yeniden sıralanmıştır.
 // ============================================================================
 
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../models/question.dart';
+import '../../../services/ai/ai_service.dart';
 import '../../question_types/controllers/coding_controller.dart';
 import '../../question_types/controllers/fill_blank_controller.dart';
 import '../../question_types/controllers/mcq_controller.dart';
@@ -43,6 +45,9 @@ class QuestionRunnerController extends GetxController {
   final RxBool isEditorOpen = false.obs; // Editor açık mı? (submit bloklanır)
   final RxBool canSubmit = false.obs; // Çocuk widget'tan gelen valid bilgisi
   Map<String, dynamic>? _answerPayload; // Çocuk widget'tan gelen payload
+
+  // + AI service instance
+  final AiService _ai = AiService();
 
   // ========================================================================
   // [2] GETTER'LAR (Sadece-okunur arayüz)
@@ -222,13 +227,32 @@ class QuestionRunnerController extends GetxController {
               break;
             }
 
-            // 3) Gönderim (şimdilik taklit; API bağlayınca burayı değiştir)
-            _answerPayload = {'code': code};  // (opsiyonel) cache’i güncel tut
-            final body = <String, dynamic>{
-              'questionId': q.id,
-              'type': 'coding',
-              'answer': {'code': code},
-            };
+            // 3) Gönderim — AI değerlendirmesi
+            _answerPayload = {'code': code}; // cache güncel
+            try {
+              final res = await _ai.evaluate(
+                question: q,
+                userAnswer: code, // coding'de tüm metin
+              );
+
+              // (opsiyonel) soruya bağlı cevap/payload saklama
+              _answerById[q.id] = _answerPayload;
+
+              // Feedback UI
+              Get.bottomSheet(
+                _AiFeedbackSheet(
+                  title: q.title ?? 'AI Feedback',
+                  score: res.score,
+                  correct: res.correct,
+                  finalAnswer: res.finalAnswer,
+                  explanation: res.explanation,
+                ),
+                isScrollControlled: true,
+                backgroundColor: Get.theme.scaffoldBackgroundColor,
+              );
+            } catch (e) {
+              Get.snackbar('Send failed', e.toString());
+            }
             // TODO: await api.submitAnswer(body);
             // print veya telemetry:
             // debugPrint('[Submit] coding -> $body');
@@ -251,9 +275,9 @@ class QuestionRunnerController extends GetxController {
     }
   }
 
-  // ========================================================================
-  // [7] EDITOR / CODING AKIŞI (flag ve payload yönetimi)
-  // ========================================================================
+// ========================================================================
+// [7] EDITOR / CODING AKIŞI (flag ve payload yönetimi)
+// ========================================================================
   void toggleEditor() => isEditorOpen.toggle();
 
   bool _isCoding(Question q) {
@@ -271,15 +295,70 @@ class QuestionRunnerController extends GetxController {
   }
 
   /// Editor akışı – şimdi sadece flag; bir sonraki adımda sayfa/route açacağız
-  Future<void> openEditor(Question q) async {
+  void openEditor(Question q) {
     isEditorOpen.value = true;
-    await Get.to(() => CodingEditorPage(question: q));
-    closeEditor(); // dönünce flush + restore
+    //await Get.to(() => CodingEditorPage(question: q));
+    //closeEditor(); // dönünce flush + restore
   }
 
   void closeEditor() {
     isEditorOpen.value = false;
-    flushCodingDraftIfAny();
+    // editörden dönünce kodu runner’a yansıt, send’i buna göre ayarla
+    final q = currentQuestion.value;
+    if (q != null && Get.isRegistered<CodingController>(tag: q.id)) {
+      final cc = Get.find<CodingController>(tag: q.id);
+      final edited =
+          cc.edited; // getter eklemiştik: bool get edited => hasEdited.value;
+      canSubmit.value = edited;
+      _canSubmitById[q.id] = edited;
+    }
+    //flushCodingDraftIfAny();
+  }
+
+  // + Ekrandaki "Send" (FAB) tetikleyicisi
+  Future<void> onTapSend() async {
+    final q = currentQuestion.value;
+    if (q == null) return;
+    // mevcut switch/case içinde olduğumuz gönderim bloğunu tetikleyen
+    // var olan akışın girişini kullan:
+    // (Kodunda varsa kendi submit handler'ını çağır. Aksi halde burada minimal tekrar:)
+    if (isEditorOpen.value) {
+      Get.snackbar('Editor is open', 'Please close the editor before sending.');
+      return;
+    }
+    // Burada var olan “coding gönderim” bloğuna giden yolunu kullanman en doğrusu;
+    // eğer onTapSend -> mevcut switch'e erişimin yoksa, minimal replikasyon:
+    // Aşağıdaki, coding için güvenli fallback (starter’a eşitse göndermemek istersen hasEdited kontrolü yap):
+    String? code;
+    if (Get.isRegistered<CodingController>(tag: q.id)) {
+      code = Get.find<CodingController>(tag: q.id).getCode();
+    }
+    if ((code == null) || code.isEmpty) {
+      Get.snackbar(
+          'Empty answer', 'Please type some code (even a single space).');
+      return;
+    }
+    isSubmitting.value = true;
+    try {
+      final res = await _ai.evaluate(question: q, userAnswer: code);
+      _answerPayload = {'code': code};
+      _answerById[q.id] = _answerPayload;
+      Get.bottomSheet(
+        _AiFeedbackSheet(
+          title: q.title ?? 'AI Feedback',
+          score: res.score,
+          correct: res.correct,
+          finalAnswer: res.finalAnswer,
+          explanation: res.explanation,
+        ),
+        isScrollControlled: true,
+        backgroundColor: Get.theme.scaffoldBackgroundColor,
+      );
+    } catch (e) {
+      Get.snackbar('Send failed', e.toString());
+    } finally {
+      isSubmitting.value = false;
+    }
   }
 
   void flushCodingDraftIfAny() {
@@ -301,19 +380,66 @@ class QuestionRunnerController extends GetxController {
     }
   }
 
-  // Soru değiştiğinde cache’ten geri yükleyen küçük yardımcı
+// Soru değiştiğinde cache’ten geri yükleyen küçük yardımcı
   void _restoreStateFor(Question q) {
     canSubmit.value = _canSubmitById[q.id] ?? false;
     _answerPayload = _answerById[q.id];
   }
 
-  // ========================================================================
-  // [8] DURUM SIFIRLAMA / YARDIMCI
-  // ========================================================================
+// ========================================================================
+// [8] DURUM SIFIRLAMA / YARDIMCI
+// ========================================================================
   /// Soru değiştiğinde/ileri-geri – submit & payload & editor state sıfırla
   void _resetAnswerState() {
     isEditorOpen.value = false;
     canSubmit.value = false;
     _answerPayload = null;
+  }
+}
+
+//  Küçük, bağımsız feedback sheet UI
+class _AiFeedbackSheet extends StatelessWidget {
+  final String title;
+  final double? score;
+  final bool correct;
+  final String finalAnswer;
+  final String explanation;
+
+  const _AiFeedbackSheet({
+    required this.title,
+    required this.score,
+    required this.correct,
+    required this.finalAnswer,
+    required this.explanation,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title,
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            if (score != null) Text('Score: ${score!.toStringAsFixed(2)}'),
+            Text('Correct: ${correct ? "Yes" : "No"}'),
+            const SizedBox(height: 12),
+            const Text('Expected / Final Answer:',
+                style: TextStyle(fontWeight: FontWeight.w600)),
+            Text(finalAnswer),
+            const SizedBox(height: 12),
+            const Text('Explanation:',
+                style: TextStyle(fontWeight: FontWeight.w600)),
+            Text(explanation),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
   }
 }
