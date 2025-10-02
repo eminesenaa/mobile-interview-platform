@@ -1,17 +1,14 @@
-// lib/services/openai_service.dart
+// lib/services/ai/openai_service.dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart' show rootBundle;
 import '../../models/question.dart';
 
-enum PromptType {
-  training,
-  interview,
-  detailedTraining
-}
+/// Uygulamada kullanacağın prompt türleri
+enum PromptType { training, interview, detailedTraining }
 
-/// Basit sonuç modeli
+/// Tek soruluk çıktı modeli
 class GradeResult {
   final bool correct;
   final String expected;
@@ -22,19 +19,17 @@ class GradeResult {
     required this.correct,
     required this.expected,
     required this.reason,
-    required this.score
+    required this.score,
   });
 
   static GradeResult fromSafeFallback(String rawText) {
-    // JSON gelmediyse ama yine de UI çökmemesi için anlamlı bir fallback
     return GradeResult(
       correct: false,
       expected: "",
-      reason:
-          "Model returned non-JSON content: ${rawText.substring(0, rawText.length > 200 ? 200 : rawText.length)}",
+      reason: "Model returned non-JSON content: "
+          "${rawText.substring(0, rawText.length > 200 ? 200 : rawText.length)}",
       score: 0.0,
     );
-    // Dilersen burayı daha akıllı hale getirip içinden bazı ipuçlarını çekebilirsin.
   }
 }
 
@@ -73,7 +68,7 @@ class GradeResultMapper {
     final weaknesses = (json['weaknesses'] as List?)?.join(', ') ?? '';
 
     return GradeResult(
-      correct: decision == "advance" || correctness >= 0.8, // çünkü bu prompt [0,1] scale
+      correct: decision == "advance" || correctness >= 0.8,
       expected: "overall_score=${json['overall_score']}, decision=$decision",
       reason: strengths.isNotEmpty ? strengths : weaknesses,
       score: (json['overall_score'] is num)
@@ -81,27 +76,253 @@ class GradeResultMapper {
           : 0.0,
     );
   }
-
 }
 
+/// Batch (5'lik paket) öğesi
+class BatchGradeItem {
+  final String questionId;
+  final bool correct;
+  final String expected;
+  final String reason;
+  final double score;
+  BatchGradeItem({
+    required this.questionId,
+    required this.correct,
+    required this.expected,
+    required this.reason,
+    required this.score,
+  });
+}
 
 class OpenAIService {
-  static const _apiKey = "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";
+  // ------------------ API Key ------------------
+  static const _apiKey =
+      "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";
   static const _endpoint = 'https://api.openai.com/v1/chat/completions';
   static const _model = 'gpt-4o-mini';
 
-  static Future<String> _loadPromptTemplate(PromptType type) async {
-    switch (type) {
-      case PromptType.training:
-        return await rootBundle.loadString('assets/prompts/TrainingAnalysis.txt');
-      case PromptType.interview:
-        return await rootBundle.loadString('assets/prompts/InterviewAnalysis.txt');
-      case PromptType.detailedTraining:
-        return await rootBundle.loadString('assets/prompts/TrainingDetailedAnalysis.txt');
+  // -------------------- Tek soru --------------------
+  static Future<GradeResult> gradeWithTemplate({
+    required String category,
+    required Map<String, String> qMeta,
+    required String candidateAnswer,
+    Duration timeout = const Duration(seconds: 60),
+    required PromptType promptType,
+  }) async {
+    final template = await _loadPromptTemplate(promptType);
+    final systemRole = _buildSystemRole(category);
+
+    final userContent = _renderTemplate(template, {
+      "Category": category,
+      "Question Content Type": qMeta["Question Content Type"] ?? "",
+      "Difficulty Level (1–5)": qMeta["Difficulty Level (1–5)"] ?? "",
+      "Source Reference": qMeta["Source Reference"] ?? "",
+      "Question Title": qMeta["Question Title"] ?? "",
+      "Question Text": qMeta["Question Text"] ?? "",
+      "Question Format": qMeta["Question Format"] ?? "",
+      "Option A": qMeta["Option A"] ?? "",
+      "Option B": qMeta["Option B"] ?? "",
+      "Option C": qMeta["Option C"] ?? "",
+      "Option D": qMeta["Option D"] ?? "",
+      "Correct Option": qMeta["Correct Option"] ?? "",
+      "Tags": qMeta["Tags"] ?? "",
+      "AI Prompt Helper": qMeta["AI Prompt Helper"] ?? "",
+      "candidate_answer_or_choice": candidateAnswer,
+    });
+
+    final body = {
+      "model": _model,
+      "temperature": 0,
+      "response_format": {"type": "json_object"},
+      "messages": [
+        {"role": "system", "content": systemRole},
+        {"role": "system", "content": "Output ONLY JSON."},
+        {"role": "user", "content": userContent},
+      ],
+    };
+
+    final resp = await _post(body, timeout: timeout);
+    return _extractGradeResult(resp, promptType);
+  }
+
+  // -------------------- Batch (çoklu) --------------------
+  static Future<List<BatchGradeItem>> gradeBatchWithTemplate({
+    required List<Map<String, String>> qMetas,
+    required List<String> candidateAnswers,
+    Duration timeout = const Duration(seconds: 90),
+    required PromptType promptType,
+  }) async {
+    assert(qMetas.length == candidateAnswers.length && qMetas.isNotEmpty);
+
+    final template = await _loadPromptTemplateForBatch(promptType);
+
+    final items = <Map<String, String>>[];
+    for (int i = 0; i < qMetas.length; i++) {
+      final m = Map<String, String>.from(qMetas[i]);
+      m["candidate_answer_or_choice"] = candidateAnswers[i];
+
+      for (final k in const [
+        "Category",
+        "Question Id",
+        "Question Text",
+        "Question Format",
+        "Option A",
+        "Option B",
+        "Option C",
+        "Option D",
+        "Correct Option",
+        "Tags",
+        "AI Prompt Helper",
+        "candidate_answer_or_choice",
+      ]) {
+        m[k] = m[k] ?? "";
+      }
+      items.add(m);
+    }
+
+    final userContent =
+        template.replaceFirst("{{ITEMS_JSON}}", jsonEncode(items));
+
+    final body = {
+      "model": _model,
+      "temperature": 0,
+      "response_format": {"type": "json_object"},
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a senior technical interviewer. Output ONLY JSON."
+        },
+        {"role": "user", "content": userContent},
+      ],
+    };
+
+    final resp = await _post(body, timeout: timeout);
+    return _extractBatchResult(resp);
+  }
+
+  // -------------------- Soru zamanı (tek) --------------------
+  static Future<int> findQuestionTime(Question q,
+      {Duration timeout = const Duration(seconds: 30)}) async {
+    final template =
+        await rootBundle.loadString('assets/prompts/TimeFinding.txt');
+
+    final userContent = template.replaceAll("{{QUESTION}}", q.toString());
+
+    final body = {
+      "model": 'gpt-4o',
+      "temperature": 0,
+      "response_format": {"type": "json_object"},
+      "messages": [
+        {"role": "system", "content": "You are a helpful exam time estimator."},
+        {"role": "system", "content": "Output ONLY valid JSON."},
+        {"role": "user", "content": userContent},
+      ],
+    };
+
+    final resp = await _post(body, timeout: timeout);
+    final raw = resp.body;
+    try {
+      final outer = jsonDecode(raw);
+      final content = outer['choices']?[0]?['message']?['content'];
+      if (content == null) throw Exception("No content");
+
+      final parsed = jsonDecode(content);
+      if (parsed is! Map<String, dynamic>) {
+        throw Exception("Not a JSON object: $content");
+      }
+
+      final sec = parsed['estimated_seconds'];
+      if (sec is int) return sec;
+      if (sec is num) return sec.toInt();
+
+      throw Exception("Invalid estimated_seconds: $sec");
+    } catch (_) {
+      return 60; // fallback 1dk
     }
   }
 
+  // -------------------- Soru zamanı (çoklu batch) --------------------
+  static Future<List<int>> findQuestionsTimeBatch(
+    List<Question> questions, {
+    Duration timeout = const Duration(seconds: 60),
+  }) async {
+    final template =
+        await rootBundle.loadString('assets/prompts/TimeFindingBatch.txt');
 
+    final buffer = StringBuffer();
+    for (int i = 0; i < questions.length; i++) {
+      buffer.writeln("[$i] ${questions[i].title}");
+      if (questions[i].description != null) {
+        buffer.writeln("    Desc: ${questions[i].description}");
+      }
+      if (questions[i].options != null && questions[i].options!.isNotEmpty) {
+        for (int j = 0; j < questions[i].options!.length; j++) {
+          buffer.writeln(
+              "    Option ${String.fromCharCode(65 + j)}: ${questions[i].options![j]}");
+        }
+      }
+    }
+
+    final userContent = template.replaceAll("{{QUESTIONS}}", buffer.toString());
+
+    final body = {
+      "model": _model,
+      "temperature": 0,
+      "response_format": {"type": "json_object"},
+      "messages": [
+        {"role": "system", "content": "You are a helpful exam time estimator."},
+        {"role": "system", "content": "Output ONLY valid JSON."},
+        {"role": "user", "content": userContent},
+      ],
+    };
+
+    final resp = await _post(body, timeout: timeout);
+    final raw = resp.body;
+    try {
+      final outer = jsonDecode(raw);
+      final content = outer['choices']?[0]?['message']?['content'];
+      if (content == null) throw Exception("No content");
+
+      final parsed = jsonDecode(content);
+      if (parsed is! Map<String, dynamic>) throw Exception("Not a JSON object");
+
+      final results = parsed['results'] as List?;
+      if (results == null) throw Exception("No results");
+
+      final secsList = results.map<int>((e) {
+        final sec = e['estimated_seconds'];
+        if (sec is int) return sec;
+        if (sec is num) return sec.toInt();
+        return 60;
+      }).toList();
+
+      return secsList;
+    } catch (_) {
+      return List.filled(questions.length, 60);
+    }
+  }
+
+  // -------------------- Prompt dosyaları --------------------
+  static Future<String> _loadPromptTemplate(PromptType type) async {
+    switch (type) {
+      case PromptType.training:
+        return await rootBundle
+            .loadString('assets/prompts/TrainingAnalysis.txt');
+      case PromptType.interview:
+        return await rootBundle
+            .loadString('assets/prompts/InterviewAnalysis.txt');
+      case PromptType.detailedTraining:
+        return await rootBundle
+            .loadString('assets/prompts/TrainingDetailedAnalysis.txt');
+    }
+  }
+
+  static Future<String> _loadPromptTemplateForBatch(PromptType type) async {
+    return await rootBundle
+        .loadString('assets/prompts/TrainingAnalysisBatch.txt');
+  }
+
+  // -------------------- Yardımcılar --------------------
   static String _renderTemplate(String template, Map<String, String> vars) {
     var out = template;
     vars.forEach((k, v) {
@@ -141,55 +362,14 @@ class OpenAIService {
     }
   }
 
-  static Future<GradeResult> gradeWithTemplate({
-    required String category,
-    required Map<String, String> qMeta,
-    required String candidateAnswer,
-    Duration timeout = const Duration(seconds: 60),
-    required PromptType promptType
-  }) async {
-
-    final template = await _loadPromptTemplate(promptType);
-    final systemRole = _buildSystemRole(category);
-
-    final userContent = _renderTemplate(template, {
-      "Category": category,
-      "Question Content Type": qMeta["Question Content Type"] ?? "",
-      "Difficulty Level (1–5)": qMeta["Difficulty Level (1–5)"] ?? "",
-      "Source Reference": qMeta["Source Reference"] ?? "",
-      "Question Title": qMeta["Question Title"] ?? "",
-      "Question Text": qMeta["Question Text"] ?? "",
-      "Question Format": qMeta["Question Format"] ?? "",
-      "Option A": qMeta["Option A"] ?? "",
-      "Option B": qMeta["Option B"] ?? "",
-      "Option C": qMeta["Option C"] ?? "",
-      "Option D": qMeta["Option D"] ?? "",
-      "Correct Option": qMeta["Correct Option"] ?? "",
-      "Tags": qMeta["Tags"] ?? "",
-      "AI Prompt Helper": qMeta["AI Prompt Helper"] ?? "",
-      "candidate_answer_or_choice": candidateAnswer,
-    });
-
-    final body = {
-      "model": _model,
-      "temperature": 0,
-      "response_format": {"type": "json_object"},
-      "messages": [
-        {"role": "system", "content": systemRole},
-        {"role": "system", "content": "Output ONLY JSON."},
-        {"role": "user", "content": userContent},
-      ],
-    };
-
-    final resp = await _post(body, timeout: timeout);
-    return _extractGradeResult(resp, promptType);
-  }
-
-  /// --- HTTP yardımcıları ---
   static Future<http.Response> _post(
     Map<String, dynamic> body, {
     required Duration timeout,
   }) async {
+    if (_apiKey.isEmpty) {
+      throw Exception('OPENAI_API_KEY is empty.');
+    }
+
     final res = await http
         .post(
           Uri.parse(_endpoint),
@@ -201,15 +381,12 @@ class OpenAIService {
         )
         .timeout(timeout);
 
-    // HTTP hata kodlarını erken yakala
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      // Burada res.body’yi UI’ye fırlatıyoruz ki ham hata görülsün
       throw Exception('OpenAI error ${res.statusCode}: ${res.body}');
     }
     return res;
   }
 
-  /// JSON mode’a uygun, savunmacı ayrıştırma + debug
   static GradeResult _extractGradeResult(http.Response res, PromptType type) {
     final raw = res.body;
     try {
@@ -218,7 +395,9 @@ class OpenAIService {
       if (content == null) return GradeResult.fromSafeFallback(raw);
 
       final parsed = jsonDecode(content);
-      if (parsed is! Map<String, dynamic>) return GradeResult.fromSafeFallback(content);
+      if (parsed is! Map<String, dynamic>) {
+        return GradeResult.fromSafeFallback(content);
+      }
 
       switch (type) {
         case PromptType.training:
@@ -233,123 +412,30 @@ class OpenAIService {
     }
   }
 
-  static Future<int> findQuestionTime(Question q,
-      {Duration timeout = const Duration(seconds: 30)}) async {
-    // 1. promptu yükle
-    final template =
-    await rootBundle.loadString('assets/prompts/TimeFinding.txt');
-
-    // 2. question stringini yerine koy
-    final userContent = template.replaceAll("{{QUESTION}}", q.toString());
-
-    // 3. GPT request body
-    final body = {
-      "model": 'gpt-4o',
-      "temperature": 0,
-      "response_format": {"type": "json_object"},
-      "messages": [
-        {"role": "system", "content": "You are a helpful exam time estimator."},
-        {"role": "system", "content": "Output ONLY valid JSON."},
-        {"role": "user", "content": userContent},
-      ],
-    };
-
-    // 4. request at
-    final resp = await _post(body, timeout: timeout);
-
-    // 5. parse et
-    final raw = resp.body;
+  static List<BatchGradeItem> _extractBatchResult(http.Response res) {
+    final raw = res.body;
     try {
       final outer = jsonDecode(raw);
       final content = outer['choices']?[0]?['message']?['content'];
-      if (content == null) throw Exception("No content");
+      if (content == null) return [];
 
       final parsed = jsonDecode(content);
-      if (parsed is! Map<String, dynamic>) {
-        throw Exception("Not a JSON object: $content");
-      }
+      if (parsed is! Map<String, dynamic>) return [];
 
-      final sec = parsed['estimated_seconds'];
-      if (sec is int) return sec;
-      if (sec is num) return sec.toInt();
-
-      throw Exception("Invalid estimated_seconds: $sec");
-    } catch (e) {
-      // fallback
-      return 60; // default 1 dk
-    }
-  }
-
-  static Future<List<int>> findQuestionsTimeBatch(
-      List<Question> questions, {
-        Duration timeout = const Duration(seconds: 60),
-      }) async {
-    // 1. prompt yükle
-    final template =
-    await rootBundle.loadString('assets/prompts/TimeFindingBatch.txt');
-
-    // 2. questions stringini hazırla
-    final buffer = StringBuffer();
-    for (int i = 0; i < questions.length; i++) {
-      buffer.writeln("[$i] ${questions[i].title}");
-      if (questions[i].description != null) {
-        buffer.writeln("    Desc: ${questions[i].description}");
-      }
-      if (questions[i].options != null && questions[i].options!.isNotEmpty) {
-        for (int j = 0; j < questions[i].options!.length; j++) {
-          buffer.writeln("    Option ${String.fromCharCode(65 + j)}: ${questions[i].options![j]}");
-        }
-      }
-    }
-
-    final userContent = template.replaceAll("{{QUESTIONS}}", buffer.toString());
-
-    // 3. GPT request body
-    final body = {
-      "model": _model,
-      "temperature": 0,
-      "response_format": {"type": "json_object"},
-      "messages": [
-        {"role": "system", "content": "You are a helpful exam time estimator."},
-        {"role": "system", "content": "Output ONLY valid JSON."},
-        {"role": "user", "content": userContent},
-      ],
-    };
-
-    // 4. request at
-    final resp = await _post(body, timeout: timeout);
-
-    // 5. parse et
-    final raw = resp.body;
-    try {
-      final outer = jsonDecode(raw);
-      final content = outer['choices']?[0]?['message']?['content'];
-      if (content == null) throw Exception("No content");
-
-      final parsed = jsonDecode(content);
-      if (parsed is! Map<String, dynamic>) throw Exception("Not a JSON object");
-
-      final results = parsed['results'] as List?;
-      if (results == null) throw Exception("No results");
-
-      final secsList = results.map<int>((e) {
-        final sec = e['estimated_seconds'];
-        if (sec is int) return sec;
-        if (sec is num) return sec.toInt();
-        return 60; // fallback
+      final list = parsed['items'] as List<dynamic>? ?? const [];
+      return list.map((e) {
+        final m = e as Map<String, dynamic>;
+        return BatchGradeItem(
+          questionId: m['question_id']?.toString() ?? "",
+          correct: m['correct'] ?? false,
+          expected: m['expected']?.toString() ?? "",
+          reason: m['reason']?.toString() ?? "",
+          score: (m['score'] is num) ? (m['score'] as num).toDouble() : 0.0,
+        );
       }).toList();
-
-      // --- DEBUG PRINT ---
-      for (int i = 0; i < secsList.length; i++) {
-        print("Q[$i] (${questions[i].title}) icin tahmin: ${secsList[i]} saniye");
-      }
-
-      return secsList;
-    } catch (e) {
-      // fallback: hepsine 60 sn
-      print("Batch time parsing failed: $e");
-      return List.filled(questions.length, 60);
+    } catch (_) {
+      return [];
     }
   }
-
 }
+
