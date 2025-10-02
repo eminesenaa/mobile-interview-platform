@@ -13,8 +13,60 @@ import 'package:interview_project/pages/exam/widgets/question_header.dart';
 import '../../constants/colors.dart';
 import '../../models/question.dart';
 
+// >>> YENİ: AI servis ve sonuç sayfası importları
+import 'package:interview_project/services/ai/ai_service.dart';
+import 'package:interview_project/services/ai/openai_service.dart'
+    show PromptType;
+import 'package:interview_project/pages/exam/exam_result_page.dart';
+
 class ExamPage extends StatelessWidget {
   const ExamPage({super.key});
+
+  // >>> YENİ: Submit akışı – 5’lik batch değerlendirme + sonuç ekranına git
+  Future<void> _submitExam({
+    required BuildContext context,
+    required ExamController c,
+    required Exam exam,
+  }) async {
+    // answers haritası: questionId -> userAnswer (int index ya da String)
+    final answers = Map<String, dynamic>.from(c.state.value.answers);
+
+    if (answers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Henüz cevap yok. En az bir soru cevaplayın.')),
+      );
+      return;
+    }
+
+    // küçük bir loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final ai = AiService();
+      final eval = await ai.evaluateExam(
+        exam: exam,
+        userAnswers: answers,
+        promptType:
+            PromptType.training, // istersen burayı exam türüne göre değiştir
+      );
+
+      // loading’i kapat
+      if (context.mounted) Navigator.of(context).pop();
+
+      // Tek sonuç ekranı
+      Get.off(() => ExamResultPage(result: eval, exam: exam));
+    } catch (e) {
+      if (context.mounted) Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Değerlendirme hatası: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -108,7 +160,7 @@ class ExamPage extends StatelessWidget {
                             ),
                           McqView(
                             question: q,
-                            onAnswer: c.answerCurrent,
+                            onAnswer: c.answerCurrent, // int index ya da String
                             onToggleFlag: c.toggleFlag,
                             embedded: true,
                           ),
@@ -122,7 +174,8 @@ class ExamPage extends StatelessWidget {
             ActionBar(
               onPrev: c.prev,
               onNext: c.next,
-              onSubmit: () => c.submit(),
+              // >>> YENİ: submit çağrısı batch değerlendirir ve sonuç sayfasına götürür
+              onSubmit: () => _submitExam(context: context, c: c, exam: exam),
               onNavigator: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Navigator coming soon')),
@@ -172,17 +225,13 @@ Exam _mockExam() {
       Question(
         id: 'q1',
         title: 'HashMap Access',
-        description: 'What is the time complexity of accessing an element in a HashMap?',
+        description:
+            'What is the time complexity of accessing an element in a HashMap?',
         difficulty: Difficulty.easy,
         status: Status.todo,
         type: QuestionType.mcq,
         topic: 'Data Structures',
-        options: [
-          'O(1)',
-          'O(log n)',
-          'O(n)',
-          'O(n log n)',
-        ],
+        options: ['O(1)', 'O(log n)', 'O(n)', 'O(n log n)'],
         tags: [],
       ),
     ],
