@@ -180,4 +180,35 @@ class Question {
         return QuestionType.mcq;
     }
   }
+
+  @override
+  String toString() {
+    final buffer = StringBuffer();
+    buffer.writeln("Question ID: $id");
+    buffer.writeln("Title: $title");
+
+    if (description != null && description!.isNotEmpty) {
+      buffer.writeln("Description: $description");
+    }
+
+    buffer.writeln("Topic: $topic");
+    buffer.writeln("Type: ${type.name}");
+    buffer.writeln("Difficulty: ${difficulty.name}");
+
+    if (tags.isNotEmpty) {
+      buffer.writeln("Tags: ${tags.join(', ')}");
+    }
+
+    if (options != null && options!.isNotEmpty) {
+      for (int i = 0; i < options!.length; i++) {
+        buffer.writeln("Option ${String.fromCharCode(65 + i)}: ${options![i]}");
+      }
+    }
+
+    if (codeTemplate != null && codeTemplate!.isNotEmpty) {
+      buffer.writeln("Code Template: $codeTemplate");
+    }
+
+    return buffer.toString();
+  }
 }
