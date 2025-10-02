@@ -96,8 +96,7 @@ class BatchGradeItem {
 
 class OpenAIService {
   // ------------------ API Key ------------------
-  static const _apiKey =
-      "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";
+  static const _apiKey = "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";
   static const _endpoint = 'https://api.openai.com/v1/chat/completions';
   static const _model = 'gpt-4o-mini';
 
