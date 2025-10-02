@@ -86,7 +86,7 @@ class GradeResultMapper {
 
 
 class OpenAIService {
-  static const _apiKey = "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";
+  static const _apiKey = "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";
   static const _endpoint = 'https://api.openai.com/v1/chat/completions';
   static const _model = 'gpt-4o-mini';
 
@@ -244,7 +244,7 @@ class OpenAIService {
 
     // 3. GPT request body
     final body = {
-      "model": _model,
+      "model": 'gpt-4o',
       "temperature": 0,
       "response_format": {"type": "json_object"},
       "messages": [
@@ -277,6 +277,78 @@ class OpenAIService {
     } catch (e) {
       // fallback
       return 60; // default 1 dk
+    }
+  }
+
+  static Future<List<int>> findQuestionsTimeBatch(
+      List<Question> questions, {
+        Duration timeout = const Duration(seconds: 60),
+      }) async {
+    // 1. prompt yükle
+    final template =
+    await rootBundle.loadString('assets/prompts/TimeFindingBatch.txt');
+
+    // 2. questions stringini hazırla
+    final buffer = StringBuffer();
+    for (int i = 0; i < questions.length; i++) {
+      buffer.writeln("[$i] ${questions[i].title}");
+      if (questions[i].description != null) {
+        buffer.writeln("    Desc: ${questions[i].description}");
+      }
+      if (questions[i].options != null && questions[i].options!.isNotEmpty) {
+        for (int j = 0; j < questions[i].options!.length; j++) {
+          buffer.writeln("    Option ${String.fromCharCode(65 + j)}: ${questions[i].options![j]}");
+        }
+      }
+    }
+
+    final userContent = template.replaceAll("{{QUESTIONS}}", buffer.toString());
+
+    // 3. GPT request body
+    final body = {
+      "model": _model,
+      "temperature": 0,
+      "response_format": {"type": "json_object"},
+      "messages": [
+        {"role": "system", "content": "You are a helpful exam time estimator."},
+        {"role": "system", "content": "Output ONLY valid JSON."},
+        {"role": "user", "content": userContent},
+      ],
+    };
+
+    // 4. request at
+    final resp = await _post(body, timeout: timeout);
+
+    // 5. parse et
+    final raw = resp.body;
+    try {
+      final outer = jsonDecode(raw);
+      final content = outer['choices']?[0]?['message']?['content'];
+      if (content == null) throw Exception("No content");
+
+      final parsed = jsonDecode(content);
+      if (parsed is! Map<String, dynamic>) throw Exception("Not a JSON object");
+
+      final results = parsed['results'] as List?;
+      if (results == null) throw Exception("No results");
+
+      final secsList = results.map<int>((e) {
+        final sec = e['estimated_seconds'];
+        if (sec is int) return sec;
+        if (sec is num) return sec.toInt();
+        return 60; // fallback
+      }).toList();
+
+      // --- DEBUG PRINT ---
+      for (int i = 0; i < secsList.length; i++) {
+        print("Q[$i] (${questions[i].title}) icin tahmin: ${secsList[i]} saniye");
+      }
+
+      return secsList;
+    } catch (e) {
+      // fallback: hepsine 60 sn
+      print("Batch time parsing failed: $e");
+      return List.filled(questions.length, 60);
     }
   }
 
