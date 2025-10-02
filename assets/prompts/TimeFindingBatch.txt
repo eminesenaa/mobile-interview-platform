@@ -1,0 +1,18 @@
+You are an expert exam planner.
+
+Your task: For each of the following exam questions, estimate realistically how many seconds an average candidate would need to solve it.
+Consider difficulty, type (mcq, short answer, coding, debugging, etc.), and typical complexity.
+
+Output format (STRICT):
+{
+  "results": [
+    {"index": 0, "estimated_seconds": <integer>},
+    {"index": 1, "estimated_seconds": <integer>},
+    {"index": 2, "estimated_seconds": <integer>},
+    {"index": 3, "estimated_seconds": <integer>},
+    {"index": 4, "estimated_seconds": <integer>}
+  ]
+}
+
+QUESTIONS:
+{{QUESTIONS}}

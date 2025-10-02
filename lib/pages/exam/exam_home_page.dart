@@ -8,6 +8,7 @@ import 'package:interview_project/models/exam.dart';
 import 'package:interview_project/models/question.dart';
 import 'package:interview_project/pages/exam/exam_page.dart';
 import 'package:interview_project/pages/exam/create_exam_sheet.dart';
+import 'package:interview_project/pages/exam/services/ai_duration_service.dart';
 
 import '../../constants/colors.dart';
 
@@ -16,6 +17,8 @@ import '../../constants/colors.dart';
 /// Create exam: filtreli sayfaya yönlendirir.
 class ExamHomePage extends StatelessWidget {
   const ExamHomePage({super.key});
+
+  get aiDurationService => AiDurationServiceStub();
 
   Future<Exam> _createRandomExam() async {
     final db = FirebaseFirestore.instance;
@@ -36,11 +39,14 @@ class ExamHomePage extends StatelessWidget {
     // 3) İlk 10 taneyi seç
     final selected = allQuestions.take(10).toList();
 
-    // 4) Exam nesnesi oluştur
+    // 4) Seçilen sorular için AI'dan süreyi tahmin et
+    final Duration estimatedDuration = await aiDurationService.estimateFor(selected);
+
+    // 5) Exam nesnesi oluştur
     return Exam(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: "Random Exam",
-      duration: const Duration(minutes: 30),
+      duration: estimatedDuration,
       questions: selected,
       createdAt: DateTime.now(),
     );
