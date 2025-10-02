@@ -1,0 +1,28 @@
+You will grade multiple technical questions in one pass.
+Each item has fields:
+- "Question Id" (string)
+- "Category" (e.g., algorithm, data structure, git, oop)
+- "Question Text"
+- "Question Format" (MCQ | SHORT_ANSWER | FILL_BLANK | CODING)
+- "Option A"..."Option D" (may be empty)
+- "Correct Option" (may be empty if hidden)
+- "Tags"
+- "AI Prompt Helper"
+- "candidate_answer_or_choice" (user’s answer)
+
+For each item, judge correctness and provide a short reason and an expected answer/solution.
+Return ONLY JSON with the shape:
+{
+  "items":[
+    {
+      "question_id":"<Question Id>",
+      "correct": true|false,
+      "expected":"<model expected answer or correct choice>",
+      "reason":"<1-3 sentence rationale>",
+      "score": <0..5>
+    }, ...
+  ]
+}
+
+Items JSON:
+{{ITEMS_JSON}}
