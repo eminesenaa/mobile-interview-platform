@@ -49,6 +49,9 @@ dependencies:
   flutter_code_editor: ^0.3.4
   shared_preferences: ^2.5.3
   flutter_highlight: ^0.7.0
+  percent_indicator: ^4.2.5
+  lucide_icons: ^0.257.0
+  flutter_svg: ^2.2.1
 
 
   # The following adds the Cupertino Icons font to your application.
