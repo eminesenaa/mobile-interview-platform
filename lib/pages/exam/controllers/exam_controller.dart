@@ -9,6 +9,7 @@ import 'package:interview_project/pages/exam/exam_result_page.dart';
 
 class ExamController extends GetxController {
   final Exam exam;
+
   ExamController(this.exam);
 
   final _db = FirebaseFirestore.instance;
@@ -19,9 +20,13 @@ class ExamController extends GetxController {
   Question get currentQuestion => exam.questions[state.value.currentIndex];
 
   int get total => exam.questions.length;
+
   int get answeredCount => state.value.answers.length;
+
   int get flaggedCount => state.value.flagged.length;
+
   int get unansweredCount => total - answeredCount;
+
   int get currentNumber => state.value.currentIndex + 1;
 
   @override
@@ -58,6 +63,20 @@ class ExamController extends GetxController {
       newAnswers[q.id] = value;
     }
 
+    state.value = state.value.copyWith(answers: newAnswers);
+    state.refresh();
+  }
+
+  /// Fill-in-the-blank (veya genel amaçlı) cevap kaydetme
+  /// ExamFillBlankView -> c.saveAnswer(q.id, answers) şeklinde çağırıyor.
+  void saveAnswer(String questionId, dynamic value) {
+    final newAnswers = Map<String, dynamic>.from(state.value.answers);
+    if (value == null) {
+      newAnswers.remove(questionId);
+    } else {
+      newAnswers[questionId] =
+          value; // Map<int,String> / String / int vs. destekler
+    }
     state.value = state.value.copyWith(answers: newAnswers);
     state.refresh();
   }

@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:interview_project/constants/colors.dart';
 import 'package:interview_project/models/question.dart';
 
-class McqView extends StatefulWidget {
+class ExamMcqView extends StatefulWidget {
   final Question question;
   final void Function(String? value) onAnswer;
   final VoidCallback onToggleFlag;
   final bool embedded;
-  const McqView({
+  const ExamMcqView({
     super.key,
     required this.question,
     required this.onAnswer,
@@ -16,10 +16,10 @@ class McqView extends StatefulWidget {
   });
 
   @override
-  State<McqView> createState() => _McqViewState();
+  State<ExamMcqView> createState() => _ExamMcqViewState();
 }
 
-class _McqViewState extends State<McqView> {
+class _ExamMcqViewState extends State<ExamMcqView> {
   String? _selected;
 
   void _clear() {

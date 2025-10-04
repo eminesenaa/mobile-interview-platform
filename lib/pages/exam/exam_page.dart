@@ -3,15 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:interview_project/models/exam.dart';
 import 'package:interview_project/pages/exam/controllers/exam_controller.dart';
+import 'package:interview_project/pages/exam/question_widgets/exam_coding_editor_page.dart';
+import 'package:interview_project/pages/exam/question_widgets/exam_coding_view.dart';
+import 'package:interview_project/pages/exam/question_widgets/exam_fill_blank_view.dart';
+import 'package:interview_project/pages/exam/question_widgets/exam_short_answer_view.dart';
 import 'package:interview_project/pages/exam/widgets/action_bar.dart';
 import 'package:interview_project/pages/exam/widgets/progress_bar.dart';
 import 'package:interview_project/pages/exam/widgets/timer_badge.dart';
-import 'package:interview_project/pages/exam/widgets/mcq_view.dart';
+import 'package:interview_project/pages/exam/question_widgets/exam_mcq_view.dart';
 import 'package:interview_project/pages/exam/widgets/stats_row.dart';
 import 'package:interview_project/pages/exam/widgets/question_header.dart';
 
 import '../../constants/colors.dart';
 import '../../models/question.dart';
+import 'controllers/exam_coding_controller.dart';
 
 class ExamPage extends StatelessWidget {
   const ExamPage({super.key});
@@ -93,9 +98,40 @@ class ExamPage extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          QuestionHeader(
-                            current: c.currentNumber,
-                            total: c.total,
+                          // Header alanı (Coding için sağda code icon)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              QuestionHeader(
+                                current: c.currentNumber,
+                                total: c.total,
+                              ),
+                              if (q.type == QuestionType.coding)
+                                IconButton(
+                                  tooltip: "Open Code Editor",
+                                  icon: const Icon(Icons.code_rounded),
+                                  color: primaryColor,
+                                  onPressed: () {
+                                    final codingCtrl = Get.put(
+                                      ExamCodingController(),
+                                      tag: q.id,
+                                      permanent: false,
+                                    );
+                                    codingCtrl.isEditorOpen.value = true;
+                                    Get.to(
+                                      () => ExamCodingEditorPage(question: q),
+                                      arguments: {
+                                        'examId': c.exam.id,
+                                        // ExamPage’deki controller’dan alıyoruz
+                                        'questionId': q.id,
+                                      },
+                                    )!
+                                        .then((_) {
+                                      codingCtrl.isEditorOpen.value = false;
+                                    });
+                                  },
+                                ),
+                            ],
                           ),
                           const SizedBox(height: 12),
                           if ((q.description ?? "").isNotEmpty)
@@ -106,12 +142,7 @@ class ExamPage extends StatelessWidget {
                                 style: const TextStyle(fontSize: 16),
                               ),
                             ),
-                          McqView(
-                            question: q,
-                            onAnswer: c.answerCurrent,
-                            onToggleFlag: c.toggleFlag,
-                            embedded: true,
-                          ),
+                          _buildQuestionContent(c, q),
                         ],
                       ),
                     ),
@@ -133,6 +164,40 @@ class ExamPage extends StatelessWidget {
         ),
       );
     });
+  }
+
+  Widget _buildQuestionContent(ExamController c, Question q) {
+    switch (q.type) {
+      case QuestionType.mcq:
+        return ExamMcqView(
+          question: q,
+          onAnswer: c.answerCurrent,
+          onToggleFlag: c.toggleFlag,
+          embedded: true,
+        );
+      case QuestionType.fillBlank:
+        return ExamFillBlankView(
+          question: q,
+          onAnswerChanged: (answers) {
+            c.saveAnswer(q.id, answers);
+          },
+        );
+      case QuestionType.shortAnswer:
+        return ExamShortAnswerView(
+          question: q,
+          onAnswerChanged: (answer) {
+            c.saveAnswer(q.id, answer);
+          },
+        );
+      case QuestionType.coding:
+        return ExamCodingView(
+          question: q,
+          onAnswerChanged: (code) => c.saveAnswer(q.id, code),
+          onToggleFlag: c.toggleFlag,
+        );
+      default:
+        return const SizedBox.shrink();
+    }
   }
 }
 
@@ -172,7 +237,8 @@ Exam _mockExam() {
       Question(
         id: 'q1',
         title: 'HashMap Access',
-        description: 'What is the time complexity of accessing an element in a HashMap?',
+        description:
+            'What is the time complexity of accessing an element in a HashMap?',
         difficulty: Difficulty.easy,
         status: Status.todo,
         type: QuestionType.mcq,
