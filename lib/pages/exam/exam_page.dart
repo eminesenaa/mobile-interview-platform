@@ -142,7 +142,7 @@ class ExamPage extends StatelessWidget {
                                 style: const TextStyle(fontSize: 16),
                               ),
                             ),
-                          _buildQuestionContent(c, q),
+                          _buildQuestionContent(c, q, exam.id),
                         ],
                       ),
                     ),
@@ -166,20 +166,27 @@ class ExamPage extends StatelessWidget {
     });
   }
 
-  Widget _buildQuestionContent(ExamController c, Question q) {
+  Widget _buildQuestionContent(ExamController c, Question q, String examId) {
     switch (q.type) {
       case QuestionType.mcq:
         return ExamMcqView(
           question: q,
           onAnswer: c.answerCurrent,
-          onToggleFlag: c.toggleFlag,
+          onToggleFlag: () => c.toggleFlag(q.id),
           embedded: true,
+          examId: examId,
         );
       case QuestionType.fillBlank:
         return ExamFillBlankView(
+          key: ValueKey('fill-${q.id}'),
           question: q,
+          examId: examId,
           onAnswerChanged: (answers) {
-            c.saveAnswer(q.id, answers);
+            // int key -> string key normalizasyonu
+            final normalized = {
+              for (final e in answers.entries) e.key.toString(): e.value,
+            };
+            c.saveAnswer(q.id, normalized);
           },
         );
       case QuestionType.shortAnswer:
@@ -188,12 +195,14 @@ class ExamPage extends StatelessWidget {
           onAnswerChanged: (answer) {
             c.saveAnswer(q.id, answer);
           },
+          examId: examId,
         );
       case QuestionType.coding:
         return ExamCodingView(
           question: q,
           onAnswerChanged: (code) => c.saveAnswer(q.id, code),
-          onToggleFlag: c.toggleFlag,
+          onToggleFlag: () => c.toggleFlag(q.id),
+          examId: examId,
         );
       default:
         return const SizedBox.shrink();

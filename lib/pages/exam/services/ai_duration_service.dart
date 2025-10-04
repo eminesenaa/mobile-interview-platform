@@ -16,7 +16,8 @@ class AiDurationServiceStub implements AiDurationService {
       return Duration.zero;
     }
     // AiService'teki findExamTime metodunu kullanın
-    final totalSeconds = await aiService.findExamTime(questions);
-    return Duration(seconds: totalSeconds);
+    // final totalSeconds = await aiService.findExamTime(questions);
+    // return Duration(seconds: totalSeconds);
+    return const Duration(seconds: 300);
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:flutter_highlight/themes/atom-one-dark.dart';
 import 'package:flutter_highlight/themes/github.dart';
 import 'package:get/get.dart';
+import '../../../models/exam.dart';
 import '../../../models/question.dart';
 import '../controllers/exam_coding_controller.dart';
 import '../controllers/exam_controller.dart';
@@ -50,8 +51,13 @@ class ExamCodingEditorPage extends StatelessWidget {
         titleSpacing: 16,
         title: Obx(() {
           // ExamController'ı al
-          final args = Get.arguments as Map<String, dynamic>?;
-          final examId = args?['examId'];
+          final args = Get.arguments;
+          String? examId;
+          if (args is Map<String, dynamic>) {
+            examId = args['examId'];
+          } else if (args is Exam) {
+            examId = args.id;
+          }
           final examCtrl = Get.find<ExamController>(tag: examId);
           final secondsLeft = examCtrl.state.value.secondsLeft;
 

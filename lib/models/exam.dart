@@ -26,6 +26,10 @@ class ExamStateModel {
   final int secondsLeft;
   final bool submitted;
 
+  /// İlerleme bilgileri — kullanıcı kaç soruya yanıt verdi, kaçı boş
+  final int answered;
+  final int unanswered;
+
   const ExamStateModel({
     required this.examId,
     this.answers = const {},
@@ -33,6 +37,8 @@ class ExamStateModel {
     this.currentIndex = 0,
     required this.secondsLeft,
     this.submitted = false,
+    this.answered = 0,
+    this.unanswered = 0,
   });
 
   ExamStateModel copyWith({
@@ -41,6 +47,8 @@ class ExamStateModel {
     int? currentIndex,
     int? secondsLeft,
     bool? submitted,
+    int? answered,
+    int? unanswered,
   }) {
     return ExamStateModel(
       examId: examId,
@@ -49,6 +57,8 @@ class ExamStateModel {
       currentIndex: currentIndex ?? this.currentIndex,
       secondsLeft: secondsLeft ?? this.secondsLeft,
       submitted: submitted ?? this.submitted,
+      answered: answered ?? this.answered,
+      unanswered: unanswered ?? this.unanswered,
     );
   }
 }

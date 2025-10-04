@@ -40,12 +40,12 @@ class ExamTestPage extends StatelessWidget {
       //     debugPrint("Answers: $answers");
       //   },
       // ),
-      body: ExamShortAnswerView(
-        question: q,
-        onAnswerChanged: (answer) {
-          debugPrint("Answer: $answer");
-        },
-      ),
+      // body: ExamShortAnswerView(
+      //   question: q,
+      //   onAnswerChanged: (answer) {
+      //     debugPrint("Answer: $answer");
+      //   },
+      // ),
     );
   }
 }
