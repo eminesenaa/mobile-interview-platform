@@ -25,7 +25,7 @@ class ExamController extends GetxController {
 
   int get answeredCount => state.value.answers.length;
 
-  int get flaggedCount => state.value.flagged.length;
+  int get flaggedCount => flaggedQuestions.length;
 
   int get unansweredCount => total - answeredCount;
 
@@ -39,6 +39,9 @@ class ExamController extends GetxController {
 
   /// Kullanıcının işaretlediği (flag) sorular
   final RxSet<String> flaggedIds = <String>{}.obs;
+
+  /// 🔹 Flag’lenmiş sorular (ID seti)
+  final RxSet<String> flaggedQuestions = <String>{}.obs;
 
   @override
   void onInit() {
@@ -175,16 +178,19 @@ class ExamController extends GetxController {
 
   /// Sorunun işaretlenme durumunu değiştirir
   void toggleFlag(String questionId) {
-    if (flaggedIds.contains(questionId)) {
-      flaggedIds.remove(questionId);
+    if (flaggedQuestions.contains(questionId)) {
+      flaggedQuestions.remove(questionId);
     } else {
-      flaggedIds.add(questionId);
+      flaggedQuestions.add(questionId);
     }
+    state.refresh();
+  }
 
-    // 🔹 Yeni state oluşturup flaggedCount güncelle
-    state.value = state.value.copyWith(
-      flagged: flaggedIds.toSet(),
-    );
+  /// 🔹 Belirli bir index’e git
+  void goToQuestion(int index) {
+    if (index < 0 || index >= exam.questions.length) return;
+    // currentIndex’i doğrudan güncelliyoruz
+    state.value = state.value.copyWith(currentIndex: index);
     state.refresh();
   }
 

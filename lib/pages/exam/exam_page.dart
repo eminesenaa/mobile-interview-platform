@@ -8,6 +8,7 @@ import 'package:interview_project/pages/exam/question_widgets/exam_coding_view.d
 import 'package:interview_project/pages/exam/question_widgets/exam_fill_blank_view.dart';
 import 'package:interview_project/pages/exam/question_widgets/exam_short_answer_view.dart';
 import 'package:interview_project/pages/exam/widgets/action_bar.dart';
+import 'package:interview_project/pages/exam/widgets/exam_navigator_sheet.dart';
 import 'package:interview_project/pages/exam/widgets/progress_bar.dart';
 import 'package:interview_project/pages/exam/widgets/timer_badge.dart';
 import 'package:interview_project/pages/exam/question_widgets/exam_mcq_view.dart';
@@ -48,8 +49,24 @@ class ExamPage extends StatelessWidget {
               tooltip: 'Navigator',
               icon: const Icon(Icons.grid_view_rounded),
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Navigator coming soon')),
+                showGeneralDialog(
+                  context: context,
+                  barrierLabel: "Navigator",
+                  barrierDismissible: true,
+                  barrierColor: Colors.black54,
+                  transitionDuration: const Duration(milliseconds: 300),
+                  pageBuilder: (_, __, ___) =>
+                      ExamNavigatorSheet(examId: c.exam.id),
+                  transitionBuilder: (_, anim, __, child) {
+                    return SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(1, 0),
+                        end: Offset.zero,
+                      ).animate(CurvedAnimation(
+                          parent: anim, curve: Curves.easeOutCubic)),
+                      child: child,
+                    );
+                  },
                 );
               },
             ),
@@ -155,8 +172,26 @@ class ExamPage extends StatelessWidget {
               onNext: c.next,
               onSubmit: () => c.submit(),
               onNavigator: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Navigator coming soon')),
+                showGeneralDialog(
+                  context: context,
+                  barrierLabel: "Navigator",
+                  barrierDismissible: true,
+                  barrierColor: Colors.black54,
+                  transitionDuration: const Duration(milliseconds: 300),
+                  pageBuilder: (_, __, ___) =>
+                      ExamNavigatorSheet(examId: c.exam.id),
+                  transitionBuilder: (_, anim, __, child) {
+                    return SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(1, 0),
+                        end: Offset.zero,
+                      ).animate(
+                        CurvedAnimation(
+                            parent: anim, curve: Curves.easeOutCubic),
+                      ),
+                      child: child,
+                    );
+                  },
                 );
               },
             ),
