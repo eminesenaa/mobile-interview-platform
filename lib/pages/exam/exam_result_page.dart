@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../models/exam.dart';
 import 'controllers/exam_result_controller.dart';
 import 'exam_home_page.dart';
+import 'exam_review_page.dart';
 import 'widgets/score_circle.dart';
 import 'widgets/answer_summary_row.dart';
 import 'widgets/topic_charts.dart';
@@ -14,6 +16,8 @@ class ExamResultPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = Get.put(ExamResultController());
+    final args = Get.arguments;
+    final Exam? exam = args is Exam ? args : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -69,8 +73,11 @@ class ExamResultPage extends StatelessWidget {
             // Butonlar
             ResultActions(
               onReview: () {
-                // Review page’e yönlendirme
-                Navigator.pushNamed(context, '/examReview');
+                if (exam != null) {
+                  Get.to(() => const ExamReviewPage(), arguments: exam);
+                } else {
+                  Get.snackbar('Error', 'Exam data not found');
+                }
               },
               onSave: () {
                 // Exam kaydetme işlemi

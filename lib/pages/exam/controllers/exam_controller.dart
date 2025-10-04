@@ -257,7 +257,7 @@ class ExamController extends GetxController {
     await prefs.remove('exam_${exam.id}_answers');
 
     // 🔹 Sonuç sayfasına yönlendir
-    Get.offAll(() => const ExamResultPage());
+    Get.offAll(() => const ExamResultPage(), arguments: exam);
   }
 
   @override
