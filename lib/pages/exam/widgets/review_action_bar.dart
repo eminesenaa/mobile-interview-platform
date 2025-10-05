@@ -1,3 +1,4 @@
+// lib/pages/exam/widgets/review_action_bar.dart
 import 'package:flutter/material.dart';
 import '../../../constants/colors.dart';
 
@@ -18,61 +19,47 @@ class ReviewActionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Previous
-          TextButton.icon(
-            onPressed: onPrev,
-            icon: const Icon(Icons.chevron_left),
-            label: const Text("Previous"),
-            style: TextButton.styleFrom(
-              foregroundColor: primaryColor,
-            ),
-          ),
-
-          // Save to Library
-          ElevatedButton(
-            onPressed: onSave,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+          Row(
+            children: [
+              TextButton.icon(
+                onPressed: onPrev,
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
+                label: const Text('Previous'),
+                style: TextButton.styleFrom(
+                  foregroundColor: primaryColor,
+                ),
               ),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 40,
-                vertical: 12,
+              const Spacer(),
+              TextButton.icon(
+                onPressed: onNext,
+                icon: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                label: const Text('Next'),
+                style: TextButton.styleFrom(
+                  foregroundColor: primaryColor,
+                ),
               ),
-            ),
-            child: const Text(
-              "Save to Library",
-              style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
+            ],
           ),
-
-          // Next
-          TextButton.icon(
-            onPressed: onNext,
-            icon: const Icon(Icons.chevron_right),
-            label: const Text("Next"),
-            style: TextButton.styleFrom(
-              foregroundColor: primaryColor,
+          const SizedBox(height: 6),
+          // Alt: Submit (renkli ve ortalı)
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: onSave,
+              style: FilledButton.styleFrom(
+                backgroundColor: primaryColor,
+              ),
+              child: const Text('Save to Library'),
             ),
           ),
         ],
       ),
     );
+
   }
 }

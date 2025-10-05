@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:interview_project/constants/colors.dart';
 import 'package:interview_project/models/exam.dart';
 import 'package:interview_project/models/question.dart';
+import 'package:interview_project/pages/exam/question_widgets/review_coding_editor_page.dart';
+import 'package:interview_project/pages/exam/widgets/question_header.dart';
 import 'controllers/exam_review_controller.dart';
 import 'question_widgets/review_mcq_view.dart';
 import 'question_widgets/review_short_answer_view.dart';
@@ -30,6 +32,7 @@ class ExamReviewPage extends StatelessWidget {
       final q = c.currentQuestion;
 
       return Scaffold(
+        backgroundColor: Colors.white,
         appBar: AppBar(
           title: Text('${exam.title} Review'),
           leading: IconButton(
@@ -54,8 +57,8 @@ class ExamReviewPage extends StatelessWidget {
                       position: Tween<Offset>(
                         begin: const Offset(1, 0),
                         end: Offset.zero,
-                      ).animate(
-                          CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+                      ).animate(CurvedAnimation(
+                          parent: anim, curve: Curves.easeOutCubic)),
                       child: child,
                     );
                   },
@@ -97,8 +100,37 @@ class ExamReviewPage extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildQuestionHeader(c, q),
+                          // Header alanı (Coding için artık sağda icon YOK)
+                          // Header alanı (Coding için sağda code icon)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              QuestionHeader(
+                                current: c.currentNumber,
+                                total: c.total,
+                              ),
+                              if (q.type == QuestionType.coding)
+                                IconButton(
+                                  tooltip: "Open Code Editor (Read-only)",
+                                  icon: const Icon(Icons.code_rounded),
+                                  color: primaryColor,
+                                  onPressed: () {
+                                    Get.to(
+                                      () => ReviewCodingEditorPage(
+                                        question: q,
+                                        examId: c.exam.id,
+                                      ),
+                                      arguments: {
+                                        'questionId': q.id,
+                                      },
+                                    );
+                                  },
+                                ),
+                            ],
+                          ),
+
                           const SizedBox(height: 12),
+
                           if ((q.description ?? "").isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(bottom: 12),
@@ -107,7 +139,9 @@ class ExamReviewPage extends StatelessWidget {
                                 style: const TextStyle(fontSize: 16),
                               ),
                             ),
+
                           _buildQuestionContent(c, q, exam.id),
+                          const SizedBox(height: 12),
                         ],
                       ),
                     ),
@@ -137,8 +171,8 @@ class ExamReviewPage extends StatelessWidget {
                       position: Tween<Offset>(
                         begin: const Offset(1, 0),
                         end: Offset.zero,
-                      ).animate(
-                          CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+                      ).animate(CurvedAnimation(
+                          parent: anim, curve: Curves.easeOutCubic)),
                       child: child,
                     );
                   },
@@ -163,7 +197,8 @@ class ExamReviewPage extends StatelessWidget {
     );
   }
 
-  Widget _buildQuestionContent(ExamReviewController c, Question q, String examId) {
+  Widget _buildQuestionContent(
+      ExamReviewController c, Question q, String examId) {
     switch (q.type) {
       case QuestionType.mcq:
         return ReviewMcqView(question: q, examId: examId);

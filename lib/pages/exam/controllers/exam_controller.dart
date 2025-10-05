@@ -242,12 +242,16 @@ class ExamController extends GetxController {
     state.value = state.value.copyWith(submitted: true);
     state.refresh();
 
+    // Controller kapanmadan önce cevapların snapshot'ını al
+    final snapshotAnswers = Map<String, dynamic>.from(state.value.answers);
+
     // 🔹 Firestore’a kaydet
     await _db.collection("examResults").add({
       "examId": exam.id,
       "submittedAt": Timestamp.now(),
       "auto": auto,
-      "answers": state.value.answers,
+      // "answers": state.value.answers,
+      "answers": snapshotAnswers,
       "score": null, // ileride hesaplanacak
       "feedback": null,
     });
@@ -256,8 +260,9 @@ class ExamController extends GetxController {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('exam_${exam.id}_answers');
 
-    // 🔹 Sonuç sayfasına yönlendir
-    Get.offAll(() => const ExamResultPage(), arguments: exam);
+    // 🔹 Sonuç sayfasına cevaplarla birlikte yönlendir
+    final resultExam = exam.copyWith(answers: snapshotAnswers);
+    Get.offAll(() => const ExamResultPage(), arguments: resultExam);
   }
 
   @override

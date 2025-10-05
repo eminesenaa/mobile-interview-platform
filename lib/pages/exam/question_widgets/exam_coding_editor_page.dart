@@ -19,6 +19,15 @@ class ExamCodingEditorPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Get.find<ExamCodingController>(tag: question.id);
 
+    // 🧩 examId her yerden erişilebilsin diye burada tanımlıyoruz
+    final args = Get.arguments;
+    String? examId;
+    if (args is Map<String, dynamic>) {
+      examId = args['examId'];
+    } else if (args is Exam) {
+      examId = args.id;
+    }
+
     // Tema algılama
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final styles = isDark ? atomOneDarkTheme : githubTheme;
@@ -27,7 +36,10 @@ class ExamCodingEditorPage extends StatelessWidget {
     final template = question.codeTemplate ?? '';
     if (c.code.value.isEmpty && template.isNotEmpty) {
       // Eğer ilk defa açılıyorsa, template'i controller'a yaz
-      c.updateCode(template);
+
+      if (examId != null) {
+        c.updateCode(template, examId, question.id);
+      }
     }
 
     // CodeField controller
@@ -38,14 +50,15 @@ class ExamCodingEditorPage extends StatelessWidget {
 
     // Kod değişimlerini dinle
     codeController.addListener(() {
-      c.updateCode(codeController.text);
+      if (examId != null) {
+        c.updateCode(codeController.text, examId!, question.id);
+      }
     });
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        // ← geri oku tamamen kaldırır
         backgroundColor: primaryColor,
         elevation: 0,
         titleSpacing: 16,

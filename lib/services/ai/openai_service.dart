@@ -86,7 +86,7 @@ class GradeResultMapper {
 
 
 class OpenAIService {
-  static const _apiKey = "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";
+  static const _apiKey = "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";
   static const _endpoint = 'https://api.openai.com/v1/chat/completions';
   static const _model = 'gpt-4o-mini';
 

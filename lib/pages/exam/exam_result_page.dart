@@ -73,12 +73,18 @@ class ExamResultPage extends StatelessWidget {
             // Butonlar
             ResultActions(
               onReview: () {
-                if (exam != null) {
-                  Get.to(() => const ExamReviewPage(), arguments: exam);
-                } else {
-                  Get.snackbar('Error', 'Exam data not found');
-                }
+                final reviewExam = c.exam.copyWith(
+                  answers: c.latestAnswers,
+                  stats: {
+                    'correct': c.correct,
+                    'wrong': c.wrong,
+                    'unanswered': c.unanswered,
+                  },
+                  aiFeedback: const {}, // ileride dolduracağız
+                );
+                Get.to(() => const ExamReviewPage(), arguments: reviewExam);
               },
+
               onSave: () {
                 // Exam kaydetme işlemi
                 ScaffoldMessenger.of(context).showSnackBar(

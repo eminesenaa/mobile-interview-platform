@@ -18,47 +18,28 @@ class ReviewShortAnswerView extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Get.find<ExamReviewController>(tag: examId);
     final userAnswer = c.answers[question.id] as String? ?? '';
+    final savedAnswer = (c.answers[question.id] ?? '').toString();
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Kullanıcının cevabını göster
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: headlineColor.withValues(alpha: 0.35),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: Colors.grey.withOpacity(0.3),
-            ),
-          ),
-          child: Text(
-            userAnswer.isNotEmpty
-                ? userAnswer
-                : 'No answer provided.',
-            style: TextStyle(
-              fontSize: 16,
-              color: userAnswer.isNotEmpty
-                  ? Colors.black87
-                  : Colors.grey[600],
-            ),
+        TextField(
+          controller: TextEditingController(text: savedAnswer.isEmpty ? '' : savedAnswer),
+          readOnly: true,
+          maxLines: 5,
+          decoration: InputDecoration(
+            border: const OutlineInputBorder(),
+            hintText: savedAnswer.isEmpty ? 'No answer provided.' : null,
           ),
         ),
-
-        const SizedBox(height: 16),
-
-        // AI açıklaması linki
+        const SizedBox(height: 12),
         Center(
           child: TextButton(
-            onPressed: () {
-              // TODO: AI explanation popup / modal (ileride eklenecek)
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: primaryColor,
-            ),
+            onPressed: () {},
             child: const Text(
               "See AI Explanation",
               style: TextStyle(
+                color: primaryColor,
                 fontWeight: FontWeight.w600,
               ),
             ),

@@ -18,60 +18,75 @@ class ReviewMcqView extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Get.find<ExamReviewController>(tag: examId);
 
-    // Kullanıcının verdiği yanıt
-    final selected = c.answers[question.id] as String?;
+    // Seçenekleri güvenli string listesine çevir
+    final options = (question.options ?? []).map((e) => e.toString()).toList();
 
-    final options = List<String>.from(question.options ?? []);
-    final questionText =
-        question.title ?? question.description ?? 'Question';
+    // Cevabı farklı olası formatlardan çöz (String / int index / Map)
+    final dynamic raw = c.answers[question.id];
+    String? selectedOption;
+
+    if (raw is String && options.contains(raw)) {
+      selectedOption = raw;
+    } else if (raw is int && raw >= 0 && raw < options.length) {
+      selectedOption = options[raw];
+    } else if (raw is Map) {
+      final dyn =
+          raw['selectedIndex'] ?? raw['index'] ?? raw['answer'] ?? raw['value'];
+      if (dyn is int && dyn >= 0 && dyn < options.length) {
+        selectedOption = options[dyn];
+      } else if (dyn is String && options.contains(dyn)) {
+        selectedOption = dyn;
+      }
+    }
+
+    if (options.isEmpty) {
+      return const Text(
+        "⚠ No options found for this question.",
+        style: TextStyle(color: Colors.grey),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          questionText,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 12),
-
-        // Seçenekler (read-only)
-        ...List.generate(options.length, (i) {
-          final label = options[i];
-          final isSelected = label == selected;
-
+        const SizedBox(height: 8),
+        ...options.map((opt) {
+          final bool isSelected = selectedOption == opt;
           return Container(
-            margin: const EdgeInsets.only(bottom: 10),
+            margin: const EdgeInsets.symmetric(vertical: 4),
             decoration: BoxDecoration(
-              color: isSelected
-                  ? primaryColor.withValues(alpha: 0.2)
-                  : headlineColor.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(12),
+              color: isSelected ? primaryColor.withOpacity(0.1) : Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isSelected ? primaryColor : Colors.grey.shade300,
+                width: 1.5,
+              ),
             ),
-            child: RadioListTile<String>(
-              value: label,
-              groupValue: selected,
-              onChanged: null, // 🔒 Read-only
-              title: Text(label),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-              activeColor: primaryColor,
+            child: ListTile(
+              title: Text(opt),
+              leading: Radio<String>(
+                value: opt,
+                groupValue: selectedOption,
+                onChanged: null, // 🔒 Read-only mode
+                fillColor: MaterialStateProperty.resolveWith(
+                  (states) => isSelected ? primaryColor : Colors.grey,
+                ),
+              ),
             ),
           );
-        }),
-
+        }).toList(),
         const SizedBox(height: 12),
-
-        // AI açıklaması butonu
         Center(
           child: TextButton(
             onPressed: () {
-              // TODO: AI açıklama popup (ileride eklenecek)
+              // 🔹 Gelecekte: AI explanation modal
             },
-            style: TextButton.styleFrom(
-              foregroundColor: primaryColor,
-            ),
             child: const Text(
               "See AI Explanation",
-              style: TextStyle(fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: primaryColor,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ),
