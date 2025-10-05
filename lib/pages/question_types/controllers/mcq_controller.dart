@@ -5,36 +5,39 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../models/question.dart';
 import '../../../services/ai/ai_service.dart';
 import '../../runner/controller/question_runner_controller.dart';
+import '../../../models/streak.dart';
+import '../../../controllers/auth_controller.dart';
 
 /// Çoktan Seçmeli (MCQ) controller
 /// - Kullanıcı seçimi
-/// - Submit sonrası hem local kontrol (doğru/yanlış renklendirme)
-/// - Hem de LLM yorumlaması (aiPromptHelper ile)
+/// - Submit sonrası local kontrol (doğru/yanlış renklendirme)
+/// - AI değerlendirmesi + Firestore güncellemesi
+/// - Soru çözülünce Streak artışı
 class McqController extends GetxController {
   McqController(this.question, {this.shuffleOptions = false});
 
   final Question question;
   final bool shuffleOptions;
 
-  /// Ekranda gösterilecek (şu anki sıralamasıyla) şıklar
+  /// Ekranda gösterilecek şıklar
   final options = <String>[].obs;
 
   /// Kullanıcının seçtiği index (-1 = seçilmedi)
   final selectedIndex = (-1).obs;
 
-  /// Submit sonrası UI state
+  /// Submit sonrası durum
   final isSubmitted = false.obs;
   final isCorrect = false.obs;
 
-  /// Ekranda göstereceğimiz AI metni
+  /// AI feedback
   final aiFeedback = "".obs;
 
-  /// (Yeni) AI ayrıntıları ve yüklenme durumu
+  /// AI servisi
   final AiService _ai = Get.find<AiService>();
   final isEvaluating = false.obs;
   final Rx<AiEvaluateResult?> aiResult = Rx<AiEvaluateResult?>(null);
 
-  /// Kullanıcıya kazanılan XP (AI değerlendirmesinden sonra set edilir)
+  /// XP
   final earnedXp = 0.obs;
   int? _correctIndex;
 
@@ -42,12 +45,12 @@ class McqController extends GetxController {
   void onInit() {
     super.onInit();
 
-    // Orijinal seçenekleri al (trimleyip)
+    // Orijinal seçenekleri yükle
     final base = (question.options ?? <String>[]).map((e) => e.trim()).toList();
     if (shuffleOptions) base.shuffle();
     options.assignAll(base);
 
-    // Doğru şıkkın indexini bul (Firestore’dan gelen doğru cevap metnine göre)
+    // Doğru cevabı bul
     final ans = (question.correctAnswer ?? '').trim();
     if (ans.isNotEmpty) {
       final idx = options.indexWhere(
@@ -60,7 +63,7 @@ class McqController extends GetxController {
   void select(int index) {
     if (isSubmitted.value) return;
     selectedIndex.value = index;
-    // kullanıcı seçenek seçti → send aktif olsun
+
     if (Get.isRegistered<QuestionRunnerController>()) {
       Get.find<QuestionRunnerController>().setCanSubmit(true);
     }
@@ -77,7 +80,7 @@ class McqController extends GetxController {
       return;
     }
 
-    // ✅ Lokal doğru/yanlış kontrolü (UI renklendirme için)
+    // ✅ Lokal doğru/yanlış kontrolü
     final chosen = options[selectedIndex.value];
     final correct = (question.correctAnswer ?? '').trim();
     isCorrect.value =
@@ -85,11 +88,10 @@ class McqController extends GetxController {
 
     isSubmitted.value = true;
 
-    // 🔹 AI yorumlama (açıklama + doğru/yanlış + Firestore güncelleme)
+    // 🔹 AI değerlendirmesi
     await _evaluateWithAi(chosen);
   }
 
-  /// UI renklendirme için
   bool isOptionCorrect(int index) {
     if (_correctIndex == null) return false;
     return index == _correctIndex;
@@ -99,7 +101,6 @@ class McqController extends GetxController {
 
   // ------------------- AI + Firestore -------------------
 
-  /// Gerçek AI çağrısı; hata olursa lokal sonucu korur
   Future<void> _evaluateWithAi(String chosen) async {
     isEvaluating.value = true;
     try {
@@ -109,25 +110,22 @@ class McqController extends GetxController {
       );
       aiResult.value = res;
 
-      // 🔹 Kullanıcıya gösterilecek XP hesapla
+      // 🔹 XP hesapla
       final baseXp = question.xp;
       final normalized = (res.score ?? 0) / 5.0;
       final xp = (normalized * baseXp).round();
       earnedXp.value = xp;
 
-      // Eğer AI'dan gelen sonuç varsa onu kullan
       final verdict = isCorrect.value ? "✅ Correct." : "❌ Incorrect.";
       final explain =
           (res.explanation.isNotEmpty) ? "\n${res.explanation}" : "";
 
-      // 🔹 Kullanıcıya XP bilgisini de göster
       aiFeedback.value = "$verdict$explain\n\n⭐ You earned: $xp XP";
 
       // 🔹 Firestore güncelle
       await _saveResultToFirestore(res);
     } catch (e, st) {
       print("AI error (mcq): $e\n$st");
-
       final verdict = isCorrect.value ? "✅ Correct." : "❌ Incorrect.";
       final helper = question.aiPromptHelper ??
           "Evaluate the selected answer logically. Explain if it is correct or not.";
@@ -147,7 +145,6 @@ class McqController extends GetxController {
 
       final snap = await solvedRef.get();
 
-      // 🔹 Base XP
       final baseXp = question.xp;
       final rawScore = res.score ?? 0;
       final newScore =
@@ -166,7 +163,6 @@ class McqController extends GetxController {
 
         print("🔍 [Firestore] prevScore=$prevScore | prevXp=$prevXp");
 
-        // Eğer yeni skor daha yüksekse → fark kadar XP ekle
         if (newScore > prevScore) {
           final xpDiff = newEarnedXp - prevXp;
           print("🔍 [XP Update] xpDiff=$xpDiff");
@@ -189,7 +185,7 @@ class McqController extends GetxController {
           });
         }
       } else {
-        // İlk çözüm
+        // 🔹 İlk çözüm
         print("🔍 [First Solve] earnedXp=$newEarnedXp");
 
         await userRef.update({
@@ -202,6 +198,24 @@ class McqController extends GetxController {
           'xpEarned': newEarnedXp,
           'solvedAt': FieldValue.serverTimestamp(),
         });
+      }
+
+      // 🔥 STREAK GÜNCELLEME 🔥
+      try {
+        final auth = Get.find<AuthController>();
+        final currentUser = auth.user; // ✅ düzeltildi (.value yok)
+  final uidToUse =
+    currentUser?.uid ?? FirebaseAuth.instance.currentUser?.uid;
+
+
+        if (uidToUse != null) {
+          await Streak.updateStreak(uidToUse);
+          print("🔥 Streak updated successfully for user=$uidToUse");
+        } else {
+          print("⚠️ Streak update skipped (no uid)");
+        }
+      } catch (e, st) {
+        print("❌ Streak update error: $e\n$st");
       }
     } catch (e, st) {
       print("❌ Firestore save error: $e\n$st");

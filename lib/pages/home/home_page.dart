@@ -1,8 +1,4 @@
 // ===================== File: lib/pages/home/home_page.dart =====================
-// Purpose: Home sayfası. Streak kartı, Today’s Popular Questions (yatay scroll)
-//          ve Your Progress bölümlerini içerir.
-// ==============================================================================
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:interview_project/pages/home/progress_page.dart';
@@ -36,13 +32,25 @@ class HomePage extends StatelessWidget {
         child: CustomScrollView(
           slivers: [
             // ---- GREETING & STREAK ----
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    StreakCard.preview(),
+                    // 🔥 Dinamik Streak kartı
+                    Obx(() {
+                      final s = hc.streak.value;
+                      if (s == null) {
+                        return const StreakCard.preview();
+                      }
+
+                      return StreakCard(
+                        currentStreak: s.streakCount,
+                        longestStreak: s.longestStreak,
+                        history: s.streakHistory,
+                      );
+                    }),
                   ],
                 ),
               ),
@@ -87,7 +95,6 @@ class HomePage extends StatelessWidget {
                     separatorBuilder: (_, __) => const SizedBox(width: 12),
                     itemBuilder: (_, i) => PopularQuestionCard.horizontal(
                       question: items[i],
-                      // 🔹 genişliği biraz küçült ki scroll bariz olsun
                       width: MediaQuery.of(context).size.width * 0.7,
                     ),
                   ),

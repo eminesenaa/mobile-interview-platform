@@ -49,7 +49,7 @@ class AuthService {
           "photoUrl": null,
           "age": null,
 
-          /// XP/Level
+          /// XP / Level
           "totalXp": 0,
           "level": 1,
 
@@ -60,7 +60,7 @@ class AuthService {
           /// Progress
           "progress": {},
 
-          /// Streak
+          /// Streak (boş başlangıç)
           "streak": Streak.empty().toJson(),
 
           "createdAt": FieldValue.serverTimestamp(),

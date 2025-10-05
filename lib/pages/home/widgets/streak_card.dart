@@ -1,32 +1,31 @@
 import 'package:flutter/material.dart';
 
-/// StreakCard
-/// - Solda alev ikonu ve büyük streak sayacı
-/// - Sağda başlık ve son 7 gün için dolu/boş noktalar + gün etiketleri
-/// - Dışarıdan streakCount ve last7Days (7 elemanlı bool) alır.
-///   last7Days: [Mon..Sun] değil; "son 7 gün, bugün en sağda" sırasındadır.
-///
-/// Not: İleride UserController geldikten sonra:
-///   final user = Get.find<UserController>().currentUser.value;
-///   StreakCard(streakCount: user.streak.streakCount,
-///              last7Days: user.streak.streakHistory.sublist(23, 30));
 class StreakCard extends StatelessWidget {
-  final int streakCount;
-  /// Son 7 gün (bool), uzunluk 7 olmalı. true = check-in yapılmış.
-  final List<bool> last7Days;
-  final VoidCallback? onTap; // istersen karta basınca aksiyon
+  final int currentStreak;
+  final int longestStreak;
+  final Map<String, bool> history;
+  final VoidCallback? onTap;
 
   const StreakCard({
     super.key,
-    required this.streakCount,
-    required this.last7Days,
+    required this.currentStreak,
+    required this.longestStreak,
+    required this.history,
     this.onTap,
-  }) : assert(last7Days.length == 7, 'last7Days must be length 7');
+  });
 
-  /// Hızlı önizleme için mock ctor
   const StreakCard.preview({super.key})
-      : streakCount = 12,
-        last7Days = const [true, true, true, true, true, false, false],
+      : currentStreak = 12,
+        longestStreak = 18,
+        history = const {
+          '1': true,
+          '2': true,
+          '3': true,
+          '4': true,
+          '5': true,
+          '6': false,
+          '7': false,
+        },
         onTap = null;
 
   @override
@@ -34,7 +33,16 @@ class StreakCard extends StatelessWidget {
     final theme = Theme.of(context);
     final surface = theme.colorScheme.surface;
     final labelStyle =
-    theme.textTheme.labelSmall?.copyWith(color: theme.hintColor);
+        theme.textTheme.labelSmall?.copyWith(color: theme.hintColor);
+
+    // 🔹 Bugün ilk olacak şekilde sıralama
+    final today = DateTime.now().weekday; // 1=Mon ... 7=Sun
+    final orderedDays = List.generate(7, (i) {
+      // i=0 → bugün, i=1 → dün ...
+      final dayIndex = ((today - i - 1) % 7) + 1;
+      final key = '$dayIndex';
+      return history[key] ?? false;
+    });
 
     return Card(
       elevation: 0.6,
@@ -48,7 +56,7 @@ class StreakCard extends StatelessWidget {
           padding: const EdgeInsets.all(14.0),
           child: Row(
             children: [
-              // LEFT: fire icon + count overlay
+              // LEFT: fire icon
               Container(
                 width: 64,
                 height: 64,
@@ -72,13 +80,13 @@ class StreakCard extends StatelessWidget {
                       color: Colors.white,
                     ),
                     Positioned(
-                      bottom: -2, // sayı biraz aşağıda dursun istersen center yapabilirsin
+                      bottom: -2,
                       child: Text(
-                        '$streakCount',
+                        '$currentStreak',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
-                          color: Colors.white, // direkt ikonun üstüne
+                          color: Colors.white,
                         ),
                       ),
                     ),
@@ -86,55 +94,57 @@ class StreakCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 14),
-              // RIGHT: title + weekly dots + labels
+              // RIGHT
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '$streakCount days streak, you’re on fire!',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      '$currentStreak day streak',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text('Every day counts!',
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: theme.hintColor)),
+                    Text(
+                      'Longest: $longestStreak days',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.hintColor),
+                    ),
                     const SizedBox(height: 10),
+
+                    // 🔥 Bugün ilk (solda)
                     Row(
                       children: List.generate(7, (i) {
-                        final done = last7Days[i];
+                        final done = orderedDays[i];
                         return Expanded(
                           child: Padding(
-                            padding:
-                            EdgeInsets.only(right: i == 6 ? 0 : 6.0),
+                            padding: EdgeInsets.only(right: i == 6 ? 0 : 6.0),
                             child: _DayDot(
                               filled: done,
-                              isToday: i == 6, // en sağ: bugün
+                              isToday: i == 0, // bugün solda
                             ),
                           ),
                         );
                       }),
                     ),
                     const SizedBox(height: 6),
-                    // hafta etiketleri (Mon..Sun) — bugün en sağda
+
+                    // 🔹 Label sırası: Today, -1d, -2d ...
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: _weekdayLabels().map((e) {
+                      children: List.generate(7, (i) {
                         return Expanded(
                           child: Padding(
-                            padding:
-                            const EdgeInsets.only(right: 6.0),
-                            child: Text(e,
-                                textAlign: TextAlign.center,
-                                style: labelStyle),
+                            padding: EdgeInsets.only(right: i == 6 ? 0 : 6.0),
+                            child: Text(
+                              _weekdayLabelFor(i),
+                              textAlign: TextAlign.center,
+                              style: labelStyle,
+                            ),
                           ),
                         );
-                      }).toList()
-                        ..removeLast(), // son elemana fazladan padding gitmesin
+                      }),
                     ),
                   ],
                 ),
@@ -146,14 +156,11 @@ class StreakCard extends StatelessWidget {
     );
   }
 
-  /// Mon..Sun (bugün en sağda olacak şekilde)
-  List<String> _weekdayLabels() {
-    final now = DateTime.now();
-    // Son 6 gün + bugün (soldan sağa)
-    final days = List<DateTime>.generate(
-        7, (i) => now.subtract(Duration(days: 6 - i)));
+  /// 🔹 i=0 → bugün, i=1 → dün ... haftanın ismini döndürür
+  static String _weekdayLabelFor(int offset) {
+    final now = DateTime.now().subtract(Duration(days: offset));
     const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return days.map((d) => names[d.weekday - 1]).toList();
+    return names[now.weekday - 1];
   }
 }
 
@@ -182,18 +189,16 @@ class _DayDot extends StatelessWidget {
         ),
         boxShadow: isToday && filled
             ? [
-          BoxShadow(
-            color: base.withOpacity(.45),
-            blurRadius: 8.0,
-          )
-        ]
+                BoxShadow(
+                  color: base.withOpacity(.45),
+                  blurRadius: 8.0,
+                )
+              ]
             : null,
       ),
       child: filled
-          ? const Icon(Icons.check,
-          size: 16, color: Colors.white) // içi tik işareti
+          ? const Icon(Icons.check, size: 16, color: Colors.white)
           : null,
     );
   }
 }
-

@@ -1,134 +1,155 @@
-// ===================== File: lib/models/streak.dart =====================
-// Purpose: Kullanıcının çalışma serisini (streak) yönetir. Güncel seri,
-//          en uzun seri, en son seri artıran tarih ve son 30 günlük seri
-//          geçmişini (true/false) taşır.
-// Notes:
-// - lastStreakDate artık DateTime tipinde tutulur.
-// - Firestore uyumu: hem Timestamp hem "YYYY-MM-DD" String okunur.
-// - toJson() içinde istersen Timestamp ya da ISO String döndürebilirsin.
-// ========================================================================
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Streak Model
+/// Firestore'daki users/{uid} dokümanındaki alanları temsil eder.
 class Streak {
-  final int streakCount;          // şu anki seri (gün)
-  final int longestStreak;        // ulaşılan en yüksek seri
-  final DateTime lastStreakDate;  // en son streak tarihi (local)
-  final String? timezone;         // opsiyonel (örn. Europe/Istanbul)
-  final List<bool> streakHistory; // son 30 gün: bugün dahil sağdan sola
+  final DateTime lastStreakDate;
+  final int streakCount;
+  final int longestStreak;
+  final Map<String, bool> streakHistory;
 
-  const Streak({
+  Streak({
+    required this.lastStreakDate,
     required this.streakCount,
     required this.longestStreak,
-    required this.lastStreakDate,
-    this.timezone,
     required this.streakHistory,
   });
 
-  /// Varsayılan boş değerler (0 seri, tüm history false)
-  factory Streak.empty({String? timezone}) => Streak(
-    streakCount: 0,
-    longestStreak: 0,
-    lastStreakDate: DateTime.fromMillisecondsSinceEpoch(0),
-    timezone: timezone,
-    streakHistory: List<bool>.filled(30, false, growable: false),
-  );
-
-  /// Bugün check-in olduğunda çağır: streakCount & history günceller.
-  Streak updateForCheckIn(DateTime todayLocal) {
-    final isSameDay = _isSameDay(lastStreakDate, todayLocal);
-    final isYesterday =
-    _isSameDay(lastStreakDate.add(const Duration(days: 1)), todayLocal);
-
-    int nextStreak = streakCount;
-    if (isSameDay) {
-      // bugün zaten sayılmış → streakCount değişmez
-      nextStreak = streakCount;
-    } else if (isYesterday) {
-      nextStreak = streakCount + 1;
-    } else {
-      // kopmuş → 1’den başla
-      nextStreak = 1;
-    }
-
-    final nextLongest = nextStreak > longestStreak ? nextStreak : longestStreak;
-    final nextHistory = _shiftAndPush(streakHistory, !isSameDay);
-
-    return copyWith(
-      streakCount: nextStreak,
-      longestStreak: nextLongest,
-      lastStreakDate: todayLocal,
-      streakHistory: nextHistory,
-    );
-  }
-
-  /// Gün döndüğünde history’i hizalamak için yardımcı
-  Streak alignHistoryToToday(DateTime todayLocal) {
-    if (_isSameDay(lastStreakDate, todayLocal) ||
-        lastStreakDate.isAfter(todayLocal)) return this;
-    // Bugün hiç check-in yapılmadıysa sadece boş bir gün ekle
-    final shifted = _shiftAndPush(streakHistory, false);
-    return copyWith(streakHistory: shifted);
-  }
-
-  // history: sola kaydırıp yeni değeri ekler
-  static List<bool> _shiftAndPush(List<bool> history, bool value) {
-    var list = List<bool>.from(history);
-    list.removeAt(0);
-    list.add(value);
-    return List<bool>.from(list, growable: false);
-  }
-
-  // ---- JSON ----
-  factory Streak.fromJson(Map<String, dynamic> json) {
-    final raw = json['lastStreakDate'];
-    DateTime parsed;
-    if (raw is String) {
-      parsed = DateTime.parse(raw); // ISO format
-    } else if (raw is Timestamp) {
-      parsed = raw.toDate();        // Firestore Timestamp
-    } else {
-      parsed = DateTime.fromMillisecondsSinceEpoch(0);
-    }
-
+  factory Streak.fromMap(Map<String, dynamic> data) {
     return Streak(
-      streakCount: (json['streakCount'] ?? 0) as int,
-      longestStreak: (json['longestStreak'] ?? 0) as int,
-      lastStreakDate: parsed,
-      timezone: json['timezone'] as String?,
-      streakHistory: (json['streakHistory'] as List<dynamic>?)
-          ?.map((e) => e as bool)
-          .toList(growable: false) ??
-          List<bool>.filled(30, false, growable: false),
+      lastStreakDate: _parseDate(data['lastStreakDate']),
+      streakCount: data['streakCount'] ?? 0,
+      longestStreak: data['longestStreak'] ?? 0,
+      streakHistory: _normalizeHistory(data['streakHistory']),
     );
   }
 
-  Map<String, dynamic> toJson({bool asTimestamp = false}) => {
-    'streakCount': streakCount,
-    'longestStreak': longestStreak,
-    'lastStreakDate': asTimestamp
-        ? Timestamp.fromDate(lastStreakDate) // Firestore Timestamp
-        : lastStreakDate.toIso8601String().split('T').first, // "YYYY-MM-DD"
-    'timezone': timezone,
-    'streakHistory': streakHistory,
-  };
+  Map<String, dynamic> toMap() {
+    return {
+      'lastStreakDate': lastStreakDate.toIso8601String().split('T').first,
+      'streakCount': streakCount,
+      'longestStreak': longestStreak,
+      'streakHistory': streakHistory,
+    };
+  }
 
-  Streak copyWith({
-    int? streakCount,
-    int? longestStreak,
-    DateTime? lastStreakDate,
-    String? timezone,
-    List<bool>? streakHistory,
-  }) =>
-      Streak(
-        streakCount: streakCount ?? this.streakCount,
-        longestStreak: longestStreak ?? this.longestStreak,
-        lastStreakDate: lastStreakDate ?? this.lastStreakDate,
-        timezone: timezone ?? this.timezone,
-        streakHistory: streakHistory ?? this.streakHistory,
-      );
+  static DateTime _parseDate(dynamic value) {
+    if (value == null) return DateTime(1970, 1, 1);
+    if (value is Timestamp) return value.toDate();
+    if (value is String && value.isNotEmpty) {
+      try {
+        return DateTime.parse(value);
+      } catch (_) {
+        return DateTime(1970, 1, 1);
+      }
+    }
+    return DateTime(1970, 1, 1);
+  }
 
-  // ---- helpers ----
-  static bool _isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
+  /// 🔧 Array (List<bool>) veya Map<String,bool> fark etmeksizin normalize eder
+  static Map<String, bool> _normalizeHistory(dynamic raw) {
+    final map = <String, bool>{};
+    if (raw == null) {
+      for (int i = 1; i <= 7; i++) {
+        map['$i'] = false;
+      }
+      return map;
+    }
+
+    if (raw is Map) {
+      raw.forEach((k, v) {
+        map[k.toString()] = v == true;
+      });
+      return map;
+    }
+
+    if (raw is List) {
+      for (int i = 0; i < raw.length; i++) {
+        map['${i + 1}'] = raw[i] == true;
+      }
+      return map;
+    }
+
+    return {'1': false, '2': false, '3': false, '4': false, '5': false, '6': false, '7': false};
+  }
+
+  // 🔥 STREAK UPDATE HELPER
+  static Future<void> updateStreak(String uid) async {
+    final db = FirebaseFirestore.instance;
+    final ref = db.collection('users').doc(uid);
+    final snap = await ref.get();
+
+    if (!snap.exists) {
+      print("⚠️ updateStreak: user doc bulunamadı ($uid)");
+      return;
+    }
+
+    final data = snap.data() ?? {};
+    final streakData = data['streak'] ?? {};
+    final current = Streak.fromMap(streakData);
+
+    final today = DateTime.now();
+    final todayKey = today.weekday.toString();
+
+    final history = Map<String, bool>.from(current.streakHistory);
+    final diff = today
+        .difference(DateTime(
+          current.lastStreakDate.year,
+          current.lastStreakDate.month,
+          current.lastStreakDate.day,
+        ))
+        .inDays;
+
+    int newCount = current.streakCount;
+    int newLongest = current.longestStreak;
+
+    print("🧩 updateStreak(): diff=$diff | oldCount=$newCount");
+
+    if (diff == 0) {
+      print("🕓 Aynı gün zaten çözülmüş, streak artmıyor.");
+      return;
+    } else if (diff == 1) {
+      newCount += 1;
+      print("🔥 1 gün arayla çözüm → streak +1 → $newCount");
+    } else {
+      newCount = 1;
+      history.updateAll((k, v) => false);
+      print("❄️ Gün kaçırıldı, streak sıfırlandı (yeniden başlatıldı)");
+    }
+
+    history[todayKey] = true;
+    if (newCount > newLongest) newLongest = newCount;
+
+    // 🔧 Güncelleme map formatında kaydedilir
+    await ref.update({
+      'streak': {
+        'streakCount': newCount,
+        'longestStreak': newLongest,
+        'lastStreakDate': today.toIso8601String().split('T').first,
+        'streakHistory': history,
+      }
+    });
+
+    print("✅ Firestore streak güncellendi: count=$newCount longest=$newLongest");
+  }
+
+  /// 🔹 Boş başlangıç verisi
+  factory Streak.empty() {
+    return Streak(
+      lastStreakDate: DateTime(1970, 1, 1),
+      streakCount: 0,
+      longestStreak: 0,
+      streakHistory: {
+        '1': false,
+        '2': false,
+        '3': false,
+        '4': false,
+        '5': false,
+        '6': false,
+        '7': false,
+      },
+    );
+  }
+
+  Map<String, dynamic> toJson() => toMap();
 }
