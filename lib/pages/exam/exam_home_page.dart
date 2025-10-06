@@ -40,7 +40,8 @@ class ExamHomePage extends StatelessWidget {
     final selected = allQuestions.take(10).toList();
 
     // 4) Seçilen sorular için AI'dan süreyi tahmin et
-    final Duration estimatedDuration = await aiDurationService.estimateFor(selected);
+    //final Duration estimatedDuration = await aiDurationService.estimateFor(selected);
+    const Duration estimatedDuration = Duration(seconds: 300);
 
     // 5) Exam nesnesi oluştur
     return Exam(

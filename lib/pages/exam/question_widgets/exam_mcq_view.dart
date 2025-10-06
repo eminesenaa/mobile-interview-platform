@@ -1,25 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:interview_project/constants/colors.dart';
 import 'package:interview_project/models/question.dart';
 
-class McqView extends StatefulWidget {
+import '../controllers/exam_controller.dart';
+
+class ExamMcqView extends StatefulWidget {
   final Question question;
   final void Function(String? value) onAnswer;
   final VoidCallback onToggleFlag;
   final bool embedded;
-  const McqView({
+  final String examId;
+
+  const ExamMcqView({
     super.key,
     required this.question,
     required this.onAnswer,
     required this.onToggleFlag,
     this.embedded = false,
+    required this.examId,
   });
 
   @override
-  State<McqView> createState() => _McqViewState();
+  State<ExamMcqView> createState() => _ExamMcqViewState();
 }
 
-class _McqViewState extends State<McqView> {
+class _ExamMcqViewState extends State<ExamMcqView> {
   String? _selected;
 
   void _clear() {
@@ -28,8 +34,20 @@ class _McqViewState extends State<McqView> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // Eğer önceki oturumda cevap verilmişse, onu geri yükle
+    final c = Get.find<ExamController>(tag: widget.examId);
+    final prevAnswer = c.answers[widget.question.id];
+    if (prevAnswer is String) {
+      _selected = prevAnswer;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final List<String> options = List<String>.from(widget.question.options ?? const []);
+    final List<String> options =
+        List<String>.from(widget.question.options ?? const []);
     final String questionText =
         widget.question.title ?? widget.question.description ?? 'Question';
 
@@ -38,7 +56,6 @@ class _McqViewState extends State<McqView> {
       children: [
         Text(questionText, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 12),
-
         ...List.generate(options.length, (i) {
           final label = options[i];
           return Container(
@@ -61,6 +78,9 @@ class _McqViewState extends State<McqView> {
               onChanged: (v) {
                 setState(() => _selected = v);
                 widget.onAnswer(v);
+                // Kaydı shared/state'e yaz
+                final c = Get.find<ExamController>(tag: widget.examId);
+                c.saveAnswer(widget.question.id, v);
               },
               title: Text(label),
               contentPadding: const EdgeInsets.symmetric(horizontal: 14),
@@ -68,13 +88,13 @@ class _McqViewState extends State<McqView> {
             ),
           );
         }),
-
         const SizedBox(height: 6),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             TextButton.icon(
-              onPressed: widget.onToggleFlag,
+              onPressed: () => Get.find<ExamController>(tag: widget.examId)
+                  .toggleFlag(widget.question.id),
               icon: const Icon(Icons.flag_outlined, size: 18),
               label: const Text('Flag'),
               style: TextButton.styleFrom(
@@ -96,9 +116,11 @@ class _McqViewState extends State<McqView> {
     );
 
     // embedded modda dış kapsayıcı yok; değilse tek kartlı görünüm (gerekmez bizde)
-    return widget.embedded ? content : Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: content,
-    );
+    return widget.embedded
+        ? content
+        : Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: content,
+          );
   }
 }

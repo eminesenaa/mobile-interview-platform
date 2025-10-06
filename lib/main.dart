@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
-
 import 'constants/colors.dart';
 import 'firebase_options.dart';
 import 'pages/auth/login_page.dart';
@@ -10,7 +9,6 @@ import 'controllers/question_controller.dart';
 import 'controllers/auth_controller.dart';
 import 'services/ai/ai_service.dart';
 import 'package:overlay_support/overlay_support.dart';
-
 
 Future<void> _initAi() async {
   Get.put<AiService>(AiService(), permanent: true);
@@ -22,7 +20,8 @@ void main() async {
   await _initAi();
 
   runApp(
-    OverlaySupport.global(   // 🔑 tüm app burada sarıldı
+    OverlaySupport.global(
+      // 🔑 tüm app burada sarıldı
       child: const MyApp(),
     ),
   );
@@ -56,7 +55,8 @@ class MyApp extends StatelessWidget {
       // 🔹 Ana yönlendirme
       home: GetX<AuthController>(
         builder: (auth) {
-          print("🔥 build çalıştı: isLoading=${auth.isLoading.value}, user=${auth.user?.email}");
+          print(
+              "🔥 build çalıştı: isLoading=${auth.isLoading.value}, user=${auth.user?.email}");
 
           if (auth.isLoading.value) {
             return const Scaffold(

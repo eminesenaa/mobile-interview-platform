@@ -34,7 +34,9 @@ class Question {
   final QuestionType type;
 
   final List<String>? options;
+  final List<String>? blanks;
   final String? codeTemplate;
+
   final String? correctAnswer;
 
   final String? aiPromptHelper;
@@ -51,6 +53,7 @@ class Question {
     required this.tags,
     required this.type,
     this.options,
+    this.blanks,
     this.codeTemplate,
     this.correctAnswer,
     this.aiPromptHelper,
@@ -100,6 +103,7 @@ class Question {
       type: parsedType,
       options: parsedOptions,
       // <- burada null/MCQ’ya göre
+      blanks: data['blanks'] != null ? List<String>.from(data['blanks']) : null,
       codeTemplate: data['codeTemplate'] as String?,
       correctAnswer: data['correctAnswer'],
       aiPromptHelper: data['aiPromptHelper'],
@@ -116,6 +120,7 @@ class Question {
       'tags': tags,
       'type': type.name,
       'options': options,
+      if (blanks != null) 'blanks': blanks,
       if (codeTemplate != null) 'codeTemplate': codeTemplate,
       'correctAnswer': correctAnswer,
       'aiPromptHelper': aiPromptHelper,
