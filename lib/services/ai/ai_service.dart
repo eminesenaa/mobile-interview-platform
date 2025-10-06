@@ -1,4 +1,5 @@
 // lib/services/ai/ai_service.dart
+import '../../models/exam.dart';
 import '../../models/question.dart';
 import 'openai_service.dart';
 
@@ -33,29 +34,106 @@ class AiService {
     );
   }
 
-  Future<int> findQuestionTime(Question question) async {
-    final secs = await OpenAIService.findQuestionTime(question);
-    return secs;
-  }
+  // Exam evaluation
 
-  Future<int> findExamTime(List<Question> questions) async {
-    int totalSecs = 0;
+  Future<AiExamEvaluateResult> evaluateExam({
+    required Exam exam,
+    required Map<int, dynamic> userAnswers,
+  }) async {
+    final questionEvaluations = <AiExamQuestionEvaluateResult>[];
+    int correctCount = 0;
+    int falseCount = 0;
+    int emptyCount = 0;
+    double totalScore = 0.0;
 
-    for (int i = 0; i < questions.length; i += 5) {
-      final chunk = questions.sublist(
-        i,
-        (i + 5 > questions.length) ? questions.length : i + 5,
-      );
+    // Tüm sınav sorularını evaluate'le
+    for (int i = 0; i < exam.questions.length; i++) {
 
-      final secsList = await OpenAIService.findQuestionsTimeBatch(chunk);
-      totalSecs += secsList.fold(0, (a, b) => a + b);
+      final q = exam.questions[i];
+      final rawAns = userAnswers[i];
+
+      // Kullanıcı cevabı boşsa bile string olarak gönder (AI doğru cevabı döndürsün)
+      final userAns = (rawAns == null || (rawAns is String && rawAns.trim().isEmpty))
+          ? ""
+          : rawAns;
+
+      try {
+        // AI değerlendirmesi
+        final eval = await evaluate(question: q, userAnswer: userAns);
+
+        // Cevap boşsa "emptyCount" artar ama değerlendirme yapılır
+        if (userAns.toString().isEmpty) {
+          emptyCount++;
+        } else if (eval.correct) {
+          correctCount++;
+        } else {
+          falseCount++;
+        }
+
+        //Şimdilik puanlama double
+        totalScore += (eval.score ?? 0);
+
+        questionEvaluations.add(
+          AiExamQuestionEvaluateResult(
+            questionIndex: i,
+            correctness: userAns.toString().isEmpty
+                ? 0
+                : (eval.correct ? 1 : -1),
+            correctAnswer: [eval.finalAnswer],
+            explanation: eval.explanation,
+            score: eval.score,
+          ),
+        );
+      } catch (e) {
+        // AI hatasında fallback
+        questionEvaluations.add(
+          AiExamQuestionEvaluateResult(
+            questionIndex: i,
+            correctness: 0,
+            correctAnswer: const [],
+            explanation: "AI evaluation failed: $e",
+            score: 0,
+          ),
+        );
+        falseCount++;
+      }
     }
 
-    return totalSecs;
+    // Ortalama puanı 100 üzerinden hesapla (AI score 0–5 arası olduğu için ×20)
+    final avgScore = exam.questions.isNotEmpty
+        ? (totalScore / exam.questions.length)
+        : 0;
+    final totalScore100 = (avgScore * 20).clamp(0, 100).toInt();
+
+    // Konu bazlı başarı yüzdelerini hesapla
+    final topicMap = <String, List<bool>>{};
+    for (int i = 0; i < exam.questions.length; i++) {
+      final topic = (exam.questions[i].topic ?? 'Unknown').toLowerCase();
+      final correct = questionEvaluations[i].correct;
+      topicMap.putIfAbsent(topic, () => []);
+      topicMap[topic]!.add(correct);
+    }
+
+    final topicPercentage = <String, int>{};
+    topicMap.forEach((topic, results) {
+      final percent = (results.where((c) => c).length / results.length * 100)
+          .round();
+      topicPercentage[topic] = percent;
+    });
+
+    return AiExamEvaluateResult(
+      totalScore: totalScore100,
+      correctCount: correctCount,
+      falseCount: falseCount,
+      emptyCount: emptyCount,
+      questionEvaluations: questionEvaluations,
+      topicPercentage: topicPercentage,
+    );
   }
 
 
   // ---------- helpers ----------
+
   Map<String, String> _toMeta(Question q) {
     // Arkadaşının template’inde beklenen anahtar adları:
     // "Question Text", "Question Format", "Option A"..."Option D", "Correct Option", "Tags", "AI Prompt Helper"
@@ -101,6 +179,9 @@ class AiService {
   }
 }
 
+/// ------------ Templates ------------
+
+// Alıştırmalar için
 class AiEvaluateResult {
   final String finalAnswer;
   final String explanation;
@@ -113,3 +194,38 @@ class AiEvaluateResult {
     this.score,
   });
 }
+
+/// Examler için tek soru değerlendirme çıktısı (UI satırı)
+class AiExamQuestionEvaluateResult {
+  final int questionIndex; // Kaçıncı soru (0-based index)
+  final int correctness; // -1: yanlış, 0: boş, 1: doğru
+  final List<String> correctAnswer; // Doğru Cevap, birden fazla olabilir fill in the blanks için
+  final String explanation; // Ai açıklama
+  final double? score; // 0-5 arası
+  AiExamQuestionEvaluateResult({
+    required this.questionIndex,
+    required this.correctness,
+    required this.correctAnswer,
+    required this.explanation,
+    this.score,
+  });
+}
+
+/// Tüm sınavın değerlendirme özeti
+class AiExamEvaluateResult {
+  final int totalScore; // 100 üzerinden puan
+  final int correctCount; // Doğru Sayısı
+  final int falseCount; // Yanlış Sayısı
+  final int emptyCount; // Boş Sayısı
+  final List<AiExamQuestionEvaluateResult> questionEvaluations; //Tüm Soruların Sıralanmış Hali
+  final Map<String, int> topicPercentage; //Her topic'in doğruluk oranı
+  AiExamEvaluateResult({
+    required this.totalScore,
+    required this.correctCount,
+    required this.falseCount,
+    required this.emptyCount,
+    required this.questionEvaluations,
+    required this.topicPercentage
+  });
+}
+
