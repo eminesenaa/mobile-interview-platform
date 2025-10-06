@@ -109,7 +109,7 @@ class AiService {
     final topicMap = <String, List<bool>>{};
     for (int i = 0; i < exam.questions.length; i++) {
       final topic = (exam.questions[i].topic ?? 'Unknown').toLowerCase();
-      final correct = questionEvaluations[i].correct;
+      final correct = questionEvaluations[i].correctness == 1 ? true : false;
       topicMap.putIfAbsent(topic, () => []);
       topicMap[topic]!.add(correct);
     }
