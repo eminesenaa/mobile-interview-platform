@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:interview_project/pages/exam/exam_test_page.dart';
-
 import 'constants/colors.dart';
 import 'firebase_options.dart';
 import 'pages/auth/login_page.dart';
@@ -69,7 +67,6 @@ class MyApp extends StatelessWidget {
           return auth.user != null ? MainView() : const LoginPage();
         },
       ),
-      //home: ExamTestPage(),
     );
   }
 }

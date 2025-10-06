@@ -1,19 +1,21 @@
 // lib/pages/exam/widgets/review_action_bar.dart
 import 'package:flutter/material.dart';
+import 'package:interview_project/pages/library/widgets/save_exam_to_collection_sheet.dart';
 import '../../../constants/colors.dart';
 
 class ReviewActionBar extends StatelessWidget {
   final VoidCallback onPrev;
   final VoidCallback onNext;
-  final VoidCallback onSave;
   final VoidCallback onNavigator;
+  final String examId;
+
 
   const ReviewActionBar({
     super.key,
     required this.onPrev,
     required this.onNext,
-    required this.onSave,
     required this.onNavigator,
+    required this.examId,
   });
 
   @override
@@ -46,20 +48,27 @@ class ReviewActionBar extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          // Alt: Submit (renkli ve ortalı)
+
+          // Alt: Save Exam (renkli ve ortalı)
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: onSave,
               style: FilledButton.styleFrom(
                 backgroundColor: primaryColor,
               ),
-              child: const Text('Save to Library'),
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => SaveExamToCollectionSheet(examId: examId),
+                );
+              },
+              child: const Text("Save to Library"),
             ),
           ),
         ],
       ),
     );
-
   }
 }

@@ -152,11 +152,6 @@ class ExamReviewPage extends StatelessWidget {
             ReviewActionBar(
               onPrev: c.prev,
               onNext: c.next,
-              onSave: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Exam saved to your library.')),
-                );
-              },
               onNavigator: () {
                 showGeneralDialog(
                   context: context,
@@ -178,6 +173,7 @@ class ExamReviewPage extends StatelessWidget {
                   },
                 );
               },
+              examId: exam.id,
             ),
           ],
         ),

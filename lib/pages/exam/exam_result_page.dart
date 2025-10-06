@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../models/exam.dart';
+import '../main_view.dart';
 import 'controllers/exam_result_controller.dart';
 import 'exam_home_page.dart';
 import 'exam_review_page.dart';
@@ -25,7 +26,10 @@ class ExamResultPage extends StatelessWidget {
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.offAll(() => const ExamHomePage()),
+          onPressed: () {
+            Get.offAll(
+                () => const MainView(initialIndex: 2));
+          },
         ),
       ),
       body: SingleChildScrollView(
@@ -84,13 +88,13 @@ class ExamResultPage extends StatelessWidget {
                 );
                 Get.to(() => const ExamReviewPage(), arguments: reviewExam);
               },
-
               onSave: () {
                 // Exam kaydetme işlemi
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text("Exam saved to library!")),
                 );
               },
+              examId: c.exam.id, // ✅ eklendi — required parametreyi karşılıyor
             ),
           ],
         ),

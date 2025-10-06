@@ -36,11 +36,13 @@ class ExamCodingEditorPage extends StatelessWidget {
     final template = question.codeTemplate ?? '';
     if (c.code.value.isEmpty && template.isNotEmpty) {
       // Eğer ilk defa açılıyorsa, template'i controller'a yaz
-
       if (examId != null) {
-        c.updateCode(template, examId, question.id);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          c.updateCode(template, examId!, question.id);
+        });
       }
     }
+
 
     // CodeField controller
     final codeController = CodeController(

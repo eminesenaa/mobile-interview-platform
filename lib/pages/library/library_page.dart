@@ -15,7 +15,7 @@ import 'collection_detail_page.dart';
 import 'controllers/library_controller.dart';
 import '../../models/question.dart';
 import 'services/library_service.dart';
-import 'widgets/save_to_collection_sheet.dart';
+import 'widgets/save_question_to_collection_sheet.dart';
 
 class LibraryPage extends StatelessWidget {
   const LibraryPage({super.key});

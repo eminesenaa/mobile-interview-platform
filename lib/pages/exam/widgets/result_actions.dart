@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:interview_project/pages/library/widgets/save_exam_to_collection_sheet.dart';
 
 class ResultActions extends StatelessWidget {
   final VoidCallback onReview;
   final VoidCallback onSave;
+  final String examId; // ✅ eklendi
 
   const ResultActions({
     super.key,
     required this.onReview,
     required this.onSave,
+    required this.examId, // ✅ eklendi
   });
 
   @override
@@ -39,8 +42,17 @@ class ResultActions extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
           ),
-          onPressed: onSave,
-          child: const Text("Save Exam to Your Library"),
+          onPressed: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => SaveExamToCollectionSheet(
+                examId: examId, // ✅ artık doğrudan parametreden alıyoruz
+              ),
+            );
+          },
+          child: const Text('Save Exam to your Library'),
         ),
       ],
     );

@@ -8,7 +8,7 @@ import '../runner/question_runner_page.dart';
 import 'library_page.dart';
 import 'services/library_service.dart';
 import '../../widgets/question_card.dart';
-import 'widgets/save_to_collection_sheet.dart';
+import 'widgets/save_question_to_collection_sheet.dart';
 
 class CollectionDetailPage extends StatelessWidget {
   final String collectionId;
