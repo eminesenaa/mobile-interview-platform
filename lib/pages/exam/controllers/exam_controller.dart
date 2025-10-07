@@ -90,20 +90,6 @@ class ExamController extends GetxController {
     state.refresh();
   }
 
-  /// Fill-in-the-blank (veya genel amaçlı) cevap kaydetme
-  /// ExamFillBlankView -> c.saveAnswer(q.id, answers) şeklinde çağırıyor.
-  // void saveAnswer(String questionId, dynamic value) {
-  //   final newAnswers = Map<String, dynamic>.from(state.value.answers);
-  //   if (value == null) {
-  //     newAnswers.remove(questionId);
-  //   } else {
-  //     newAnswers[questionId] =
-  //         value; // Map<int,String> / String / int vs. destekler
-  //   }
-  //   state.value = state.value.copyWith(answers: newAnswers);
-  //   state.refresh();
-  // }
-
   /// SharedPreferences'tan kaydedilmiş cevapları yükler
   Future<void> _loadSavedAnswers() async {
     final prefs = await SharedPreferences.getInstance();
@@ -245,16 +231,7 @@ class ExamController extends GetxController {
     // Controller kapanmadan önce cevapların snapshot'ını al
     final snapshotAnswers = Map<String, dynamic>.from(state.value.answers);
 
-    // 🔹 Firestore’a kaydet
-    await _db.collection("examResults").add({
-      "examId": exam.id,
-      "submittedAt": Timestamp.now(),
-      "auto": auto,
-      // "answers": state.value.answers,
-      "answers": snapshotAnswers,
-      "score": null, // ileride hesaplanacak
-      "feedback": null,
-    });
+    // ❌ Firestore’a kaydetme işlemi kaldırıldı
 
     // 🔹 SharedPreferences temizle
     final prefs = await SharedPreferences.getInstance();
