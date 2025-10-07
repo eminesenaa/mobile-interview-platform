@@ -6,37 +6,32 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../models/question.dart';
 import '../../../services/ai/ai_service.dart';
 import '../../runner/controller/question_runner_controller.dart';
+import '../../../models/streak.dart';
+import '../../../controllers/auth_controller.dart';
 
 class ShortAnswerController extends GetxController {
   final Question question;
 
   ShortAnswerController(this.question);
 
-  /// Kullanıcının yazdığı cevap (UI'da TextField onChanged ile güncellenir)
   final answer = ''.obs;
-
-  /// (varsa) local kontrol sonucu / UI durumların
   final isSubmitted = false.obs;
 
-  // ---------- AI entegrasyonu (yeni) ----------
-  final AiService _ai = Get.find<AiService>(); // main.dart’ta put edildi
-  final isEvaluating = false.obs; // "Send" loading
+  final AiService _ai = Get.find<AiService>();
+  final isEvaluating = false.obs;
   final Rx<AiEvaluateResult?> aiMeta = Rx<AiEvaluateResult?>(null);
-  final aiFeedback = ''.obs; // ekranda göstereceğimiz metin
+  final aiFeedback = ''.obs;
 
-  /// Kullanıcının kazandığı XP
   final earnedXp = 0.obs;
 
   void updateAnswer(String v) {
     answer.value = v;
 
-    // kullanıcı yazmaya başladıysa → send aktif olsun
     if (Get.isRegistered<QuestionRunnerController>()) {
       Get.find<QuestionRunnerController>().setCanSubmit(v.trim().isNotEmpty);
     }
   }
 
-  /// Kullanıcı cevabı gönderir
   Future<void> submit() async {
     final userText = answer.value.trim();
     if (userText.isEmpty) {
@@ -44,20 +39,17 @@ class ShortAnswerController extends GetxController {
       return;
     }
 
-    // (varsa) local kontrol / isSubmitted set
     isSubmitted.value = true;
 
-    // AI değerlendirmesi
     await _evaluateWithAi(userText);
   }
 
-  // ---------- PRIVATE: AI çağrısı ----------
   Future<void> _evaluateWithAi(String userText) async {
     isEvaluating.value = true;
     try {
       final res = await _ai.evaluate(
         question: question,
-        userAnswer: userText, // short-answer → düz metin
+        userAnswer: userText,
       );
       aiMeta.value = res;
 
@@ -70,17 +62,11 @@ class ShortAnswerController extends GetxController {
       final verdict = res.correct ? "✅ Doğru." : "❌ Yanlış.";
       final explain = res.explanation.isNotEmpty ? "\n${res.explanation}" : "";
 
-      // Kullanıcıya XP bilgisini de göster
       aiFeedback.value = "$verdict$explain\n\n⭐ You earned: $xp XP";
 
-      // Firestore güncelle
       await _saveResultToFirestore(res, xp);
     } catch (e, st) {
-      // debug için logla; istersen kaldırabilirsin
-      // ignore: avoid_print
       print('AI error (short): $e\n$st');
-
-      // fallback — mevcut davranışını bozma
       final helper = question.aiPromptHelper ?? '';
       aiFeedback.value =
           "AI evaluated your answer.\nYour input: $userText\nHelper: $helper\n\n(Note: fallback response due to AI error)";
@@ -124,13 +110,29 @@ class ShortAnswerController extends GetxController {
         }
       } else {
         await userRef.update({'totalXp': FieldValue.increment(earnedXp)});
-
         await solvedRef.set({
           'status': 'solved',
           'score': newScore,
           'xpEarned': earnedXp,
           'solvedAt': FieldValue.serverTimestamp(),
         });
+      }
+
+      // 🔥 STREAK GÜNCELLEME 🔥
+      try {
+        final auth = Get.find<AuthController>();
+        final currentUser = auth.user;
+        final uidToUse =
+            currentUser?.uid ?? FirebaseAuth.instance.currentUser?.uid;
+
+        if (uidToUse != null) {
+          await Streak.updateStreak(uidToUse);
+          print("🔥 [ShortAnswer] Streak updated successfully for user=$uidToUse");
+        } else {
+          print("⚠️ [ShortAnswer] Streak update skipped (no uid)");
+        }
+      } catch (e, st) {
+        print("❌ [ShortAnswer] Streak update error: $e\n$st");
       }
     } catch (e, st) {
       print("❌ Firestore save error (short): $e\n$st");

@@ -1,19 +1,50 @@
 // ===================== File: lib/pages/home/progress_page.dart =====================
 // Purpose: Kullanıcının ilerlemesini gösterir (XP, Level, Accuracy, Streak, vb.)
-// Data: ProgressController -> Firestore’dan gerçek zamanlı listener
+// Data: ProgressController + Firestore streak listener
 // ==============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:interview_project/controllers/progress_controller.dart';
 
-class ProgressPage extends StatelessWidget {
+class ProgressPage extends StatefulWidget {
   const ProgressPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final pc = Get.find<ProgressController>();
+  State<ProgressPage> createState() => _ProgressPageState();
+}
 
+class _ProgressPageState extends State<ProgressPage> {
+  final pc = Get.find<ProgressController>();
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  Rxn<Map<String, dynamic>> streakData = Rxn<Map<String, dynamic>>();
+
+  @override
+  void initState() {
+    super.initState();
+    _listenToStreak();
+  }
+
+  void _listenToStreak() {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+
+    _db.collection('users').doc(uid).snapshots().listen((doc) {
+      if (doc.exists) {
+        final data = doc.data();
+        if (data != null && data['streak'] != null) {
+          streakData.value = Map<String, dynamic>.from(data['streak']);
+        }
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Your Progress')),
       body: Obx(() {
@@ -63,7 +94,21 @@ class ProgressPage extends StatelessWidget {
                   value:
                       '${p.questionStats.correct}/${p.questionStats.total}',
                 ),
-                _StatPill(label: 'Streak', value: '${pc.streakDays.value} 🔥'),
+
+                // 🔥 Firestore’dan Streak
+                Obx(() {
+                  final s = streakData.value;
+                  if (s == null) {
+                    return const _StatPill(label: 'Streak', value: '—');
+                  }
+                  final count = s['streakCount'] ?? 0;
+                  final longest = s['longestStreak'] ?? 0;
+                  return _StatPill(
+                    label: 'Streak',
+                    value: '$count 🔥 (max $longest)',
+                  );
+                }),
+
                 _StatPill(label: 'Saved', value: '${pc.savedCount.value}'),
               ],
             ),

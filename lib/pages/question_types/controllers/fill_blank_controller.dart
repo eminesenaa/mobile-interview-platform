@@ -7,51 +7,40 @@ import '../../../models/question.dart';
 import '../../../services/ai/ai_service.dart';
 import '../../runner/controller/question_runner_controller.dart';
 
+import '../../../models/streak.dart';
+import '../../../controllers/auth_controller.dart';
+
 class FillBlankController extends GetxController {
   final Question question;
 
   FillBlankController(this.question);
 
-  /// 🔹 Kullanıcının doldurduğu cevaplar (her boşluk için bir eleman)
   final answers = <String>[].obs;
-
-  /// 🔹 Ekranda gösterdiğin metinsel sonuç (mevcut UI ile uyumlu)
   final aiResult = ''.obs;
-
-  /// 🔹 (Yeni) AI çağrısı yükleniyor mu?
   final isEvaluating = false.obs;
-
-  /// 🔹 (Yeni-opsiyonel) AI’dan gelen ham meta (correct/score/explanation vs.)
   final Rx<AiEvaluateResult?> aiMeta = Rx<AiEvaluateResult?>(null);
 
-  /// 🔹 AI servisi (main.dart’ta Get.put(AiService(), permanent: true) ile enjekte)
   final AiService _ai = Get.find<AiService>();
-
-  /// 🔹 Kullanıcının kazandığı XP
   final earnedXp = 0.obs;
 
   @override
   void onInit() {
     super.onInit();
 
-    // Boşluk sayısını bul → her "___" için boş bir string ekle
     final blanks = (question.description?.split("___").length ?? 1) - 1;
     answers.assignAll(List.filled(blanks, ""));
   }
 
-  /// Kullanıcı bir boşluğu doldurduğunda güncelle
   void updateAnswer(int index, String value) {
     if (index >= 0 && index < answers.length) {
       answers[index] = value;
     }
-    // ✅ Runner’a haber ver: tüm boşluklar doluysa send aktifleşsin
     final allFilled = answers.every((e) => e.trim().isNotEmpty);
     if (Get.isRegistered<QuestionRunnerController>()) {
       Get.find<QuestionRunnerController>().setCanSubmit(allFilled);
     }
   }
 
-  /// 🔹 AI değerlendirmesi (ShortAnswer mantığına benzer)
   Future<void> submitAnswersWithAI() async {
     final userAns = answers.map((e) => e.trim()).toList();
     final joined = userAns.join(" | ").trim();
@@ -64,7 +53,6 @@ class FillBlankController extends GetxController {
     await _evaluateWithAi(userAns);
   }
 
-  // -------------------- PRIVATE HELPERS --------------------
   Future<void> _evaluateWithAi(List<String> blanks) async {
     isEvaluating.value = true;
     try {
@@ -74,7 +62,6 @@ class FillBlankController extends GetxController {
       );
       aiMeta.value = res;
 
-      // 🔹 XP hesaplama
       final baseXp = question.xp;
       final normalized = (res.score ?? 0) / 5.0;
       final xp = (normalized * baseXp).round();
@@ -85,7 +72,6 @@ class FillBlankController extends GetxController {
 
       aiResult.value = "$verdict$explain\n\n⭐ You earned: $xp XP";
 
-      // Firestore güncelle
       await _saveResultToFirestore(res, xp);
     } catch (e, st) {
       print('AI error: $e\n$st');
@@ -133,13 +119,29 @@ class FillBlankController extends GetxController {
         }
       } else {
         await userRef.update({'totalXp': FieldValue.increment(earnedXp)});
-
         await solvedRef.set({
           'status': 'solved',
           'score': newScore,
           'xpEarned': earnedXp,
           'solvedAt': FieldValue.serverTimestamp(),
         });
+      }
+
+      // 🔥 STREAK GÜNCELLEME 🔥
+      try {
+        final auth = Get.find<AuthController>();
+        final currentUser = auth.user;
+        final uidToUse =
+            currentUser?.uid ?? FirebaseAuth.instance.currentUser?.uid;
+
+        if (uidToUse != null) {
+          await Streak.updateStreak(uidToUse);
+          print("🔥 [FillBlank] Streak updated successfully for user=$uidToUse");
+        } else {
+          print("⚠️ [FillBlank] Streak update skipped (no uid)");
+        }
+      } catch (e, st) {
+        print("❌ [FillBlank] Streak update error: $e\n$st");
       }
     } catch (e, st) {
       print("❌ Firestore save error (fill): $e\n$st");

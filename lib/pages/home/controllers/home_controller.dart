@@ -1,8 +1,11 @@
 import 'dart:math';
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../controllers/progress_controller.dart';
 import '../../../controllers/question_controller.dart';
 import '../../../models/question.dart';
+import '../../../models/streak.dart';
 
 class HomeController extends GetxController {
   final _rng = Random();
@@ -12,12 +15,41 @@ class HomeController extends GetxController {
 
   /// Progress (Your Progress bölümünü besler)
   final ProgressController pc =
-  Get.put<ProgressController>(ProgressController(), permanent: true);
+      Get.put<ProgressController>(ProgressController(), permanent: true);
+
+  // 🔥 STREAK SECTION START
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final streak = Rxn<Streak>();
+  final isStreakLoading = false.obs;
+
+  void listenToUserStreak() {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+
+      _db.collection('users').doc(uid).snapshots().listen((doc) {
+        if (doc.exists && doc.data() != null) {
+          final data = doc.data()!;
+          final streakData = data['streak'] ?? {}; // 🔹 nested streak objesi
+          streak.value = Streak.fromMap({
+            'lastStreakDate': streakData['lastStreakDate'],
+            'longestStreak': streakData['longestStreak'],
+            'streakCount': streakData['streakCount'],
+            'streakHistory': streakData['streakHistory'],
+          });
+        }
+      });
+    } catch (e) {
+      print('🔥 listenToUserStreak error: $e');
+    }
+  }
+  // 🔥 STREAK SECTION END
 
   @override
   void onInit() {
     super.onInit();
     _loadPopularQuestions();
+    listenToUserStreak(); // 🔥 streak dinleyicisini başlat
   }
 
   /// Easy / Medium / Hard’tan rastgele 1’er soru seç
@@ -39,7 +71,7 @@ class HomeController extends GetxController {
     popularQuestions.assignAll(picks);
   }
 
-  /// Pull‑to‑refresh’te çağır
+  /// Pull-to-refresh’te çağır
   Future<void> refreshAll() async {
     _loadPopularQuestions();
     // ileride: user/progress güncellemesi eklenebilir
