@@ -2,6 +2,7 @@
 import '../../models/exam.dart';
 import '../../models/question.dart';
 import 'openai_service.dart';
+import 'gemini_service.dart';
 
 class AiService {
   /// Her tip soru için tek giriş noktası.
