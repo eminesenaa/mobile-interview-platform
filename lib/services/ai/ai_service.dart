@@ -169,14 +169,27 @@ class AiService {
   }
 
   String _mapTopicToCategory(String? topic) {
-    // Arkadaşının OpenAIService._buildSystemRole ile eşleşecek şekilde
-    final t = (topic ?? '').toLowerCase();
-    if (t.contains('algorithm')) return 'algorithm';
-    if (t.contains('data')) return 'data structure';
-    if (t.contains('git')) return 'git';
-    if (t.contains('oop')) return 'oop';
-    return 'algorithm';
+  final t = (topic ?? '').toLowerCase().trim();
+  if (t.isEmpty) return 'algorithm';
+
+  if (t.contains('behavior') || t.contains('hr') || t.contains('star')) {
+    return 'behavioral hr questions';
   }
+  if (t.contains('data science')) return 'data science';
+  if (t.contains('ml') || t.contains('machine learning')) return 'ml basics';
+  if (t.contains('network')) return 'network';
+  if (t.contains('java')) return 'java';
+  if (t.contains('c/c++') || t.contains('c++') || t == 'c') return 'c/c++';
+  if (t.contains('python')) return 'python';
+  if (t.contains('sql') || t.contains('database')) return 'sql';
+  if (t.contains('git') || t.contains('version control')) return 'git';
+  if (t.contains('oop') || t.contains('object oriented')) return 'oop';
+  if (t.contains('data structure')) return 'data structure';
+  if (t.contains('algorithm')) return 'algorithm';
+
+  // eşleşme yoksa güvenli varsayılan
+  return 'algorithm';
+}
 }
 
 /// ------------ Templates ------------
