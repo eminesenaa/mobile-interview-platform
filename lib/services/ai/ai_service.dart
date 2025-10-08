@@ -37,100 +37,103 @@ class AiService {
   // Exam evaluation
 
   Future<AiExamEvaluateResult> evaluateExam({
-    required Exam exam,
-    required Map<int, dynamic> userAnswers,
-  }) async {
-    final questionEvaluations = <AiExamQuestionEvaluateResult>[];
-    int correctCount = 0;
-    int falseCount = 0;
-    int emptyCount = 0;
-    double totalScore = 0.0;
+  required Exam exam,
+  required Map<int, dynamic> userAnswers,
+}) async {
+  // Tüm çağrılar 5’li batch değerlendirmeye yönlensin
+  return await evaluateExamBatched(exam: exam, userAnswers: userAnswers);
+}
+Future<AiExamEvaluateResult> evaluateExamBatched({
+  required Exam exam,
+  required Map<int, dynamic> userAnswers,
+}) async {
+  final questionEvaluations = <AiExamQuestionEvaluateResult>[];
+  int correctCount = 0, falseCount = 0, emptyCount = 0;
+  double totalScore = 0.0;
 
-    // Tüm sınav sorularını evaluate'le
-    for (int i = 0; i < exam.questions.length; i++) {
+  final idxChunks = _chunkIndices(exam.questions.length, 5);
 
+  for (final chunk in idxChunks) {
+    final items = <Map<String, dynamic>>[];
+    for (final i in chunk) {
       final q = exam.questions[i];
       final rawAns = userAnswers[i];
+      final userAns = (rawAns == null || (rawAns is String && rawAns.trim().isEmpty)) ? "" : rawAns;
 
-      // Kullanıcı cevabı boşsa bile string olarak gönder (AI doğru cevabı döndürsün)
-      final userAns = (rawAns == null || (rawAns is String && rawAns.trim().isEmpty))
-          ? ""
-          : rawAns;
-
-      try {
-        // AI değerlendirmesi
-        final eval = await evaluate(question: q, userAnswer: userAns);
-
-        // Cevap boşsa "emptyCount" artar ama değerlendirme yapılır
-        if (userAns.toString().isEmpty) {
-          emptyCount++;
-        } else if (eval.correct) {
-          correctCount++;
-        } else {
-          falseCount++;
-        }
-
-        //Şimdilik puanlama double
-        totalScore += (eval.score ?? 0);
-
-        questionEvaluations.add(
-          AiExamQuestionEvaluateResult(
-            questionIndex: i,
-            correctness: userAns.toString().isEmpty
-                ? 0
-                : (eval.correct ? 1 : -1),
-            correctAnswer: [eval.finalAnswer],
-            explanation: eval.explanation,
-            score: eval.score,
-          ),
-        );
-      } catch (e) {
-        // AI hatasında fallback
-        questionEvaluations.add(
-          AiExamQuestionEvaluateResult(
-            questionIndex: i,
-            correctness: 0,
-            correctAnswer: const [],
-            explanation: "AI evaluation failed: $e",
-            score: 0,
-          ),
-        );
-        falseCount++;
-      }
+      items.add({
+        "index": i,
+        "meta": _toMeta(q),
+        "user_answer": _candidateFromAnswer(q, userAns),
+        "topic": _mapTopicToCategory(q.topic),
+      });
     }
 
-    // Ortalama puanı 100 üzerinden hesapla (AI score 0–5 arası olduğu için ×20)
-    final avgScore = exam.questions.isNotEmpty
-        ? (totalScore / exam.questions.length)
-        : 0;
-    final totalScore100 = (avgScore * 20).clamp(0, 100).toInt();
-
-    // Konu bazlı başarı yüzdelerini hesapla
-    final topicMap = <String, List<bool>>{};
-    for (int i = 0; i < exam.questions.length; i++) {
-      final topic = (exam.questions[i].topic ?? 'Unknown').toLowerCase();
-      final correct = questionEvaluations[i].correctness == 1 ? true : false;
-      topicMap.putIfAbsent(topic, () => []);
-      topicMap[topic]!.add(correct);
-    }
-
-    final topicPercentage = <String, int>{};
-    topicMap.forEach((topic, results) {
-      final percent = (results.where((c) => c).length / results.length * 100)
-          .round();
-      topicPercentage[topic] = percent;
-    });
-
-    return AiExamEvaluateResult(
-      totalScore: totalScore100,
-      correctCount: correctCount,
-      falseCount: falseCount,
-      emptyCount: emptyCount,
-      questionEvaluations: questionEvaluations,
-      topicPercentage: topicPercentage,
+    final results = await OpenAIService.gradeBatch(
+      batchId: "exam_${exam.id ?? 'local'}_${DateTime.now().millisecondsSinceEpoch}",
+      items: items,
     );
+
+    for (final r in results) {
+      final i = (r['index'] as num).toInt();
+      final isCorrect = (r['correct'] as bool?) ?? false;
+      final expected = (r['expected'] as String?) ?? '';
+      final reason = (r['reason'] as String?) ?? '';
+      final score = (r['score'] as num?)?.toDouble() ?? 0.0;
+
+      final answered = userAnswers[i]?.toString().trim().isNotEmpty ?? false;
+      if (!answered) emptyCount++;
+      else if (isCorrect) correctCount++;
+      else falseCount++;
+
+      totalScore += score;
+
+      questionEvaluations.add(
+        AiExamQuestionEvaluateResult(
+          questionIndex: i,
+          correctness: !answered ? 0 : (isCorrect ? 1 : -1),
+          correctAnswer: expected.isEmpty ? [] : [expected],
+          explanation: reason,
+          score: score,
+        ),
+      );
+    }
   }
 
+  questionEvaluations.sort((a, b) => a.questionIndex.compareTo(b.questionIndex));
+
+  final avgScore = exam.questions.isNotEmpty ? (totalScore / exam.questions.length) : 0.0;
+  final totalScore100 = (avgScore * 20).clamp(0, 100).toInt();
+
+  final topicMap = <String, List<bool>>{};
+  for (final qe in questionEvaluations) {
+    final t = (exam.questions[qe.questionIndex].topic ?? 'Unknown').toLowerCase();
+    final ok = qe.correctness == 1;
+    topicMap.putIfAbsent(t, () => []).add(ok);
+  }
+  final topicPercentage = <String, int>{};
+  topicMap.forEach((t, list) {
+    final p = (list.where((e) => e).length / list.length * 100).round();
+    topicPercentage[t] = p;
+  });
+
+  return AiExamEvaluateResult(
+    totalScore: totalScore100,
+    correctCount: correctCount,
+    falseCount: falseCount,
+    emptyCount: emptyCount,
+    questionEvaluations: questionEvaluations,
+    topicPercentage: topicPercentage,
+  );
+}
+
+List<List<int>> _chunkIndices(int len, int size) {
+  final chunks = <List<int>>[];
+  for (int i = 0; i < len; i += size) {
+    final end = (i + size < len) ? i + size : len;
+    chunks.add(List.generate(end - i, (k) => i + k));
+  }
+  return chunks;
+}
 
   // ---------- helpers ----------
 
