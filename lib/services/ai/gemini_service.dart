@@ -94,7 +94,7 @@ class GeminiService {
           .generateContent(
             [Content.text(userContent)],
             safetySettings: const [],
-            generationConfig: const GenerationConfig(
+            generationConfig: GenerationConfig(
               temperature: 0,
               responseMimeType: 'application/json', // JSON obje bekliyoruz
             ),
@@ -165,7 +165,7 @@ class GeminiService {
         .generateContent(
           [Content.text(userContent)],
           safetySettings: const [],
-          generationConfig: const GenerationConfig(
+          generationConfig: GenerationConfig(
             temperature: 0.2,
             responseMimeType: 'application/json',
           ),
