@@ -1,28 +1,16 @@
-/// ExamFactory
-/// -------------
-/// Bu dosya, kullanıcı "Random Exam" veya "Create Your Exam" seçtiğinde
-/// sınavı oluşturmak için kullanılır. Soruları (Firebase'den/yerel havuzdan)
-/// alır, filtreleri uygular, soruları rastgele seçer ve AI servisinden gelen
-/// tahmini süre ile `Exam` nesnesini döndürür.
-///
-/// Notlar:
-/// - Burada **demo soru üretmiyoruz**. Soru havuzunu dışarıdan sağlayan bir
-///   provider fonksiyon (getPool) enjekte edilir. Böylece gerçek Firestore
-///   entegrasyonuna kolayca geçilir.
-/// - Question modelindeki alanlar nullable olduğu için filtreler **null-safe**
-///   şekilde uygulanır.
-
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:interview_project/models/exam.dart';
 import 'package:interview_project/models/question.dart';
 import 'package:interview_project/pages/exam/services/ai_duration_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CreateExamFilters {
-  final Set<String> topics;            // örn: {'Java','Network'}
-  final Set<String> tags;              // örn: {'array','oop'}
-  final Set<QuestionType> types;       // örn: {QuestionType.mcq}
-  final Difficulty? difficulty;        // null => hepsi
-  final int count;                     // istenen soru sayısı
+  final Set<String> topics;
+  final Set<String> tags;
+  final Set<QuestionType> types;
+  final Difficulty? difficulty;
+  final int count;
 
   const CreateExamFilters({
     this.topics = const {},
@@ -38,40 +26,15 @@ abstract class ExamFactory {
   Future<Exam> fromFilters(CreateExamFilters f);
 }
 
-class ExamFactoryStub implements ExamFactory {
-  /// Soru havuzunu sağlayan fonksiyon.
-  /// Firebase'e geçtiğinde burayı Firestore query ile değiştir.
-  final Future<List<Question>> Function() getPool;
-
+class ExamFactoryFirebase implements ExamFactory {
   final AiDurationService ai;
 
-  ExamFactoryStub(
-      this.ai, {
-        Future<List<Question>> Function()? getPool,
-      }) : getPool = getPool ?? (() async => <Question>[]);
+  ExamFactoryFirebase(this.ai);
 
-  // ---------- helpers ----------
-
-  List<Question> _applyFilters(List<Question> pool, CreateExamFilters f) {
-    return pool.where((q) {
-      // topic
-      final okTopic = f.topics.isEmpty ||
-          (q.topic != null && f.topics.contains(q.topic));
-
-      // types
-      final okType = f.types.isEmpty ||
-          (q.type != null && f.types.contains(q.type!));
-
-      // difficulty
-      final okDiff = f.difficulty == null ||
-          (q.difficulty != null && q.difficulty == f.difficulty);
-
-      // tags (model List<String>? ise null-safe)
-      final tags = q.tags ?? const <String>[];
-      final okTags = f.tags.isEmpty || tags.any(f.tags.contains);
-
-      return okTopic && okType && okDiff && okTags;
-    }).toList();
+  Future<List<Question>> _fetchAllQuestions() async {
+    final db = FirebaseFirestore.instance;
+    final snap = await db.collection('questions').get();
+    return snap.docs.map((d) => Question.fromFirestore(d.data(), d.id)).toList();
   }
 
   List<Question> _takeRandom(List<Question> list, int n) {
@@ -82,36 +45,71 @@ class ExamFactoryStub implements ExamFactory {
     return copy.take(n).toList();
   }
 
-  // ---------- interface ----------
-
   @override
   Future<Exam> fromRandom({int count = 10}) async {
-    final pool = await getPool();                 // tüm sorular
-    final picked = _takeRandom(pool, count);      // rastgele seç
-    final duration = await ai.estimateFor(picked);
+    debugPrint('\n==================== 🎲 RANDOM EXAM DEBUG START ====================');
+
+    final pool = await _fetchAllQuestions();
+    debugPrint('📚 Pulled total questions from Firestore: ${pool.length}');
+
+    if (pool.isEmpty) {
+      throw Exception("No questions found in Firestore");
+    }
+
+    // 🔹 Tüm havuz sorularını logla
+    // for (final q in pool) {
+    //   debugPrint(
+    //     '   🟦 [POOL] ID: ${q.id} | Topic: ${q.topic} | '
+    //     'Type: ${q.type.name} | Diff: ${q.difficulty.name} | '
+    //     'Tags: ${q.tags.isEmpty ? "—" : q.tags.join(", ")}',
+    //   );
+    // }
+
+    // 🔹 Rastgele seç
+    final selected = _takeRandom(pool, count);
+
+    debugPrint('');
+    debugPrint('🎯 Selected random ${selected.length} questions:');
+    for (int i = 0; i < selected.length; i++) {
+      final q = selected[i];
+      debugPrint(
+        '➡️ Q${i + 1} | ID: ${q.id} | Topic: ${q.topic} | '
+        'Type: ${q.type.name} | Diff: ${q.difficulty.name} | '
+        'Tags: ${q.tags.isEmpty ? "—" : q.tags.join(", ")}',
+      );
+    }
+    debugPrint('=============================================================\n');
+
+    const Duration estimatedDuration = Duration(seconds: 300);
+
     return Exam(
       id: 'rnd_${DateTime.now().millisecondsSinceEpoch}',
       title: 'Random Exam',
-      duration: duration,
-      questions: picked,
+      duration: estimatedDuration,
+      questions: selected,
       createdAt: DateTime.now(),
     );
   }
 
   @override
   Future<Exam> fromFilters(CreateExamFilters f) async {
-    final pool = await getPool();
-    final filtered = _applyFilters(pool, f);
+    final pool = await _fetchAllQuestions();
+    final filtered = pool.where((q) {
+      final okTopic = f.topics.isEmpty || f.topics.contains(q.topic);
+      final okType = f.types.isEmpty || f.types.contains(q.type);
+      final okDiff = f.difficulty == null || q.difficulty == f.difficulty;
+      final okTags = f.tags.isEmpty || q.tags.any(f.tags.contains);
+      return okTopic && okType && okDiff && okTags;
+    }).toList();
 
-    // Yeterli soru yoksa mevcut kadarını veriyoruz (UI’da uyarı gösterilebilir)
-    final picked = _takeRandom(filtered, f.count);
+    final selected = _takeRandom(filtered, f.count);
+    const Duration estimatedDuration = Duration(seconds: 300);
 
-    final duration = await ai.estimateFor(picked);
     return Exam(
       id: 'flt_${DateTime.now().millisecondsSinceEpoch}',
-      title: 'Custom Exam',
-      duration: duration,
-      questions: picked,
+      title: 'Filtered Exam',
+      duration: estimatedDuration,
+      questions: selected,
       createdAt: DateTime.now(),
     );
   }

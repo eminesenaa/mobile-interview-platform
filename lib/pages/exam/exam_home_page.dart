@@ -1,60 +1,20 @@
-// lib/pages/exam/exam_home_page.dart
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 import 'package:interview_project/models/exam.dart';
-import 'package:interview_project/models/question.dart';
 import 'package:interview_project/pages/exam/exam_page.dart';
 import 'package:interview_project/pages/exam/create_exam_sheet.dart';
 import 'package:interview_project/pages/exam/services/ai_duration_service.dart';
-
+import 'package:interview_project/pages/exam/services/exam_factory.dart';
 import '../../constants/colors.dart';
 
-/// Exam Home Page
-/// Random exam: Firestore'dan random 10 soru çeker.
-/// Create exam: filtreli sayfaya yönlendirir.
 class ExamHomePage extends StatelessWidget {
   const ExamHomePage({super.key});
 
-  get aiDurationService => AiDurationServiceStub();
-
-  Future<Exam> _createRandomExam() async {
-    final db = FirebaseFirestore.instance;
-
-    // 1) Tüm soruları çek
-    final snapshot = await db.collection('questions').get();
-    final allQuestions = snapshot.docs
-        .map((d) => Question.fromFirestore(d.data(), d.id))
-        .toList();
-
-    if (allQuestions.isEmpty) {
-      throw Exception("No questions found in Firestore");
-    }
-
-    // 2) Rastgele sırala
-    allQuestions.shuffle(Random());
-
-    // 3) İlk 10 taneyi seç
-    final selected = allQuestions.take(10).toList();
-
-    // 4) Seçilen sorular için AI'dan süreyi tahmin et
-    //final Duration estimatedDuration = await aiDurationService.estimateFor(selected);
-    const Duration estimatedDuration = Duration(seconds: 300);
-
-    // 5) Exam nesnesi oluştur
-    return Exam(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: "Random Exam",
-      duration: estimatedDuration,
-      questions: selected,
-      createdAt: DateTime.now(),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final ai = AiDurationServiceStub();
+    final factory = ExamFactoryFirebase(ai);
+
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -66,12 +26,12 @@ class ExamHomePage extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // LEFT: Random Exam
+                // 🔹 LEFT: Random Exam
                 _TapArea(
                   title: 'RANDOM EXAM',
                   onTap: () async {
                     try {
-                      final exam = await _createRandomExam();
+                      final Exam exam = await factory.fromRandom(count: 10);
                       Get.to(() => const ExamPage(), arguments: exam);
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -80,14 +40,14 @@ class ExamHomePage extends StatelessWidget {
                     }
                   },
                 ),
-                // middle divider
+                // 🔹 Divider
                 Container(
                   width: 1,
                   margin: const EdgeInsets.symmetric(horizontal: 24),
                   height: 220,
                   color: ashGrey,
                 ),
-                // RIGHT: Create Your Exam
+                // 🔹 RIGHT: Create Exam
                 _TapArea(
                   title: 'CREATE YOUR\nEXAM',
                   onTap: () => Get.to(() => const CreateExamSheet()),
