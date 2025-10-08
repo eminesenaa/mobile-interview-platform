@@ -184,6 +184,54 @@ class OpenAIService {
     final resp = await _post(body, timeout: timeout);
     return _extractGradeResult(resp, promptType);
   }
+  static Future<List<Map<String, dynamic>>> gradeBatch({
+  required String batchId,
+  required List<Map<String, dynamic>> items, // { index, meta, user_answer, topic }
+  Duration timeout = const Duration(seconds: 60),
+}) async {
+  // 1) Batch payload
+  final payload = {
+    "batch_id": batchId,
+    "questions": items,
+    "output_schema": {
+      "type": "array",
+      "items": {
+        "index": "int",
+        "correct": "boolean",
+        "expected": "string",
+        "reason": "string",
+        "score": "number"
+      }
+    }
+  };
+
+  // 2) Prompt dosyasını oku ve payload'ı göm
+  final tmpl = await rootBundle.loadString('assets/prompts/ExamBatchEvaluation.txt');
+  final userContent = tmpl.replaceFirst('{{BATCH_PAYLOAD_JSON}}', jsonEncode(payload));
+
+  // 3) Chat çağrısı — JSON ARRAY istediğimiz için response_format kullanmıyoruz
+  final body = {
+    "model": _model,
+    "temperature": 0.2,
+    "messages": [
+      {"role": "system", "content": "Output ONLY a raw JSON array."},
+      {"role": "user", "content": userContent},
+    ],
+  };
+
+  final res = await _post(body, timeout: timeout);
+
+  // 4) Parse: content bir JSON array olmalı
+  final outer = jsonDecode(res.body);
+  final content = outer['choices']?[0]?['message']?['content'];
+  if (content == null) throw Exception("OpenAI returned empty content for batch.");
+
+  final parsed = jsonDecode(content);
+  if (parsed is! List) throw Exception("Batch result is not a JSON array.");
+
+  return (parsed as List).cast<Map<String, dynamic>>();
+}
+
 
   /// --- HTTP yardımcıları ---
   static Future<http.Response> _post(
