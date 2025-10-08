@@ -1,6 +1,8 @@
 // lib/services/ai/ai_service.dart
+import '../../models/exam.dart';
 import '../../models/question.dart';
 import 'openai_service.dart';
+//import 'gemini_service.dart';
 
 class AiService {
   /// Her tip soru için tek giriş noktası.
@@ -33,29 +35,110 @@ class AiService {
     );
   }
 
-  Future<int> findQuestionTime(Question question) async {
-    final secs = await OpenAIService.findQuestionTime(question);
-    return secs;
-  }
+  // Exam evaluation
 
-  Future<int> findExamTime(List<Question> questions) async {
-    int totalSecs = 0;
+  Future<AiExamEvaluateResult> evaluateExam({
+  required Exam exam,
+  required Map<int, dynamic> userAnswers,
+}) async {
+  // Tüm çağrılar 5’li batch değerlendirmeye yönlensin
+  return await evaluateExamBatched(exam: exam, userAnswers: userAnswers);
+}
 
-    for (int i = 0; i < questions.length; i += 5) {
-      final chunk = questions.sublist(
-        i,
-        (i + 5 > questions.length) ? questions.length : i + 5,
-      );
+Future<AiExamEvaluateResult> evaluateExamBatched({
+  required Exam exam,
+  required Map<int, dynamic> userAnswers,
+}) async {
+  final questionEvaluations = <AiExamQuestionEvaluateResult>[];
+  int correctCount = 0, falseCount = 0, emptyCount = 0;
+  double totalScore = 0.0;
 
-      final secsList = await OpenAIService.findQuestionsTimeBatch(chunk);
-      totalSecs += secsList.fold(0, (a, b) => a + b);
+  final idxChunks = _chunkIndices(exam.questions.length, 5);
+
+  for (final chunk in idxChunks) {
+    final items = <Map<String, dynamic>>[];
+    for (final i in chunk) {
+      final q = exam.questions[i];
+      final rawAns = userAnswers[i];
+      final userAns = (rawAns == null || (rawAns is String && rawAns.trim().isEmpty)) ? "" : rawAns;
+
+      items.add({
+        "index": i,
+        "meta": _toMeta(q),
+        "user_answer": _candidateFromAnswer(q, userAns),
+        "topic": _mapTopicToCategory(q.topic),
+      });
     }
 
-    return totalSecs;
+    final results = await OpenAIService.gradeBatch(
+      batchId: "exam_${exam.id ?? 'local'}_${DateTime.now().millisecondsSinceEpoch}",
+      items: items,
+    );
+
+    for (final r in results) {
+      final i = (r['index'] as num).toInt();
+      final isCorrect = (r['correct'] as bool?) ?? false;
+      final expected = (r['expected'] as String?) ?? '';
+      final reason = (r['reason'] as String?) ?? '';
+      final score = (r['score'] as num?)?.toDouble() ?? 0.0;
+
+      final answered = userAnswers[i]?.toString().trim().isNotEmpty ?? false;
+      if (!answered) {emptyCount++;}
+      else if (isCorrect) {correctCount++;}
+      else{falseCount++;}
+
+      totalScore += score;
+
+      questionEvaluations.add(
+        AiExamQuestionEvaluateResult(
+          questionIndex: i,
+          correctness: !answered ? 0 : (isCorrect ? 1 : -1),
+          correctAnswer: expected.isEmpty ? [] : [expected],
+          explanation: reason,
+          score: score,
+        ),
+      );
+    }
   }
 
+  questionEvaluations.sort((a, b) => a.questionIndex.compareTo(b.questionIndex));
+
+  final avgScore = exam.questions.isNotEmpty ? (totalScore / exam.questions.length) : 0.0;
+  final totalScore100 = (avgScore * 20).clamp(0, 100).toInt();
+
+  final topicMap = <String, List<bool>>{};
+  for (final qe in questionEvaluations) {
+    final t = (exam.questions[qe.questionIndex].topic ?? 'Unknown').toLowerCase();
+    final ok = qe.correctness == 1;
+    topicMap.putIfAbsent(t, () => []).add(ok);
+  }
+  final topicPercentage = <String, int>{};
+  topicMap.forEach((t, list) {
+    final p = (list.where((e) => e).length / list.length * 100).round();
+    topicPercentage[t] = p;
+  });
+
+  return AiExamEvaluateResult(
+    totalScore: totalScore100,
+    correctCount: correctCount,
+    falseCount: falseCount,
+    emptyCount: emptyCount,
+    questionEvaluations: questionEvaluations,
+    topicPercentage: topicPercentage,
+  );
+}
+
+List<List<int>> _chunkIndices(int len, int size) {
+  final chunks = <List<int>>[];
+  for (int i = 0; i < len; i += size) {
+    final end = (i + size < len) ? i + size : len;
+    chunks.add(List.generate(end - i, (k) => i + k));
+  }
+  return chunks;
+}
 
   // ---------- helpers ----------
+
   Map<String, String> _toMeta(Question q) {
     // Arkadaşının template’inde beklenen anahtar adları:
     // "Question Text", "Question Format", "Option A"..."Option D", "Correct Option", "Tags", "AI Prompt Helper"
@@ -69,7 +152,7 @@ class AiService {
     // MCQ opsiyonlarını yerleştir (varsa)
     final opts = q.options ?? const [];
     if (opts.isNotEmpty) {
-      if (opts.length > 0) meta["Option A"] = opts[0];
+      if (opts.isEmpty) meta["Option A"] = opts[0];
       if (opts.length > 1) meta["Option B"] = opts[1];
       if (opts.length > 2) meta["Option C"] = opts[2];
       if (opts.length > 3) meta["Option D"] = opts[3];
@@ -85,22 +168,38 @@ class AiService {
     if (ans is int && (q.options?.isNotEmpty ?? false)) {
       final idx = ans.clamp(0, q.options!.length - 1);
       final letter = String.fromCharCode(65 + idx); // 65='A'
-      return '$letter'; // "A" | "B" | ...
+      return letter; // "A" | "B" | ...
     }
     return ans?.toString() ?? '';
   }
 
   String _mapTopicToCategory(String? topic) {
-    // Arkadaşının OpenAIService._buildSystemRole ile eşleşecek şekilde
-    final t = (topic ?? '').toLowerCase();
-    if (t.contains('algorithm')) return 'algorithm';
-    if (t.contains('data')) return 'data structure';
-    if (t.contains('git')) return 'git';
-    if (t.contains('oop')) return 'oop';
-    return 'algorithm';
+  final t = (topic ?? '').toLowerCase().trim();
+  if (t.isEmpty) return 'algorithm';
+
+  if (t.contains('behavior') || t.contains('hr') || t.contains('star')) {
+    return 'behavioral hr questions';
   }
+  if (t.contains('data science')) return 'data science';
+  if (t.contains('ml') || t.contains('machine learning')) return 'ml basics';
+  if (t.contains('network')) return 'network';
+  if (t.contains('java')) return 'java';
+  if (t.contains('c/c++') || t.contains('c++') || t == 'c') return 'c/c++';
+  if (t.contains('python')) return 'python';
+  if (t.contains('sql') || t.contains('database')) return 'sql';
+  if (t.contains('git') || t.contains('version control')) return 'git';
+  if (t.contains('oop') || t.contains('object oriented')) return 'oop';
+  if (t.contains('data structure')) return 'data structure';
+  if (t.contains('algorithm')) return 'algorithm';
+
+  // eşleşme yoksa güvenli varsayılan
+  return 'algorithm';
+}
 }
 
+/// ------------ Templates ------------
+
+// Alıştırmalar için
 class AiEvaluateResult {
   final String finalAnswer;
   final String explanation;
@@ -113,3 +212,38 @@ class AiEvaluateResult {
     this.score,
   });
 }
+
+/// Examler için tek soru değerlendirme çıktısı (UI satırı)
+class AiExamQuestionEvaluateResult {
+  final int questionIndex; // Kaçıncı soru (0-based index)
+  final int correctness; // -1: yanlış, 0: boş, 1: doğru
+  final List<String> correctAnswer; // Doğru Cevap, birden fazla olabilir fill in the blanks için
+  final String explanation; // Ai açıklama
+  final double? score; // 0-5 arası
+  AiExamQuestionEvaluateResult({
+    required this.questionIndex,
+    required this.correctness,
+    required this.correctAnswer,
+    required this.explanation,
+    this.score,
+  });
+}
+
+/// Tüm sınavın değerlendirme özeti
+class AiExamEvaluateResult {
+  final int totalScore; // 100 üzerinden puan
+  final int correctCount; // Doğru Sayısı
+  final int falseCount; // Yanlış Sayısı
+  final int emptyCount; // Boş Sayısı
+  final List<AiExamQuestionEvaluateResult> questionEvaluations; //Tüm Soruların Sıralanmış Hali
+  final Map<String, int> topicPercentage; //Her topic'in doğruluk oranı
+  AiExamEvaluateResult({
+    required this.totalScore,
+    required this.correctCount,
+    required this.falseCount,
+    required this.emptyCount,
+    required this.questionEvaluations,
+    required this.topicPercentage
+  });
+}
+

@@ -9,6 +9,7 @@ import 'controllers/question_controller.dart';
 import 'controllers/auth_controller.dart';
 import 'services/ai/ai_service.dart';
 import 'package:overlay_support/overlay_support.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 Future<void> _initAi() async {
   Get.put<AiService>(AiService(), permanent: true);
@@ -18,6 +19,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await _initAi();
+  await dotenv.load(fileName: ".env");
 
   runApp(
     OverlaySupport.global(

@@ -49,8 +49,8 @@ CANDIDATE INPUT
   * correct → score = 5.0
   * incorrect → score = 0.0
 - Fill in Blank / Short Answer / Code Writing:
-  * grade cautiously with partial credit (e.g., 1.5, 3.0, 4.5).
-- `"expected"` = concise ideal answer or key points.
+  * grade cautiously with partial credit (e.g., 1.5, 3.0, 4.5). Don't expect coding in Short Answer questions.
+- `"expected"` = What would be the ideal answer for the question? For MCQ Questions, the correct answer. For coding questions, keep it short and no comments in it.
 - `"reason"` = 1–2 sentence justification, written in a professional yet approachable tone.
 - `"tips"` = [] or up to 3 short, constructive suggestions, constructive suggestions (supportive, never dismissive).
 
