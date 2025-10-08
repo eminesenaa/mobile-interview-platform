@@ -3,7 +3,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart' show rootBundle;
-import '../../models/question.dart';
+//import '../../models/question.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 enum PromptType {
   training,
@@ -86,7 +87,7 @@ class GradeResultMapper {
 
 
 class OpenAIService {
-  static const _apiKey = "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";
+  static final _apiKey = dotenv.env['OPENAI_API_KEY'];
   static const _endpoint = 'https://api.openai.com/v1/chat/completions';
   static const _model = 'gpt-4o-mini';
 

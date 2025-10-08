@@ -2,7 +2,7 @@
 import '../../models/exam.dart';
 import '../../models/question.dart';
 import 'openai_service.dart';
-import 'gemini_service.dart';
+//import 'gemini_service.dart';
 
 class AiService {
   /// Her tip soru için tek giriş noktası.
@@ -44,6 +44,7 @@ class AiService {
   // Tüm çağrılar 5’li batch değerlendirmeye yönlensin
   return await evaluateExamBatched(exam: exam, userAnswers: userAnswers);
 }
+
 Future<AiExamEvaluateResult> evaluateExamBatched({
   required Exam exam,
   required Map<int, dynamic> userAnswers,
@@ -82,9 +83,9 @@ Future<AiExamEvaluateResult> evaluateExamBatched({
       final score = (r['score'] as num?)?.toDouble() ?? 0.0;
 
       final answered = userAnswers[i]?.toString().trim().isNotEmpty ?? false;
-      if (!answered) emptyCount++;
-      else if (isCorrect) correctCount++;
-      else falseCount++;
+      if (!answered) {emptyCount++;}
+      else if (isCorrect) {correctCount++;}
+      else{falseCount++;}
 
       totalScore += score;
 
@@ -151,7 +152,7 @@ List<List<int>> _chunkIndices(int len, int size) {
     // MCQ opsiyonlarını yerleştir (varsa)
     final opts = q.options ?? const [];
     if (opts.isNotEmpty) {
-      if (opts.length > 0) meta["Option A"] = opts[0];
+      if (opts.isEmpty) meta["Option A"] = opts[0];
       if (opts.length > 1) meta["Option B"] = opts[1];
       if (opts.length > 2) meta["Option C"] = opts[2];
       if (opts.length > 3) meta["Option D"] = opts[3];
@@ -167,7 +168,7 @@ List<List<int>> _chunkIndices(int len, int size) {
     if (ans is int && (q.options?.isNotEmpty ?? false)) {
       final idx = ans.clamp(0, q.options!.length - 1);
       final letter = String.fromCharCode(65 + idx); // 65='A'
-      return '$letter'; // "A" | "B" | ...
+      return letter; // "A" | "B" | ...
     }
     return ans?.toString() ?? '';
   }
