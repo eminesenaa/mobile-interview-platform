@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:interview_project/constants/colors.dart';
 
+// Controllers
 import 'package:interview_project/pages/exam/controllers/create_exam_controller.dart';
+import 'package:interview_project/pages/exam/controllers/exam_controller.dart';
+
+// Pages
 import 'package:interview_project/pages/exam/exam_page.dart';
 
-// parçalar
+// Widgets
 import 'package:interview_project/pages/exam/widgets/section.dart';
 import 'package:interview_project/pages/exam/widgets/multi_select_field.dart';
 import 'package:interview_project/pages/exam/widgets/difficulty_picker.dart';
@@ -35,6 +39,7 @@ class CreateExamSheet extends StatelessWidget {
               buttonLabel: 'Select Topics',
             ),
           ),
+
           // Tags
           Section(
             title: 'Tags',
@@ -46,16 +51,19 @@ class CreateExamSheet extends StatelessWidget {
               buttonLabel: 'Select Tags',
             ),
           ),
+
           // Difficulty
           Section(
             title: 'Difficulty',
             child: DifficultyPicker(selected: c.difficulties),
           ),
+
           // Types
           Section(
             title: 'Question Types',
             child: TypesPicker(selected: c.types, options: c.availableTypes),
           ),
+
           // Count
           Section(
             title: 'Question Count',
@@ -63,11 +71,19 @@ class CreateExamSheet extends StatelessWidget {
           ),
 
           const SizedBox(height: 12),
+
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: primaryColor),
             onPressed: () async {
-              final exam = await c.buildExam();
-              Get.to(() => const ExamPage(), arguments: exam);
+              // 🔹 Yeni sistem: sınavı oluştur ve sayfaya yönlendir
+              final examController = await ExamController.createFromFilters();
+
+              if (examController.exam.questions.isEmpty) {
+                Get.snackbar('No Questions Found', 'Try relaxing your filters.');
+                return;
+              }
+
+              Get.to(() => ExamPage(), arguments: examController.exam);
             },
             child: const Text('Create Exam'),
           ),

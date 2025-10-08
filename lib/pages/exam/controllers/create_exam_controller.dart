@@ -1,160 +1,123 @@
+import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import 'package:interview_project/models/question.dart';
-import 'package:interview_project/pages/exam/services/ai_duration_service.dart';
-import 'package:interview_project/pages/exam/services/exam_factory.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../models/question.dart';
 
-import '../../../models/exam.dart';
-
-/// CreateExamController
-/// Kullanıcının seçtiği topic/tag/difficulty/type ve soru sayısını tutar.
-/// Havuzdan (şimdilik stub) distinct topic & tag çıkarır.
-/// ExamFactory ile sınavı oluşturur (AI süre hesaplanır).
 class CreateExamController extends GetxController {
-  // Seçimler
+  final isLoading = false.obs;
+  final error = ''.obs;
+
+  // 🔹 Kullanıcının Customize Exam ekranında yaptığı seçimler
   final topics = <String>{}.obs;
   final tags = <String>{}.obs;
   final types = <QuestionType>{}.obs;
   final difficulties = <Difficulty>{}.obs;
   final count = 10.obs;
 
-  // Ekranda listelenecek opsiyonlar (havuzdan doldurulur)
+  // 🔹 UI dropdown'ları doldurmak için mevcut değerler
   final availableTopics = <String>[].obs;
   final availableTags = <String>[].obs;
   final availableTypes = QuestionType.values.obs;
 
-  late final ExamFactory factory;
-
   @override
   void onInit() {
     super.onInit();
-    factory = ExamFactoryStub(
-      AiDurationServiceStub(),
-      getPool: _getPool,
-    );
-    _loadOptions();
+    _loadAvailableFilters();
   }
 
-  // TODO: Firestore’a bağlayınca burayı değiştir.
-  Future<List<Question>> _getPool() async {
-    return [
-      Question(
-        id: 'q1',
-        title: 'What is the time complexity of accessing an element in a HashMap?',
-        difficulty: Difficulty.medium,
-        type: QuestionType.mcq,
-        topic: 'Data Structures',
-        tags: ['hashmap', 'complexity'],
-        options: [
-          'O(1) - Constant time',
-          'O(log n) - Logarithmic time',
-          'O(n) - Linear time',
-          'O(n log n)',
-        ], description: '', status: Status.todo,
-      ),
-      Question(
-        id: 'q2',
-        title: 'Which sorting has the best average-case time complexity?',
-        difficulty: Difficulty.easy,
-        type: QuestionType.mcq,
-        topic: 'Algorithms',
-        tags: ['sorting'],
-        options: ['Bubble Sort', 'Quick Sort', 'Selection Sort', 'Insertion Sort'],
-        description: '', status: Status.todo,
-      ),
-      Question(
-        id: 'q3',
-        title: 'Pick the correct Big-O for binary search.',
-        difficulty: Difficulty.easy_medium,
-        type: QuestionType.mcq,
-        topic: 'Algorithms',
-        tags: ['binary-search'],
-        options: ['O(1)', 'O(log n)', 'O(n)', 'O(n log n)'],
-        description: '', status: Status.todo,
-      ),
-      Question(
-        id: 'q4',
-        title: 'Which DS is best for LRU cache?',
-        difficulty: Difficulty.medium,
-        type: QuestionType.mcq,
-        topic: 'Data Structures',
-        tags: ['cache', 'lru'],
-        options: ['Stack + Array', 'DLL + HashMap', 'Queue only', 'BST only'],
-        description: '', status: Status.todo,
-      ),
-    ];
-  }
+  Future<void> _loadAvailableFilters() async {
+    try {
+      final col = FirebaseFirestore.instance.collection('questions');
+      final snap = await col.limit(500).get();
 
-  Future<void> _loadOptions() async {
-    final pool = await _getPool();
-    final tSet = <String>{};
-    final tagSet = <String>{};
+      final topicSet = <String>{};
+      final tagSet = <String>{};
 
-    for (final q in pool) {
-      if (q.topic != null && q.topic!.isNotEmpty) tSet.add(q.topic!);
-      for (final tg in (q.tags ?? const <String>[])) {
-        if (tg.isNotEmpty) tagSet.add(tg);
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        if (data['topic'] != null) topicSet.add(data['topic']);
+        if (data['tags'] != null && data['tags'] is List) {
+          tagSet.addAll(List<String>.from(data['tags']));
+        }
       }
-    }
 
-    availableTopics.assignAll(tSet.toList()..sort());
-    availableTags.assignAll(tagSet.toList()..sort());
+      availableTopics.assignAll(topicSet.toList()..sort());
+      availableTags.assignAll(tagSet.toList()..sort());
+    } catch (e) {
+      error.value = 'Filter loading failed: $e';
+    }
   }
 
-  /// Sınavı oluşturup geri döner. (Navigasyon sheet tarafında yapılır)
-  Future<Exam> buildExam() async {
-    // 1) Kullanıcının seçtikleriyle dene
-    Exam exam = await factory.fromFilters(CreateExamFilters(
-      topics: {...topics},
-      tags: {...tags},
-      types: {...types},
-      // çoklu zorluk seçimi varsa factory şaşırmasın: tek seçim yoksa null geç
-      difficulty: difficulties.length == 1 ? difficulties.first : null,
-      count: count.value,
-    ));
+  /// 🔸 Ana metod — filtrelere göre Firestore’dan soru çeker
+  Future<List<Question>> generateExamQuestions() async {
+    try {
+      isLoading.value = true;
+      error.value = '';
 
-    // 2) Boşsa filtreleri sırayla gevşet
-    if (exam.questions.isEmpty) {
-      // difficulty'i kaldır
-      exam = await factory.fromFilters(CreateExamFilters(
-        topics: {...topics},
-        tags: {...tags},
-        types: {...types},
-        difficulty: null,
-        count: count.value,
-      ));
-    }
-    if (exam.questions.isEmpty) {
-      // tags'ı kaldır
-      exam = await factory.fromFilters(CreateExamFilters(
-        topics: {...topics},
-        tags: const {},
-        types: {...types},
-        difficulty: null,
-        count: count.value,
-      ));
-    }
-    if (exam.questions.isEmpty) {
-      // topics'i kaldır
-      exam = await factory.fromFilters(CreateExamFilters(
-        topics: const {},
-        tags: const {},
-        types: {...types},
-        difficulty: null,
-        count: count.value,
-      ));
-    }
-    if (exam.questions.isEmpty) {
-      // types'ı da kaldır → tamamen rastgele
-      exam = await factory.fromFilters(CreateExamFilters(
-        topics: const {},
-        tags: const {},
-        types: const {},
-        difficulty: null,
-        count: count.value,
-      ));
-    }
+      debugPrint('==================== 🔍 EXAM FILTER DEBUG ====================');
+      debugPrint('📘 Topics: ${topics.isEmpty ? "None" : topics.join(", ")}');
+      debugPrint('🏷️  Tags: ${tags.isEmpty ? "None" : tags.join(", ")}');
+      debugPrint('🧩 Types: ${types.isEmpty ? "All" : types.map((e) => e.name).join(", ")}');
+      debugPrint('⚙️  Difficulties: ${difficulties.isEmpty ? "All" : difficulties.map((e) => e.name).join(", ")}');
+      debugPrint('🎯 Requested Question Count: ${count.value}');
+      debugPrint('===============================================================');
 
-    return exam;
+      // 🔹 1️⃣ Firestore'dan tüm soruları çek
+      final pool = await _fetchAllQuestions(limit: 1000);
+      debugPrint('📚 Pulled total questions from Firestore: ${pool.length}');
+
+      // 🔹 Firestore’dan gelen tüm soruları detaylı yaz
+      // for (final q in pool) {
+      //   debugPrint(
+      //     '🔹 [POOL] ${q.id} | Topic: ${q.topic} | Type: ${q.type.name} | '
+      //     'Diff: ${q.difficulty.name} | Tags: ${q.tags.join(", ")}',
+      //   );
+      // }
+
+      // 🔹 2️⃣ Filtreye göre seç (sadece tam eşleşenler)
+      final selected = pool.where((q) {
+        final topicOk = topics.isEmpty || topics.contains(q.topic);
+        final tagOk = tags.isEmpty || q.tags.any(tags.contains);
+        final typeOk = types.isEmpty || types.contains(q.type);
+        final diffOk = difficulties.isEmpty || difficulties.contains(q.difficulty);
+        return topicOk && tagOk && typeOk && diffOk;
+      }).toList()
+        ..shuffle(Random());
+
+      // 🔹 3️⃣ İstenen sayıya kadar al (ama eksikse eksik bırak)
+      final result = selected.take(count.value).toList();
+
+      debugPrint('===============================================================');
+      debugPrint('✅ Selected ${result.length} questions after filtering:');
+      for (final q in result) {
+        debugPrint(
+          '➡️ [SELECTED] ${q.id} | Topic: ${q.topic} | Type: ${q.type.name} | '
+          'Diff: ${q.difficulty.name} | Tags: ${q.tags.join(", ")}',
+        );
+      }
+      debugPrint('===============================================================');
+
+      if (result.isEmpty) {
+        debugPrint('❌ No questions matched the selected filters!');
+      }
+
+      return result;
+    } catch (e) {
+      error.value = e.toString();
+      debugPrint('❌ Error while generating exam questions: $e');
+      return [];
+    } finally {
+      isLoading.value = false;
+    }
   }
 
+  // 🔹 Firestore'dan tüm soru listesini çek
+  Future<List<Question>> _fetchAllQuestions({int limit = 1000}) async {
+    final col = FirebaseFirestore.instance.collection('questions');
+    final snap = await col.limit(limit).get();
+    return snap.docs
+        .map((d) => Question.fromFirestore(d.data(), d.id))
+        .toList();
+  }
 }
