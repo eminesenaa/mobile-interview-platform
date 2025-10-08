@@ -41,7 +41,7 @@ BEHAVIORAL (STAR) RULES — apply only when topic == "behavioral hr questions"
 
 TECHNICAL (NON-BEHAVIORAL, NON-MCQ) RULES
 - Judge factual/procedural correctness and key concepts for the item's topic.
-- For "expected", give the correct answer (definition, steps, or canonical solution).
+- For "expected", write the ideal answer for the question (definition, steps, or canonical solution). Do NOT echo or paraphrase the candidate's answer.
 - For "reason", briefly justify why the answer is right/wrong or incomplete.
 
 STRICT OUTPUT FORMAT
@@ -51,3 +51,4 @@ STRICT OUTPUT FORMAT
 
 BATCH INPUT
 {{BATCH_PAYLOAD_JSON}}
+
