@@ -60,7 +60,7 @@ class User {
         username: username,
         email: email,
         photoUrl: photoUrl,
-        streak: Streak.empty(timezone: timezone),
+        streak: Streak.empty(), //Streak.empty(timezone: timezone)
         librarySummary: UserLibrary.empty(),
         totalXp: 0,
         level: 1,
@@ -78,9 +78,10 @@ class User {
         email: (json['email'] ?? '') as String,
         password: json['password'] as String?,
         photoUrl: json['photoUrl'] as String?,
-        streak: json['streak'] == null
+        streak: Streak.empty(),
+        /*streak: json['streak'] == null
             ? Streak.empty()
-            : Streak.fromJson(json['streak'] as Map<String, dynamic>),
+            : Streak.fromJson(json['streak'] as Map<String, dynamic>),*/
         librarySummary: json['library'] == null
             ? UserLibrary.empty()
             : UserLibrary.fromJson(json['library'] as Map<String, dynamic>),
