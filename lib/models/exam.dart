@@ -56,7 +56,7 @@ class Exam {
       duration: Duration(minutes: (data['duration'] ?? 0) as int),
       questions: (data['questions'] as List<dynamic>? ?? [])
           .map((q) =>
-              Question.fromFirestore(q as Map<String, dynamic>, q['id'] ?? ''))
+          Question.fromFirestore(q as Map<String, dynamic>, q['id'] ?? ''))
           .toList(),
       createdAt: DateTime.tryParse(data['createdAt'] ?? '') ?? DateTime.now(),
       answers: data['answers'] != null
@@ -66,7 +66,7 @@ class Exam {
           ? Map<String, dynamic>.from(data['aiFeedback'])
           : null,
       stats:
-          data['stats'] != null ? Map<String, int>.from(data['stats']) : null,
+      data['stats'] != null ? Map<String, int>.from(data['stats']) : null,
     );
   }
 

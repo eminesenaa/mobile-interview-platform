@@ -9,8 +9,10 @@ import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../models/ai_exam_result.dart';
 import '../../../models/exam.dart';
 import '../../../models/question.dart';
+import '../../../services/ai/ai_service.dart';
 import 'create_exam_controller.dart'; // ✅ düzeltildi
 import '../exam_result_page.dart';    // ✅ bir üst klasörde
 
@@ -226,8 +228,41 @@ class ExamController extends GetxController {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('exam_${exam.id}_answers');
 
+    // ✅ 1️⃣ Exam kopyasını oluştur (kullanıcı cevaplarını ekleyerek)
     final resultExam = exam.copyWith(answers: snapshotAnswers);
-    Get.offAll(() => const ExamResultPage(), arguments: resultExam);
+
+// ✅ 2️⃣ AI değerlendirmesini başlat
+    // ✅ 1️⃣ AI değerlendirmesini başlat
+    try {
+      final aiService = Get.find<AiService>();
+      final aiEval = await aiService.evaluateExam(
+        exam: resultExam,
+        userAnswers: snapshotAnswers,
+      );
+
+      // ✅ 2️⃣ AI sonucu modeline dönüştür (AiExamResult)
+      final aiResult = AiExamResult.fromEvaluateResult(aiEval);
+
+      // ✅ 3️⃣ ResultPage'e exam + aiResult gönder
+      Get.offAll(
+            () => const ExamResultPage(),
+        arguments: {
+          'exam': resultExam,
+          'aiResult': aiResult,
+        },
+      );
+    } catch (e, st) {
+      debugPrint("⚠️ AI evaluation failed: $e\n$st");
+      // AI başarısız olursa sadece exam ile yönlendir
+      Get.offAll(
+            () => const ExamResultPage(),
+        arguments: {
+          'exam': resultExam,
+        },
+      );
+    }
+
+
   }
 
   @override
