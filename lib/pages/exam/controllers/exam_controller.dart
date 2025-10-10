@@ -239,7 +239,6 @@ class ExamController extends GetxController {
         exam: resultExam,
         userAnswers: snapshotAnswers,
       );
-
       // ✅ 2️⃣ AI sonucu modeline dönüştür (AiExamResult)
       final aiResult = AiExamResult.fromEvaluateResult(aiEval);
 

@@ -50,20 +50,32 @@ class AiExamResult {
       correctCount: eval.correctCount ?? 0,
       wrongCount: eval.falseCount ?? eval.wrongCount ?? 0,
       unansweredCount: eval.emptyCount ?? eval.unansweredCount ?? 0,
-      topicPercentage: eval.topicPercentage.map(
-            (k, v) => MapEntry(k, (v is double) ? v.round() : v),
+      topicPercentage: Map<String, int>.fromEntries(
+        (eval.topicPercentage as Map).entries.map((e) {
+          final key = e.key.toString();
+          final value = e.value;
+          final intValue = (value is num)
+              ? value.round()
+              : int.tryParse(value.toString()) ?? 0;
+          return MapEntry(key, intValue);
+        }),
       ),
-      questionEvaluations: (eval.questionEvaluations ?? [])
-          .map<AiExamQuestionEvaluation>(
-            (e) => AiExamQuestionEvaluation(
-          index: e.index,
-          verdict: e.verdict,
-          feedback: e.feedback,
-        ),
-      )
-          .toList(),
+      questionEvaluations: List.generate(
+        (eval.questionEvaluations ?? []).length,
+            (i) {
+          final e = eval.questionEvaluations[i];
+          return AiExamQuestionEvaluation(
+            index: e.questionIndex,
+            verdict: e.correctness == 1
+                ? 'correct'
+                : (e.correctness == -1 ? 'wrong' : 'unanswered'),
+            feedback: e.explanation,
+          );
+        },
+      ),
     );
   }
+
 
 
 
