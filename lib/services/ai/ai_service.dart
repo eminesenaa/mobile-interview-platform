@@ -42,6 +42,7 @@ class AiService {
     required Map<String, dynamic> userAnswers,
 }) async {
   // Tüm çağrılar 5’li batch değerlendirmeye yönlensin
+    //print(userAnswers);
   return await evaluateExamBatched(exam: exam, userAnswers: userAnswers);
 }
 
@@ -59,7 +60,8 @@ Future<AiExamEvaluateResult> evaluateExamBatched({
     final items = <Map<String, dynamic>>[];
     for (final i in chunk) {
       final q = exam.questions[i];
-      final rawAns = userAnswers[i];
+      final questionKey = q.id;
+      final rawAns = userAnswers[questionKey];
       final userAns = (rawAns == null || (rawAns is String && rawAns.trim().isEmpty)) ? "" : rawAns;
 
       items.add({
@@ -81,8 +83,9 @@ Future<AiExamEvaluateResult> evaluateExamBatched({
       final expected = (r['expected'] as String?) ?? '';
       final reason = (r['reason'] as String?) ?? '';
       final score = (r['score'] as num?)?.toDouble() ?? 0.0;
-
-      final answered = userAnswers[i]?.toString().trim().isNotEmpty ?? false;
+      final q = exam.questions[i];
+      final questionKey = q.id;
+      final answered = userAnswers[questionKey]?.toString().trim().isNotEmpty ?? false;
       if (!answered) {emptyCount++;}
       else if (isCorrect) {correctCount++;}
       else{falseCount++;}
@@ -118,7 +121,7 @@ Future<AiExamEvaluateResult> evaluateExamBatched({
     topicPercentage[t] = p;
   });
 
-  return AiExamEvaluateResult(
+  AiExamEvaluateResult result = AiExamEvaluateResult(
     totalScore: totalScore100,
     correctCount: correctCount,
     falseCount: falseCount,
@@ -126,6 +129,22 @@ Future<AiExamEvaluateResult> evaluateExamBatched({
     questionEvaluations: questionEvaluations,
     topicPercentage: topicPercentage,
   );
+/*
+  print(result.totalScore);
+  print(result.correctCount);
+  print(result.falseCount);
+  print(result.emptyCount);
+  print(result.questionEvaluations[0].explanation);
+  print(result.questionEvaluations[1].explanation);
+  print(result.questionEvaluations[2].explanation);
+  print(result.questionEvaluations[3].explanation);
+  print(result.questionEvaluations[4].explanation);
+  print(result.questionEvaluations[5].explanation);
+  print(result.questionEvaluations[6].explanation);
+  print(result.topicPercentage);
+  */
+
+  return result;
 }
 
 List<List<int>> _chunkIndices(int len, int size) {
