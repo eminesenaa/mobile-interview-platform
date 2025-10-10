@@ -27,8 +27,7 @@ class ExamResultPage extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Get.offAll(
-                () => const MainView(initialIndex: 2));
+            Get.offAll(() => const MainView(initialIndex: 2));
           },
         ),
       ),
@@ -44,57 +43,54 @@ class ExamResultPage extends StatelessWidget {
             const SizedBox(height: 24),
 
             // Puan
-            ScoreCircle(score: c.score, total: 100),
+            ScoreCircle(score: c.score.value, total: 100),
 
             const SizedBox(height: 24),
 
             // Doğru/Yanlış/Boş kutuları
             AnswerSummaryRow(
-              correct: c.correct,
-              wrong: c.wrong,
-              unanswered: c.unanswered,
+              correct: c.correct.value,
+              wrong: c.wrong.value,
+              unanswered: c.unanswered.value,
             ),
 
             const SizedBox(height: 24),
 
             // Topic bazlı grafikler
-            const TopicCharts(
-              topicPercents: {
-                "Java": 0.8,
-                "Data Structures": 0.65,
-                "Algorithms": 0.5,
-                "Machine Learning": 0.26,
-              },
-            ),
+            const TopicCharts(),
 
             const SizedBox(height: 24),
 
             // XP ödülü
-            XpRewardCard(xp: c.xp),
+            // XpRewardCard(xp: c.xp),
+            // XP özelliği kaldırıldı; sabit placeholder (isteğe bağlı). backendde gelicek
+            const XpRewardCard(xp: 0),
 
             const SizedBox(height: 24),
 
             // Butonlar
             ResultActions(
               onReview: () {
-                final reviewExam = c.exam.copyWith(
-                  answers: c.latestAnswers,
-                  stats: {
-                    'correct': c.correct,
-                    'wrong': c.wrong,
-                    'unanswered': c.unanswered,
-                  },
-                  aiFeedback: const {}, // ileride dolduracağız
-                );
-                Get.to(() => const ExamReviewPage(), arguments: reviewExam);
+                final currentExam = c.exam;
+                if (currentExam != null) {
+                  final reviewExam = currentExam.copyWith(
+                    stats: {
+                      'correct': c.correct.value,
+                      'wrong': c.wrong.value,
+                      'unanswered': c.unanswered.value,
+                    },
+                  );
+                  Get.to(() => const ExamReviewPage(), arguments: reviewExam);
+                }
               },
+
               onSave: () {
                 // Exam kaydetme işlemi
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text("Exam saved to library!")),
                 );
               },
-              examId: c.exam.id, // ✅ eklendi — required parametreyi karşılıyor
+              examId: c.exam?.id ?? 'unknown', // ✅ null-safe erişim
             ),
           ],
         ),

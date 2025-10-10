@@ -39,7 +39,7 @@ class AiService {
 
   Future<AiExamEvaluateResult> evaluateExam({
   required Exam exam,
-  required Map<int, dynamic> userAnswers,
+    required Map<String, dynamic> userAnswers,
 }) async {
   // Tüm çağrılar 5’li batch değerlendirmeye yönlensin
   return await evaluateExamBatched(exam: exam, userAnswers: userAnswers);
@@ -47,7 +47,7 @@ class AiService {
 
 Future<AiExamEvaluateResult> evaluateExamBatched({
   required Exam exam,
-  required Map<int, dynamic> userAnswers,
+  required Map<String, dynamic> userAnswers,
 }) async {
   final questionEvaluations = <AiExamQuestionEvaluateResult>[];
   int correctCount = 0, falseCount = 0, emptyCount = 0;
