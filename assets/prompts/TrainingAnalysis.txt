@@ -49,7 +49,13 @@ CANDIDATE INPUT
   * correct → score = 5.0
   * incorrect → score = 0.0
 - Fill in Blank / Short Answer / Code Writing:
-  * grade cautiously with partial credit (e.g., 1.5, 3.0, 4.5). Don't expect coding in Short Answer questions.
+  * Grade cautiously with partial credit (e.g., 1.5, 3.0, 4.5).
+  * Don't expect coding in Short Answer questions.
+  * Don't give any points for 1-2 word answers for Short Answer questions.
+  * Don't give any points for wrong programming language / very short answers for Code Writing questions.
+  * Don't expect too much comments in answers for Code Writing questions. But expect some helpful comments and good naming conventions.
+  * If you think the answer couldn't be improved, ie. equal to the expected answer, don't deduce any points.
+
 - `"expected"` = What would be the ideal answer for the question? For MCQ Questions, the correct answer. For coding questions, keep it short and no comments in it.
 - `"reason"` = 1–2 sentence justification, written in a professional yet approachable tone.
 - `"tips"` = [] or up to 3 short, constructive suggestions, constructive suggestions (supportive, never dismissive).
