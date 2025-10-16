@@ -60,7 +60,7 @@ CANDIDATE INPUT
 - Check **semantic similarity** to the `Correct Option`.
 - If `Correct Option` is absent, infer from `Helper` or `Tags`.
 - Award **partial credit** (e.g., 1.5, 3.0, 4.5) for partially correct reasoning.
-- Do not award points for 1–2 word vague answers.
+- Do not award points for 1–2 word vague answers for Short Answer questions.
 - Evaluate understanding, clarity, and precision — not verbosity.
 - Feedback (`reason`/`tips`) should be concise and constructive.
 
