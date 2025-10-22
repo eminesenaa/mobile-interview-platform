@@ -24,6 +24,30 @@ class ReviewFillBlankView extends StatelessWidget {
 
     // 🔹 Kullanıcının cevaplarını al
     final userAnswers = c.answers[question.id];
+    final savedAnswer =
+        c.userAnswerTextFor(question.id); // tek blank için fallback
+
+// ✅ Doğruluk durumunu controller’dan al
+    final status = c.fillBlankStatusFor(question.id);
+
+// ✅ Duruma göre renkleri belirle
+    Color border;
+    Color? fill;
+    switch (status) {
+      case ReviewStatus.correct:
+        border = Colors.green;
+        fill = Colors.green.withValues(alpha: 0.10);
+        break;
+      case ReviewStatus.wrong:
+        border = Colors.red;
+        fill = Colors.red.withValues(alpha: 0.10);
+        break;
+      case ReviewStatus.unanswered:
+      default:
+        border = Colors.grey;
+        fill = Colors.grey.withValues(alpha: 0.12);
+        break;
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -32,8 +56,8 @@ class ReviewFillBlankView extends StatelessWidget {
 
         // 🔹 Her boşluk için read-only TextField oluştur
         ...List.generate(blanks.length, (i) {
+          // 🔹 Her blank için kullanıcı cevabını çıkar
           String answerText = '';
-
           if (userAnswers is Map) {
             final byInt = userAnswers[i];
             final byStr = userAnswers[i.toString()];
@@ -42,7 +66,14 @@ class ReviewFillBlankView extends StatelessWidget {
             } else if (byStr is String) {
               answerText = byStr;
             }
+          } else if (userAnswers is List) {
+            final v = (i < userAnswers.length) ? userAnswers[i] : null;
+            if (v is String) answerText = v;
+          } else if (blanks.length == 1) {
+            // Tek blank senaryosu → savedAnswer fallback
+            answerText = savedAnswer;
           }
+
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
@@ -50,10 +81,24 @@ class ReviewFillBlankView extends StatelessWidget {
               controller: TextEditingController(text: answerText),
               readOnly: true,
               decoration: InputDecoration(
-                border: const OutlineInputBorder(),
-                hintText: 'Blank ${i + 1}: No answer provided.',
-                fillColor: Colors.grey.shade100,
                 filled: true,
+                fillColor: fill,
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: border, width: 1.4),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: border, width: 1.6),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: border, width: 1.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+
+                hintText: 'Blank ${i + 1}: No answer provided.',
+                // fillColor: Colors.grey.shade100,
+                // filled: true,
               ),
             ),
           );
@@ -62,7 +107,12 @@ class ReviewFillBlankView extends StatelessWidget {
         const SizedBox(height: 8),
         Center(
           child: TextButton(
-            onPressed: () {},
+            onPressed: () {
+              c.showAiExplanation(
+                questionId: question.id,
+                title: 'Explanation: ${question.title}',
+              );
+            },
             child: const Text(
               "See AI Explanation",
               style: TextStyle(

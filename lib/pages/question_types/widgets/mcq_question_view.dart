@@ -4,7 +4,7 @@ import 'package:get/get.dart';
 
 import '../../../constants/constants.dart';
 import '../../../models/question.dart';
-import '../../../utils/ai_feedback_widget.dart';
+import '../../../widgets/ai_feedback_widget.dart';
 import '../../../utils/markdown_heuristics.dart';
 import '../controllers/mcq_controller.dart';
 

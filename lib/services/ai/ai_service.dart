@@ -38,97 +38,109 @@ class AiService {
   // Exam evaluation
 
   Future<AiExamEvaluateResult> evaluateExam({
-  required Exam exam,
+    required Exam exam,
     required Map<String, dynamic> userAnswers,
-}) async {
-  // Tüm çağrılar 5’li batch değerlendirmeye yönlensin
+  }) async {
+    // Tüm çağrılar 5’li batch değerlendirmeye yönlensin
     //print(userAnswers);
-  return await evaluateExamBatched(exam: exam, userAnswers: userAnswers);
-}
+    return await evaluateExamBatched(exam: exam, userAnswers: userAnswers);
+  }
 
-Future<AiExamEvaluateResult> evaluateExamBatched({
-  required Exam exam,
-  required Map<String, dynamic> userAnswers,
-}) async {
-  final questionEvaluations = <AiExamQuestionEvaluateResult>[];
-  int correctCount = 0, falseCount = 0, emptyCount = 0;
-  double totalScore = 0.0;
+  Future<AiExamEvaluateResult> evaluateExamBatched({
+    required Exam exam,
+    required Map<String, dynamic> userAnswers,
+  }) async {
+    final questionEvaluations = <AiExamQuestionEvaluateResult>[];
+    int correctCount = 0, falseCount = 0, emptyCount = 0;
+    double totalScore = 0.0;
 
-  final idxChunks = _chunkIndices(exam.questions.length, 5);
+    final idxChunks = _chunkIndices(exam.questions.length, 5);
 
-  for (final chunk in idxChunks) {
-    final items = <Map<String, dynamic>>[];
-    for (final i in chunk) {
-      final q = exam.questions[i];
-      final questionKey = q.id;
-      final rawAns = userAnswers[questionKey];
-      final userAns = (rawAns == null || (rawAns is String && rawAns.trim().isEmpty)) ? "" : rawAns;
+    for (final chunk in idxChunks) {
+      final items = <Map<String, dynamic>>[];
+      for (final i in chunk) {
+        final q = exam.questions[i];
+        final questionKey = q.id;
+        final rawAns = userAnswers[questionKey];
+        final userAns =
+            (rawAns == null || (rawAns is String && rawAns.trim().isEmpty))
+                ? ""
+                : rawAns;
 
-      items.add({
-        "index": i,
-        "meta": _toMeta(q),
-        "user_answer": _candidateFromAnswer(q, userAns),
-        "topic": _mapTopicToCategory(q.topic),
-      });
-    }
+        items.add({
+          "index": i,
+          "meta": _toMeta(q),
+          "user_answer": _candidateFromAnswer(q, userAns),
+          "topic": _mapTopicToCategory(q.topic),
+        });
+      }
 
-    final results = await OpenAIService.gradeBatch(
-      batchId: "exam_${exam.id ?? 'local'}_${DateTime.now().millisecondsSinceEpoch}",
-      items: items,
-    );
-
-    for (final r in results) {
-      final i = (r['index'] as num).toInt();
-      final isCorrect = (r['correct'] as bool?) ?? false;
-      final expected = (r['expected'] as String?) ?? '';
-      final reason = (r['reason'] as String?) ?? '';
-      final score = (r['score'] as num?)?.toDouble() ?? 0.0;
-      final q = exam.questions[i];
-      final questionKey = q.id;
-      final answered = userAnswers[questionKey]?.toString().trim().isNotEmpty ?? false;
-      if (!answered) {emptyCount++;}
-      else if (isCorrect) {correctCount++;}
-      else{falseCount++;}
-
-      totalScore += score;
-
-      questionEvaluations.add(
-        AiExamQuestionEvaluateResult(
-          questionIndex: i,
-          correctness: !answered ? 0 : (isCorrect ? 1 : -1),
-          correctAnswer: expected.isEmpty ? [] : [expected],
-          explanation: reason,
-          score: score,
-        ),
+      final results = await OpenAIService.gradeBatch(
+        batchId:
+            "exam_${exam.id ?? 'local'}_${DateTime.now().millisecondsSinceEpoch}",
+        items: items,
       );
+
+      for (final r in results) {
+        final i = (r['index'] as num).toInt();
+        final isCorrect = (r['correct'] as bool?) ?? false;
+        final expected = (r['expected'] as String?) ?? '';
+        final reason = (r['reason'] as String?) ?? '';
+        final score = (r['score'] as num?)?.toDouble() ?? 0.0;
+        final q = exam.questions[i];
+        final questionKey = q.id;
+        final answered =
+            userAnswers[questionKey]?.toString().trim().isNotEmpty ?? false;
+        if (!answered) {
+          emptyCount++;
+        } else if (isCorrect) {
+          correctCount++;
+        } else {
+          falseCount++;
+        }
+
+        totalScore += score;
+
+        questionEvaluations.add(
+          AiExamQuestionEvaluateResult(
+            questionIndex: i,
+            correctness: !answered ? 0 : (isCorrect ? 1 : -1),
+            correctAnswer: expected.isEmpty ? [] : [expected],
+            explanation: reason,
+            score: score,
+          ),
+        );
+      }
     }
-  }
 
-  questionEvaluations.sort((a, b) => a.questionIndex.compareTo(b.questionIndex));
+    questionEvaluations
+        .sort((a, b) => a.questionIndex.compareTo(b.questionIndex));
 
-  final avgScore = exam.questions.isNotEmpty ? (totalScore / exam.questions.length) : 0.0;
-  final totalScore100 = (avgScore * 20).clamp(0, 100).toInt();
+    final avgScore =
+        exam.questions.isNotEmpty ? (totalScore / exam.questions.length) : 0.0;
+    final totalScore100 = (avgScore * 20).clamp(0, 100).toInt();
 
-  final topicMap = <String, List<bool>>{};
-  for (final qe in questionEvaluations) {
-    final t = (exam.questions[qe.questionIndex].topic ?? 'Unknown').toLowerCase();
-    final ok = qe.correctness == 1;
-    topicMap.putIfAbsent(t, () => []).add(ok);
-  }
-  final topicPercentage = <String, int>{};
-  topicMap.forEach((t, list) {
-    final p = (list.where((e) => e).length / list.length * 100).round();
-    topicPercentage[t] = p;
-  });
+    final topicMap = <String, List<bool>>{};
+    for (final qe in questionEvaluations) {
+      final t =
+          (exam.questions[qe.questionIndex].topic ?? 'Unknown').toLowerCase();
+      final ok = qe.correctness == 1;
+      topicMap.putIfAbsent(t, () => []).add(ok);
+    }
+    final topicPercentage = <String, int>{};
+    topicMap.forEach((t, list) {
+      final p = (list.where((e) => e).length / list.length * 100).round();
+      topicPercentage[t] = p;
+    });
 
-  AiExamEvaluateResult result = AiExamEvaluateResult(
-    totalScore: totalScore100,
-    correctCount: correctCount,
-    falseCount: falseCount,
-    emptyCount: emptyCount,
-    questionEvaluations: questionEvaluations,
-    topicPercentage: topicPercentage,
-  );
+    AiExamEvaluateResult result = AiExamEvaluateResult(
+      totalScore: totalScore100,
+      correctCount: correctCount,
+      falseCount: falseCount,
+      emptyCount: emptyCount,
+      questionEvaluations: questionEvaluations,
+      topicPercentage: topicPercentage,
+    );
 /*
   print(result.totalScore);
   print(result.correctCount);
@@ -144,17 +156,17 @@ Future<AiExamEvaluateResult> evaluateExamBatched({
   print(result.topicPercentage);
   */
 
-  return result;
-}
-
-List<List<int>> _chunkIndices(int len, int size) {
-  final chunks = <List<int>>[];
-  for (int i = 0; i < len; i += size) {
-    final end = (i + size < len) ? i + size : len;
-    chunks.add(List.generate(end - i, (k) => i + k));
+    return result;
   }
-  return chunks;
-}
+
+  List<List<int>> _chunkIndices(int len, int size) {
+    final chunks = <List<int>>[];
+    for (int i = 0; i < len; i += size) {
+      final end = (i + size < len) ? i + size : len;
+      chunks.add(List.generate(end - i, (k) => i + k));
+    }
+    return chunks;
+  }
 
   // ---------- helpers ----------
 
@@ -193,27 +205,27 @@ List<List<int>> _chunkIndices(int len, int size) {
   }
 
   String _mapTopicToCategory(String? topic) {
-  final t = (topic ?? '').toLowerCase().trim();
-  if (t.isEmpty) return 'algorithm';
+    final t = (topic ?? '').toLowerCase().trim();
+    if (t.isEmpty) return 'algorithm';
 
-  if (t.contains('behavior') || t.contains('hr') || t.contains('star')) {
-    return 'behavioral hr questions';
+    if (t.contains('behavior') || t.contains('hr') || t.contains('star')) {
+      return 'behavioral hr questions';
+    }
+    if (t.contains('data science')) return 'data science';
+    if (t.contains('ml') || t.contains('machine learning')) return 'ml basics';
+    if (t.contains('network')) return 'network';
+    if (t.contains('java')) return 'java';
+    if (t.contains('c/c++') || t.contains('c++') || t == 'c') return 'c/c++';
+    if (t.contains('python')) return 'python';
+    if (t.contains('sql') || t.contains('database')) return 'sql';
+    if (t.contains('git') || t.contains('version control')) return 'git';
+    if (t.contains('oop') || t.contains('object oriented')) return 'oop';
+    if (t.contains('data structure')) return 'data structure';
+    if (t.contains('algorithm')) return 'algorithm';
+
+    // eşleşme yoksa güvenli varsayılan
+    return 'algorithm';
   }
-  if (t.contains('data science')) return 'data science';
-  if (t.contains('ml') || t.contains('machine learning')) return 'ml basics';
-  if (t.contains('network')) return 'network';
-  if (t.contains('java')) return 'java';
-  if (t.contains('c/c++') || t.contains('c++') || t == 'c') return 'c/c++';
-  if (t.contains('python')) return 'python';
-  if (t.contains('sql') || t.contains('database')) return 'sql';
-  if (t.contains('git') || t.contains('version control')) return 'git';
-  if (t.contains('oop') || t.contains('object oriented')) return 'oop';
-  if (t.contains('data structure')) return 'data structure';
-  if (t.contains('algorithm')) return 'algorithm';
-
-  // eşleşme yoksa güvenli varsayılan
-  return 'algorithm';
-}
 }
 
 /// ------------ Templates ------------
@@ -222,7 +234,7 @@ List<List<int>> _chunkIndices(int len, int size) {
 class AiEvaluateResult {
   final String finalAnswer;
   final String explanation;
-  final double? score;   // 0...5
+  final double? score; // 0...5
   final bool correct; // arkadaşın servisinden geliyor
   AiEvaluateResult({
     required this.finalAnswer,
@@ -236,7 +248,8 @@ class AiEvaluateResult {
 class AiExamQuestionEvaluateResult {
   final int questionIndex; // Kaçıncı soru (0-based index)
   final int correctness; // -1: yanlış, 0: boş, 1: doğru
-  final List<String> correctAnswer; // Doğru Cevap, birden fazla olabilir fill in the blanks için
+  final List<String>
+      correctAnswer; // Doğru Cevap, birden fazla olabilir fill in the blanks için
   final String explanation; // Ai açıklama
   final double? score; // 0-5 arası
   AiExamQuestionEvaluateResult({
@@ -254,15 +267,14 @@ class AiExamEvaluateResult {
   final int correctCount; // Doğru Sayısı
   final int falseCount; // Yanlış Sayısı
   final int emptyCount; // Boş Sayısı
-  final List<AiExamQuestionEvaluateResult> questionEvaluations; //Tüm Soruların Sıralanmış Hali
+  final List<AiExamQuestionEvaluateResult>
+      questionEvaluations; //Tüm Soruların Sıralanmış Hali
   final Map<String, int> topicPercentage; //Her topic'in doğruluk oranı
-  AiExamEvaluateResult({
-    required this.totalScore,
-    required this.correctCount,
-    required this.falseCount,
-    required this.emptyCount,
-    required this.questionEvaluations,
-    required this.topicPercentage
-  });
+  AiExamEvaluateResult(
+      {required this.totalScore,
+      required this.correctCount,
+      required this.falseCount,
+      required this.emptyCount,
+      required this.questionEvaluations,
+      required this.topicPercentage});
 }
-

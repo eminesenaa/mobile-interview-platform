@@ -15,71 +15,94 @@ class ReviewMcqView extends StatelessWidget {
   });
 
   @override
+  @override
   Widget build(BuildContext context) {
-    final c = Get.find<ExamReviewController>(tag: examId);
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
-    // Seçenekleri güvenli string listesine çevir
-    final options = (question.options ?? []).map((e) => e.toString()).toList();
-
-    // Cevabı farklı olası formatlardan çöz (String / int index / Map)
-    final dynamic raw = c.answers[question.id];
-    String? selectedOption;
-
-    if (raw is String && options.contains(raw)) {
-      selectedOption = raw;
-    } else if (raw is int && raw >= 0 && raw < options.length) {
-      selectedOption = options[raw];
-    } else if (raw is Map) {
-      final dyn =
-          raw['selectedIndex'] ?? raw['index'] ?? raw['answer'] ?? raw['value'];
-      if (dyn is int && dyn >= 0 && dyn < options.length) {
-        selectedOption = options[dyn];
-      } else if (dyn is String && options.contains(dyn)) {
-        selectedOption = dyn;
-      }
+    // review controller'ı al (tag'li kullanım varsa önce onu dene)
+    ExamReviewController c;
+    try {
+      c = Get.find<ExamReviewController>(tag: examId);
+    } catch (_) {
+      c = Get.find<ExamReviewController>();
     }
 
-    if (options.isEmpty) {
-      return const Text(
-        "⚠ No options found for this question.",
-        style: TextStyle(color: Colors.grey),
+    final String? selected = c.answers[question.id] as String?;
+    // Doğru cevabı öncelikle Question’dan oku; yoksa controller helper’ına bırak
+    final String? correct =
+        question.correctAnswer ?? c.correctAnswerFor(question.id);
+
+    Widget buildOption(String label) {
+      // Durumu belirle
+      final bool isSelected = selected == label;
+      final bool isCorrect = correct == label;
+      final isUnanswered = selected == null || selected.isEmpty;
+
+      // Görsel durumları hesapla
+      Color border;
+      Color? fill;
+      IconData? leadingIcon;
+      Color? leadingColor;
+      TextStyle textStyle = theme.textTheme.bodyMedium!;
+
+      if (isSelected && isCorrect) {
+        // ✅ Kullanıcı doğru cevabı seçti
+        border = Colors.green;
+        fill = Colors.green.withValues(alpha: 0.10);
+      } else if (isSelected && !isCorrect) {
+        // ❌ Kullanıcı yanlış seçti
+        border = Colors.red;
+        fill = Colors.red.withValues(alpha: 0.10);
+      } else if (!isSelected && isCorrect && isUnanswered) {
+        // ℹ️ Kullanıcı hiç seçmedi → doğru cevabı bilgi rengiyle göster
+        border = Colors.blueAccent;
+        fill = Colors.blueAccent.withValues(alpha: 0.10);
+      } else if (!isSelected && isCorrect && !isUnanswered) {
+        // ✅ Yanlış seçti ama bu doğru olan (doğruyu vurgula)
+        border = Colors.green;
+        fill = Colors.green.withValues(alpha: 0.08);
+      } else {
+        // 🔘 Normal nötr görünüm
+        border = Colors.grey.shade400;
+        fill = Colors.grey.withValues(alpha: 0.05);
+      }
+
+
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: fill,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: border, width: 1.4),
+        ),
+        // read-only: hiçbir tepki yok
+        child: Row(
+          children: [
+            Icon(leadingIcon, color: leadingColor),
+            const SizedBox(width: 10),
+            Expanded(child: Text(label, style: textStyle)),
+          ],
+        ),
       );
     }
+
+    final options = question.options ?? const <String>[];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 8),
-        ...options.map((opt) {
-          final bool isSelected = selectedOption == opt;
-          return Container(
-            margin: const EdgeInsets.symmetric(vertical: 4),
-            decoration: BoxDecoration(
-              color: isSelected ? primaryColor.withOpacity(0.1) : Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isSelected ? primaryColor : Colors.grey.shade300,
-                width: 1.5,
-              ),
-            ),
-            child: ListTile(
-              title: Text(opt),
-              leading: Radio<String>(
-                value: opt,
-                groupValue: selectedOption,
-                onChanged: null, // 🔒 Read-only mode
-                fillColor: MaterialStateProperty.resolveWith(
-                  (states) => isSelected ? primaryColor : Colors.grey,
-                ),
-              ),
-            ),
-          );
-        }).toList(),
+        ...options.map(buildOption),
         const SizedBox(height: 12),
         Center(
           child: TextButton(
             onPressed: () {
-              // 🔹 Gelecekte: AI explanation modal
+              c.showAiExplanation(
+                questionId: question.id,
+                title: 'Explanation: ${question.title}',
+              );
             },
             child: const Text(
               "See AI Explanation",
