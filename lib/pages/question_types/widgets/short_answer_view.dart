@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../models/question.dart';
-import '../../../utils/ai_feedback_widget.dart';
+import '../../../widgets/ai_feedback_widget.dart';
 import '../../../utils/markdown_heuristics.dart';
 import '../controllers/short_answer_controller.dart';
 import '../../../constants/constants.dart'; // AppTextStyles vb. varsa
