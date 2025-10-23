@@ -7,7 +7,9 @@ import 'package:interview_project/pages/exam/question_widgets/exam_coding_editor
 import 'package:interview_project/pages/exam/question_widgets/exam_coding_view.dart';
 import 'package:interview_project/pages/exam/question_widgets/exam_fill_blank_view.dart';
 import 'package:interview_project/pages/exam/question_widgets/exam_short_answer_view.dart';
+import 'package:interview_project/pages/exam/result_loading_page.dart';
 import 'package:interview_project/pages/exam/widgets/action_bar.dart';
+import 'package:interview_project/pages/exam/widgets/confirm_finish_dialog.dart';
 import 'package:interview_project/pages/exam/widgets/exam_navigator_sheet.dart';
 import 'package:interview_project/pages/exam/widgets/progress_bar.dart';
 import 'package:interview_project/pages/exam/widgets/timer_badge.dart';
@@ -170,7 +172,23 @@ class ExamPage extends StatelessWidget {
             ActionBar(
               onPrev: c.prev,
               onNext: c.next,
-              onSubmit: () => c.submit(),
+              // ✅ Submit → (pause timer) → Confirm → Yes: Loading, No: resume
+              onSubmit: () async {
+                c.pauseTimer(); // ⏸️ diyalog açıkken süre dursun
+                final ok = await ConfirmFinishDialog.show();
+                if (ok) {
+                  // Loading screen: controller.submit(...) bu sayfa içinde çalışacak
+                  Get.to(() => ResultLoadingPage(
+                        controllerTag: c.exam.id,
+                        autoSubmit: true,
+                      ));
+                } else {
+                  // Kullanıcı vazgeçti → süre kaldığı yerden devam etsin
+                  c.resumeTimer(); // ▶️
+                }
+                // ok == false → dialog kapanır, ExamPage’de kalınır (timer akmaya devam)
+              },
+
               onNavigator: () {
                 showGeneralDialog(
                   context: context,

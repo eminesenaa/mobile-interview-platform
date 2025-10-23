@@ -27,27 +27,12 @@ class ReviewFillBlankView extends StatelessWidget {
     final savedAnswer =
         c.userAnswerTextFor(question.id); // tek blank için fallback
 
-// ✅ Doğruluk durumunu controller’dan al
+    // ✅ Doğruluk durumunu controller’dan al
     final status = c.fillBlankStatusFor(question.id);
 
-// ✅ Duruma göre renkleri belirle
-    Color border;
-    Color? fill;
-    switch (status) {
-      case ReviewStatus.correct:
-        border = Colors.green;
-        fill = Colors.green.withValues(alpha: 0.10);
-        break;
-      case ReviewStatus.wrong:
-        border = Colors.red;
-        fill = Colors.red.withValues(alpha: 0.10);
-        break;
-      case ReviewStatus.unanswered:
-      default:
-        border = Colors.grey;
-        fill = Colors.grey.withValues(alpha: 0.12);
-        break;
-    }
+    // ✅ Karşılaştırma için normalize helper
+    String norm(String? s) =>
+        (s ?? '').trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,6 +59,22 @@ class ReviewFillBlankView extends StatelessWidget {
             answerText = savedAnswer;
           }
 
+          // ✅ Bu blank için durum: unanswered / correct / wrong
+          final bool isUnanswered = answerText.trim().isEmpty;
+          bool isCorrect = false;
+          if (!isUnanswered && i < (question.blanks?.length ?? 0)) {
+            isCorrect = norm(answerText) == norm(question.blanks![i]);
+          }
+          final bool isWrong = !isUnanswered && !isCorrect;
+
+// ✅ Renkleri duruma göre seç
+          final Color border =
+              isCorrect ? Colors.green : (isWrong ? Colors.red : Colors.grey);
+          final Color? fill = isCorrect
+              ? Colors.green.withValues(alpha: 0.10)
+              : (isWrong
+                  ? Colors.red.withValues(alpha: 0.10)
+                  : Colors.grey.withValues(alpha: 0.12));
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),

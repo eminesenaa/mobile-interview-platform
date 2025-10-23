@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
+import '../../../constants/colors.dart';
 import '../controllers/exam_result_controller.dart';
 
 class TopicCharts extends StatelessWidget {
@@ -25,6 +26,18 @@ class TopicCharts extends StatelessWidget {
       );
     }
 
+    /// Label düzenleyici: "soft_skills" → "Soft Skills"
+    String _formatLabel(String raw) {
+      final cleaned = raw.replaceAll(RegExp(r'[_\-]+'), ' ').trim();
+      if (cleaned.isEmpty) return '';
+      return cleaned
+          .split(RegExp(r'\s+'))
+          .map((w) => w.isEmpty
+              ? w
+              : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}')
+          .join(' ');
+    }
+
     return SizedBox(
       height: 160,
       child: ListView.separated(
@@ -47,14 +60,17 @@ class TopicCharts extends StatelessWidget {
                   "${(value * 100).toInt()}%",
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                progressColor: scheme.primary,
-                backgroundColor: scheme.primary.withOpacity(0.2),
+                progressColor: primaryColor,
+                backgroundColor: primaryColor.withOpacity(0.2),
                 circularStrokeCap: CircularStrokeCap.round,
               ),
               const SizedBox(height: 8),
               Text(
-                label,
-                style: Theme.of(context).textTheme.bodyMedium,
+                _formatLabel(label),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
               ),
             ],
           );
