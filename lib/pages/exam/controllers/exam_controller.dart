@@ -14,7 +14,7 @@ import '../../../models/exam.dart';
 import '../../../models/question.dart';
 import '../../../services/ai/ai_service.dart';
 import 'create_exam_controller.dart'; // ✅ düzeltildi
-import '../exam_result_page.dart';    // ✅ bir üst klasörde
+import '../exam_result_page.dart'; // ✅ bir üst klasörde
 
 class ExamController extends GetxController {
   final Exam exam;
@@ -25,13 +25,18 @@ class ExamController extends GetxController {
 
   late Rx<ExamStateModel> state;
   Timer? _ticker;
+  bool _paused = false;
 
   Question get currentQuestion => exam.questions[state.value.currentIndex];
 
   int get total => exam.questions.length;
+
   int get answeredCount => state.value.answers.length;
+
   int get flaggedCount => flaggedQuestions.length;
+
   int get unansweredCount => total - answeredCount;
+
   int get currentNumber => state.value.currentIndex + 1;
 
   final Map<String, dynamic> answers = {};
@@ -67,7 +72,8 @@ class ExamController extends GetxController {
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: 'Custom Exam',
       questions: questions,
-      duration: Duration(minutes: questions.length), // 1 dk/soru
+      duration: Duration(minutes: questions.length),
+      // 1 dk/soru
       createdAt: DateTime.now(),
     );
 
@@ -83,6 +89,7 @@ class ExamController extends GetxController {
     _ticker?.cancel();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (state.value.submitted) return;
+      if (_paused) return; // ⬅️ paused ise zaman akmasın
       final left = state.value.secondsLeft - 1;
       if (left <= 0) {
         submit(auto: true);
@@ -91,6 +98,16 @@ class ExamController extends GetxController {
         state.refresh();
       }
     });
+  }
+
+  void pauseTimer() {
+    _paused = true;
+  }
+
+  void resumeTimer() {
+    if (!state.value.submitted) {
+      _paused = false;
+    }
   }
 
   void answerCurrent(dynamic value) {
@@ -139,7 +156,8 @@ class ExamController extends GetxController {
     final safeMap = <String, dynamic>{};
     answers.forEach((key, value) {
       if (value is Map) {
-        safeMap[key] = value.map((k, v) => MapEntry(k.toString(), v.toString()));
+        safeMap[key] =
+            value.map((k, v) => MapEntry(k.toString(), v.toString()));
       } else if (value is List) {
         safeMap[key] = value.map((e) => e.toString()).toList();
       } else {
@@ -183,6 +201,7 @@ class ExamController extends GetxController {
   }
 
   bool isAnswered(String questionId) => answers.containsKey(questionId);
+
   bool isFlagged(String questionId) => flaggedIds.contains(questionId);
 
   void updateProgress() {
@@ -207,14 +226,16 @@ class ExamController extends GetxController {
 
   void next() {
     if (state.value.currentIndex < exam.questions.length - 1) {
-      state.value = state.value.copyWith(currentIndex: state.value.currentIndex + 1);
+      state.value =
+          state.value.copyWith(currentIndex: state.value.currentIndex + 1);
       state.refresh();
     }
   }
 
   void prev() {
     if (state.value.currentIndex > 0) {
-      state.value = state.value.copyWith(currentIndex: state.value.currentIndex - 1);
+      state.value =
+          state.value.copyWith(currentIndex: state.value.currentIndex - 1);
       state.refresh();
     }
   }
@@ -249,18 +270,16 @@ class ExamController extends GetxController {
       };
 
       // Exam objesine AI sonuçlarını ekle
-      final updatedExam = resultExam.copyWith(
-        aiFeedback: aiFeedbackMap,
-        stats: {
-          'correct': aiResult.correctCount,
-          'wrong': aiResult.wrongCount,
-          'unanswered': aiResult.unansweredCount,
-        }
-      );
+      final updatedExam =
+          resultExam.copyWith(aiFeedback: aiFeedbackMap, stats: {
+        'correct': aiResult.correctCount,
+        'wrong': aiResult.wrongCount,
+        'unanswered': aiResult.unansweredCount,
+      });
 
       // ✅ 3️⃣ ResultPage'e yeni exami + aiResult gönder
       Get.offAll(
-            () => const ExamResultPage(),
+        () => const ExamResultPage(),
         arguments: {
           'exam': updatedExam,
           'aiResult': aiResult,
@@ -270,14 +289,12 @@ class ExamController extends GetxController {
       debugPrint("⚠️ AI evaluation failed: $e\n$st");
       // AI başarısız olursa sadece exam ile yönlendir
       Get.offAll(
-            () => const ExamResultPage(),
+        () => const ExamResultPage(),
         arguments: {
           'exam': resultExam,
         },
       );
     }
-
-
   }
 
   @override
