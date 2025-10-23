@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../constants/colors.dart';
+
+/// Big score circle used at the top of the result page.
+/// Shows "score / total" inside a bordered circle.
 class ScoreCircle extends StatelessWidget {
   final int score;
   final int total;
@@ -20,7 +24,7 @@ class ScoreCircle extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: scheme.primary,
+          color: primaryColor, // use app primary color
           width: 4,
         ),
       ),
@@ -33,9 +37,9 @@ class ScoreCircle extends StatelessWidget {
             fontWeight: FontWeight.bold,
           ),
           children: [
-            TextSpan(text: "$score"),
+            TextSpan(text: '$score'),
             TextSpan(
-              text: " / $total",
+              text: ' / $total',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: scheme.onSurface.withOpacity(0.6),
               ),

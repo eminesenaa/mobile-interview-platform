@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:interview_project/pages/library/widgets/save_exam_to_collection_sheet.dart';
 
+import '../../../constants/colors.dart';
+
 class ResultActions extends StatelessWidget {
   final VoidCallback onReview;
   final VoidCallback onSave;
@@ -22,8 +24,8 @@ class ResultActions extends StatelessWidget {
       children: [
         FilledButton(
           style: FilledButton.styleFrom(
-            backgroundColor: scheme.primary,
-            foregroundColor: scheme.onPrimary,
+            backgroundColor: primaryColor.withOpacity(0.9),
+            foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -35,8 +37,8 @@ class ResultActions extends StatelessWidget {
         const SizedBox(height: 12),
         OutlinedButton(
           style: OutlinedButton.styleFrom(
-            foregroundColor: scheme.primary,
-            side: BorderSide(color: scheme.primary, width: 1.5),
+            foregroundColor: primaryColor.withOpacity(0.9),
+            side: BorderSide(color: primaryColor.withOpacity(0.9), width: 1.5),
             padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
