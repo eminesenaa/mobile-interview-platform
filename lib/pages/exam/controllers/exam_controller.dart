@@ -242,11 +242,27 @@ class ExamController extends GetxController {
       // ✅ 2️⃣ AI sonucu modeline dönüştür (AiExamResult)
       final aiResult = AiExamResult.fromEvaluateResult(aiEval);
 
-      // ✅ 3️⃣ ResultPage'e exam + aiResult gönder
+      // AI açıklamalarını (feedback) questionGeneralIndex -> explanation olarak map’e dönüştür
+      final Map<String, dynamic> aiFeedbackMap = {
+        for (final qEval in aiEval.questionEvaluations)
+          qEval.questionGeneralIndex: qEval.explanation,
+      };
+
+      // Exam objesine AI sonuçlarını ekle
+      final updatedExam = resultExam.copyWith(
+        aiFeedback: aiFeedbackMap,
+        stats: {
+          'correct': aiResult.correctCount,
+          'wrong': aiResult.wrongCount,
+          'unanswered': aiResult.unansweredCount,
+        }
+      );
+
+      // ✅ 3️⃣ ResultPage'e yeni exami + aiResult gönder
       Get.offAll(
             () => const ExamResultPage(),
         arguments: {
-          'exam': resultExam,
+          'exam': updatedExam,
           'aiResult': aiResult,
         },
       );

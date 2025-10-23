@@ -103,6 +103,7 @@ class AiService {
 
         questionEvaluations.add(
           AiExamQuestionEvaluateResult(
+            questionGeneralIndex: exam.questions[i].id,
             questionIndex: i,
             correctness: !answered ? 0 : (isCorrect ? 1 : -1),
             correctAnswer: expected.isEmpty ? [] : [expected],
@@ -246,6 +247,7 @@ class AiEvaluateResult {
 
 /// Examler için tek soru değerlendirme çıktısı (UI satırı)
 class AiExamQuestionEvaluateResult {
+  final String questionGeneralIndex; //Q231 şeklinde
   final int questionIndex; // Kaçıncı soru (0-based index)
   final int correctness; // -1: yanlış, 0: boş, 1: doğru
   final List<String>
@@ -253,6 +255,7 @@ class AiExamQuestionEvaluateResult {
   final String explanation; // Ai açıklama
   final double? score; // 0-5 arası
   AiExamQuestionEvaluateResult({
+    required this.questionGeneralIndex,
     required this.questionIndex,
     required this.correctness,
     required this.correctAnswer,

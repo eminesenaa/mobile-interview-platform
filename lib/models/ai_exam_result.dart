@@ -65,6 +65,7 @@ class AiExamResult {
             (i) {
           final e = eval.questionEvaluations[i];
           return AiExamQuestionEvaluation(
+            generalIndex: e.questionGeneralIndex,
             index: e.questionIndex,
             verdict: e.correctness == 1
                 ? 'correct'
