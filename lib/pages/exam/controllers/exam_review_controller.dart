@@ -6,6 +6,15 @@ import '../../../services/ai/ai_service.dart';
 import '../widgets/review_ai_explanation_dialog.dart';
 import 'exam_controller.dart';
 
+/*
+
+ ------- DİKKAT --------
+ DİKKAT: Review page'de exam.aiResult diye bişey
+ ama varmış gibi kodlanmış ama öyle birşey yokk!
+ examin yanında geliyor, gelmesi lazım!
+
+ */
+
 /// 🔹 Review aşamasında soruların durumunu belirtmek için enum
 enum ReviewStatus { correct, wrong, unanswered }
 
@@ -40,6 +49,7 @@ class ExamReviewController extends GetxController {
   int unansweredCount = 0;
 
   ExamReviewController(this.exam) {
+
     // Eğer aynı exam ID'li aktif bir ExamController varsa, cevapları oradan al
     if (Get.isRegistered<ExamController>(tag: exam.id)) {
       final examController = Get.find<ExamController>(tag: exam.id);
@@ -52,6 +62,7 @@ class ExamReviewController extends GetxController {
     // AI açıklamaları
     if (exam.aiFeedback != null) {
       aiFeedback.addAll(exam.aiFeedback!);
+      //print(aiFeedback);
     }
 
     // İstatistik verileri
@@ -451,90 +462,33 @@ class ExamReviewController extends GetxController {
         : ReviewStatus.wrong;
   }
 
-  /// ✅ Exam içindeki AI sonuçlarından explanation’ı çeker.
-  /// Beklenen yapı esnek: exam.aiResult.questionEvaluations : List<Map|Obj>
-  /// Her elemanda { questionId, explanation (veya aiExplanation/feedback) } olabilir.
+  /// ✅ Exam içindeki AI açıklamalarını (`aiFeedback`) cache’e yükler.
+  /// Exam modelinde `aiResult` bulunmadığı için sadece `aiFeedback` alanı okunur.
+  /// Beklenen yapı: exam.aiFeedback : { "Q123": "Bu soru şöyle açıklanır...", ... }
   void _primeAiExplanationsFromExam() {
     try {
-      final aiResult = (exam as dynamic)?.aiResult;
-      if (aiResult == null) {
-        Get.log('[review] aiResult null – parse atlandı');
-        return;
-      }
+      final feedback = (exam as dynamic)?.aiFeedback;
 
-      // Olası path’leri sırayla dene
-      final List<dynamic>? candidates = () {
-        final d = aiResult is Map ? aiResult : null;
-        final o = aiResult is Map ? null : aiResult;
-
-        final paths = <dynamic>[
-          // Map formu
-          if (d != null) d['questionEvaluations'],
-          if (d != null) d['evaluations'],
-          if (d != null) d['mcqEvaluations'],
-          if (d != null) d['details'],
-          // Object formu
-          if (o != null) o.questionEvaluations,
-          if (o != null) o.evaluations,
-          if (o != null) o.mcqEvaluations,
-          if (o != null) o.details,
-        ];
-
-        for (final p in paths) {
-          if (p is Iterable) return p.cast<dynamic>().toList();
-        }
-        return null;
-      }();
-
-      if (candidates == null) {
-        Get.log(
-            '[review] eval listesi yok (questionEvaluations/evaluations/mcqEvaluations/details bulunamadı)');
+      if (feedback is! Map || feedback.isEmpty) {
+        Get.log('[review] exam.aiFeedback boş veya yok – explanation yüklenmedi');
         return;
       }
 
       int loaded = 0;
-      for (final e in candidates) {
-        String? qid;
-        String? exp;
-
-        if (e is Map) {
-          qid = (e['questionId'] ?? e['id'] ?? e['qid'])?.toString();
-          exp = (e['explanation'] ??
-                  e['aiExplanation'] ??
-                  e['rationale'] ??
-                  e['feedback'] ??
-                  e['explain'] ??
-                  e['message'])
-              ?.toString();
-        } else {
-          // Object benzeri
-          try {
-            qid = (e.questionId ?? e.id ?? e.qid)?.toString();
-          } catch (_) {}
-          try {
-            exp = (e.explanation ??
-                    e.aiExplanation ??
-                    e.rationale ??
-                    e.feedback ??
-                    e.explain ??
-                    e.message)
-                ?.toString();
-          } catch (_) {}
-        }
-
-        if ((qid ?? '').isNotEmpty && (exp ?? '').trim().isNotEmpty) {
-          _aiExplanationByQid[qid!] = exp!.trim();
+      feedback.forEach((key, value) {
+        if (key != null && value != null && value.toString().trim().isNotEmpty) {
+          _aiExplanationByQid[key.toString()] = value.toString().trim();
           loaded++;
         }
+      });
+
+      if (loaded > 0) {
+        Get.log('[review] exam.aiFeedback içinden $loaded açıklama yüklendi');
+      } else {
+        Get.log('[review] exam.aiFeedback içinde geçerli açıklama bulunamadı');
       }
-      Get.log('[review] explanation cache yüklendi: $loaded kayıt');
-      if (loaded == 0) {
-        // Hangi anahtarlar var, hızlı debug:
-        try {
-          Get.log(
-              '[review] örnek eval anahtarları: ${candidates.first is Map ? (candidates.first as Map).keys.toList() : candidates.first.runtimeType}');
-        } catch (_) {}
-      }
+
+      Get.log('[review] toplam explanation cache: ${_aiExplanationByQid.length}');
     } catch (err) {
       Get.log('[review] _primeAiExplanationsFromExam hata: $err');
     }
