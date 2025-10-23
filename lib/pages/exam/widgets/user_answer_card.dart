@@ -56,6 +56,7 @@ class _UserAnswerCardState extends State<UserAnswerCard>
         children: [
           // Header (title + verdict chip)
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 'Your Answer',
@@ -63,24 +64,9 @@ class _UserAnswerCardState extends State<UserAnswerCard>
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const Spacer(),
-              if (widget.verdictLabel != null && widget.verdictLabel!.isNotEmpty)
-                Container(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: (widget.labelColor ?? border).withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(100),
-                    border: Border.all(color: widget.labelColor ?? border),
-                  ),
-                  child: Text(
-                    widget.verdictLabel!,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: widget.labelColor ?? border,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
+              if (widget.verdictLabel != null) ...[
+                _buildVerdictIcon(widget.verdictLabel!, widget.labelColor),
+              ],
             ],
           ),
           const SizedBox(height: 10),
@@ -90,7 +76,7 @@ class _UserAnswerCardState extends State<UserAnswerCard>
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeInOut,
             child: SelectableText(
-              widget.answer.isEmpty ? '—' : widget.answer,
+              widget.answer.isEmpty ? '' : widget.answer,
               maxLines: _expanded ? null : widget.collapsedMaxLines,
               style: theme.textTheme.bodyMedium?.copyWith(height: 1.35),
             ),
@@ -121,7 +107,37 @@ class _UserAnswerCardState extends State<UserAnswerCard>
       text: span,
       textDirection: TextDirection.ltr,
       maxLines: lines,
-    )..layout(maxWidth: MediaQuery.of(context).size.width - 64); // padding guess
+    )..layout(
+        maxWidth: MediaQuery.of(context).size.width - 64); // padding guess
     return tp.didExceedMaxLines;
+  }
+
+  /// Small verdict icon on the top-right corner
+  Widget _buildVerdictIcon(String label, Color? color) {
+    IconData icon;
+    Color effectiveColor = color ?? Colors.grey;
+
+    switch (label.toLowerCase()) {
+      case 'correct':
+        icon = Icons.check_circle_rounded;
+        effectiveColor = Colors.green;
+        break;
+      case 'wrong':
+        icon = Icons.cancel_rounded;
+        effectiveColor = Colors.red;
+        break;
+      case 'unanswered':
+        icon = Icons.remove_circle_outline;
+        effectiveColor = Colors.grey;
+        break;
+      default:
+        icon = Icons.help_outline_rounded;
+    }
+
+    return Icon(
+      icon,
+      color: effectiveColor,
+      size: 20,
+    );
   }
 }
