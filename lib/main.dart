@@ -10,6 +10,7 @@ import 'controllers/auth_controller.dart';
 import 'services/ai/ai_service.dart';
 import 'package:overlay_support/overlay_support.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/services.dart';
 
 Future<void> _initAi() async {
   Get.put<AiService>(AiService(), permanent: true);
@@ -20,6 +21,9 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await _initAi();
   await dotenv.load(fileName: ".env");
+
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
   runApp(
     OverlaySupport.global(
