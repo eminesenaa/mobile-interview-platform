@@ -1,10 +1,8 @@
-// ===================== File: lib/pages/library/services/library_service.dart =====================
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:rxdart/rxdart.dart';
 import '../../../models/question.dart';
 
-/// Library ile ilgili okuma/yazma helper'ları.
-/// Kullanım: LibraryService.instance.method(...)
 class LibraryService {
   LibraryService._();
   static final instance = LibraryService._();
@@ -14,13 +12,11 @@ class LibraryService {
 
   String get _uid {
     final u = _auth.currentUser;
-    if (u == null) {
-      throw StateError('No signed-in user');
-    }
+    if (u == null) throw StateError('No signed-in user');
     return u.uid;
   }
 
-  /// Pathler
+  // 🔹 Firestore path’leri
   CollectionReference<Map<String, dynamic>> get _savedColl =>
       _db.collection('users').doc(_uid).collection('saved');
 
@@ -30,40 +26,45 @@ class LibraryService {
   DocumentReference<Map<String, dynamic>> get _libraryMeta =>
       _db.collection('users').doc(_uid).collection('meta').doc('library');
 
-  // ==================== OKUMALAR ====================
+  // ============================================================
+  // 🔹 STREAMS & READS
+  // ============================================================
 
-  Future<bool> isSavedToAll(String questionId) async {
-    final q = await _savedColl
-        .where('questionId', isEqualTo: questionId)
-        .limit(1)
-        .get();
-    return q.docs.isNotEmpty;
-  }
-
+  /// 🔸 Bir soru “saved” veya herhangi bir koleksiyondaysa true
   Stream<bool> isSavedStream(String questionId) {
-    return _savedColl
+    final savedStream = _savedColl
         .where('questionId', isEqualTo: questionId)
         .snapshots()
         .map((q) => q.docs.isNotEmpty);
+
+    final collectionsStream = _collectionsColl
+        .where('questionIds', arrayContains: questionId)
+        .snapshots()
+        .map((q) => q.docs.isNotEmpty);
+
+    return CombineLatestStream.combine2<bool, bool, bool>(
+      savedStream,
+      collectionsStream,
+      (a, b) => a || b,
+    ).distinct();
   }
 
-  /// 🔹 All tabındaki soruları gerçek `Question` modeli ile getir
+  /// 🔹 Tüm kaydedilen sorular
   Stream<List<Question>> savedQuestionsStream() {
     return _savedColl.snapshots().asyncMap((snap) async {
       final ids = snap.docs.map((d) => d['questionId'] as String).toList();
       if (ids.isEmpty) return <Question>[];
-
       final qs = await _db
           .collection('questions')
           .where(FieldPath.documentId, whereIn: ids)
           .get();
-
       return qs.docs
           .map((d) => Question.fromFirestore(d.data(), d.id))
           .toList();
     });
   }
 
+  /// 🔹 Belirli bir koleksiyondaki soruları dinler
   Stream<List<Question>> questionsInCollectionStream(String collectionId) {
     return _collectionsColl.doc(collectionId).snapshots().asyncMap((doc) async {
       if (!doc.exists) return <Question>[];
@@ -82,6 +83,16 @@ class LibraryService {
     });
   }
 
+  Future<List<CollectionData>> getCollections() async {
+    final snap = await _collectionsColl.get();
+    return snap.docs.map((d) => CollectionData.fromFirestore(d)).toList();
+  }
+
+  Stream<List<CollectionData>> collectionsStream() {
+    return _collectionsColl.snapshots().map(
+        (snap) => snap.docs.map((d) => CollectionData.fromFirestore(d)).toList());
+  }
+
   Future<List<String>> getCollectionsOfQuestion(String questionId) async {
     final snap = await _collectionsColl
         .where('questionIds', arrayContains: questionId)
@@ -89,28 +100,10 @@ class LibraryService {
     return snap.docs.map((d) => d.id).toList(growable: false);
   }
 
-  Future<bool> isInCollection(String collectionId, String questionId) async {
-    final doc = await _collectionsColl.doc(collectionId).get();
-    if (!doc.exists) return false;
-    final data = doc.data();
-    final ids = List<String>.from(data?['questionIds'] ?? []);
-    return ids.contains(questionId);
-  }
+  // ============================================================
+  // 🔹 WRITES
+  // ============================================================
 
-  Future<List<CollectionData>> getCollections() async {
-    final snap = await _collectionsColl.get();
-    return snap.docs.map((d) => CollectionData.fromFirestore(d)).toList();
-  }
-
-  Stream<List<CollectionData>> collectionsStream() {
-    return _collectionsColl.snapshots().map((snap) {
-      return snap.docs.map((d) => CollectionData.fromFirestore(d)).toList();
-    });
-  }
-
-  // ==================== YAZMALAR ====================
-
-  /// ✅ All listesine ekle
   Future<void> saveToAll(String questionId) async {
     final exists = await _savedColl
         .where('questionId', isEqualTo: questionId)
@@ -125,7 +118,6 @@ class LibraryService {
     }
   }
 
-  /// ✅ Koleksiyona ekle (ve aynı anda All’a da ekle)
   Future<void> addToCollection(String collectionId, String questionId) async {
     final batch = _db.batch();
 
@@ -145,30 +137,27 @@ class LibraryService {
         'questionId': questionId,
         'savedAt': FieldValue.serverTimestamp(),
       });
-      batch.set(_libraryMeta, {
-        'savedCount': FieldValue.increment(1),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
     }
 
     await batch.commit();
   }
 
-  /// ✅ Bir soruyu her yerden (All + tüm koleksiyonlardan) kaldır
+  Future<void> removeFromCollection(String collectionId, String questionId) async {
+    final ref = _collectionsColl.doc(collectionId);
+    await ref.set({
+      'questionIds': FieldValue.arrayRemove([questionId]),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   Future<void> removeQuestionEverywhere(String questionId) async {
     final batch = _db.batch();
 
-    // 🔹 All’dan kaldır
+    // saved’den kaldır
     final q = await _savedColl.where('questionId', isEqualTo: questionId).get();
-    for (final d in q.docs) {
-      batch.delete(d.reference);
-      batch.set(_libraryMeta, {
-        'savedCount': FieldValue.increment(-1),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    }
+    for (final d in q.docs) batch.delete(d.reference);
 
-    // 🔹 Tüm koleksiyonlardan çıkar
+    // tüm koleksiyonlardan kaldır
     final collections = await _collectionsColl.get();
     for (final c in collections.docs) {
       batch.set(c.reference, {
@@ -188,11 +177,8 @@ class LibraryService {
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
-    await bumpCollectionsCount(1);
     return ref;
   }
-
-  // ==================== META ====================
 
   Future<void> bumpSavedCount(int delta) async {
     await _libraryMeta.set({
@@ -200,27 +186,9 @@ class LibraryService {
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
-
-  Future<void> bumpCollectionsCount(int delta) async {
-    await _libraryMeta.set({
-      'collectionsCount': FieldValue.increment(delta),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-  }
-
-  Future<void> bumpExamsCount(int delta) async {
-    await _libraryMeta.set({
-      'examsCount': FieldValue.increment(delta),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-  }
-
-  Future<DocumentSnapshot<Map<String, dynamic>>> getLibraryMeta() async {
-    return _libraryMeta.get();
-  }
 }
 
-/// ==================== MODEL ====================
+/// 🔹 Model
 class CollectionData {
   final String id;
   final String name;

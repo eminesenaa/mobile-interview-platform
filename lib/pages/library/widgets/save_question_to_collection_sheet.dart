@@ -1,10 +1,7 @@
-// ===================== File: lib/pages/library/widgets/save_question_to_collection_sheet.dart =====================
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../services/library_service.dart';
 
-/// SaveToCollectionSheet
-/// Firestore'daki koleksiyonlara kaydetme/dinleme sheet'i
 class SaveToCollectionSheet extends StatefulWidget {
   final String questionId;
   const SaveToCollectionSheet({super.key, required this.questionId});
@@ -15,54 +12,66 @@ class SaveToCollectionSheet extends StatefulWidget {
 
 class _SaveToCollectionSheetState extends State<SaveToCollectionSheet> {
   final TextEditingController _search = TextEditingController();
+  Set<String> _initial = {};
   Set<String> _selected = {};
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _loadInitialSelection(); // ✅ açıldığında mevcut koleksiyonları getir
+    _loadInitialSelection();
   }
 
   Future<void> _loadInitialSelection() async {
     final lib = LibraryService.instance;
     final collections = await lib.getCollectionsOfQuestion(widget.questionId);
     setState(() {
-      _selected = collections.toSet(); // ✅ zaten içinde olanlar tikli
+      _initial = collections.toSet();
+      _selected = collections.toSet();
     });
-  }
-
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
   }
 
   Future<void> _apply() async {
     setState(() => _isSaving = true);
-
     final lib = LibraryService.instance;
-
-    // önce tüm koleksiyonlardan çıkar
     final cols = await lib.getCollections();
+
+    // çıkarılacaklar
     for (final c in cols) {
-      final isIn = await lib.isInCollection(c.id, widget.questionId);
-      if (isIn && !_selected.contains(c.id)) {
-        await lib.removeQuestionEverywhere(widget.questionId);
+      final wasIn = _initial.contains(c.id);
+      final keep = _selected.contains(c.id);
+      if (wasIn && !keep) {
+        await lib.removeFromCollection(c.id, widget.questionId);
       }
     }
 
-    // sonra seçili olanlara ekle
+    // eklenecekler
     for (final id in _selected) {
-      await lib.addToCollection(id, widget.questionId);
+      if (!_initial.contains(id)) {
+        await lib.addToCollection(id, widget.questionId);
+      }
     }
 
     setState(() => _isSaving = false);
 
-    Get.back();
-    Get.snackbar('Saved', 'Your selections have been updated',
-        snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 2));
+    // dönüş değeri
+    if (_selected.isEmpty) {
+      Navigator.pop(context, false);
+    } else if (_initial.length == _selected.length &&
+        _initial.containsAll(_selected)) {
+      Navigator.pop(context, null);
+    } else {
+      Navigator.pop(context, true);
+    }
+
+    Get.snackbar(
+      'Saved',
+      _selected.isEmpty
+          ? 'Removed from all collections.'
+          : 'Your selections have been updated.',
+      snackPosition: SnackPosition.BOTTOM,
+      duration: const Duration(seconds: 2),
+    );
   }
 
   @override
@@ -102,19 +111,19 @@ class _SaveToCollectionSheetState extends State<SaveToCollectionSheet> {
                       builder: (ctx) => _CreateDialog(),
                     );
                     if (name != null && name.trim().isNotEmpty) {
-                      await LibraryService.instance.createCollection(name.trim());
+                      await LibraryService.instance
+                          .createCollection(name.trim());
                     }
                   },
                 ),
                 IconButton(
                   icon: const Icon(Icons.close_rounded),
-                  onPressed: () => Get.back(),
+                  onPressed: () => Navigator.pop(context, null),
                 ),
               ],
             ),
             const SizedBox(height: 12),
 
-            // StreamBuilder ile koleksiyonları dinle
             Expanded(
               child: StreamBuilder<List<CollectionData>>(
                 stream: LibraryService.instance.collectionsStream(),
@@ -140,9 +149,8 @@ class _SaveToCollectionSheetState extends State<SaveToCollectionSheet> {
                     itemBuilder: (_, i) {
                       final col = filtered[i];
                       final selected = _selected.contains(col.id);
-                      return _CollectionTile(
-                        collection: col,
-                        selected: selected,
+                      return InkWell(
+                        borderRadius: BorderRadius.circular(12),
                         onTap: () {
                           setState(() {
                             if (selected) {
@@ -152,6 +160,48 @@ class _SaveToCollectionSheetState extends State<SaveToCollectionSheet> {
                             }
                           });
                         },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 12),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: selected
+                                  ? theme.colorScheme.primary
+                                  : theme.dividerColor,
+                            ),
+                            color: selected
+                                ? theme.colorScheme.primary.withOpacity(.06)
+                                : theme.colorScheme.surface,
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.collections_bookmark_outlined),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(col.name,
+                                        style: theme.textTheme.titleMedium),
+                                    const SizedBox(height: 2),
+                                    Text('${col.count} items',
+                                        style: theme.textTheme.bodySmall),
+                                  ],
+                                ),
+                              ),
+                              Checkbox(
+                                  value: selected,
+                                  onChanged: (_) => setState(() {
+                                        if (selected) {
+                                          _selected.remove(col.id);
+                                        } else {
+                                          _selected.add(col.id);
+                                        }
+                                      })),
+                            ],
+                          ),
+                        ),
                       );
                     },
                   );
@@ -182,60 +232,6 @@ class _SaveToCollectionSheetState extends State<SaveToCollectionSheet> {
   }
 }
 
-/// ---- Widgets ----
-
-class _CollectionTile extends StatelessWidget {
-  const _CollectionTile({
-    required this.collection,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final CollectionData collection;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: selected ? theme.colorScheme.primary : theme.dividerColor,
-          ),
-          color: selected
-              ? theme.colorScheme.primary.withOpacity(.06)
-              : theme.colorScheme.surface,
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.collections_bookmark_outlined),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(collection.name,
-                      style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 2),
-                  Text('${collection.count} items',
-                      style: theme.textTheme.bodySmall),
-                ],
-              ),
-            ),
-            Checkbox(value: selected, onChanged: (_) => onTap()),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _CreateDialog extends StatefulWidget {
   @override
   State<_CreateDialog> createState() => _CreateDialogState();
@@ -257,10 +253,7 @@ class _CreateDialogState extends State<_CreateDialog> {
       content: TextField(
         controller: _controller,
         autofocus: true,
-        decoration: const InputDecoration(
-          hintText: 'Collection name',
-        ),
-        onSubmitted: (v) => Navigator.of(context).pop(v.trim()),
+        decoration: const InputDecoration(hintText: 'Collection name'),
       ),
       actions: [
         TextButton(
