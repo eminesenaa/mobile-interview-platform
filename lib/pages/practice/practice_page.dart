@@ -28,6 +28,7 @@ class PracticePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(PracticeController());
+    final lib = LibraryService.instance; // ✅ Tek referans
 
     final bottomInset = MediaQuery.of(context).padding.bottom + 12;
 
@@ -37,9 +38,7 @@ class PracticePage extends StatelessWidget {
         elevation: 0,
         title: Text(
           'Practice',
-          style: AppTextStyles.headline.copyWith(
-            color: headlineColor,
-          ),
+          style: AppTextStyles.headline.copyWith(color: headlineColor),
         ),
         centerTitle: true,
       ),
@@ -49,7 +48,7 @@ class PracticePage extends StatelessWidget {
           return CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
-              // ========== (1) GET STARTED CAROUSEL ==========
+              // (1) GET STARTED CAROUSEL
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
@@ -86,7 +85,7 @@ class PracticePage extends StatelessWidget {
                 ),
               ),
 
-              // ========== (2) TODAY'S QUESTION ==========
+              // (2) TODAY'S QUESTION
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(12),
@@ -96,7 +95,7 @@ class PracticePage extends StatelessWidget {
                 ),
               ),
 
-              // ========== (3) PINNED FILTER BAR ==========
+              // (3) FILTER BAR
               SliverPinnedHeader(
                 child: Material(
                   elevation: 2,
@@ -108,13 +107,10 @@ class PracticePage extends StatelessWidget {
                         TopicChipScroll(
                           topics: controller.allTopics,
                           selectedTopic: controller.selectedTopic.value,
-                          onTopicSelected: (topic) {
-                            controller.updateFilters(topic: topic);
-                          },
+                          onTopicSelected: (topic) =>
+                              controller.updateFilters(topic: topic),
                         ),
-
                         const Divider(height: 24),
-
                         SearchAddBar(
                           searchText: controller.searchQuery.value,
                           onSearchChanged: (val) =>
@@ -156,13 +152,14 @@ class PracticePage extends StatelessWidget {
                             final random = controller.getRandomQuestion();
                             if (random != null) {
                               final idx = questions.indexWhere(
-                                    (qq) => _extractQuestionId(qq) == _extractQuestionId(random),
+                                (qq) =>
+                                    _extractQuestionId(qq) ==
+                                    _extractQuestionId(random),
                               );
                               if (idx >= 0) {
                                 _openRunner(questions, idx);
                               }
                             }
-
                           },
                           canAdd: controller.filteredQuestions.isNotEmpty,
                         ),
@@ -173,7 +170,7 @@ class PracticePage extends StatelessWidget {
                 ),
               ),
 
-              // ========== (4) QUESTION LIST ==========
+              // (4) QUESTION LIST
               if (questions.isEmpty && controller.allQuestions.isEmpty)
                 const SliverFillRemaining(
                   hasScrollBody: false,
@@ -193,74 +190,30 @@ class PracticePage extends StatelessWidget {
                         if (index.isOdd) return const SizedBox(height: 10);
                         final itemIndex = index ~/ 2;
                         final q = questions[itemIndex];
-                        final qId = _extractQuestionId(q);
+                        final qId = _extractQuestionId(q); // ✅ tutarlı id
 
                         return StreamBuilder<bool>(
-                          stream: LibraryService.instance.isSavedStream(qId),
+                          stream: lib.isSavedStream(qId), // ✅ artık qId
                           builder: (context, snapshot) {
-                            final saved = snapshot.data ?? false;
+                            final isSaved = snapshot.data ?? false;
                             return QuestionCard(
                               question: q,
-                              //onTap: () => _openQuestion(q),
                               onTap: () => _openRunner(questions, itemIndex),
                               onSaveTap: () async {
-                                if (saved) {
-                                  // 🔹 Kaydedilmişse → seçenek sun
-                                  await showModalBottomSheet(
-                                    context: context,
-                                    builder: (_) {
-                                      return SafeArea(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            ListTile(
-                                              leading: const Icon(
-                                                Icons.delete_outline,
-                                                color: Colors.red,
-                                              ),
-                                              title: const Text(
-                                                  "Remove from My Library"),
-                                              onTap: () async {
-                                                Navigator.pop(context);
-                                                await LibraryService.instance
-                                                    .removeQuestionEverywhere(
-                                                        qId);
-                                              },
-                                            ),
-                                            ListTile(
-                                              leading: const Icon(
-                                                Icons.folder_outlined,
-                                                color: Colors.blue,
-                                              ),
-                                              title: const Text(
-                                                  "Move to Collection"),
-                                              onTap: () async {
-                                                Navigator.pop(context);
-                                                await showModalBottomSheet(
-                                                  context: context,
-                                                  isScrollControlled: true,
-                                                  builder: (_) =>
-                                                      SaveToCollectionSheet(
-                                                          questionId: qId),
-                                                );
-                                              },
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                  );
-                                } else {
-                                  // 🔹 Kaydedilmemişse → direkt koleksiyona ekle
-                                  await showModalBottomSheet(
-                                    context: context,
-                                    isScrollControlled: true,
-                                    builder: (_) =>
-                                        SaveToCollectionSheet(questionId: qId),
-                                  );
+                                final result = await showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  builder: (_) =>
+                                      SaveToCollectionSheet(questionId: qId),
+                                );
+
+                                if (result == true) {
+                                  await lib.saveToAll(qId);
+                                } else if (result == false) {
+                                  await lib.removeQuestionEverywhere(qId);
                                 }
                               },
-                              isSaved: saved,
+                              isSaved: isSaved,
                             );
                           },
                         );
@@ -277,15 +230,14 @@ class PracticePage extends StatelessWidget {
   }
 
   void _openRunner(List<Question> questions, int startIndex) {
-    // “Practice • All / Practice • <Topic>” etiketi
     final controller = Get.find<PracticeController>();
     final selected = controller.selectedTopic.value;
     final isAll = selected == null || selected == 'All';
 
     final feed = QuestionFeed(
       questionIds: questions.map((q) => _extractQuestionId(q)).toList(),
-      questions: questions,                 // hazır listeyi de veriyoruz
-      startIndex: startIndex,               // tıklanan itemIndex
+      questions: questions,
+      startIndex: startIndex,
       source: QuestionSourceContext(
         kind: isAll
             ? QuestionSourceKind.practiceAll
@@ -296,9 +248,6 @@ class PracticePage extends StatelessWidget {
 
     Get.to(() => QuestionRunnerPage(feed: feed));
   }
-
-  // Tip bazlı yönlendirme
-  //void _openQuestion(Question q) => QuestionNavigator.open(q);
 }
 
 class _EmptyState extends StatelessWidget {
@@ -323,11 +272,9 @@ String _extractQuestionId(Question q) {
     final dynamic v = (q as dynamic).id;
     if (v != null) return v.toString();
   } catch (_) {}
-
   try {
     final dynamic v = (q as dynamic).docId;
     if (v != null) return v.toString();
   } catch (_) {}
-
   return q.title.toString();
 }
