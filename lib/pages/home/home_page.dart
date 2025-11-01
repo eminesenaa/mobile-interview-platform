@@ -194,8 +194,8 @@ class HomePage extends StatelessWidget {
                               itemCount: cards.length,
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          _MiniBarChart(values: p.weeklyXpLast7),
+                          //const SizedBox(height: 16),
+                          //_MiniBarChart(values: p.weeklyXpLast7),
                         ],
                       );
                     }),

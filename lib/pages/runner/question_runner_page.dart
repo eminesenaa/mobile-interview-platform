@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:interview_project/constants/colors.dart';
 import '../../models/question.dart';
 import 'controller/question_runner_controller.dart';
 import '../question_types/widgets/mcq_question_view.dart';
@@ -39,7 +40,7 @@ class QuestionRunnerPage extends StatelessWidget {
       return Scaffold(
         appBar: AppBar(
           leading: const BackButton(color: Colors.white),
-          backgroundColor: Theme.of(context).primaryColor,
+          backgroundColor: primaryColor,
           title: Text(
             titleText,
             maxLines: 1,
