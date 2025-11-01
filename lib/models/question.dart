@@ -2,6 +2,10 @@
 // Purpose: Uygulamadaki soruların veri modelini tanımlar.
 // ==========================================================================
 
+import 'package:flutter/foundation.dart';
+
+import '../utils/example_parser.dart';
+
 enum QuestionType {
   mcq,
   shortAnswer,
@@ -36,6 +40,7 @@ class Question {
   final List<String>? options;
   final List<String>? blanks;
   final String? codeTemplate;
+  final List<ExampleCase> examples; // Input/Output/(optional) Explanation
 
   final String? correctAnswer;
 
@@ -55,6 +60,7 @@ class Question {
     this.options,
     this.blanks,
     this.codeTemplate,
+    this.examples = const [],
     this.correctAnswer,
     this.aiPromptHelper,
   });
@@ -92,6 +98,145 @@ class Question {
     } else {
       parsedOptions = null; // <- ÖNEMLİ
     }
+
+    // 🔹 Examples biriktirmek için listeyi tanımla
+    final List<ExampleCase> parsedExamples = <ExampleCase>[];
+
+// 1) Yeni şema: examples alanı mevcut (List / Map)
+    final examplesRaw = data['examples'];
+    if (examplesRaw is List) {
+      for (final e in examplesRaw) {
+        if (e is Map<String, dynamic>) {
+          // a) Map geldi; alanlar karışık olabilir (bazen "input" içinde Output da var).
+          final rawIn = (e['input'] ?? '').toString();
+          final rawOut = (e['output'] ?? '').toString();
+          final rawExp = (e['explanation'] ?? e['note'] ?? '').toString();
+
+          String _ensureLabel(String label, String v) {
+            if (v.trim().isEmpty) return '';
+            final low = v.trimLeft().toLowerCase();
+            // zaten "label:" ile başlıyorsa dokunma
+            return low.startsWith('$label:') ? v : '$label: $v';
+          }
+
+          final blob = [
+            _ensureLabel('input', rawIn),
+            _ensureLabel('output', rawOut),
+            _ensureLabel('explanation', rawExp),
+          ].where((s) => s.isNotEmpty).join('\n');
+
+          if (blob.isNotEmpty) {
+            final p = ExampleParser.parse(blob);
+            final ex = ExampleCase(
+              input: p.input,
+              output: p.output,
+              explanation: p.explanation,
+            );
+            parsedExamples.add(ex);
+
+            if (kDebugMode) {
+              debugPrint(
+                '[FS examples<Map-IO>] $documentId -> in="${ex.input}" out="${ex.output}"',
+              );
+            }
+          } else {
+            // b) Map ama tek bir metin taşıyor: text / value / example
+            final raw =
+                (e['text'] ?? e['value'] ?? e['example'] ?? '').toString();
+
+            if (raw.trim().isNotEmpty) {
+              final ex = ExampleCase.fromDisplayText(raw);
+              parsedExamples.add(ex);
+
+              if (kDebugMode) {
+                debugPrint(
+                  '[FS examples<Map-TEXT>] $documentId -> in="${ex.input}" out="${ex.output}"',
+                );
+              }
+            }
+          }
+        } else if (e is String) {
+          // c) Düz string listesi
+          final ex = ExampleCase.fromDisplayText(e);
+          parsedExamples.add(ex);
+          if (kDebugMode) {
+            debugPrint(
+                '[FS examples<String>] $documentId -> in="${ex.input}" out="${ex.output}"');
+          }
+        }
+      }
+    } else if (examplesRaw is Map<String, dynamic>) {
+      // examples: { "1": "Input: ...", "2": "Input: ..." }
+      for (final v in examplesRaw.values) {
+        final raw = (v ?? '').toString();
+        if (raw.trim().isEmpty) continue;
+        final ex = ExampleCase.fromDisplayText(raw);
+        parsedExamples.add(ex);
+        if (kDebugMode) {
+          debugPrint(
+              '[FS examples<Map>] $documentId -> in="${ex.input}" out="${ex.output}"');
+        }
+      }
+    }
+
+// 2) Legacy şema: ayrı alanlarda example1/2/3 (çeşitli adlandırmalar)
+    if (parsedExamples.isEmpty) {
+      final candidateKeys = <String>[
+        'example1',
+        'example2',
+        'example3',
+        'example_1',
+        'example_2',
+        'example_3',
+        'Example 1',
+        'Example 2',
+        'Example 3',
+        'ex1',
+        'ex2',
+        'ex3',
+      ];
+
+      for (final key in candidateKeys) {
+        final raw = data[key];
+
+        if (raw is String && raw.trim().isNotEmpty) {
+          final ex = ExampleCase.fromDisplayText(raw);
+          parsedExamples.add(ex);
+
+          if (kDebugMode) {
+            debugPrint(
+                '[FS $key] $documentId -> in="${ex.input}" out="${ex.output}"');
+          }
+        }
+      }
+      // 3) Son çare: "example" ile başlayan TÜM string alanları tara
+      if (parsedExamples.isEmpty) {
+        for (final entry in data.entries) {
+          final k = entry.key.toString().toLowerCase().trim();
+          if (!k.startsWith('example')) continue;
+
+          final raw = entry.value?.toString() ?? '';
+          if (raw.trim().isEmpty) continue;
+
+          final ex = ExampleCase.fromDisplayText(raw);
+          parsedExamples.add(ex);
+
+          if (kDebugMode) {
+            debugPrint(
+              '[FS any<$k>] $documentId -> in="${ex.input}" out="${ex.output}"',
+            );
+          }
+        }
+      }
+
+// 4) Hâlâ boşsa bir kere debug olarak anahtarları gösterelim
+      if (kDebugMode && parsedExamples.isEmpty) {
+        debugPrint(
+          '⚠️ No examples parsed for $documentId. keys=${data.keys.toList()}',
+        );
+      }
+    }
+
     return Question(
       id: documentId,
       title: data['title'] ?? '',
@@ -105,6 +250,7 @@ class Question {
       // <- burada null/MCQ’ya göre
       blanks: data['blanks'] != null ? List<String>.from(data['blanks']) : null,
       codeTemplate: data['codeTemplate'] as String?,
+      examples: parsedExamples,
       correctAnswer: data['correctAnswer'],
       aiPromptHelper: data['aiPromptHelper'],
     );
@@ -122,6 +268,8 @@ class Question {
       'options': options,
       if (blanks != null) 'blanks': blanks,
       if (codeTemplate != null) 'codeTemplate': codeTemplate,
+      if (examples.isNotEmpty)
+        'examples': examples.map((e) => e.toJson()).toList(),
       'correctAnswer': correctAnswer,
       'aiPromptHelper': aiPromptHelper,
     };
@@ -214,6 +362,51 @@ class Question {
       buffer.writeln("Code Template: $codeTemplate");
     }
 
+    if (examples.isNotEmpty) {
+      for (var i = 0; i < examples.length; i++) {
+        final ex = examples[i];
+        buffer.writeln(
+          "Example ${i + 1} — Input: ${ex.input} | Output: ${ex.output}"
+          "${ex.explanation != null ? ' | Explanation: ${ex.explanation}' : ''}",
+        );
+      }
+    }
+
     return buffer.toString();
   }
+}
+
+/// 🔸 Tek örnek: Input/Output çifti
+class ExampleCase {
+  final String input;
+  final String output;
+  final String? explanation;
+
+  const ExampleCase(
+      {required this.input, required this.output, this.explanation});
+
+  factory ExampleCase.fromJson(Map<String, dynamic> j) => ExampleCase(
+        input: (j['input'] ?? '').toString(),
+        output: (j['output'] ?? '').toString(),
+        explanation: (j['explanation'] ?? '').toString().trim().isEmpty
+            ? null
+            : (j['explanation'] ?? '').toString(),
+      );
+
+  /// Excel hücresi "Input: ...\nOutput: ..." biçimindeyse buradan parse edilir.
+  factory ExampleCase.fromDisplayText(String raw) {
+    // Ayrıştırmayı util'e delege et
+    final p = ExampleParser.parse(raw);
+    return ExampleCase(
+      input: p.input,
+      output: p.output,
+      explanation: p.explanation,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'input': input,
+        'output': output,
+        if (explanation != null) 'explanation': explanation,
+      };
 }

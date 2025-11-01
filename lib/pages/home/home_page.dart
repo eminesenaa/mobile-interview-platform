@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:interview_project/pages/home/progress_page.dart';
 import 'package:interview_project/controllers/progress_controller.dart';
+import 'package:interview_project/pages/home/widgets/leaderboard_card.dart';
 import 'package:interview_project/pages/home/widgets/progress_summary_card.dart';
 import 'controllers/home_controller.dart';
+import 'leaderboard_page.dart';
 import 'widgets/streak_card.dart';
 import 'widgets/popular_question_card.dart';
 import 'widgets/user_greeting_title.dart';
@@ -30,6 +32,8 @@ class HomePage extends StatelessWidget {
       body: RefreshIndicator(
         onRefresh: hc.refreshAll,
         child: CustomScrollView(
+          key: const PageStorageKey('home_scroll'),
+          physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             // ---- GREETING & STREAK ----
             SliverToBoxAdapter(
@@ -102,6 +106,24 @@ class HomePage extends StatelessWidget {
               }),
             ),
 
+            ///  Leaderboard Card (Top3 + Me) — sliver
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: Obx(
+                  () => LeaderboardCard(
+                    top3: hc.top3,
+                    me: hc.me.value,
+                    loading: hc.lbLoading.value,
+                    onTap: () {
+                      Get.to(() => const LeaderboardPage());
+                    },
+                  ),
+                ),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
             // ---- YOUR PROGRESS ----
             SliverToBoxAdapter(
               child: Padding(
@@ -172,8 +194,8 @@ class HomePage extends StatelessWidget {
                               itemCount: cards.length,
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          _MiniBarChart(values: p.weeklyXpLast7),
+                          //const SizedBox(height: 16),
+                          //_MiniBarChart(values: p.weeklyXpLast7),
                         ],
                       );
                     }),
@@ -191,6 +213,7 @@ class HomePage extends StatelessWidget {
 // ===== helper widgets =====
 class _MiniBarChart extends StatelessWidget {
   final List<int> values;
+
   const _MiniBarChart({super.key, required this.values});
 
   @override

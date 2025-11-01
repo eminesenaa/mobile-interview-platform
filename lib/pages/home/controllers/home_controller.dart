@@ -6,6 +6,7 @@ import '../../../controllers/progress_controller.dart';
 import '../../../controllers/question_controller.dart';
 import '../../../models/question.dart';
 import '../../../models/streak.dart';
+import '../../../models/leaderboard.dart';
 
 class HomeController extends GetxController {
   final _rng = Random();
@@ -21,6 +22,11 @@ class HomeController extends GetxController {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final streak = Rxn<Streak>();
   final isStreakLoading = false.obs;
+
+  /// Leaderboard state
+  final RxBool lbLoading = true.obs;
+  final RxList<TopUser> top3 = <TopUser>[].obs;
+  final Rxn<MeRank> me = Rxn<MeRank>();
 
   void listenToUserStreak() {
     try {
@@ -43,6 +49,7 @@ class HomeController extends GetxController {
       print('🔥 listenToUserStreak error: $e');
     }
   }
+
   // 🔥 STREAK SECTION END
 
   @override
@@ -50,6 +57,7 @@ class HomeController extends GetxController {
     super.onInit();
     _loadPopularQuestions();
     listenToUserStreak(); // 🔥 streak dinleyicisini başlat
+    fetchLeaderboard();
   }
 
   /// Easy / Medium / Hard’tan rastgele 1’er soru seç
@@ -75,5 +83,25 @@ class HomeController extends GetxController {
   Future<void> refreshAll() async {
     _loadPopularQuestions();
     // ileride: user/progress güncellemesi eklenebilir
+  }
+
+  /// TODO: Backend bağla
+  Future<void> fetchLeaderboard() async {
+    lbLoading.value = true;
+    try {
+      // TODO: service'den çek (rank + xp + delta)
+      // final data = await leaderboardService.getSummary();
+      await Future.delayed(const Duration(milliseconds: 400));
+
+      top3.assignAll([
+        TopUser(rank: 1, xp: 980, initials: 'AS'),
+        TopUser(rank: 2, xp: 910, initials: 'ÖD'),
+        TopUser(rank: 3, xp: 905, initials: 'ES'),
+      ]);
+
+      me.value = MeRank(rank: 6, name: 'Rümeysa', xp: 756, delta: 3);
+    } finally {
+      lbLoading.value = false;
+    }
   }
 }

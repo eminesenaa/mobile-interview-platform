@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../../models/question.dart';
 import '../../../widgets/ai_feedback_widget.dart';
 import '../controllers/coding_controller.dart';
+import 'examples_section.dart';
 
 class CodingQuestionView extends StatelessWidget {
   final Question question;
@@ -32,6 +33,9 @@ class CodingQuestionView extends StatelessWidget {
               style: const TextStyle(fontSize: 16),
             ),
           ),
+        // ⬇️ Examples (Input/Output) — model: question.examples (List<ExampleCase>)
+        if (question.examples.isNotEmpty)
+          ExamplesSection(examples: question.examples),
         const SizedBox(height: 16),
         Obx(() {
           if (c.aiMeta.value == null) return const SizedBox.shrink();
