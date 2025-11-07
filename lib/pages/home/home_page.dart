@@ -42,13 +42,11 @@ class HomePage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 🔥 Dinamik Streak kartı
                     Obx(() {
                       final s = hc.streak.value;
                       if (s == null) {
                         return const StreakCard.preview();
                       }
-
                       return StreakCard(
                         currentStreak: s.streakCount,
                         longestStreak: s.longestStreak,
@@ -106,7 +104,7 @@ class HomePage extends StatelessWidget {
               }),
             ),
 
-            ///  Leaderboard Card (Top3 + Me) — sliver
+            // ---- LEADERBOARD CARD ----
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -146,7 +144,7 @@ class HomePage extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
 
-                    // --- HORIZONTAL 3 SUMMARY CARDS ---
+                    // --- SUMMARY CARDS ---
                     Obx(() {
                       final pc = hc.pc;
                       final p = pc.progress.value;
@@ -194,8 +192,6 @@ class HomePage extends StatelessWidget {
                               itemCount: cards.length,
                             ),
                           ),
-                          //const SizedBox(height: 16),
-                          //_MiniBarChart(values: p.weeklyXpLast7),
                         ],
                       );
                     }),
@@ -205,62 +201,6 @@ class HomePage extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// ===== helper widgets =====
-class _MiniBarChart extends StatelessWidget {
-  final List<int> values;
-
-  const _MiniBarChart({super.key, required this.values});
-
-  @override
-  Widget build(BuildContext context) {
-    final max = (values.isEmpty ? 1 : values.reduce((a, b) => a > b ? a : b))
-        .toDouble();
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Theme.of(context).dividerColor.withOpacity(.3),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: List.generate(values.length, (i) {
-          final h = max == 0 ? 0.0 : (values[i] / max) * 90.0;
-          return Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    height: h,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withOpacity(.85),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    ['M', 'T', 'W', 'T', 'F', 'S', 'S'][i],
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
       ),
     );
   }
