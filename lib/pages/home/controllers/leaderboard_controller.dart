@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import '../../../models/leaderboard.dart';
+import '../services/leaderboard_service.dart';
 
 class LeaderboardController extends GetxController {
   final RxBool loading = true.obs;
@@ -7,66 +8,35 @@ class LeaderboardController extends GetxController {
   final RxList<LeaderboardEntry> top3 = <LeaderboardEntry>[].obs;
   final RxnInt myRank = RxnInt();
 
+  final LeaderboardService _leaderboardService = LeaderboardService();
+
   @override
   void onInit() {
     super.onInit();
     fetchFull();
   }
 
-  /// TODO: backend bağla
+  /// 🔹 Servis üzerinden tam tabloyu çek
   Future<void> fetchFull() async {
     loading.value = true;
-    await Future.delayed(const Duration(milliseconds: 400));
+    try {
+      final data = await _leaderboardService.fetchLeaderboardData();
 
-    final data = <LeaderboardEntry>[
-      LeaderboardEntry(rank: 1,
-          name: 'A. Şahin',
-          initials: 'AS',
-          xp: 980,
-          delta: 1),
-      LeaderboardEntry(rank: 2,
-          name: 'Ö. Deniz',
-          initials: 'ÖD',
-          xp: 910,
-          delta: 0),
-      LeaderboardEntry(rank: 3,
-          name: 'E. Sena',
-          initials: 'ES',
-          xp: 905,
-          delta: -1),
-      LeaderboardEntry(rank: 4,
-          name: 'Jennifer',
-          initials: 'J',
-          xp: 880,
-          delta: 3),
-      LeaderboardEntry(rank: 5,
-          name: 'William',
-          initials: 'W',
-          xp: 756,
-          delta: -1),
-      LeaderboardEntry(rank: 6,
-          name: 'Rümeysa',
-          initials: 'RY',
-          xp: 756,
-          delta: 3,
-          isMe: true),
-      LeaderboardEntry(rank: 7,
-          name: 'Emery',
-          initials: 'E',
-          xp: 636,
-          delta: -1),
-      LeaderboardEntry(rank: 8,
-          name: 'Lydia',
-          initials: 'L',
-          xp: 560,
-          delta: -1),
-    ];
+      // Servisten gelen veriler
+      final fullList = data['entries'] as List<LeaderboardEntry>;
+      final top = data['top3'] as List<TopUser>;
+      final me = data['me'] as MeRank?;
 
-    entries.assignAll(data);
-    top3.assignAll(data.take(3));
-    myRank.value = data
-        .firstWhereOrNull((e) => e.isMe == true)
-        ?.rank;
-    loading.value = false;
+      // UI güncelle
+      entries.assignAll(fullList);
+      top3.assignAll(fullList.take(3)); // top 3 entry
+      myRank.value = me?.rank;
+
+      print("🏁 Leaderboard loaded — ${entries.length} entries, me: ${me?.name}, Δ${me?.delta}");
+    } catch (e) {
+      print("🔥 Leaderboard fetch error: $e");
+    } finally {
+      loading.value = false;
+    }
   }
 }
