@@ -199,7 +199,7 @@ If unsure, return [].
     "index": 1,
     "correct": true,
     "expected": "✅ Correct Answer: [\"polymorphism\"]",
-    "reason": "You filled 1 out of 1 blanks correctly. Per-blank: 1) polymorphism — correct.",
+    "reason": "You filled blank correctly.",
     "score": 5
   }
 
@@ -211,6 +211,7 @@ If unsure, return [].
     "reason": "Correct choice.",
     "score": 5
   }
+
 
 
 
