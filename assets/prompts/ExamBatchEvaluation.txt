@@ -76,8 +76,8 @@ If meta["Question Format"] == "Fill in the Blank":
      Example:
      ✅ Correct Answer: ["polymorphism"]
    - "reason":
-     - if correct → "Correct answer."
-     - if wrong → "The correct answer is <correct_value>."
+     - if correct → "Correct answer is provided."
+     - if wrong → "The correct answer is, "<correct_value>"."
 
 6) MULTI-BLANK CASE (N > 1, PARTIAL CREDIT ALLOWED):
    - Let K = number of correctly filled blanks, N = total blanks.
@@ -89,12 +89,11 @@ If meta["Question Format"] == "Fill in the Blank":
      ✅ Correct Answer: ["for", "while", "do-while"]
    - "reason" (numbered per-blank format):
      - First a brief summary sentence, e.g., "You filled K out of N blanks correctly."
-     - Then a numbered list inline named Per-blank, where each item shows only the correct value in order:
+     - Then a numbered list inline named Per-blank, where each item shows what the user entered, and if incorrect, the correct answer in parentheses:
        - If the user’s value at that position is correct → append " — correct"
        - If it is not correct (or missing) → show only the correct value.
      - Example:
-       "You filled 2 out of 3 blanks correctly. Per-blank: 1) for — correct; 2) while — correct; 3) do-while."
-
+       "You filled 2 out of 3 blanks correctly. Per-blank: 1- for (Correct), 2- while — (Correct), 3- do-while — (Incorrect, should've been: "goto")"
 ---
 
 ======================
@@ -188,9 +187,9 @@ If unsure, return [].
 - Multi-Blank (partial):
   {
     "index": 0,
-    "correct": false,
-    "expected": "✅ Correct Answer: [\"for\", \"while\", \"do-while\"]",
-    "reason": "You filled 2 out of 3 blanks correctly. Per-blank: 1) for — correct; 2) while — correct; 3) do-while.",
+    "correct": true,
+    "expected": "✅ Correct Answer: [\"for\", \"while\", \"goto\"]",
+    "reason": "You filled 2 out of 3 blanks correctly. Per-blank: 1- for (Correct), 2- while — (Correct), 3- do-while — (Incorrect, should've been: "goto") ",
     "score": 3.3
   }
 
@@ -199,7 +198,7 @@ If unsure, return [].
     "index": 1,
     "correct": true,
     "expected": "✅ Correct Answer: [\"polymorphism\"]",
-    "reason": "You filled blank correctly.",
+    "reason": "You filled the blank correctly!",
     "score": 5
   }
 
