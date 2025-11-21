@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-/// AppBar başlığı: Kullanıcı avatarı + "Hi, Name!"
+import '../../../constants/colors.dart';
+import '../../../constants/text_styles.dart';
+
+/// Header: Kullanıcı avatarı + "Hi, Name!"
 /// - photoUrl null ise default ikon gösterir.
 /// - Firestore'dan giriş yapan kullanıcının "name" alanını çeker.
 class UserGreetingTitle extends StatelessWidget {
@@ -32,10 +36,16 @@ class UserGreetingTitle extends StatelessWidget {
       future: _getUserData(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Text("Yükleniyor...");
+          return Text(
+            "Yükleniyor...",
+            style: AppTextStyles.bodySmall,
+          );
         }
         if (snapshot.hasError) {
-          return const Text("Hata oluştu");
+          return Text(
+            "Hata oluştu",
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+          );
         }
 
         final name = snapshot.data?['name'] ?? 'Kullanıcı';
@@ -47,23 +57,24 @@ class UserGreetingTitle extends StatelessWidget {
               onTap: onAvatarTap,
               borderRadius: BorderRadius.circular(20),
               child: CircleAvatar(
-                radius: 18,
-                backgroundColor:
-                    Theme.of(context).colorScheme.primary.withOpacity(.12),
+                radius: 24,
+                backgroundColor: AppColors.surfaceMuted,
                 backgroundImage: photoUrl != null && photoUrl.isNotEmpty
                     ? NetworkImage(photoUrl)
                     : null,
                 child: (photoUrl == null || photoUrl.isEmpty)
-                    ? Icon(Icons.person,
-                        color: Theme.of(context).colorScheme.primary)
+                    ? PhosphorIcon(
+                        PhosphorIcons.user(PhosphorIconsStyle.fill),
+                        color: AppColors.primary,
+                        size: 22,
+                      )
                     : null,
               ),
             ),
             const SizedBox(width: 10),
             Text(
               'Hi, $name!',
-              style:
-                  const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+              style: AppTextStyles.headline,
             ),
           ],
         );
