@@ -34,11 +34,11 @@ class PracticePage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: primaryColor,
+        backgroundColor: AppColors.primary,
         elevation: 0,
         title: Text(
           'Practice',
-          style: AppTextStyles.headline.copyWith(color: headlineColor),
+          style: AppTextStyles.headline.copyWith(color: AppColors.textPrimary),
         ),
         centerTitle: true,
       ),

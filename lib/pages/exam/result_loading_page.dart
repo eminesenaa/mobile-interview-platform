@@ -76,7 +76,7 @@ class _ResultLoadingPageState extends State<ResultLoadingPage> {
             children: [
               // Spinner
               CircularProgressIndicator(
-                color: primaryColor, // uygulamanın primary rengi
+                color: AppColors.primary, // uygulamanın primary rengi
                 strokeWidth: 4,
               ),
               const SizedBox(height: 20),

@@ -74,11 +74,12 @@ class AppColors {
   // Difficulty Colors
   // =========
 
-  static const Color difficultyEasy = Colors.green;
-  static const Color difficultyEasyMedium = Colors.lightGreen;
-  static const Color difficultyMedium = Colors.orange;
-  static const Color difficultyMediumHard = Colors.deepOrange;
-  static const Color difficultyHard = Colors.red;
+  static const Color difficultyEasy        = Color(0xFF4CAF50);
+  static const Color difficultyEasyMedium  = Color(0xFFFFD54F);
+  static const Color difficultyMedium      = Color(0xFFFF9800);
+  static const Color difficultyMediumHard  = Color(0xFFFF5722);
+  static const Color difficultyHard        = Color(0xFFF44336);
+
 
 
   // =========
@@ -94,22 +95,5 @@ class AppColors {
   /// Hafif gölge efekti için kullanılabilecek siyah (10% opacity).
   static const Color shadow = Color(0x1A000000);
 }
-
-// SİLİNECEK BU ALTTAKİ RENKLER ŞİMDİLİK HATA ÇIKMASIN DİYE DURUYORLAR
-const Color primaryColor = Color(0xFF004BA8);
-const Color secondaryColor = Color(0xFFC6E7FF);
-
-const Color headlineColor = Color(0xFFFBFBFB);
-
-const Color pastelBlue = Color(0xFFC6E7FF);
-const Color pastelBlue2 = Color(0xFFD4F6FF);
-
-
-const Color prussianBlue = Color(0xFF004BA8);
-const Color indigoDye = Color(0xFF284B63);
-const Color ashGrey = Color(0xFFB4B8AB);
-const Color ivory = Color(0xFFF4F9E9);
-const Color alabaster = Color(0xFFEEF0EB);
-
 
 

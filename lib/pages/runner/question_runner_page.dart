@@ -41,7 +41,7 @@ class QuestionRunnerPage extends StatelessWidget {
       return Scaffold(
         appBar: AppBar(
           leading: const BackButton(color: Colors.white),
-          backgroundColor: primaryColor,
+          backgroundColor: AppColors.primary,
           title: Text(
             titleText,
             maxLines: 1,

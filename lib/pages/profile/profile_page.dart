@@ -12,10 +12,10 @@ class ProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Get.put(ProfileController());
 
-    const headerColor = primaryColor;
+    const headerColor = AppColors.primary;
 
     return Scaffold(
-      backgroundColor: headlineColor,
+      backgroundColor: AppColors.textPrimary,
       appBar: AppBar(
         backgroundColor: headerColor,
         elevation: 0,

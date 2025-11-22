@@ -107,7 +107,7 @@ class ReviewMcqView extends StatelessWidget {
             child: const Text(
               "See AI Explanation",
               style: TextStyle(
-                color: primaryColor,
+                color: AppColors.primary,
                 fontWeight: FontWeight.w600,
               ),
             ),

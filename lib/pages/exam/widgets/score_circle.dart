@@ -24,7 +24,7 @@ class ScoreCircle extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: primaryColor, // use app primary color
+          color: AppColors.primary, // use app primary color
           width: 4,
         ),
       ),

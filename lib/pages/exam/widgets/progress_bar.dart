@@ -16,7 +16,7 @@ class ProgressBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final value = total == 0 ? 0.0 : answered / total;
-    const color = primaryColor;
+    const color = AppColors.primary;
 
     return Padding(
       padding: const EdgeInsets.only(top: 12, bottom: 8),

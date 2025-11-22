@@ -21,8 +21,8 @@ class MultiSelectField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    const primary = primaryColor;
-    const selectedBg = secondaryColor;
+    const primary = AppColors.primary;
+    const selectedBg = AppColors.primaryAccent;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -42,7 +42,7 @@ class MultiSelectField extends StatelessWidget {
                 label: Text(
                   e.toDisplayLabel(),
                   style: const TextStyle(
-                    color: primaryColor,
+                    color: AppColors.primary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -65,13 +65,13 @@ class MultiSelectField extends StatelessWidget {
             children: [
               const Icon(
                 Icons.arrow_drop_down_rounded,
-                color: primaryColor, // ikon rengi
+                color: AppColors.primary, // ikon rengi
               ),
               const SizedBox(width: 6),
               Text(
                 buttonLabel,
                 style: const TextStyle(
-                  color: primaryColor,           // yazı rengi
+                  color: AppColors.primary,           // yazı rengi
                   fontWeight: FontWeight.w600,   // biraz daha belirgin
                 ),
               ),
@@ -84,7 +84,7 @@ class MultiSelectField extends StatelessWidget {
 
   void _openSelector(BuildContext context) {
     final controller = TextEditingController();
-    final primary = primaryColor;
+    final primary = AppColors.primary;
 
     final selectedBg = primary.withValues(alpha: .14);
 
@@ -163,14 +163,14 @@ class MultiSelectField extends StatelessWidget {
                         children: [
                           TextButton(
                             style: TextButton.styleFrom(
-                              foregroundColor: primaryColor,
+                              foregroundColor: AppColors.primary,
                             ),
                             onPressed: () => selectedSet.clear(),
                             child: const Text('Clear all'),
                           ),
                           FilledButton(
                             style: FilledButton.styleFrom(
-                              backgroundColor: primaryColor,
+                              backgroundColor: AppColors.primary,
                             ),
                             onPressed: () => Navigator.of(context).pop(),
                             child: const Text('Done'),

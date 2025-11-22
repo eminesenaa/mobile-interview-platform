@@ -33,7 +33,7 @@ class ReviewActionBar extends StatelessWidget {
                 icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
                 label: const Text('Previous'),
                 style: TextButton.styleFrom(
-                  foregroundColor: primaryColor,
+                  foregroundColor: AppColors.primary,
                 ),
               ),
               const Spacer(),
@@ -42,7 +42,7 @@ class ReviewActionBar extends StatelessWidget {
                 icon: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
                 label: const Text('Next'),
                 style: TextButton.styleFrom(
-                  foregroundColor: primaryColor,
+                  foregroundColor: AppColors.primary,
                 ),
               ),
             ],
@@ -54,7 +54,7 @@ class ReviewActionBar extends StatelessWidget {
             width: double.infinity,
             child: FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: primaryColor,
+                backgroundColor: AppColors.primary,
               ),
               onPressed: () {
                 showModalBottomSheet(

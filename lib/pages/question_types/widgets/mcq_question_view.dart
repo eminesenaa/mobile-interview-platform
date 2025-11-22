@@ -112,7 +112,7 @@ class _McqQuestionViewState extends State<McqQuestionView> {
                     bgColor = Colors.red.shade50;
                   }
                 } else if (isSelected) {
-                  borderColor = pastelBlue;
+                  borderColor = AppColors.primaryAccent;
                 }
 
                 return GestureDetector(

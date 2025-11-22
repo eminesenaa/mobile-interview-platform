@@ -8,7 +8,7 @@ class CountSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const primary = primaryColor;
+    const primary = AppColors.primary;
 
     return Obx(() => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -23,7 +23,7 @@ class CountSlider extends StatelessWidget {
 
             valueIndicatorColor: primary,
             valueIndicatorTextStyle: const TextStyle(
-              color: headlineColor,
+              color: AppColors.textPrimary,
               fontWeight: FontWeight.w600,
             ),
           ),

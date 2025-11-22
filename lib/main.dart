@@ -46,18 +46,16 @@ class MyApp extends StatelessWidget {
         Get.put<QuestionController>(QuestionController(), permanent: true);
       }),
       theme: ThemeData(
+        scaffoldBackgroundColor: AppColors.background,
         appBarTheme: const AppBarTheme(
-          backgroundColor: primaryColor,
+          backgroundColor: AppColors.primary,
           elevation: 0,
-          iconTheme: IconThemeData(color: headlineColor),
+          iconTheme: IconThemeData(color: AppColors.surface),
           titleTextStyle: TextStyle(
-            color: headlineColor,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
+            color: AppColors.surface,
           ),
         ),
       ),
-
       // 🔹 Ana yönlendirme
       home: GetX<AuthController>(
         builder: (auth) {

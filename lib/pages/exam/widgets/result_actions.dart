@@ -24,7 +24,7 @@ class ResultActions extends StatelessWidget {
       children: [
         FilledButton(
           style: FilledButton.styleFrom(
-            backgroundColor: primaryColor.withOpacity(0.9),
+            backgroundColor: AppColors.primary.withOpacity(0.9),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(
@@ -37,8 +37,8 @@ class ResultActions extends StatelessWidget {
         const SizedBox(height: 12),
         OutlinedButton(
           style: OutlinedButton.styleFrom(
-            foregroundColor: primaryColor.withOpacity(0.9),
-            side: BorderSide(color: primaryColor.withOpacity(0.9), width: 1.5),
+            foregroundColor: AppColors.primary.withOpacity(0.9),
+            side: BorderSide(color: AppColors.primary.withOpacity(0.9), width: 1.5),
             padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),

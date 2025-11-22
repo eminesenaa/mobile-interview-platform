@@ -26,7 +26,7 @@ class LibraryPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: primaryColor,
+        backgroundColor: AppColors.primary,
         elevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
         title: const Text('My Library'),
@@ -120,10 +120,10 @@ class _SegmentedTabBar extends StatelessWidget {
         dividerColor: Colors.transparent,
         labelPadding: const EdgeInsets.symmetric(vertical: 8),
         indicator: BoxDecoration(
-          color: primaryColor,
+          color: AppColors.primary,
           borderRadius: BorderRadius.circular(12),
         ),
-        labelColor: headlineColor ?? cs.onSurface,
+        labelColor: AppColors.textPrimary ?? cs.onSurface,
         unselectedLabelColor: cs.onSurfaceVariant,
         tabs: const [
           Tab(text: 'All'),

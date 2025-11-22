@@ -22,8 +22,8 @@ class TypesPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    const selectedBg = secondaryColor;
-    const selectedFg = primaryColor;
+    const selectedBg = AppColors.primaryAccent;
+    const selectedFg = AppColors.primary;
 
     return Obx(() => Wrap(
       spacing: 8,

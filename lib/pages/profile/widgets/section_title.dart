@@ -9,7 +9,7 @@ class SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: primaryColor),
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primary),
     );
   }
 }

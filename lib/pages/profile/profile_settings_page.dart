@@ -17,14 +17,14 @@ class ProfileSettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = Get.put(ProfileSettingsController());
-    const headerColor = primaryColor;
+    const headerColor = AppColors.primary;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text(
           'Settings',
           style: TextStyle(
-            color: headlineColor,
+            color: AppColors.textPrimary,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),

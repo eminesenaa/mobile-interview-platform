@@ -87,7 +87,7 @@ class ExamReviewPage extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: secondaryColor.withValues(alpha: 0.35),
+                        color: AppColors.primaryAccent.withValues(alpha: 0.35),
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
@@ -113,7 +113,7 @@ class ExamReviewPage extends StatelessWidget {
                                 IconButton(
                                   tooltip: "Open Code Editor (Read-only)",
                                   icon: const Icon(Icons.code_rounded),
-                                  color: primaryColor,
+                                  color: AppColors.primary,
                                   onPressed: () {
                                     Get.to(
                                       () => ReviewCodingEditorPage(
