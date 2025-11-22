@@ -135,9 +135,9 @@ class Question {
             parsedExamples.add(ex);
 
             if (kDebugMode) {
-              debugPrint(
-                '[FS examples<Map-IO>] $documentId -> in="${ex.input}" out="${ex.output}"',
-              );
+              // debugPrint(
+              //   '[FS examples<Map-IO>] $documentId -> in="${ex.input}" out="${ex.output}"',
+              // );
             }
           } else {
             // b) Map ama tek bir metin taşıyor: text / value / example
@@ -148,21 +148,21 @@ class Question {
               final ex = ExampleCase.fromDisplayText(raw);
               parsedExamples.add(ex);
 
-              if (kDebugMode) {
-                debugPrint(
-                  '[FS examples<Map-TEXT>] $documentId -> in="${ex.input}" out="${ex.output}"',
-                );
-              }
+              // if (kDebugMode) {
+              //   debugPrint(
+              //     '[FS examples<Map-TEXT>] $documentId -> in="${ex.input}" out="${ex.output}"',
+              //   );
+              // }
             }
           }
         } else if (e is String) {
           // c) Düz string listesi
           final ex = ExampleCase.fromDisplayText(e);
           parsedExamples.add(ex);
-          if (kDebugMode) {
-            debugPrint(
-                '[FS examples<String>] $documentId -> in="${ex.input}" out="${ex.output}"');
-          }
+          // if (kDebugMode) {
+          //   debugPrint(
+          //       '[FS examples<String>] $documentId -> in="${ex.input}" out="${ex.output}"');
+          // }
         }
       }
     } else if (examplesRaw is Map<String, dynamic>) {
@@ -173,8 +173,8 @@ class Question {
         final ex = ExampleCase.fromDisplayText(raw);
         parsedExamples.add(ex);
         if (kDebugMode) {
-          debugPrint(
-              '[FS examples<Map>] $documentId -> in="${ex.input}" out="${ex.output}"');
+          // debugPrint(
+          //     '[FS examples<Map>] $documentId -> in="${ex.input}" out="${ex.output}"');
         }
       }
     }
@@ -204,8 +204,8 @@ class Question {
           parsedExamples.add(ex);
 
           if (kDebugMode) {
-            debugPrint(
-                '[FS $key] $documentId -> in="${ex.input}" out="${ex.output}"');
+            // debugPrint(
+            //     '[FS $key] $documentId -> in="${ex.input}" out="${ex.output}"');
           }
         }
       }
@@ -222,18 +222,18 @@ class Question {
           parsedExamples.add(ex);
 
           if (kDebugMode) {
-            debugPrint(
-              '[FS any<$k>] $documentId -> in="${ex.input}" out="${ex.output}"',
-            );
+            // debugPrint(
+            //   '[FS any<$k>] $documentId -> in="${ex.input}" out="${ex.output}"',
+            // );
           }
         }
       }
 
 // 4) Hâlâ boşsa bir kere debug olarak anahtarları gösterelim
       if (kDebugMode && parsedExamples.isEmpty) {
-        debugPrint(
-          '⚠️ No examples parsed for $documentId. keys=${data.keys.toList()}',
-        );
+        // debugPrint(
+        //   '⚠️ No examples parsed for $documentId. keys=${data.keys.toList()}',
+        // );
       }
     }
 

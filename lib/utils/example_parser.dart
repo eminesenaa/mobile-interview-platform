@@ -38,7 +38,6 @@ class ExampleParser {
 
     // Satır sonlarını normalize et
     final text = raw.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
-    if (kDebugMode) debugPrint('[EX_PARSE] RAW:\n$text');
 
     String input = '';
     String output = '';
@@ -46,7 +45,6 @@ class ExampleParser {
 
     // 1) Etiketli senaryo: marker’lar arasında dilimle
     final matches = _marker.allMatches(text).toList();
-    if (kDebugMode) debugPrint('[EX_PARSE] FOUND markers: ${matches.length}');
 
     if (matches.isNotEmpty) {
       for (var i = 0; i < matches.length; i++) {
@@ -56,7 +54,6 @@ class ExampleParser {
         final valueEnd = (i + 1 < matches.length) ? matches[i + 1].start : text.length;
         final value = text.substring(valueStart, valueEnd).trim();
 
-        if (kDebugMode) debugPrint('[EX_PARSE] TOK -> $label: "$value"');
 
         switch (label) {
           case 'input':
@@ -94,11 +91,6 @@ class ExampleParser {
       explanation: (explanation?.isEmpty ?? true) ? null : explanation,
     );
 
-    if (kDebugMode) {
-      debugPrint(
-        '[EX_PARSE] RESULT -> input="$input" | output="$output" | expl="${result.explanation}"',
-      );
-    }
     return result;
   }
 }

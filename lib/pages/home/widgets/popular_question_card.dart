@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:interview_project/constants/colors.dart';
+import 'package:interview_project/constants/text_styles.dart';
 
 import '../../../models/question.dart';
-
+import '../../question_types/question_navigator.dart';
 
 class PopularQuestionCard extends StatelessWidget {
   final Question question;
@@ -14,7 +15,7 @@ class PopularQuestionCard extends StatelessWidget {
     super.key,
     required this.question,
     this.width,
-    this.padding = const EdgeInsets.all(14),
+    this.padding = const EdgeInsets.all(16),
   });
 
   /// Yatay (horizontal) listeye uygun kısa yol
@@ -22,110 +23,172 @@ class PopularQuestionCard extends StatelessWidget {
     super.key,
     required this.question,
     required double this.width,
-  }) : padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 16);
+  }) : padding = const EdgeInsets.fromLTRB(16, 14, 16, 14);
 
-  //void _openQuestion() => QuestionNavigator.open(question);
+  void _openQuestion() => QuestionNavigator.open(question);
 
   @override
   Widget build(BuildContext context) {
+    final Color strokeColor = _difficultyStrokeColor(question.difficulty);
+
     return SizedBox(
       width: width,
       child: Card(
-        elevation: 0.6,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        color: AppColors.surface,
+        elevation: 4,
+        shadowColor: AppColors.shadow,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          //onTap: _openQuestion, // tüm karta tıklama
-          child: Padding(
-            padding: padding,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Sol renk şeridi KALDIRILDI
+          borderRadius: BorderRadius.circular(20),
+          onTap: _openQuestion,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: strokeColor,
+                width: 4.2, // bir tık daha kalın kenar
+              ),
+            ),
+            child: Padding(
+              padding: padding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _DifficultyHeader(difficulty: question.difficulty),
 
-                // içerik
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        question.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 6,
-                        crossAxisAlignment: WrapCrossAlignment.center,
+                  // Title + Tags ortalansın diye Expanded içinde Center
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      // dikey ortalı, soldan hizalı
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _Chip(
-                            icon: Icons.category,
-                            label: question.topic ?? '—',
-                          ),
-                          _DifficultyChip(difficulty: question.difficulty),
+                          const SizedBox(height: 8),
+                          Text(
+                            question.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.left,
+                            style: AppTextStyles.bodyStrong.copyWith(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary,
+                            ),
+                          ), // title
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              _Chip(
+                                icon: Icons.category_outlined,
+                                label: question.topic ?? '—',
+                              ),
+                              _Chip(
+                                icon: _typeIcon(question.type),
+                                label: _typeLabel(question.type),
+                              ),
+                            ],
+                          ), // tags
                         ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-
-                const SizedBox(width: 12),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
+
+  // ========= Helpers =========
+
+  static Color _difficultyStrokeColor(Difficulty d) {
+    switch (d) {
+      case Difficulty.easy:
+        return AppColors.success;
+      case Difficulty.easy_medium:
+      case Difficulty.medium:
+        return AppColors.warning;
+      case Difficulty.medium_hard:
+      case Difficulty.hard:
+        return AppColors.error;
+    }
+  }
+
+  static IconData _typeIcon(QuestionType type) {
+    switch (type) {
+      case QuestionType.coding:
+        return Icons.code;
+      case QuestionType.mcq:
+        return Icons.list_alt;
+      case QuestionType.fillBlank:
+        return Icons.space_bar;
+      case QuestionType.shortAnswer:
+        return Icons.chat_bubble_outline;
+      default:
+        return Icons.help_outline;
+    }
+  }
+
+  static String _typeLabel(QuestionType type) {
+    switch (type) {
+      case QuestionType.coding:
+        return 'Coding';
+      case QuestionType.mcq:
+        return 'MCQ';
+      case QuestionType.fillBlank:
+        return 'Fill-in-Blanks';
+      case QuestionType.shortAnswer:
+        return 'Short Answer';
+      default:
+        return 'Question';
+    }
+  }
 }
 
-/// Zorluk etiketini soft renkle verir
-class _DifficultyChip extends StatelessWidget {
+/// Üstteki “Easy / Medium / Hard” chip’i
+class _DifficultyHeader extends StatelessWidget {
   final Difficulty difficulty;
-  const _DifficultyChip({required this.difficulty});
+
+  const _DifficultyHeader({required this.difficulty});
 
   @override
   Widget build(BuildContext context) {
-    final base = _difficultyColor(difficulty);
-    final bg = base.withOpacity(.12);
-    final fg = base.withOpacity(.90);
+    final Color base = PopularQuestionCard._difficultyStrokeColor(difficulty);
+    final Color bg = base.withOpacity(0.10);
+    final Color fg = base.withOpacity(0.95);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.leaderboard, size: 14),
-        const SizedBox(width: 4),
-        Text(
-          _difficultyLabel(difficulty),
-          style: TextStyle(fontSize: 12, color: fg, fontWeight: FontWeight.w600),
-        ),
-      ]),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.lightbulb_outline, size: 14, color: fg),
+          const SizedBox(width: 4),
+          Text(
+            _difficultyLabel(difficulty),
+            style: AppTextStyles.bodySmall.copyWith(
+              fontSize: 12,
+              color: fg,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
-  }
-
-  static Color _difficultyColor(Difficulty d) {
-    switch (d) {
-      case Difficulty.easy:
-        return Colors.green;
-      case Difficulty.easy_medium:
-        return Colors.teal;
-      case Difficulty.medium:
-        return Colors.orange;
-      case Difficulty.medium_hard:
-        return Colors.deepOrange;
-      case Difficulty.hard:
-        return Colors.red;
-    }
   }
 
   static String _difficultyLabel(Difficulty d) {
@@ -133,37 +196,44 @@ class _DifficultyChip extends StatelessWidget {
       case Difficulty.easy:
         return 'Easy';
       case Difficulty.easy_medium:
-        return 'Easy‑Med';
+        return 'Easy-Med';
       case Difficulty.medium:
         return 'Medium';
       case Difficulty.medium_hard:
-        return 'Med‑Hard';
+        return 'Med-Hard';
       case Difficulty.hard:
         return 'Hard';
     }
   }
 }
 
+/// Alt tagler için genel chip
 class _Chip extends StatelessWidget {
   final IconData icon;
   final String label;
+
   const _Chip({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: cs.surfaceVariant.withOpacity(.6),
-        borderRadius: BorderRadius.circular(10),
+        color: AppColors.chipBackground,
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14),
+          Icon(icon, size: 14, color: AppColors.textSecondary),
           const SizedBox(width: 4),
-          Text(label, style: const TextStyle(fontSize: 12)),
+          Text(
+            label,
+            style: AppTextStyles.bodySmall.copyWith(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
         ],
       ),
     );

@@ -32,7 +32,7 @@ class LeaderboardController extends GetxController {
       top3.assignAll(fullList.take(3)); // top 3 entry
       myRank.value = me?.rank;
 
-      print("🏁 Leaderboard loaded — ${entries.length} entries, me: ${me?.name}, Δ${me?.delta}");
+      // print("🏁 Leaderboard loaded — ${entries.length} entries, me: ${me?.name}, Δ${me?.delta}");
     } catch (e) {
       print("🔥 Leaderboard fetch error: $e");
     } finally {

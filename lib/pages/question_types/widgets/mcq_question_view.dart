@@ -20,7 +20,9 @@ class McqQuestionView extends StatefulWidget {
 
   /// Runner, "Send" butonunu enable/disable etmek için kullanır.
   /// selectedIndex != null ise valid = true gönderiyoruz.
-  final void Function(int? selectedIndex)? onChanged;
+  // Runner artık tüm cevapları Map<String, dynamic> olarak bekliyor.
+// MCQ için {"index": <seçili_index>} formatında göndereceğiz.
+  final void Function(Map<String, dynamic>? answer)? onChanged;
 
   /// Dışarıdan kilitlemek istersen (genellikle submit sonrası),
   /// ek önlem olarak seçenekler pasif olur. (Controller’daki isSubmitted
@@ -119,7 +121,8 @@ class _McqQuestionViewState extends State<McqQuestionView> {
                       : () {
                           setState(() => _selected = i);
                           c.select(i); // seçimi controller’a bildir
-                          widget.onChanged?.call(i); // opsiyonel callback
+                          widget.onChanged
+                              ?.call({"index": i}); // opsiyonel callback
                         },
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -139,8 +142,8 @@ class _McqQuestionViewState extends State<McqQuestionView> {
                               : (_) {
                                   setState(() => _selected = i);
                                   c.select(i); // seçimi controller’a bildir
-                                  widget.onChanged
-                                      ?.call(i); // opsiyonel callback
+                                  widget.onChanged?.call(
+                                      {"index": i}); // opsiyonel callback
                                 },
                         ),
                         const SizedBox(width: 8),

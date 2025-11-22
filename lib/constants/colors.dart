@@ -71,6 +71,17 @@ class AppColors {
   static const Color error = Color(0xFFEF4444);
 
   // =========
+  // Difficulty Colors
+  // =========
+
+  static const Color difficultyEasy = Colors.green;
+  static const Color difficultyEasyMedium = Colors.lightGreen;
+  static const Color difficultyMedium = Colors.orange;
+  static const Color difficultyMediumHard = Colors.deepOrange;
+  static const Color difficultyHard = Colors.red;
+
+
+  // =========
   // Subtle helpers (chip bg, overlay vb.)
   // =========
 
@@ -84,7 +95,7 @@ class AppColors {
   static const Color shadow = Color(0x1A000000);
 }
 
- // SİLİNECEK BU ALTTAKİ RENKLER ŞİMDİLİK HATA ÇIKMASIN DİYE DURUYORLAR
+// SİLİNECEK BU ALTTAKİ RENKLER ŞİMDİLİK HATA ÇIKMASIN DİYE DURUYORLAR
 const Color primaryColor = Color(0xFF004BA8);
 const Color secondaryColor = Color(0xFFC6E7FF);
 

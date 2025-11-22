@@ -30,7 +30,7 @@ class HomePage extends StatelessWidget {
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             // ---- PINNED HEADER (APP BAR GİBİ) ----
-            SliverAppBar(
+            const SliverAppBar(
               pinned: true,
               backgroundColor: AppColors.background,
               elevation: 0,
@@ -38,12 +38,12 @@ class HomePage extends StatelessWidget {
               toolbarHeight: 70,
               flexibleSpace: SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
+                  padding:  EdgeInsets.symmetric(
                     horizontal: AppSpacing.md,
                     vertical: AppSpacing.sm,
                   ),
                   child: Row(
-                    children: const [
+                    children:  [
                       Expanded(child: UserGreetingTitle()),
                     ],
                   ),
@@ -108,7 +108,7 @@ class HomePage extends StatelessWidget {
                     separatorBuilder: (_, __) => const SizedBox(width: 12),
                     itemBuilder: (_, i) => PopularQuestionCard.horizontal(
                       question: items[i],
-                      width: MediaQuery.of(context).size.width * 0.7,
+                      width: MediaQuery.of(context).size.width * 0.8,
                     ),
                   ),
                 );
