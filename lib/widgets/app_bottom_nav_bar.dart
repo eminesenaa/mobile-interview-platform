@@ -21,7 +21,15 @@ class AppBottomNavBar extends StatelessWidget {
     final bottomPadding = MediaQuery.paddingOf(context).bottom;
 
     return Container(
-      color: AppColors.surface, // düz beyaz bar
+      decoration: const BoxDecoration(
+        color: AppColors.surface, // düz beyaz bar
+        border: Border(
+          top: BorderSide(
+            color: AppColors.border, // ince gri çizgi
+            width: 1,
+          ),
+        ),
+      ),
       padding: EdgeInsets.only(
         bottom: bottomPadding,
         top: AppSpacing.sm,
@@ -84,8 +92,6 @@ final List<_NavItemData> _navItems = [
     label: 'Profile',
   ),
 ];
-
-
 
 class _FlatNavItem extends StatelessWidget {
   const _FlatNavItem({

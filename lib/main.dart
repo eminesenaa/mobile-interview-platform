@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:overlay_support/overlay_support.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/services.dart';
+
 import 'constants/colors.dart';
 import 'firebase_options.dart';
 import 'pages/auth/login_page.dart';
@@ -8,9 +12,6 @@ import 'pages/main_view.dart';
 import 'controllers/question_controller.dart';
 import 'controllers/auth_controller.dart';
 import 'services/ai/ai_service.dart';
-import 'package:overlay_support/overlay_support.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter/services.dart';
 
 Future<void> _initAi() async {
   Get.put<AiService>(AiService(), permanent: true);
@@ -18,10 +19,13 @@ Future<void> _initAi() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   await _initAi();
   await dotenv.load(fileName: ".env");
 
+  // Sistem UI (status bar vs) ayarı
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
@@ -48,19 +52,36 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         scaffoldBackgroundColor: AppColors.background,
         appBarTheme: const AppBarTheme(
-          backgroundColor: AppColors.primary,
+          backgroundColor: AppColors.surface,
           elevation: 0,
-          iconTheme: IconThemeData(color: AppColors.surface),
+          toolbarHeight: 70,
+          iconTheme: IconThemeData(
+            color: AppColors.textPrimary, // geri ok + diğer ikonlar
+            size: 24,
+          ),
           titleTextStyle: TextStyle(
-            color: AppColors.surface,
+            color: AppColors.textPrimary,
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+          centerTitle: true,
+          // AppBar altına ince çizgi
+          shape: Border(
+            bottom: BorderSide(
+              color: AppColors.border,
+              width: 1,
+            ),
           ),
         ),
       ),
       // 🔹 Ana yönlendirme
       home: GetX<AuthController>(
         builder: (auth) {
+          // debug log
+          // ignore: avoid_print
           print(
-              "🔥 build çalıştı: isLoading=${auth.isLoading.value}, user=${auth.user?.email}");
+            "🔥 build çalıştı: isLoading=${auth.isLoading.value}, user=${auth.user?.email}",
+          );
 
           if (auth.isLoading.value) {
             return const Scaffold(

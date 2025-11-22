@@ -89,10 +89,12 @@ class PopularQuestionCard extends StatelessWidget {
                               _Chip(
                                 icon: Icons.category_outlined,
                                 label: question.topic ?? '—',
+                                strokeColor: strokeColor,
                               ),
                               _Chip(
                                 icon: _typeIcon(question.type),
                                 label: _typeLabel(question.type),
+                                strokeColor: strokeColor,
                               ),
                             ],
                           ), // tags
@@ -168,7 +170,7 @@ class _DifficultyHeader extends StatelessWidget {
     final Color fg = base.withOpacity(0.95);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(8),
@@ -211,27 +213,37 @@ class _DifficultyHeader extends StatelessWidget {
 class _Chip extends StatelessWidget {
   final IconData icon;
   final String label;
+  final Color strokeColor;
 
-  const _Chip({required this.icon, required this.label});
+  const _Chip({
+    required this.icon,
+    required this.label,
+    required this.strokeColor,   // <-- eklendi
+  });
+
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.chipBackground,
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.white,             // ✔️ içi artık beyaz
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: strokeColor,          // ✔️ kart border rengi ile aynı
+          width: 1.2,                    // ✔️ ince border
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: AppColors.textSecondary),
+          Icon(icon, size: 14, color: strokeColor,),
           const SizedBox(width: 4),
           Text(
             label,
-            style: AppTextStyles.bodySmall.copyWith(
-              fontSize: 12,
-              color: AppColors.textSecondary,
+            style: TextStyle(
+              color: strokeColor,                   // ✔️ aynı renk
+              fontWeight: FontWeight.w600,             // ✔️ biraz daha belirgin
             ),
           ),
         ],

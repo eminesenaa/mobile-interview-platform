@@ -23,37 +23,42 @@ class HomePage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: AppColors.surface,
+        toolbarHeight: 70,
+        titleSpacing: 0,
+        title: const Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              Expanded(child: UserGreetingTitle()),
+            ],
+          ),
+        ),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, thickness: 1, color: AppColors.border),
+        ),
+      ),
       body: RefreshIndicator(
         onRefresh: hc.refreshAll,
         child: CustomScrollView(
           key: const PageStorageKey('home_scroll'),
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            // ---- PINNED HEADER (APP BAR GİBİ) ----
-            const SliverAppBar(
-              pinned: true,
-              backgroundColor: AppColors.background,
-              elevation: 0,
-              collapsedHeight: 70,
-              toolbarHeight: 70,
-              flexibleSpace: SafeArea(
-                child: Padding(
-                  padding:  EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.sm,
-                  ),
-                  child: Row(
-                    children:  [
-                      Expanded(child: UserGreetingTitle()),
-                    ],
-                  ),
-                ),
-              ),
-            ),
             // ---- GREETING & STREAK ----
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,  // left
+                  AppSpacing.lg,  // top
+                  AppSpacing.md,  // right
+                  AppSpacing.lg,  // bottom → alttaki section ile 24px
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -78,9 +83,9 @@ class HomePage extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.md,
-                  AppSpacing.lg,
+                  0,               // üst boşluk sıfır → yukarıdaki Streak bottom=lg zaten verdi
                   AppSpacing.md,
-                  AppSpacing.sm,
+                  AppSpacing.sm,   // başlık ile kartlar arası 8px
                 ),
                 child: Text(
                   "Today’s Popular Questions",
@@ -91,34 +96,47 @@ class HomePage extends StatelessWidget {
 
             // ---- HORIZONTAL POPULAR QUESTIONS ----
             SliverToBoxAdapter(
-              child: Obx(() {
-                final items = hc.popularQuestions;
-                if (items.isEmpty) {
-                  return const SizedBox.shrink();
-                }
+              child: Padding(
+                padding: const EdgeInsets.only(
+                  bottom: AppSpacing.lg, // Popular list ↔ Leaderboard arası 24px
+                ),
+                child: Obx(() {
+                  final items = hc.popularQuestions;
+                  if (items.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
 
-                return SizedBox(
-                  height: 180,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    shrinkWrap: true,
-                    primary: false,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: items.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 12),
-                    itemBuilder: (_, i) => PopularQuestionCard.horizontal(
-                      question: items[i],
-                      width: MediaQuery.of(context).size.width * 0.8,
+                  return SizedBox(
+                    height: 180,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      shrinkWrap: true,
+                      primary: false,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                      ),
+                      itemCount: items.length,
+                      separatorBuilder: (_, __) =>
+                      const SizedBox(width: 12),
+                      itemBuilder: (_, i) => PopularQuestionCard.horizontal(
+                        question: items[i],
+                        width: MediaQuery.of(context).size.width * 0.8,
+                      ),
                     ),
-                  ),
-                );
-              }),
+                  );
+                }),
+              ),
             ),
 
             // ---- LEADERBOARD CARD ----
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  0,              // üst boşluk yok; yukarıdaki list bottom=lg veriyor
+                  AppSpacing.md,
+                  0,
+                ),
                 child: Obx(
                   () => LeaderboardCard(
                     top3: hc.top3,
@@ -131,7 +149,9 @@ class HomePage extends StatelessWidget {
                 ),
               ),
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+            const SliverToBoxAdapter(
+              child: SizedBox(height: AppSpacing.lg), // Leaderboard ↔ Progress arası 24px
+            ),
 
             // ---- YOUR PROGRESS ----
             SliverToBoxAdapter(

@@ -1,35 +1,54 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 
+import 'package:interview_project/constants/colors.dart';
+import 'package:interview_project/constants/constants.dart';
+import 'package:interview_project/constants/text_styles.dart';
 import '../../../models/leaderboard.dart';
 
 class LeaderboardListItem extends StatelessWidget {
   final LeaderboardEntry e;
+
   const LeaderboardListItem({super.key, required this.e});
 
   @override
   Widget build(BuildContext context) {
-    final s = Theme.of(context).colorScheme;
-    final t = Theme.of(context).textTheme;
-    final trendIcon = e.delta > 0 ? Icons.arrow_upward : e.delta < 0 ? Icons.arrow_downward : Icons.remove;
-    final trendColor = e.delta > 0 ? Colors.green : e.delta < 0 ? Colors.red : s.onSurfaceVariant;
+    final bool isUp = e.delta > 0;
+    final bool isDown = e.delta < 0;
+
+    final Color trendColor = e.delta == 0
+        ? AppColors.textMuted
+        : (isUp ? AppColors.success : AppColors.error);
+
+    // SVG ikon dosyası – LeaderboardCard'daki _MeRow ile aynı mantık
+    final String trendIconAsset;
+    if (e.delta > 0) {
+      trendIconAsset = 'assets/images/up_icon.svg';
+    } else if (e.delta < 0) {
+      trendIconAsset = 'assets/images/down_icon.svg';
+    } else {
+      trendIconAsset = 'assets/images/unchanged_icon.svg';
+    }
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: 6,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
+      ),
       decoration: BoxDecoration(
-        color: s.surface,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
-          color: e.isMe ? s.primary.withOpacity(.45) : s.outlineVariant.withOpacity(.35),
-          width: e.isMe ? 1.5 : 1,
+          color: (e.isMe ?? false)
+              ? AppColors.primary.withValues(alpha: 0.45)
+              : AppColors.border.withValues(alpha: 0.6),
+          width: (e.isMe ?? false) ? 2.6 : 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(.04),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          )
-        ],
+        boxShadow: AppShadows.low,
       ),
       child: Row(
         children: [
@@ -38,14 +57,25 @@ class LeaderboardListItem extends StatelessWidget {
             width: 28,
             child: Text(
               e.rank.toString().padLeft(2, '0'),
-              style: t.titleSmall,
+              style: AppTextStyles.bodyStrong.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
 
           // Avatar
-          CircleAvatar(radius: 18, child: Text(e.initials)),
-          const SizedBox(width: 12),
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: AppColors.primaryAccent.withOpacity(0.15),
+            child: Text(
+              e.initials,
+              style: AppTextStyles.bodyStrong.copyWith(
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
 
           // Name + XP
           Expanded(
@@ -54,7 +84,11 @@ class LeaderboardListItem extends StatelessWidget {
               children: [
                 Text(
                   e.name,
-                  style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.bodyStrong.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Row(
@@ -62,7 +96,9 @@ class LeaderboardListItem extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text(
                       '${e.xp} XP',
-                      style: t.labelMedium?.copyWith(color: s.onSurfaceVariant),
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -75,11 +111,20 @@ class LeaderboardListItem extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                e.delta == 0 ? '0' : (e.delta > 0 ? '+${e.delta}' : '${e.delta}'),
-                style: t.labelMedium?.copyWith(color: trendColor),
+                e.delta == 0
+                    ? '0'
+                    : (e.delta > 0 ? '+${e.delta}' : '${e.delta}'),
+                style: AppTextStyles.bodySmall.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: trendColor,
+                ),
               ),
               const SizedBox(width: 4),
-              Icon(trendIcon, size: 16, color: trendColor),
+              SvgPicture.asset(
+                trendIconAsset,
+                width: 12,
+                height: 12,
+              ),
             ],
           ),
         ],
