@@ -4,12 +4,20 @@ import 'package:equatable/equatable.dart';
 import '../../models/question.dart';
 // import your Question model
 
-enum QuestionSourceKind { practiceAll, practiceFilter, libraryAll, collection, exam }
+enum QuestionSourceKind {
+  practiceAll,
+  practiceFilter,
+  libraryAll,
+  collection,
+  exam,
+  trainingModule
+}
 
 class QuestionSourceContext extends Equatable {
   final QuestionSourceKind kind;
-  final String? label;   // UI’da göster: "Practice • Java", "Collection: Network" vb.
-  final String? refId;   // collectionId / examId gibi
+  final String?
+      label; // UI’da göster: "Practice • Java", "Collection: Network" vb.
+  final String? refId; // collectionId / examId gibi
 
   const QuestionSourceContext({
     required this.kind,

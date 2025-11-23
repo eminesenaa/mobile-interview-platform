@@ -2,6 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:interview_project/pages/practice/training_module_detail_page.dart';
+import 'package:interview_project/pages/practice/widgets/training_module_card.dart';
 import 'package:sliver_tools/sliver_tools.dart';
 
 import 'package:interview_project/constants/colors.dart';
@@ -9,7 +11,6 @@ import 'package:interview_project/constants/constants.dart';
 
 import 'package:interview_project/pages/practice/widgets/todays_question_card.dart';
 import 'package:interview_project/pages/practice/controllers/practice_controller.dart';
-import 'package:interview_project/pages/practice/widgets/get_started_card.dart';
 import 'package:interview_project/pages/practice/widgets/topic_chip_scroll.dart';
 import 'package:interview_project/pages/practice/widgets/search_add_bar.dart';
 import 'package:interview_project/pages/practice/widgets/filter_popup.dart';
@@ -19,6 +20,7 @@ import 'package:interview_project/pages/library/widgets/save_question_to_collect
 import 'package:interview_project/pages/library/services/library_service.dart';
 
 import '../../models/question.dart';
+import '../../models/training_module.dart';
 import '../runner/question_feed.dart';
 import '../runner/question_runner_page.dart';
 
@@ -31,6 +33,8 @@ class PracticePage extends StatelessWidget {
     final lib = LibraryService.instance; // ✅ Tek referans
 
     final bottomInset = MediaQuery.of(context).padding.bottom + 12;
+    // Training modules slider için: kartın ucu gözüksün diye viewportFraction < 1
+    final trainingPageController = PageController(viewportFraction: 0.9);
 
     return Scaffold(
       appBar: AppBar(
@@ -48,41 +52,57 @@ class PracticePage extends StatelessWidget {
           return CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
-              // (1) GET STARTED CAROUSEL
+              // (1) TRAINING MODULES
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
-                  child: SizedBox(
-                    height: 150,
-                    child: PageView.builder(
-                      itemCount: 5,
-                      itemBuilder: (context, index) {
-                        final path =
-                            'assets/images/get_started_${index + 1}.jpg';
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 8),
-                          child: GetStartedCard(
-                            title: const [
-                              'Warm-up • Quick Win',
-                              'Today’s Challenge',
-                              'Revise Core Topics',
-                              'Mock Interview Prep',
-                              'Tips & Tricks',
-                            ][0],
-                            imagePath: path,
-                            onTap: () => Get.snackbar(
-                              'Let’s go!',
-                              'Scroll down and start solving 🚀',
-                              snackPosition: SnackPosition.BOTTOM,
-                              duration: const Duration(seconds: 2),
+                child: Obx(() {
+                  final modules = controller.trainingModules;
+                  // Henüz module yoksa bu alanı gizle (veya istersen placeholder koy).
+                  if (modules.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+                    child: SizedBox(
+                      height: 170,
+                      // ⭐️ EN KRİTİK KISIM — PageView’in yüksekliğini belirledik
+                      child: PageView.builder(
+                        controller: trainingPageController,
+                        padEnds: false,
+                        itemCount: modules.length,
+                        itemBuilder: (context, index) {
+                          final module = modules[index];
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 8,
                             ),
-                          ),
-                        );
-                      },
+                            child: TrainingModuleCard(
+                              module: module,
+                              progress: null, // ileride user progress gelecek
+                              onTap: () {
+                                // TEMP: Front’u test etmek için mock section + questionRef kullan
+                                final detailSections =
+                                    controller.buildMockSectionsFor(module);
+                                final detailRefs =
+                                    controller.buildMockQuestionRefsFor(
+                                        module, detailSections);
+
+                                Get.to(
+                                  () => TrainingModuleDetailPage(
+                                    module: module,
+                                    sections: detailSections,
+                                    questionRefs: detailRefs,
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                }),
               ),
 
               // (2) TODAY'S QUESTION

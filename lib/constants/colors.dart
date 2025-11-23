@@ -58,6 +58,11 @@ class AppColors {
   static const Color textMuted = Color(0xFF9CA3AF);
 
   // =========
+  // Text (Light variants for dark backgrounds)
+  // =========
+  static const Color textLightPrimary = Color(0xFFF4F6FA);
+
+  // =========
   // States
   // =========
 
@@ -74,13 +79,11 @@ class AppColors {
   // Difficulty Colors
   // =========
 
-  static const Color difficultyEasy        = Color(0xFF4CAF50);
-  static const Color difficultyEasyMedium  = Color(0xFFFFD54F);
-  static const Color difficultyMedium      = Color(0xFFFF9800);
-  static const Color difficultyMediumHard  = Color(0xFFFF5722);
-  static const Color difficultyHard        = Color(0xFFF44336);
-
-
+  static const Color difficultyEasy = Color(0xFF4CAF50);
+  static const Color difficultyEasyMedium = Color(0xFFFFD54F);
+  static const Color difficultyMedium = Color(0xFFFF9800);
+  static const Color difficultyMediumHard = Color(0xFFFF5722);
+  static const Color difficultyHard = Color(0xFFF44336);
 
   // =========
   // Subtle helpers (chip bg, overlay vb.)
@@ -95,5 +98,3 @@ class AppColors {
   /// Hafif gölge efekti için kullanılabilecek siyah (10% opacity).
   static const Color shadow = Color(0x1A000000);
 }
-
-

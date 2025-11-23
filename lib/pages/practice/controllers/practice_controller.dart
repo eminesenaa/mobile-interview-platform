@@ -7,6 +7,9 @@
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../models/question.dart';
+import '../../../models/training_module.dart';
+import '../../../models/training_module_question_ref.dart';
+import '../../../models/training_section.dart';
 
 class PracticeController extends GetxController {
   /// Tüm sorular
@@ -27,6 +30,11 @@ class PracticeController extends GetxController {
   /// Kullanılabilir tüm topic’ler; veri geldikçe güncellenir.
   final RxList<String> allTopics = <String>['All'].obs;
 
+  /// Training modules shown at the top of Practice page.
+  /// Şimdilik mock data ile dolduruluyor, backend geldiğinde
+  /// Firestore'dan okunacak.
+  final RxList<TrainingModule> trainingModules = <TrainingModule>[].obs;
+
   /// Bugünün sorusu (örnek: ilk TODO olan)
   Question? get todaysQuestion =>
       allQuestions.firstWhereOrNull((q) => q.status == Status.todo);
@@ -42,7 +50,8 @@ class PracticeController extends GetxController {
 
     // Difficulty filtresi
     if (selectedDifficulty.value != null) {
-      list = list.where((q) => q.difficulty == selectedDifficulty.value).toList();
+      list =
+          list.where((q) => q.difficulty == selectedDifficulty.value).toList();
     }
 
     // Status filtresi
@@ -55,7 +64,7 @@ class PracticeController extends GetxController {
     if (q.isNotEmpty) {
       list = list.where((it) {
         final haystack = '${it.title} ${it.description ?? ''} '
-            '${it.topic} ${it.tags.join(" ")}'
+                '${it.topic} ${it.tags.join(" ")}'
             .toLowerCase();
         return haystack.contains(q);
       }).toList();
@@ -70,8 +79,10 @@ class PracticeController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    loadQuestionsFromFirebase();   // 🔥 Uygulama açıldığında 1 defa çağırılır
+    _loadMockTrainingModules();
+    loadQuestionsFromFirebase(); // 🔥 Uygulama açıldığında 1 defa çağırılır
   }
+
   // ===========================
   // Eski API (korundu)
   // ===========================
@@ -122,8 +133,11 @@ class PracticeController extends GetxController {
   // Yeni yardımcı setter’lar
   // ===========================
   void setSearchText(String v) => searchQuery.value = v;
+
   void setTopic(String v) => selectedTopic.value = v;
+
   void setDifficulty(Difficulty? d) => selectedDifficulty.value = d;
+
   void setStatus(Status? s) => selectedStatus.value = s;
 
   void setAllQuestions(List<Question> items) {
@@ -157,9 +171,8 @@ class PracticeController extends GetxController {
   // ===========================
   Future<void> loadQuestionsFromFirebase() async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection("questions")
-          .get();
+      final snapshot =
+          await FirebaseFirestore.instance.collection("questions").get();
 
       if (snapshot.docs.isEmpty) {
         print("⚠️ Firestore: Hiç soru bulunamadı.");
@@ -167,14 +180,17 @@ class PracticeController extends GetxController {
         return;
       }
 
-      final items = snapshot.docs.map((doc) {
-        try {
-          return Question.fromFirestore(doc.data(), doc.id);
-        } catch (err) {
-          print("⚠️ Mapping hatası (docId: ${doc.id}): $err");
-          return null;
-        }
-      }).whereType<Question>().toList();
+      final items = snapshot.docs
+          .map((doc) {
+            try {
+              return Question.fromFirestore(doc.data(), doc.id);
+            } catch (err) {
+              print("⚠️ Mapping hatası (docId: ${doc.id}): $err");
+              return null;
+            }
+          })
+          .whereType<Question>()
+          .toList();
 
       setAllQuestions(items);
 
@@ -183,4 +199,108 @@ class PracticeController extends GetxController {
       print("🔥 Firestore load error: $e");
     }
   }
+
+  /// TODO: Backend hazır olduğunda bu method yerine Firestore'dan
+  /// gerçek training modules listesini çeken servis kullanılacak.
+  void _loadMockTrainingModules() {
+    trainingModules.assignAll([
+      const TrainingModule(
+        id: 'warmup_quick_win',
+        title: 'Warm-up • Quick Win',
+        subtitle: 'Solve 5 starter questions in 10 minutes.',
+        description:
+            'Short warm-up plan to get you into flow before diving into harder interview questions.',
+        format: TrainingModuleFormat.challenge,
+        totalQuestions: 5,
+        estimatedMinutes: 10,
+        isFeatured: true,
+        sortOrder: 1,
+      ),
+      const TrainingModule(
+        id: 'daily_data_structures',
+        title: 'Daily Data Structures',
+        subtitle: 'Practice arrays, stacks and queues every day.',
+        description: 'Two-week crash plan focused on core data structures.',
+        format: TrainingModuleFormat.crashCourse,
+        totalQuestions: 14,
+        estimatedMinutes: 20,
+        isFeatured: true,
+        sortOrder: 2,
+      ),
+    ]);
+  }
+
+  /// TEMP: TrainingModule detail sayfası için mock section listesi.
+  /// Backend bağlanana kadar sadece front'u test etmek için kullanıyoruz.
+  List<TrainingSection> buildMockSectionsFor(TrainingModule module) {
+    return [
+      TrainingSection(
+        id: '${module.id}_sec1',
+        moduleId: module.id,
+        title: 'Warm-up basics',
+        description: 'Get into flow with a few easy questions.',
+        order: 1,
+        type: TrainingSectionType.topicBased,
+        // questionCount / estimatedMinutes varsa modelde, istersen doldur:
+        // questionCount: 3,
+        // estimatedMinutes: 5,
+      ),
+      TrainingSection(
+        id: '${module.id}_sec2',
+        moduleId: module.id,
+        title: 'Level up',
+        description: 'Slightly more challenging follow-up questions.',
+        order: 2,
+        type: TrainingSectionType.topicBased,
+        // questionCount: 2,
+        // estimatedMinutes: 5,
+      ),
+    ];
+  }
+
+  /// TEMP: Mock sections içindeki sorular için referans oluşturur.
+  /// Şimdilik ilk 5 practice sorusunu kullanıyoruz.
+  List<TrainingModuleQuestionRef> buildMockQuestionRefsFor(
+    TrainingModule module,
+    List<TrainingSection> sections,
+  ) {
+    if (sections.isEmpty || allQuestions.isEmpty) return [];
+
+    final questions = allQuestions.take(5).toList();
+    final refs = <TrainingModuleQuestionRef>[];
+
+    var order = 0;
+    for (var i = 0; i < questions.length; i++) {
+      // İlk 3 soru 1. section, kalanlar 2. section’a
+      final sectionIndex = i < 3 || sections.length == 1 ? 0 : 1;
+      final section = sections[sectionIndex];
+
+      refs.add(
+        TrainingModuleQuestionRef(
+          moduleId: module.id,
+          sectionId: section.id,
+          questionId: _questionIdFromQuestion(questions[i]),
+          order: ++order,
+          id: '',
+          difficulty: questions[i].difficulty,
+        ),
+      );
+    }
+
+    return refs;
+  }
+}
+
+String _questionIdFromQuestion(Question q) {
+  try {
+    final dynamic v = (q as dynamic).id;
+    if (v != null) return v.toString();
+  } catch (_) {}
+
+  try {
+    final dynamic v = (q as dynamic).docId;
+    if (v != null) return v.toString();
+  } catch (_) {}
+
+  return q.title.toString();
 }
