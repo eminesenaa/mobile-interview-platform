@@ -101,6 +101,21 @@ class AppTextStyles {
   //  Labels & Misc
   // =====================
 
+  /// Küçük, ikincil metin (örneğin metadata, tarih, alt açıklama)
+  static final caption = GoogleFonts.inter(
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
+    color: AppColors.textSecondary,
+  );
+
+  /// Küçük badge/rozet yazıları (ör: difficulty chip)
+  static final TextStyle badgeLabel = GoogleFonts.inter(
+    fontSize: 11,
+    fontWeight: FontWeight.w500,
+    letterSpacing: 0.6,
+    color: AppColors.textMuted,
+  );
+
   /// Küçük label'lar (ör: "Difficulty", "Topic", section üstü minik text).
   static final TextStyle label = GoogleFonts.inter(
     fontSize: 11,

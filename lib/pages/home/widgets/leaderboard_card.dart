@@ -310,8 +310,8 @@ class _PodiumBox extends StatelessWidget {
             children: [
               SvgPicture.asset(
                 medalAsset,
-                width: 20,
-                height: 20,
+                width: 22,
+                height: 22,
               ),
               const SizedBox(height: 2),
               Text(

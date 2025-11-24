@@ -50,11 +50,18 @@ class AppSpacing {
 class AppRadius {
   AppRadius._();
 
-  static const double sm = 8.0;   // küçük kartlar, inputfield
-  static const double md = 12.0;  // standart kart radius
+  // Core radius scale
+  static const double xs = 6.0;   // en küçük
+  static const double sm = 8.0;   // küçük kart, input field
+  static const double md = 12.0;  // standart kart
   static const double lg = 16.0;  // büyük kartlar
-  static const double xl = 24.0;  // special component'lar
-  static const double pill = 999.0; // chip & tag radius
+  static const double xl = 24.0;  // special components
+
+  /// Chips, tags, pill shape
+  static const double pill = 999.0;
+
+  /// Çok yuvarlak öğeler (örneğin Solve Now butonu)
+  static const double round = 40.0;
 }
 
 // ===========================

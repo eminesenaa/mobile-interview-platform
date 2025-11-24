@@ -3,13 +3,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:interview_project/pages/practice/training_module_detail_page.dart';
+import 'package:interview_project/pages/practice/widgets/daily_challenge_card.dart';
 import 'package:interview_project/pages/practice/widgets/training_module_card.dart';
 import 'package:sliver_tools/sliver_tools.dart';
 
 import 'package:interview_project/constants/colors.dart';
 import 'package:interview_project/constants/constants.dart';
 
-import 'package:interview_project/pages/practice/widgets/todays_question_card.dart';
 import 'package:interview_project/pages/practice/controllers/practice_controller.dart';
 import 'package:interview_project/pages/practice/widgets/topic_chip_scroll.dart';
 import 'package:interview_project/pages/practice/widgets/search_add_bar.dart';
@@ -37,14 +37,17 @@ class PracticePage extends StatelessWidget {
     final trainingPageController = PageController(viewportFraction: 0.9);
 
     return Scaffold(
+      // Practice sayfası da Home / Leaderboard ile aynı arkaplanı kullanıyor.
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
         elevation: 0,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.textPrimary,
+        centerTitle: true,
         title: Text(
           'Practice',
-          style: AppTextStyles.headline.copyWith(color: AppColors.textPrimary),
+          style: AppTextStyles.headline,
         ),
-        centerTitle: true,
       ),
       body: SafeArea(
         child: Obx(() {
@@ -61,7 +64,8 @@ class PracticePage extends StatelessWidget {
                     return const SizedBox.shrink();
                   }
                   return Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+                    padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md, AppSpacing.md, AppSpacing.md, 0),
                     child: SizedBox(
                       height: 170,
                       // ⭐️ EN KRİTİK KISIM — PageView’in yüksekliğini belirledik
@@ -74,12 +78,13 @@ class PracticePage extends StatelessWidget {
 
                           return Padding(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 8,
+                              horizontal: AppSpacing.xs,
+                              vertical: AppSpacing.sm,
                             ),
                             child: TrainingModuleCard(
                               module: module,
-                              progress: controller.moduleProgressById[module.id], // ileride user progress gelecek
+                              progress: controller.moduleProgressById[
+                                  module.id], // ileride user progress gelecek
                               onTap: () {
                                 // TEMP: Front’u test etmek için mock section + questionRef kullan
                                 final detailSections =
@@ -87,7 +92,6 @@ class PracticePage extends StatelessWidget {
                                 final detailRefs =
                                     controller.buildMockQuestionRefsFor(
                                         module, detailSections);
-
                                 Get.to(
                                   () => TrainingModuleDetailPage(
                                     module: module,
@@ -105,23 +109,37 @@ class PracticePage extends StatelessWidget {
                 }),
               ),
 
-              // (2) TODAY'S QUESTION
+              // (2) DAILY CHALLENGE
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: TodaysQuestionCard(
-                    question: controller.todaysQuestion,
-                  ),
-                ),
+                child: Obx(() {
+                  final q = controller.todaysQuestion; // şimdilik bunu kullanıyoruz
+                  if (q == null) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: DailyChallengeCard(
+                      question: q,
+                      onSolveTap: () {
+                        // Burada direkt runner'a götürebilirsin
+                        final questions = [q];
+                        _openRunner(questions, 0);
+                      },
+                    ),
+                  );
+                }),
               ),
 
               // (3) FILTER BAR
               SliverPinnedHeader(
                 child: Material(
-                  elevation: 2,
-                  color: Theme.of(context).scaffoldBackgroundColor,
+                  elevation: 3,
+                  color: AppColors.surface,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      AppSpacing.sm,
+                      AppSpacing.md,
+                      AppSpacing.md,
+                    ),
                     child: Column(
                       children: [
                         TopicChipScroll(
@@ -140,7 +158,8 @@ class PracticePage extends StatelessWidget {
                               context: context,
                               shape: const RoundedRectangleBorder(
                                 borderRadius: BorderRadius.vertical(
-                                    top: Radius.circular(20)),
+                                  top: Radius.circular(AppRadius.lg),
+                                ),
                               ),
                               builder: (_) {
                                 return FilterPopup(
@@ -203,7 +222,12 @@ class PracticePage extends StatelessWidget {
                 )
               else
                 SliverPadding(
-                  padding: EdgeInsets.fromLTRB(10, 10, 10, bottomInset),
+                  padding: EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    bottomInset,
+                  ),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
