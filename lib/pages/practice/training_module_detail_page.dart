@@ -30,16 +30,24 @@ class TrainingModuleDetailPage extends StatelessWidget {
   /// Hangi questionId’nin hangi section’da, hangi sırada olduğunu bilir.
   final List<TrainingModuleQuestionRef>? questionRefs;
 
+  /// (Optional) user specific progress for this module.
+  /// If null, UI will show 0 / total.
+  final int? completedCount;
+
   const TrainingModuleDetailPage({
     super.key,
     required this.module,
     this.sections,
     this.questionRefs,
+    this.completedCount,
   });
 
   @override
   Widget build(BuildContext context) {
     final practiceController = Get.find<PracticeController>();
+    // Module level progress – backend bağlanınca gerçek değer gelecek.
+    final int totalQuestions = module.totalQuestions;
+    final int completedQuestions = completedCount ?? 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -75,6 +83,14 @@ class TrainingModuleDetailPage extends StatelessWidget {
                   },
                 ),
               ),
+
+              const SizedBox(height: AppSpacing.md),
+              // 🔹 Module progress bar (0/total da olsa gösteriyoruz)
+              _ModuleProgressBar(
+                completed: completedQuestions,
+                total: totalQuestions,
+              ),
+
               const SizedBox(height: AppSpacing.lg),
 
               // Başlık & açıklama
@@ -220,6 +236,44 @@ class TrainingModuleDetailPage extends StatelessWidget {
   }
 }
 
+/// Thin progress bar + "x / total" text.
+class _ModuleProgressBar extends StatelessWidget {
+  final int completed;
+  final int total;
+
+  const _ModuleProgressBar({
+    required this.completed,
+    required this.total,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final safeTotal = total <= 0 ? 1 : total;
+    final ratio = (completed / safeTotal).clamp(0.0, 1.0);
+
+    return Row(
+      children: [
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: ratio,
+              minHeight: 8,
+              backgroundColor: AppColors.chipBackground,
+              valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text(
+          '$completed / $total',
+          style: AppTextStyles.bodySmall,
+        ),
+      ],
+    );
+  }
+}
+
 class _InfoChip extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -346,6 +400,8 @@ void _startRunnerForQuestion({
     source: QuestionSourceContext(
       kind: QuestionSourceKind.trainingModule,
       label: 'Training • ${module.title}',
+      // NOTE: trainingModule için refId = moduleId
+      refId: module.id,
     ),
   );
 

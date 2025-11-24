@@ -73,6 +73,9 @@ class PracticeController extends GetxController {
     return list;
   }
 
+   // TEMP Progress test
+   final RxMap<String, double> moduleProgressById = <String, double>{}.obs;
+
   // ===========================
   // 🔹 INIT
   // ===========================
@@ -81,6 +84,9 @@ class PracticeController extends GetxController {
     super.onInit();
     _loadMockTrainingModules();
     loadQuestionsFromFirebase(); // 🔥 Uygulama açıldığında 1 defa çağırılır
+    // TEMP: Fake progress map (sadece test için)
+    moduleProgressById['warmup_quick_win'] = 0.45; // %45 progress testi
+    moduleProgressById['daily_data_structures'] = 0.2; // %20 progress testi
   }
 
   // ===========================

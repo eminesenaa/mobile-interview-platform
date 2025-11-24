@@ -26,7 +26,7 @@ class TrainingModuleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effectiveProgress =
-    (progress ?? 0).clamp(0.0, 1.0).toDouble(); // 0–1 aralığına sabitle
+        (progress ?? 0).clamp(0.0, 1.0).toDouble(); // 0–1 aralığına sabitle
 
     return InkWell(
       borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -38,24 +38,24 @@ class TrainingModuleCard extends StatelessWidget {
           color: AppColors.primary,
           image: module.coverImageUrl != null
               ? DecorationImage(
-            image: NetworkImage(module.coverImageUrl!),
-            fit: BoxFit.cover,
-            colorFilter: ColorFilter.mode(
-              Colors.black.withOpacity(0.35),
-              BlendMode.srcOver,
-            ),
-          )
+                  image: NetworkImage(module.coverImageUrl!),
+                  fit: BoxFit.cover,
+                  colorFilter: ColorFilter.mode(
+                    Colors.black.withOpacity(0.35),
+                    BlendMode.srcOver,
+                  ),
+                )
               : null,
           // Eğer görsel yoksa gradient kullan.
           gradient: module.coverImageUrl == null
               ? const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppColors.primary,
-              AppColors.primaryAccent,
-            ],
-          )
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.primary,
+                    AppColors.primaryAccent,
+                  ],
+                )
               : null,
         ),
         child: Container(
@@ -97,35 +97,42 @@ class TrainingModuleCard extends StatelessWidget {
                 ),
               ),
 
-              // Alt kısım: toplam soru + progress bar
+              const SizedBox(height: AppSpacing.sm),
+              // Alt kısım:
+              // - Henüz başlanmadıysa sadece "X questions"
+              // - En az 1 soru çözülmüşse sadece görsel progress bar
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '${module.totalQuestions} questions',
-                    style: AppTextStyles.label.copyWith(
-                      color: Colors.white.withOpacity(0.85),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                    child: Container(
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.25),
+                  if (effectiveProgress <= 0) ...[
+                    Text(
+                      '${module.totalQuestions} questions',
+                      style: AppTextStyles.label.copyWith(
+                        color: Colors.white.withOpacity(0.85),
                       ),
-                      child: FractionallySizedBox(
-                        alignment: Alignment.centerLeft,
-                        widthFactor: effectiveProgress,
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            color: AppColors.primaryAccent,
+                    ),
+                  ] else ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      child: Container(
+                        height: 8,
+                        decoration: BoxDecoration(
+                          // Boş track biraz daha belirgin
+                          color: Colors.white.withValues(alpha: 0.5),
+                        ),
+                        child: FractionallySizedBox(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: effectiveProgress.clamp(0.0, 1.0),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              // Dolu kısım daha parlak, accent renginde
+                              color: AppColors.primaryAccent.withValues(alpha: 0.95),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ],

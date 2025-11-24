@@ -79,7 +79,7 @@ class PracticePage extends StatelessWidget {
                             ),
                             child: TrainingModuleCard(
                               module: module,
-                              progress: null, // ileride user progress gelecek
+                              progress: controller.moduleProgressById[module.id], // ileride user progress gelecek
                               onTap: () {
                                 // TEMP: Front’u test etmek için mock section + questionRef kullan
                                 final detailSections =
