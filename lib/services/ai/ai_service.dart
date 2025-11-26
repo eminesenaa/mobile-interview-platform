@@ -184,7 +184,7 @@ class AiService {
     // MCQ opsiyonlarını yerleştir (varsa)
     final opts = q.options ?? const [];
     if (opts.isNotEmpty) {
-      if (opts.isEmpty) meta["Option A"] = opts[0];
+      if (opts.length > 0) meta["Option A"] = opts[0];
       if (opts.length > 1) meta["Option B"] = opts[1];
       if (opts.length > 2) meta["Option C"] = opts[2];
       if (opts.length > 3) meta["Option D"] = opts[3];
