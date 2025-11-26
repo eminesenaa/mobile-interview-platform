@@ -18,14 +18,22 @@ class PracticeController extends GetxController {
   /// Arama metni
   final RxString searchQuery = ''.obs;
 
-  /// Seçili konu (topic). "All" tümünü gösterir.
+  /// Seçili konu (tekli). "All" tümünü gösterir.
   final RxString selectedTopic = 'All'.obs;
 
-  /// Seçili zorluk (null => tümü)
+  /// Seçili zorluk (tekli, null => tümü)
   final Rxn<Difficulty> selectedDifficulty = Rxn<Difficulty>();
 
   /// Seçili durum (null => tümü)
   final Rxn<Status> selectedStatus = Rxn<Status>();
+
+  /// Seçili soru tipi (tekli, null => tümü)
+  final Rxn<QuestionType> selectedQuestionType = Rxn<QuestionType>();
+
+  /// Çoklu seçim filtreleri (boş => tümü).
+  final RxList<String> selectedTopicsMulti = <String>[].obs;
+  final RxList<Difficulty> selectedDifficultiesMulti = <Difficulty>[].obs;
+  final RxList<QuestionType> selectedQuestionTypesMulti = <QuestionType>[].obs;
 
   /// Kullanılabilir tüm topic’ler; veri geldikçe güncellenir.
   final RxList<String> allTopics = <String>['All'].obs;
@@ -43,23 +51,42 @@ class PracticeController extends GetxController {
   List<Question> get filteredQuestions {
     var list = allQuestions.toList();
 
-    // Topic filtresi
-    if (selectedTopic.value.isNotEmpty && selectedTopic.value != 'All') {
+    // ===================== TOPIC =====================
+    if (selectedTopicsMulti.isNotEmpty) {
+      list = list.where((q) => selectedTopicsMulti.contains(q.topic)).toList();
+    } else if (selectedTopic.value.isNotEmpty && selectedTopic.value != 'All') {
       list = list.where((q) => q.topic == selectedTopic.value).toList();
     }
 
-    // Difficulty filtresi
-    if (selectedDifficulty.value != null) {
+    // ===================== DIFFICULTY =====================
+    if (selectedDifficultiesMulti.isNotEmpty) {
+      list = list
+          .where(
+            (q) => selectedDifficultiesMulti.contains(q.difficulty),
+          )
+          .toList();
+    } else if (selectedDifficulty.value != null) {
       list =
           list.where((q) => q.difficulty == selectedDifficulty.value).toList();
     }
 
-    // Status filtresi
+    // ===================== STATUS (tek seçim) =====================
     if (selectedStatus.value != null) {
       list = list.where((q) => q.status == selectedStatus.value).toList();
     }
 
-    // Arama
+    // ===================== QUESTION TYPE =====================
+    if (selectedQuestionTypesMulti.isNotEmpty) {
+      list = list
+          .where(
+            (q) => selectedQuestionTypesMulti.contains(q.type),
+          )
+          .toList();
+    } else if (selectedQuestionType.value != null) {
+      list = list.where((q) => q.type == selectedQuestionType.value).toList();
+    }
+
+    // ===================== SEARCH =====================
     final q = searchQuery.value.trim().toLowerCase();
     if (q.isNotEmpty) {
       list = list.where((it) {
@@ -73,8 +100,8 @@ class PracticeController extends GetxController {
     return list;
   }
 
-   // TEMP Progress test
-   final RxMap<String, double> moduleProgressById = <String, double>{}.obs;
+  // TEMP Progress test
+  final RxMap<String, double> moduleProgressById = <String, double>{}.obs;
 
   // ===========================
   // 🔹 INIT
@@ -94,10 +121,58 @@ class PracticeController extends GetxController {
   // ===========================
   void updateSearch(String query) => searchQuery.value = query;
 
-  void updateFilters({String? topic, Difficulty? difficulty, Status? status}) {
-    if (topic != null) selectedTopic.value = topic;
-    if (difficulty != null) selectedDifficulty.value = difficulty;
-    if (status != null) selectedStatus.value = status;
+  // Tek seçimli eski API – başka sayfalar hâlâ kullanıyorsa bozulmasın diye duruyor.
+  void updateFilters({
+    String? topic,
+    Difficulty? difficulty,
+    Status? status,
+    QuestionType? questionType,
+  }) {
+    // Topic null değilse güncelle (All dahil)
+    if (topic != null) {
+      selectedTopic.value = topic;
+    }
+
+    selectedDifficulty.value = difficulty;
+    selectedStatus.value = status;
+    selectedQuestionType.value = questionType;
+
+    // Eski API kullanıldığında çoklu listeleri sıfırla
+    selectedTopicsMulti.clear();
+    selectedDifficultiesMulti.clear();
+    selectedQuestionTypesMulti.clear();
+  }
+
+  /// Yeni çoklu seçim API'si – FilterPopup burayı kullanacak.
+  void updateFiltersMulti({
+    List<String>? topics,
+    List<Difficulty>? difficulties,
+    List<QuestionType>? questionTypes,
+    Status? status,
+  }) {
+    selectedTopicsMulti
+      ..clear()
+      ..addAll(topics ?? const []);
+
+    selectedDifficultiesMulti
+      ..clear()
+      ..addAll(difficulties ?? const []);
+
+    selectedQuestionTypesMulti
+      ..clear()
+      ..addAll(questionTypes ?? const []);
+
+    selectedStatus.value = status;
+
+    // Kısa özetler için legacy alanları da güncelle
+    selectedTopic.value =
+        selectedTopicsMulti.isEmpty ? 'All' : selectedTopicsMulti.first;
+    selectedDifficulty.value = selectedDifficultiesMulti.isEmpty
+        ? null
+        : selectedDifficultiesMulti.first;
+    selectedQuestionType.value = selectedQuestionTypesMulti.isEmpty
+        ? null
+        : selectedQuestionTypesMulti.first;
   }
 
   Question? getRandomQuestion() {
@@ -140,9 +215,15 @@ class PracticeController extends GetxController {
   // ===========================
   void setSearchText(String v) => searchQuery.value = v;
 
-  void setTopic(String v) => selectedTopic.value = v;
+  void setTopic(String v) {
+    selectedTopic.value = v;
+    selectedTopicsMulti.clear();
+  }
 
-  void setDifficulty(Difficulty? d) => selectedDifficulty.value = d;
+  void setDifficulty(Difficulty? d) {
+    selectedDifficulty.value = d;
+    selectedDifficultiesMulti.clear();
+  }
 
   void setStatus(Status? s) => selectedStatus.value = s;
 

@@ -112,7 +112,8 @@ class PracticePage extends StatelessWidget {
               // (2) DAILY CHALLENGE
               SliverToBoxAdapter(
                 child: Obx(() {
-                  final q = controller.todaysQuestion; // şimdilik bunu kullanıyoruz
+                  final q =
+                      controller.todaysQuestion; // şimdilik bunu kullanıyoruz
                   if (q == null) return const SizedBox.shrink();
                   return Padding(
                     padding: const EdgeInsets.all(AppSpacing.md),
@@ -156,37 +157,43 @@ class PracticePage extends StatelessWidget {
                           onFilterPressed: () {
                             showModalBottomSheet(
                               context: context,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(AppRadius.lg),
-                                ),
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => FilterPopup(
+                                // "All" olanı çoklu seçim listesine sokmuyoruz
+                                topics: controller.allTopics
+                                    .where((t) => t != 'All')
+                                    .toList(),
+                                difficulties: Difficulty.values,
+                                statuses: Status.values,
+                                questionTypes: QuestionType.values,
+
+                                selectedTopics:
+                                    controller.selectedTopicsMulti.toList(),
+                                selectedDifficulties: controller
+                                    .selectedDifficultiesMulti
+                                    .toList(),
+                                selectedQuestionTypes: controller
+                                    .selectedQuestionTypesMulti
+                                    .toList(),
+                                selectedStatus: controller.selectedStatus.value,
+                                onApply: ({
+                                  required List<String> topics,
+                                  required List<Difficulty> difficulties,
+                                  required List<QuestionType> questionTypes,
+                                  required Status? status,
+                                }) {
+                                  controller.updateFiltersMulti(
+                                    topics: topics,
+                                    difficulties: difficulties,
+                                    questionTypes: questionTypes,
+                                    status: status,
+                                  );
+                                },
                               ),
-                              builder: (_) {
-                                return FilterPopup(
-                                  topics: controller.allTopics,
-                                  difficulties: [null, ...Difficulty.values],
-                                  statuses: [null, ...Status.values],
-                                  selectedTopic: controller.selectedTopic.value,
-                                  selectedDifficulty:
-                                      controller.selectedDifficulty.value,
-                                  selectedStatus:
-                                      controller.selectedStatus.value,
-                                  onApply: ({
-                                    required topic,
-                                    required difficulty,
-                                    required status,
-                                  }) {
-                                    controller.updateFilters(
-                                      topic: topic,
-                                      difficulty: difficulty,
-                                      status: status,
-                                    );
-                                  },
-                                );
-                              },
                             );
                           },
-                          onAddPressed: () => controller.onAddQuestion(),
+                          // onAddPressed: () => controller.onAddQuestion(),
                           onRandomPressed: () {
                             final random = controller.getRandomQuestion();
                             if (random != null) {
@@ -200,7 +207,7 @@ class PracticePage extends StatelessWidget {
                               }
                             }
                           },
-                          canAdd: controller.filteredQuestions.isNotEmpty,
+                          // canAdd: controller.filteredQuestions.isNotEmpty,
                         ),
                         const SizedBox(height: 8),
                       ],
