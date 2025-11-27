@@ -10,8 +10,6 @@ import '../../../models/streak.dart';
 import '../../../models/leaderboard.dart';
 import "../services/leaderboard_service.dart";
 
-
-
 class HomeController extends GetxController {
   final _rng = Random();
   final _db = FirebaseFirestore.instance;
@@ -39,7 +37,20 @@ class HomeController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    // 🔹 Popular questions
+    // 1) Hemen bir kez dene (eğer sorular hazırsa ilk açılışta dolu gelsin)
     _loadPopularQuestions();
+
+    // 2) QuestionController içindeki soru listesi her değiştiğinde
+    // (örneğin Firestore'dan ilk kez yüklendiğinde) popüler soruları yeniden hesapla.
+    try {
+      final qc = Get.find<QuestionController>();
+      ever(qc.allQuestions, (_) => _loadPopularQuestions());
+    } catch (_) {
+      // QuestionController henüz register edilmemişse uygulama çökmemesi için
+      // sessizce geçiyoruz. (Normal flow'da zaten register edilmiş olacak.)
+    }
+
     listenToUserStreak();
     fetchLeaderboard();
   }
@@ -96,7 +107,8 @@ class HomeController extends GetxController {
       top3.assignAll(data['top3']);
       me.value = data['me'];
 
-      print("🏁 Home leaderboard updated → Me: ${me.value?.name}, Δ${me.value?.delta}");
+      print(
+          "🏁 Home leaderboard updated → Me: ${me.value?.name}, Δ${me.value?.delta}");
     } catch (e) {
       print('🔥 Home fetchLeaderboard error: $e');
     } finally {

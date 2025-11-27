@@ -30,7 +30,7 @@ class Section extends StatelessWidget {
             style: Theme.of(context)
                 .textTheme
                 .titleMedium
-                ?.copyWith(color: primaryColor),
+                ?.copyWith(color: AppColors.primary),
           ),
           if (note != null) ...[
             const SizedBox(height: 6),

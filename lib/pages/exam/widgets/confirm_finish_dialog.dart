@@ -67,7 +67,7 @@ class ConfirmFinishDialog extends StatelessWidget {
                   onPressed: () => Get.back(result: true),
                   style: TextButton.styleFrom(
                     foregroundColor:
-                        primaryColor, // kendi renk paletine göre değiştir
+                    AppColors.primary,
                   ),
                   child: Text(confirmText),
                 ),

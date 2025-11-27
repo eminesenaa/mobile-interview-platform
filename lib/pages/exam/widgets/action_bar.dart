@@ -23,7 +23,7 @@ class ActionBar extends StatelessWidget {
                   icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
                   label: const Text('Previous'),
                   style: TextButton.styleFrom(
-                    foregroundColor: primaryColor,
+                    foregroundColor: AppColors.primary,
                   ),
                 ),
                 const Spacer(),
@@ -32,7 +32,7 @@ class ActionBar extends StatelessWidget {
                   icon: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
                   label: const Text('Next'),
                   style: TextButton.styleFrom(
-                    foregroundColor: primaryColor,
+                    foregroundColor: AppColors.primary,
                   ),
                 ),
               ],
@@ -44,7 +44,7 @@ class ActionBar extends StatelessWidget {
               child: FilledButton(
                 onPressed: onSubmit,
                 style: FilledButton.styleFrom(
-                  backgroundColor: primaryColor,
+                  backgroundColor: AppColors.primary,
                 ),
                 child: const Text('Submit'),
               ),

@@ -169,16 +169,27 @@ class LibraryService {
     await batch.commit();
   }
 
-  Future<DocumentReference<Map<String, dynamic>>> createCollection(
-      String name) async {
+  // Future<DocumentReference<Map<String, dynamic>>> createCollection(
+  //     String name) async {
+  //   final ref = await _collectionsColl.add({
+  //     'name': name,
+  //     'questionIds': <String>[],
+  //     'createdAt': FieldValue.serverTimestamp(),
+  //     'updatedAt': FieldValue.serverTimestamp(),
+  //   });
+  //   return ref;
+  // }
+  Future<String> createCollection(String name) async {
     final ref = await _collectionsColl.add({
       'name': name,
       'questionIds': <String>[],
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
-    return ref;
+
+    return ref.id;   // ⭐ EKLENEN TEK SATIR (ref yerine ref.id dönüyoruz)
   }
+
 
   Future<void> bumpSavedCount(int delta) async {
     await _libraryMeta.set({

@@ -61,7 +61,7 @@ class ExamCodingEditorPage extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        backgroundColor: primaryColor,
+        backgroundColor: AppColors.primary,
         elevation: 0,
         titleSpacing: 16,
         title: Obx(() {

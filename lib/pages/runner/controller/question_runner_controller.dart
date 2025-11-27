@@ -225,7 +225,35 @@ class QuestionRunnerController extends GetxController {
           }
       }
 
-      isLocked.value = true; // gönderimden sonra inputları kilitle
+      // gönderimden sonra inputları kilitle
+      isLocked.value = true;
+
+      // ============================
+      // TRAINING MODULE PROGRESS HOOK
+      // ============================
+      // Eğer bu soru bir training module akışının parçasıysa,
+      // ileride backend burada "module içindeki soru çözüldü" bilgisini
+      // UserTrainingProgress koleksiyonuna yazabilir.
+      if (feed.value != null &&
+          feed.value!.source.kind == QuestionSourceKind.trainingModule &&
+          feed.value!.source.refId != null &&
+          feed.value!.questionIds != null &&
+          currentIndex.value >= 0 &&
+          currentIndex.value < feed.value!.questionIds!.length) {
+        final moduleId = feed.value!.source.refId!;
+        final questionId = feed.value!.questionIds![currentIndex.value];
+
+        // TODO(back-end): Burada bir TrainingProgressService çağır.
+        // Örnek pseudo-kod:
+        // await trainingProgressService.markQuestionSolved(
+        //   moduleId: moduleId,
+        //   questionId: questionId,
+        // );
+
+        debugPrint(
+          '[TrainingProgress] completed → module=$moduleId, question=$questionId',
+        );
+      }
     } finally {
       isSubmitting.value = false;
     }

@@ -45,7 +45,7 @@ class ExamHomePage extends StatelessWidget {
                   width: 1,
                   margin: const EdgeInsets.symmetric(horizontal: 24),
                   height: 220,
-                  color: ashGrey,
+                  color: AppColors.textSecondary,
                 ),
                 // 🔹 RIGHT: Create Exam
                 _TapArea(
@@ -84,7 +84,7 @@ class _TapArea extends StatelessWidget {
           title,
           textAlign: textAlign,
           style: const TextStyle(
-            color: primaryColor,
+            color: AppColors.primary,
             fontWeight: FontWeight.w600,
             fontSize: 16,
           ),

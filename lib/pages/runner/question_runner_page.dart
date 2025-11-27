@@ -17,6 +17,7 @@ import 'package:interview_project/pages/runner/question_feed.dart';
 
 class QuestionRunnerPage extends StatelessWidget {
   final QuestionFeed feed;
+
   QuestionRunnerPage({super.key, required this.feed});
 
   final _pageCtrl = PageController();
@@ -40,7 +41,7 @@ class QuestionRunnerPage extends StatelessWidget {
       return Scaffold(
         appBar: AppBar(
           leading: const BackButton(color: Colors.white),
-          backgroundColor: primaryColor,
+          backgroundColor: AppColors.primary,
           title: Text(
             titleText,
             maxLines: 1,
@@ -84,7 +85,8 @@ class QuestionRunnerPage extends StatelessWidget {
           },
           itemCount: c.feed.value?.length ?? 0,
           itemBuilder: (_, idx) {
-            if (q == null) return const Center(child: CircularProgressIndicator());
+            if (q == null)
+              return const Center(child: CircularProgressIndicator());
             if (idx != c.currentIndex.value) return const SizedBox.shrink();
             return _buildQuestionBody(context, c);
           },
@@ -165,8 +167,10 @@ class _QuestionTypeFactory extends StatelessWidget {
         return McqQuestionView(
           question: question,
           locked: locked,
-          onChanged: (int? selectedIndex) {
-            onAnswerChanged(selectedIndex, selectedIndex != null);
+          onChanged: (Map<String, dynamic>? answer) {
+            // {"index": i} bekliyoruz
+            final int? selectedIndex = answer?['index'] as int?;
+            onAnswerChanged(answer, selectedIndex != null);
           },
         );
       case QuestionType.shortAnswer:
@@ -174,14 +178,20 @@ class _QuestionTypeFactory extends StatelessWidget {
           question: question,
           locked: locked,
           onChanged: (String text) {
-            onAnswerChanged(text, text.trim().isNotEmpty);
+            final payload = <String, dynamic>{'text': text};
+            onAnswerChanged(payload, text.trim().isNotEmpty);
           },
         );
       case QuestionType.fillBlank:
         return FillBlankView(
           question: question,
           locked: locked,
-          onChanged: (answers, valid) => onAnswerChanged(answers, valid),
+          onChanged: (answers, valid) {
+            final payload = <String, dynamic>{
+              'answers': answers,
+            };
+            onAnswerChanged(payload, valid);
+          },
         );
       case QuestionType.coding:
         return CodingQuestionView(
@@ -198,6 +208,7 @@ class _QuestionTypeFactory extends StatelessWidget {
 // ===================== Bookmark Stream =====================
 class _RunnerSaveButton extends StatelessWidget {
   final Question question;
+
   const _RunnerSaveButton({required this.question});
 
   @override
@@ -220,7 +231,7 @@ class _RunnerSaveButton extends StatelessWidget {
             final result = await showModalBottomSheet(
               context: context,
               isScrollControlled: true,
-              builder: (_) => SaveToCollectionSheet(questionId: qId),
+              builder: (_) => SaveQuestionToCollectionSheet(questionId: qId),
             );
             if (result == true) {
               await lib.saveToAll(qId);

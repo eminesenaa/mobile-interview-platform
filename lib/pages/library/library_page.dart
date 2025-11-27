@@ -19,6 +19,7 @@ import 'widgets/save_question_to_collection_sheet.dart';
 
 class LibraryPage extends StatelessWidget {
   const LibraryPage({super.key});
+  static final _controller = Get.put(LibraryController());
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +27,7 @@ class LibraryPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: primaryColor,
+        backgroundColor: AppColors.primary,
         elevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
         title: const Text('My Library'),
@@ -120,10 +121,10 @@ class _SegmentedTabBar extends StatelessWidget {
         dividerColor: Colors.transparent,
         labelPadding: const EdgeInsets.symmetric(vertical: 8),
         indicator: BoxDecoration(
-          color: primaryColor,
+          color: AppColors.primary,
           borderRadius: BorderRadius.circular(12),
         ),
-        labelColor: headlineColor ?? cs.onSurface,
+        labelColor: AppColors.textPrimary ?? cs.onSurface,
         unselectedLabelColor: cs.onSurfaceVariant,
         tabs: const [
           Tab(text: 'All'),
@@ -282,7 +283,7 @@ class _AllTab extends StatelessWidget {
                               context: context,
                               isScrollControlled: true,
                               builder: (_) =>
-                                  SaveToCollectionSheet(questionId: q.id),
+                                  SaveQuestionToCollectionSheet(questionId: q.id),
                             );
                           },
                         ),

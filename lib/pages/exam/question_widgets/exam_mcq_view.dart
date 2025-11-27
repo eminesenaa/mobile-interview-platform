@@ -61,12 +61,12 @@ class _ExamMcqViewState extends State<ExamMcqView> {
           return Container(
             margin: const EdgeInsets.only(bottom: 10),
             decoration: BoxDecoration(
-              color: headlineColor.withValues(alpha: 0.45),
+              color: AppColors.textPrimary.withValues(alpha: 0.45),
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 if (Theme.of(context).brightness == Brightness.light)
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
@@ -84,7 +84,7 @@ class _ExamMcqViewState extends State<ExamMcqView> {
               },
               title: Text(label),
               contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-              activeColor: primaryColor,
+              activeColor: AppColors.primary,
             ),
           );
         }),
@@ -98,7 +98,7 @@ class _ExamMcqViewState extends State<ExamMcqView> {
               icon: const Icon(Icons.flag_outlined, size: 18),
               label: const Text('Flag'),
               style: TextButton.styleFrom(
-                foregroundColor: primaryColor,
+                foregroundColor: AppColors.primary,
               ),
             ),
             const SizedBox(width: 12),
@@ -107,7 +107,7 @@ class _ExamMcqViewState extends State<ExamMcqView> {
               icon: const Icon(Icons.refresh, size: 18),
               label: const Text('Clear'),
               style: TextButton.styleFrom(
-                foregroundColor: primaryColor,
+                foregroundColor: AppColors.primary,
               ),
             ),
           ],

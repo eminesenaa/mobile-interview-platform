@@ -43,7 +43,7 @@ class ExamCodingView extends StatelessWidget {
               icon: const Icon(Icons.flag_outlined, size: 18),
               label: const Text("Flag"),
               style: TextButton.styleFrom(
-                foregroundColor: primaryColor,
+                foregroundColor: AppColors.primary,
               ),
             ),
             const SizedBox(width: 12),
@@ -55,7 +55,7 @@ class ExamCodingView extends StatelessWidget {
               icon: const Icon(Icons.refresh, size: 18),
               label: const Text("Clear"),
               style: TextButton.styleFrom(
-                foregroundColor: primaryColor,
+                foregroundColor: AppColors.primary,
               ),
             ),
           ],

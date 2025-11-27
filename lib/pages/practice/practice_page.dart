@@ -2,14 +2,15 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:interview_project/pages/practice/training_module_detail_page.dart';
+import 'package:interview_project/pages/practice/widgets/daily_challenge_card.dart';
+import 'package:interview_project/pages/practice/widgets/training_module_card.dart';
 import 'package:sliver_tools/sliver_tools.dart';
 
 import 'package:interview_project/constants/colors.dart';
 import 'package:interview_project/constants/constants.dart';
 
-import 'package:interview_project/pages/practice/widgets/todays_question_card.dart';
 import 'package:interview_project/pages/practice/controllers/practice_controller.dart';
-import 'package:interview_project/pages/practice/widgets/get_started_card.dart';
 import 'package:interview_project/pages/practice/widgets/topic_chip_scroll.dart';
 import 'package:interview_project/pages/practice/widgets/search_add_bar.dart';
 import 'package:interview_project/pages/practice/widgets/filter_popup.dart';
@@ -19,6 +20,7 @@ import 'package:interview_project/pages/library/widgets/save_question_to_collect
 import 'package:interview_project/pages/library/services/library_service.dart';
 
 import '../../models/question.dart';
+import '../../models/training_module.dart';
 import '../runner/question_feed.dart';
 import '../runner/question_runner_page.dart';
 
@@ -31,16 +33,21 @@ class PracticePage extends StatelessWidget {
     final lib = LibraryService.instance; // ✅ Tek referans
 
     final bottomInset = MediaQuery.of(context).padding.bottom + 12;
+    // Training modules slider için: kartın ucu gözüksün diye viewportFraction < 1
+    final trainingPageController = PageController(viewportFraction: 0.9);
 
     return Scaffold(
+      // Practice sayfası da Home / Leaderboard ile aynı arkaplanı kullanıyor.
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: primaryColor,
         elevation: 0,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.textPrimary,
+        centerTitle: true,
         title: Text(
           'Practice',
-          style: AppTextStyles.headline.copyWith(color: headlineColor),
+          style: AppTextStyles.headline,
         ),
-        centerTitle: true,
       ),
       body: SafeArea(
         child: Obx(() {
@@ -48,60 +55,92 @@ class PracticePage extends StatelessWidget {
           return CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
-              // (1) GET STARTED CAROUSEL
+              // (1) TRAINING MODULES
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
-                  child: SizedBox(
-                    height: 150,
-                    child: PageView.builder(
-                      itemCount: 5,
-                      itemBuilder: (context, index) {
-                        final path =
-                            'assets/images/get_started_${index + 1}.jpg';
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 8),
-                          child: GetStartedCard(
-                            title: const [
-                              'Warm-up • Quick Win',
-                              'Today’s Challenge',
-                              'Revise Core Topics',
-                              'Mock Interview Prep',
-                              'Tips & Tricks',
-                            ][0],
-                            imagePath: path,
-                            onTap: () => Get.snackbar(
-                              'Let’s go!',
-                              'Scroll down and start solving 🚀',
-                              snackPosition: SnackPosition.BOTTOM,
-                              duration: const Duration(seconds: 2),
+                child: Obx(() {
+                  final modules = controller.trainingModules;
+                  // Henüz module yoksa bu alanı gizle (veya istersen placeholder koy).
+                  if (modules.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md, AppSpacing.md, AppSpacing.md, 0),
+                    child: SizedBox(
+                      height: 170,
+                      // ⭐️ EN KRİTİK KISIM — PageView’in yüksekliğini belirledik
+                      child: PageView.builder(
+                        controller: trainingPageController,
+                        padEnds: false,
+                        itemCount: modules.length,
+                        itemBuilder: (context, index) {
+                          final module = modules[index];
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.xs,
+                              vertical: AppSpacing.sm,
                             ),
-                          ),
-                        );
-                      },
+                            child: TrainingModuleCard(
+                              module: module,
+                              progress: controller.moduleProgressById[
+                                  module.id], // ileride user progress gelecek
+                              onTap: () {
+                                // TEMP: Front’u test etmek için mock section + questionRef kullan
+                                final detailSections =
+                                    controller.buildMockSectionsFor(module);
+                                final detailRefs =
+                                    controller.buildMockQuestionRefsFor(
+                                        module, detailSections);
+                                Get.to(
+                                  () => TrainingModuleDetailPage(
+                                    module: module,
+                                    sections: detailSections,
+                                    questionRefs: detailRefs,
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                }),
               ),
 
-              // (2) TODAY'S QUESTION
+              // (2) DAILY CHALLENGE
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: TodaysQuestionCard(
-                    question: controller.todaysQuestion,
-                  ),
-                ),
+                child: Obx(() {
+                  final q =
+                      controller.todaysQuestion; // şimdilik bunu kullanıyoruz
+                  if (q == null) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: DailyChallengeCard(
+                      question: q,
+                      onSolveTap: () {
+                        // Burada direkt runner'a götürebilirsin
+                        final questions = [q];
+                        _openRunner(questions, 0);
+                      },
+                    ),
+                  );
+                }),
               ),
 
               // (3) FILTER BAR
               SliverPinnedHeader(
                 child: Material(
-                  elevation: 2,
-                  color: Theme.of(context).scaffoldBackgroundColor,
+                  elevation: 3,
+                  color: AppColors.surface,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      AppSpacing.sm,
+                      AppSpacing.md,
+                      AppSpacing.md,
+                    ),
                     child: Column(
                       children: [
                         TopicChipScroll(
@@ -118,36 +157,43 @@ class PracticePage extends StatelessWidget {
                           onFilterPressed: () {
                             showModalBottomSheet(
                               context: context,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(
-                                    top: Radius.circular(20)),
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => FilterPopup(
+                                // "All" olanı çoklu seçim listesine sokmuyoruz
+                                topics: controller.allTopics
+                                    .where((t) => t != 'All')
+                                    .toList(),
+                                difficulties: Difficulty.values,
+                                statuses: Status.values,
+                                questionTypes: QuestionType.values,
+
+                                selectedTopics:
+                                    controller.selectedTopicsMulti.toList(),
+                                selectedDifficulties: controller
+                                    .selectedDifficultiesMulti
+                                    .toList(),
+                                selectedQuestionTypes: controller
+                                    .selectedQuestionTypesMulti
+                                    .toList(),
+                                selectedStatus: controller.selectedStatus.value,
+                                onApply: ({
+                                  required List<String> topics,
+                                  required List<Difficulty> difficulties,
+                                  required List<QuestionType> questionTypes,
+                                  required Status? status,
+                                }) {
+                                  controller.updateFiltersMulti(
+                                    topics: topics,
+                                    difficulties: difficulties,
+                                    questionTypes: questionTypes,
+                                    status: status,
+                                  );
+                                },
                               ),
-                              builder: (_) {
-                                return FilterPopup(
-                                  topics: controller.allTopics,
-                                  difficulties: [null, ...Difficulty.values],
-                                  statuses: [null, ...Status.values],
-                                  selectedTopic: controller.selectedTopic.value,
-                                  selectedDifficulty:
-                                      controller.selectedDifficulty.value,
-                                  selectedStatus:
-                                      controller.selectedStatus.value,
-                                  onApply: ({
-                                    required topic,
-                                    required difficulty,
-                                    required status,
-                                  }) {
-                                    controller.updateFilters(
-                                      topic: topic,
-                                      difficulty: difficulty,
-                                      status: status,
-                                    );
-                                  },
-                                );
-                              },
                             );
                           },
-                          onAddPressed: () => controller.onAddQuestion(),
+                          // onAddPressed: () => controller.onAddQuestion(),
                           onRandomPressed: () {
                             final random = controller.getRandomQuestion();
                             if (random != null) {
@@ -161,7 +207,7 @@ class PracticePage extends StatelessWidget {
                               }
                             }
                           },
-                          canAdd: controller.filteredQuestions.isNotEmpty,
+                          // canAdd: controller.filteredQuestions.isNotEmpty,
                         ),
                         const SizedBox(height: 8),
                       ],
@@ -183,7 +229,12 @@ class PracticePage extends StatelessWidget {
                 )
               else
                 SliverPadding(
-                  padding: EdgeInsets.fromLTRB(10, 10, 10, bottomInset),
+                  padding: EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    bottomInset,
+                  ),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
@@ -204,7 +255,7 @@ class PracticePage extends StatelessWidget {
                                   context: context,
                                   isScrollControlled: true,
                                   builder: (_) =>
-                                      SaveToCollectionSheet(questionId: qId),
+                                      SaveQuestionToCollectionSheet(questionId: qId),
                                 );
 
                                 if (result == true) {

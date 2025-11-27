@@ -6,7 +6,8 @@ import '../services/library_service.dart';
 
 enum LibraryTab { all, collections, exams }
 
-class LibraryController extends GetxController with GetSingleTickerProviderStateMixin {
+class LibraryController extends GetxController
+    with GetSingleTickerProviderStateMixin {
   late TabController tabController;
 
   // reactive state
@@ -15,6 +16,66 @@ class LibraryController extends GetxController with GetSingleTickerProviderState
   // search
   final TextEditingController searchCtrl = TextEditingController();
   final RxString searchQuery = ''.obs;
+
+  final RxString search =
+      ''.obs; // SAVE SHEET search bar bunun üzerinden çalışacak
+
+  List<CollectionData> lastRawCollections = [];
+
+  // Yeni oluşturulan collection'ın ID'sini tutar
+  final RxnString autoSelectCollectionId = RxnString();
+
+  // ===============================================================
+  // 🔎 FILTERED COLLECTIONS — Stream'den gelen listeyi filtreler
+  // ===============================================================
+  List<CollectionData> filteredCollections(List<CollectionData> all) {
+    final q = search.value.trim().toLowerCase();
+    // 1) Search filter
+    List<CollectionData> filtered = q.isEmpty
+        ? List.from(all)
+        : all.where((c) => c.name.toLowerCase().contains(q)).toList();
+
+// 2) Sorting
+    filtered.sort(_collectionSorter);
+
+    return filtered;
+  }
+
+  int _collectionSorter(CollectionData a, CollectionData b) {
+    final nameA = a.name.trim();
+    final nameB = b.name.trim();
+
+    final startsNumA = _startsWithNumber(nameA);
+    final startsNumB = _startsWithNumber(nameB);
+
+    final startsAlphaA = _startsWithLetter(nameA);
+    final startsAlphaB = _startsWithLetter(nameB);
+
+    // 1) Sayı ile başlayanlar en üstte
+    if (startsNumA && !startsNumB) return -1;
+    if (!startsNumA && startsNumB) return 1;
+
+    // 2) Harf ile başlayanlar ikinci grup
+    if (startsAlphaA && !startsAlphaB) return -1;
+    if (!startsAlphaA && startsAlphaB) return 1;
+
+    // 3) Özel karakterler en altta
+    // özel karakter → ne sayı ne harf
+    // aynı gruptalarsa alfabetik karşılaştır
+    return nameA.toLowerCase().compareTo(nameB.toLowerCase());
+  }
+
+  bool _startsWithNumber(String s) {
+    if (s.isEmpty) return false;
+    final first = s[0];
+    return int.tryParse(first) != null;
+  }
+
+  bool _startsWithLetter(String s) {
+    if (s.isEmpty) return false;
+    final first = s[0].toLowerCase();
+    return first.contains(RegExp(r'[a-zğüşöçı]')); // Türkçe destekli <3
+  }
 
   // ---- LIFECYCLE ----
   @override
@@ -48,6 +109,16 @@ class LibraryController extends GetxController with GetSingleTickerProviderState
     final name = await _askText('New Collection', 'Collection name');
     if (name == null || name.trim().isEmpty) return;
     await LibraryService.instance.createCollection(name.trim());
+  }
+
+  // =======================================================
+  // ✨ Save Sheet'in modern popup'ı için eklenen method
+  // =======================================================
+  Future<String> createCollection(String name) async {
+    final newId = await LibraryService.instance.createCollection(name.trim());
+    autoSelectCollectionId.value = newId; // ⭐ otomatik seçilecek ID
+
+    return newId;
   }
 
   Future<String?> _askText(String title, String hint) async {

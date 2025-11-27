@@ -24,7 +24,7 @@ class XpRewardCard extends StatelessWidget {
               "assets/images/trophy-svgrepo-com.svg",
               width: 50,
               height: 40,
-              colorFilter: const ColorFilter.mode(primaryColor, BlendMode.srcIn),
+              colorFilter: const ColorFilter.mode(AppColors.primary, BlendMode.srcIn),
             ),
             const SizedBox(width: 12),
             RichText(
@@ -42,7 +42,7 @@ class XpRewardCard extends StatelessWidget {
                     text: "$xp XP",
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: primaryColor,
+                      color: AppColors.primary,
                     ),
                   ),
                 ],

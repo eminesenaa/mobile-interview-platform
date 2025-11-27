@@ -107,8 +107,8 @@ class CodeBlock extends StatelessWidget {
     }
 
     final bg = backgroundColor ??
-        (isDark ? const Color(0xFF101417) : secondaryColor.withValues(alpha: 0.25));
-    final border = isDark ? const Color(0xFF2A2E35) : secondaryColor.withValues(alpha: 0.25);
+        (isDark ? const Color(0xFF101417) : AppColors.primary.withValues(alpha: 0.25));
+    final border = isDark ? const Color(0xFF2A2E35) : AppColors.primary.withValues(alpha: 0.25);
 
     return Container(
       decoration: BoxDecoration(
