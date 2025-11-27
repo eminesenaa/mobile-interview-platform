@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:interview_project/pages/library/controllers/library_controller.dart';
 import 'package:overlay_support/overlay_support.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/services.dart';
@@ -28,6 +29,8 @@ void main() async {
   // Sistem UI (status bar vs) ayarı
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
+  Get.put(LibraryController(), permanent: true);
 
   runApp(
     OverlaySupport.global(

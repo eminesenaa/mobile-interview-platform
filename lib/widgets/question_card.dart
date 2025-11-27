@@ -1,12 +1,18 @@
 // lib/widgets/question_card.dart
 
 import 'package:flutter/material.dart';
+
+import '../constants/constants.dart';
 import '../models/question.dart';
 
 /// Soru kartı widget'ı.
 /// - Kartın tamamına basınca [onTap] tetiklenir.
 /// - Sağ üst köşedeki kaydetme ikonuna basınca [onSaveTap] tetiklenir.
 /// - [isSaved] true olduğunda ikon dolu görünür.
+///
+/// Bu tasarım:
+/// - Uygulamanın AppColors / AppTextStyles / AppSpacing sistemine uygun.
+/// - Apple / Airbnb tarzı hafif shadow + clean card yapısı kullanır.
 class QuestionCard extends StatelessWidget {
   const QuestionCard({
     super.key,
@@ -23,52 +29,58 @@ class QuestionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(16);
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        vertical: AppSpacing.xs / 3,
+      ),
+      child: Material(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        elevation: 0,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(
+                // mevcut renk sistemine göre
+                color: AppColors.border,
+              ),
+              // filtre popup'ta da kullandığımız shadow
+              boxShadow: AppShadows.medium,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Sol taraf: başlık, difficulty chip, topic vs.
+                Expanded(
+                  child: _CardBody(question: question),
+                ),
 
-    return Stack(
-      children: [
-        // --- Ana Kart ---
-        Material(
-          color: Theme.of(context).cardColor,
-          borderRadius: radius,
-          child: InkWell(
-            borderRadius: radius,
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: _CardBody(question: question),
+                const SizedBox(width: AppSpacing.sm),
+
+                // Sağ üst: kaydetme (bookmark) ikonu
+                _SaveIconButton(
+                  isSaved: isSaved,
+                  onTap: onSaveTap,
+                ),
+              ],
             ),
           ),
         ),
-
-        // --- Sağ üst köşe ikon ---
-        Positioned(
-          top: 8,
-          right: 8,
-          child: IconButton(
-            onPressed: onSaveTap,
-            tooltip: isSaved ? 'Saved' : 'Save',
-            splashRadius: 18,
-            padding: const EdgeInsets.all(4),
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-            icon: Icon(
-              isSaved ? Icons.bookmark : Icons.bookmark_border,
-              color: isSaved
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
-              size: 22,
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
 
 /// Kartın içerik kısmı.
-/// Başlık, zorluk etiketi, kategori vs. burada çiziliyor.
+/// Başlık, zorluk etiketi, kategori vb. burada çiziliyor.
 class _CardBody extends StatelessWidget {
   const _CardBody({required this.question});
+
   final Question question;
 
   @override
@@ -76,57 +88,138 @@ class _CardBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Başlık
+        // ===============================
+        //  Başlık
+        // ===============================
         Text(
           question.title,
-          style: Theme.of(context).textTheme.titleMedium,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: AppTextStyles.bodyStrong.copyWith(
+            fontSize: 16,
+            color: AppColors.textPrimary,
+          ),
         ),
-        const SizedBox(height: 8),
 
-        // Zorluk etiketi
+        const SizedBox(height: AppSpacing.xs),
+
+        // ===============================
+        //  Difficulty chip + Topic
+        // ===============================
         Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: _difficultyColor(question.difficulty, context)
-                    .withOpacity(0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                question.difficulty.name.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: _difficultyColor(question.difficulty, context),
+            if (question.difficulty != null)
+              _DifficultyPill(difficulty: question.difficulty!),
+
+            if (question.difficulty != null)
+              const SizedBox(width: AppSpacing.sm),
+
+            // Topic / kategori (örn: "C / C++")
+            if (question.topic != null && question.topic!.isNotEmpty)
+              Text(
+                question.topic!,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-
-            // Dil / kategori
-            Text(
-              question.topic,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
           ],
         ),
+
+        // İleride istersen description veya tagler için
+        // buraya ek alanlar (tags row vs.) açabiliriz.
       ],
     );
   }
+}
 
-  Color _difficultyColor(Difficulty difficulty, BuildContext context) {
-    switch (difficulty) {
-      case Difficulty.easy:
-        return Colors.green;
-      case Difficulty.easy_medium:
-        return Colors.lightGreen;
-      case Difficulty.medium:
-        return Colors.orange;
-      case Difficulty.medium_hard:
-        return Colors.deepOrange;
-      case Difficulty.hard:
-        return Colors.red;
+/// Sağ üstteki kaydetme (bookmark) ikonunu çizen widget.
+class _SaveIconButton extends StatelessWidget {
+  const _SaveIconButton({
+    required this.isSaved,
+    required this.onTap,
+  });
+
+  final bool isSaved;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xs),
+        child: Icon(
+          isSaved ? Icons.bookmark : Icons.bookmark_border_outlined,
+          size: 20,
+          color: isSaved ? AppColors.primary : AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
+/// Difficulty için küçük, renkli bir pill / chip.
+///
+/// Örnek:
+///  [ EASY ]  [ MEDIUM ]  [ HARD ]
+class _DifficultyPill extends StatelessWidget {
+  const _DifficultyPill({required this.difficulty});
+
+  final Difficulty difficulty;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color color = _difficultyColor(difficulty);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: Text(
+        _difficultyLabel(difficulty),
+        style: AppTextStyles.chip.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  /// Difficulty → UI renk map'i
+  Color _difficultyColor(Difficulty d) {
+    final name = d.name.toLowerCase();
+    if (name.contains('easy') && !name.contains('hard')) {
+      return AppColors.difficultyEasy;
     }
+    if (name.contains('easy') && name.contains('medium')) {
+      return AppColors.difficultyEasyMedium;
+    }
+    if (name.contains('medium') &&
+        !name.contains('easy') &&
+        !name.contains('hard')) {
+      return AppColors.difficultyMedium;
+    }
+    if (name.contains('medium') && name.contains('hard')) {
+      return AppColors.difficultyMediumHard;
+    }
+    if (name.contains('hard') && !name.contains('easy')) {
+      return AppColors.difficultyHard;
+    }
+    // Fallback
+    return AppColors.primary;
+  }
+
+  /// Enum ismini kullanıcı dostu etikete çevirir.
+  /// Örn:
+  ///  easy_medium → EASY MEDIUM
+  String _difficultyLabel(Difficulty d) {
+    return d.name.toUpperCase().replaceAll('_', ' ');
   }
 }

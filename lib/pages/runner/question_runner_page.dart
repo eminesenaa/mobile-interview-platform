@@ -231,7 +231,7 @@ class _RunnerSaveButton extends StatelessWidget {
             final result = await showModalBottomSheet(
               context: context,
               isScrollControlled: true,
-              builder: (_) => SaveToCollectionSheet(questionId: qId),
+              builder: (_) => SaveQuestionToCollectionSheet(questionId: qId),
             );
             if (result == true) {
               await lib.saveToAll(qId);

@@ -19,6 +19,7 @@ import 'widgets/save_question_to_collection_sheet.dart';
 
 class LibraryPage extends StatelessWidget {
   const LibraryPage({super.key});
+  static final _controller = Get.put(LibraryController());
 
   @override
   Widget build(BuildContext context) {
@@ -282,7 +283,7 @@ class _AllTab extends StatelessWidget {
                               context: context,
                               isScrollControlled: true,
                               builder: (_) =>
-                                  SaveToCollectionSheet(questionId: q.id),
+                                  SaveQuestionToCollectionSheet(questionId: q.id),
                             );
                           },
                         ),

@@ -51,20 +51,19 @@ class TrainingModuleDetailPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.textLightPrimary,
-        // back icon + title aynı renk
-        iconTheme: const IconThemeData(
-          color: AppColors.textLightPrimary,
-        ),
         elevation: 0,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.textPrimary,
+        centerTitle: true,
+        iconTheme: const IconThemeData(
+          color: AppColors.textPrimary,
+        ),
         title: Text(
           'Training Module',
           style: AppTextStyles.headline.copyWith(
-            color: AppColors.textLightPrimary,
+            color: AppColors.textPrimary,
           ),
         ),
-        centerTitle: true,
       ),
       body: SafeArea(
         child: SingleChildScrollView(

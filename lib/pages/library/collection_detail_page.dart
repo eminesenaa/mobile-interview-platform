@@ -93,7 +93,7 @@ class CollectionDetailPage extends StatelessWidget {
                                       context: context,
                                       isScrollControlled: true,
                                       builder: (_) =>
-                                          SaveToCollectionSheet(questionId: qId),
+                                          SaveQuestionToCollectionSheet(questionId: qId),
                                     );
                                   },
                                 ),
@@ -107,7 +107,7 @@ class CollectionDetailPage extends StatelessWidget {
                           context: context,
                           isScrollControlled: true,
                           builder: (_) =>
-                              SaveToCollectionSheet(questionId: qId),
+                              SaveQuestionToCollectionSheet(questionId: qId),
                         );
                       }
                     },

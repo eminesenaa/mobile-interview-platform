@@ -52,18 +52,22 @@ class PopularQuestionCard extends StatelessWidget {
                 width: 4.2, // bir tık daha kalın kenar
               ),
             ),
+            constraints: const BoxConstraints(
+              minHeight: 160,   // 🔥 overflow'u çözen ek yükseklik
+            ),
             child: Padding(
               padding: padding,
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _DifficultyHeader(difficulty: question.difficulty),
 
                   // Title + Tags ortalansın diye Expanded içinde Center
-                  Expanded(
+                  Flexible(
+                    fit: FlexFit.loose,
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      // dikey ortalı, soldan hizalı
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -73,18 +77,16 @@ class PopularQuestionCard extends StatelessWidget {
                             question.title,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.left,
                             style: AppTextStyles.bodyStrong.copyWith(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
                               color: AppColors.textPrimary,
                             ),
-                          ), // title
+                          ),
                           const SizedBox(height: 10),
                           Wrap(
                             spacing: 8,
                             runSpacing: 6,
-                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               _Chip(
                                 icon: Icons.category_outlined,
@@ -97,7 +99,7 @@ class PopularQuestionCard extends StatelessWidget {
                                 strokeColor: strokeColor,
                               ),
                             ],
-                          ), // tags
+                          ),
                         ],
                       ),
                     ),
