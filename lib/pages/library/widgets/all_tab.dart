@@ -44,14 +44,28 @@ class LibraryAllTab extends StatelessWidget {
             itemBuilder: (_, i) {
               final q = items[i];
 
-              return QuestionCard(
-                question: q,
-                isSaved: true,
-                onTap: () => c.openRunnerAllTab(items, i),
-                onSaveTap: () async {
-                  await c.openQuestionOptions(q);
-                },
-              );
+              return Obx(() {
+                final isSelected = c.selectedQuestionIds.contains(q.id);
+                final selecting = c.isSelecting.value;
+
+                return QuestionCard(
+                  question: q,
+                  isSaved: true,
+
+                  // seçme modu açıksa → soru açılmaz, sadece seçilir
+                  onTap: selecting
+                      ? () => c.toggleSelect(q.id)
+                      : () => c.openRunnerAllTab(items, i),
+
+                  onSaveTap: selecting
+                      ? null
+                      : () async => c.openQuestionOptions(q),
+
+                  // 🔥 seçili görünüm
+                  isSelected: isSelected,
+                );
+              });
+
             },
           );
         });

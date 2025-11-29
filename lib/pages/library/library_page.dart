@@ -4,6 +4,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:interview_project/pages/library/widgets/filter_chips_bar.dart';
+import 'package:interview_project/pages/library/widgets/multi_select_bar.dart';
 import '../../constants/constants.dart';
 
 // Controller
@@ -43,8 +45,6 @@ class LibraryPage extends StatelessWidget {
         child: Column(
           children: [
             // 🔥 KRİTİK DÜZELTME: Segmented Tab Bar ve Search Bar'ı
-            // opak bir Container'a sarmalayarak, kayan içeriğin (kartların)
-            // bu başlık bölgesinin arkasından görünmesini engelliyoruz.
             Container(
               // Arka planı Scaffold'un App bar'ının rengiyle aynı yapın
               // (AppColors.surface, genelde beyaz).
@@ -73,12 +73,18 @@ class LibraryPage extends StatelessWidget {
                       AppSpacing.md,
                       AppSpacing.md,
                     ),
-                    child: LibrarySearchBar(),
+                    child: Column(
+                      children: [
+                        LibrarySearchBar(),
+                        LibraryMultiSelectBar(),
+                        LibraryFilterChipsBar(),
+                      ],
+                    ),
+
                   ),
                 ],
               ),
             ),
-
 
             // ========== İçerik (TabBarView) ==========
             // 🔥 KRİTİK: Üst padding eklendi (scroll artık header'ın altından başlıyor)

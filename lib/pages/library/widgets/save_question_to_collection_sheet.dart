@@ -18,10 +18,22 @@ import '../widgets/save_bottom_button.dart';
 
 class SaveQuestionToCollectionSheet extends StatelessWidget {
   final String questionId;
+  final RxBool saveToLibrary = false.obs;
 
-  SaveQuestionToCollectionSheet({super.key, required this.questionId});
+  // TEKLI MOD CONSTRUCTOR
+  SaveQuestionToCollectionSheet({super.key, required this.questionId}) {
+    selected = <String>{}.obs;
+  }
 
-  final RxSet<String> selected = <String>{}.obs;
+  // final RxSet<String> selected = <String>{}.obs;
+  late final RxSet<String> selected;
+
+  // MULTI MODE CONSTRUCTOR
+  SaveQuestionToCollectionSheet.multi({
+    super.key,
+    required Set<String> selectedIds,
+  })  : questionId = "",
+        selected = selectedIds.obs;
 
   // Pop-up açma fonksiyonu
   void _openNewCollectionDialog() {
@@ -106,6 +118,85 @@ class SaveQuestionToCollectionSheet extends StatelessWidget {
                 ),
 
                 const SizedBox(height: AppSpacing.md),
+                // ===============================
+                // SAVE TO LIBRARY TILE
+                // ===============================
+                Obx(() {
+                  final active = saveToLibrary.value;
+                  return GestureDetector(
+                    onTap: () {
+                      if (saveToLibrary.value) return;
+                      saveToLibrary.value = true;
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: active
+                            ? AppColors.primary.withOpacity(.06)
+                            : AppColors.surface,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color:
+                          active ? AppColors.primary : Colors.transparent,
+                          width: 1.6,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            saveToLibrary.value
+                                ? Icons.check_circle
+                                : Icons.circle_outlined,
+                            color: saveToLibrary.value
+                                ? AppColors.primary
+                                : AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Save to Library",
+                                  style: AppTextStyles.bodyStrong.copyWith(
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "Add this question to your main library.",
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+
+                const SizedBox(height: AppSpacing.md),
+
+                // COLLECTIONS TEXT
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: Text(
+                      "Collections",
+                      style: AppTextStyles.headline.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+
+
+                const SizedBox(height: AppSpacing.md),
 
                 // SEARCH FIELD
                 TextField(
@@ -165,7 +256,8 @@ class SaveQuestionToCollectionSheet extends StatelessWidget {
                               final autoId = c.autoSelectCollectionId.value;
                               if (autoId != null && item.id == autoId) {
                                 // ✔ Önce seçim yap
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                WidgetsBinding.instance
+                                    .addPostFrameCallback((_) {
                                   selected.add(autoId);
 
                                   // ✔ Sonraki frame'de temizle (hiçbir şeyi bozmadan)
@@ -175,7 +267,6 @@ class SaveQuestionToCollectionSheet extends StatelessWidget {
                                 });
                               }
 
-
                               return Obx(() {
                                 final isSelected = selected.contains(item.id);
 
@@ -184,9 +275,15 @@ class SaveQuestionToCollectionSheet extends StatelessWidget {
                                   count: item.count,
                                   isSelected: isSelected,
                                   onTap: () {
-                                    isSelected
-                                        ? selected.remove(item.id)
-                                        : selected.add(item.id);
+                                    if (isSelected) {
+                                      selected.remove(item.id);
+                                      // hiçbir şey kalmazsa saveToLibrary devre dışı
+                                      if (selected.isEmpty) {}
+                                    } else {
+                                      selected.add(item.id);
+                                      saveToLibrary.value =
+                                          false; // ✔ Collection seçildiyse Library kapanır
+                                    }
                                   },
                                 );
                               });
@@ -212,17 +309,18 @@ class SaveQuestionToCollectionSheet extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Obx(() {
-              final enabled = selected.isNotEmpty;
+              final enabled = saveToLibrary.value || selected.isNotEmpty;
 
               return SaveBottomButton(
                 enabled: enabled,
                 onPressed: enabled
-                    ? () async {
-                        for (final id in selected) {
-                          await LibraryService.instance
-                              .addToCollection(id, questionId);
-                        }
-                        Get.back();
+                    ? () {
+                        final result = {
+                          "library": saveToLibrary.value,
+                          "collections": selected.toList(),
+                        };
+
+                        Get.back(result: result);
                       }
                     : null,
               );

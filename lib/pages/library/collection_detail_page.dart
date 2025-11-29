@@ -51,6 +51,7 @@ class CollectionDetailPage extends StatelessWidget {
                   return QuestionCard(
                     question: q,
                     isSaved: isSaved,
+                    collectionId: collectionId,
                     onTap: () =>  _openRunnerFromCollection(
                       questions,
                       i,

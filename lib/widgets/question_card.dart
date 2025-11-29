@@ -1,9 +1,16 @@
 // lib/widgets/question_card.dart
 
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 import '../constants/constants.dart';
 import '../models/question.dart';
+
+import '../pages/library/controllers/library_controller.dart';
+import '../pages/library/services/library_service.dart';
+import '../pages/library/widgets/confirm_remove_dialog.dart';
+import '../pages/library/widgets/confirm_remove_from_collection_dialog.dart';
+import '../pages/library/widgets/save_question_to_collection_sheet.dart';
 
 /// Soru kartı widget'ı.
 /// - Kartın tamamına basınca [onTap] tetiklenir.
@@ -20,37 +27,81 @@ class QuestionCard extends StatelessWidget {
     this.onTap,
     this.onSaveTap,
     this.isSaved = false,
+    this.isSelected = false,
+    this.collectionId,
   });
 
   final Question question;
   final VoidCallback? onTap;
   final VoidCallback? onSaveTap;
   final bool isSaved;
+  final bool isSelected;
+  final String? collectionId;
 
   @override
   Widget build(BuildContext context) {
+    // ===================== MULTI-SELECT DURUMU =====================
+    final c = Get.find<LibraryController>();
+    final bool isSelecting = c.isSelecting.value;
+    final bool isSelected = c.selectedQuestionIds.contains(question.id);
+
+// Kart görünümü: seçiliyse mavi border + soft glow
+    final Color cardBg = AppColors.surface;
+    final BoxDecoration decoration = BoxDecoration(
+      color: cardBg,
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      border: Border.all(
+        color: isSelected ? AppColors.primary : AppColors.border,
+        width: isSelected ? 2 : 1,
+      ),
+      boxShadow: isSelected
+          ? [
+              BoxShadow(
+                color: AppColors.primary.withOpacity(0.18),
+                blurRadius: 14,
+                spreadRadius: 1,
+              )
+            ]
+          : AppShadows.medium,
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(
         vertical: AppSpacing.xs / 3,
       ),
       child: Material(
-        color: AppColors.surface,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         elevation: 0,
         child: InkWell(
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          onTap: onTap,
+          onTap: () {
+            if (c.isSelecting.value) {
+              c.toggleSelect(question.id);
+            } else {
+              onTap?.call();
+            }
+          },
           child: Container(
             padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
+              color: Colors.white,
+              // 🔥 Seçili görünüm – mavi border
               border: Border.all(
-                // mevcut renk sistemine göre
-                color: AppColors.border,
+                color: isSelected ? AppColors.primary : Colors.transparent,
+                width: isSelected ? 2 : 0,
               ),
-              // filtre popup'ta da kullandığımız shadow
-              boxShadow: AppShadows.medium,
+              borderRadius: BorderRadius.circular(16),
+              // 🔥 Glow efekti (isteğe bağlı)
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(.18),
+                        blurRadius: 16,
+                        spreadRadius: 1,
+                      )
+                    ]
+                  : AppShadows.medium,
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -64,8 +115,10 @@ class QuestionCard extends StatelessWidget {
 
                 // Sağ üst: kaydetme (bookmark) ikonu
                 _SaveIconButton(
+                  questionId: question.id,
                   isSaved: isSaved,
                   onTap: onSaveTap,
+                  collectionId: collectionId,
                 ),
               ],
             ),
@@ -136,9 +189,15 @@ class _CardBody extends StatelessWidget {
 /// Sağ üstteki kaydetme (bookmark) ikonunu çizen widget.
 class _SaveIconButton extends StatelessWidget {
   const _SaveIconButton({
+    required this.questionId,
     required this.isSaved,
     required this.onTap,
+    this.collectionId,
   });
+
+  final String questionId;
+  final String? collectionId;
+
 
   final bool isSaved;
   final VoidCallback? onTap;
@@ -147,8 +206,48 @@ class _SaveIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(AppRadius.md),
-      onTap: onTap,
-      child: Padding(
+        onTap: () async {
+          final c = Get.find<LibraryController>();
+
+          // MULTI SELECT
+          if (c.isSelecting.value) {
+            c.toggleSelect(questionId);
+            return;
+          }
+
+          // --- ZATEN KAYITLI İSE ---
+          if (isSaved) {
+
+            // ⭐ Case 1: All tab / practice → full remove
+            if (collectionId == null) {
+              Get.dialog<bool>(
+                const ConfirmRemoveDialog(),
+                barrierDismissible: true,
+              ).then((ok) async {
+                if (ok == true) {
+                  await c.removeQuestionEverywhere(questionId);
+                }
+              });
+              return;
+            }
+
+            // ⭐ Case 2: Collections tab → remove only from this collection
+            Get.dialog<bool>(
+              ConfirmRemoveFromThisCollectionDialog(),  // bu dialogu az sonra yazıyoruz
+              barrierDismissible: true,
+            ).then((ok) async {
+              if (ok == true) {
+                await c.removeFromCollection(collectionId!, questionId);
+              }
+            });
+
+            return;
+          }
+
+          // --- ZATEN KAYITLI DEĞİLSE → normal flow ---
+          c.openSaveSheetFor(questionId);
+        },
+        child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xs),
         child: Icon(
           isSaved ? Icons.bookmark : Icons.bookmark_border_outlined,

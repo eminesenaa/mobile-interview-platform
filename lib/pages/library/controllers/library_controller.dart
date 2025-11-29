@@ -6,6 +6,7 @@ import '../../../models/question.dart';
 import '../../../models/training_module.dart';
 import '../../practice/controllers/practice_controller.dart';
 import '../../practice/training_module_detail_page.dart';
+import '../../practice/widgets/filter_popup.dart';
 import '../../runner/question_feed.dart';
 import '../../runner/question_runner_page.dart';
 import '../services/library_service.dart';
@@ -36,6 +37,29 @@ class LibraryController extends GetxController
 
   // Yeni koleksiyon oluşturulunca otomatik seçilmesi için ID
   final RxnString autoSelectCollectionId = RxnString();
+
+  // =======================
+  // FILTER STATE (ALL TAB)
+  // =======================
+
+  // Çoklu seçim: allowed
+  final RxList<String> selectedTopics = <String>[].obs;
+  final RxList<Difficulty> selectedDifficulties = <Difficulty>[].obs;
+  final RxList<QuestionType> selectedQuestionTypes = <QuestionType>[].obs;
+
+  // Tek seçim: status
+  final Rx<Status?> selectedStatus = Rx<Status?>(null);
+
+  // =============================
+  // MULTI-SELECT STATE (ALL TAB)
+  // =============================
+  final RxBool isSelecting = false.obs; // seçim modu açık mı?
+  final RxList<String> selectedQuestionIds = <String>[].obs; // seçilenler
+
+  // =============================
+  // SAVED QUESTIONS (local cache)
+  // =============================
+  final RxList<Question> savedQuestions = <Question>[].obs;
 
   // ============================================================
   // 📚 MODULES (Temporary Dummy Data — backend gelene kadar)
@@ -93,12 +117,122 @@ class LibraryController extends GetxController
     return s[0].toLowerCase().contains(RegExp(r'[a-zğüşöçı]'));
   }
 
+  // ================================
+  // DYNAMIC FILTER OPTIONS (READ-ONLY)
+  // Saved Questions içinden otomatik oluşur
+  // ================================
+
+  List<String> get dynamicTopics {
+    return savedQuestions
+        .map((q) => q.topic)
+        .where((t) => t.trim().isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+  }
+
+  List<Difficulty> get dynamicDifficulties {
+    return savedQuestions
+        .map((q) => q.difficulty)
+        .where((d) => d != null)
+        .map((d) => d!)
+        .toSet()
+        .toList();
+  }
+
+  List<QuestionType> get dynamicQuestionTypes {
+    return savedQuestions
+        .map((q) => q.type)
+        .where((t) => t != null)
+        .map((t) => t!)
+        .toSet()
+        .toList();
+  }
+
+  List<Status> get dynamicStatuses {
+    return savedQuestions
+        .map((q) => q.status)
+        .where((s) => s != null)
+        .map((s) => s!)
+        .toSet()
+        .toList();
+  }
+
+  bool get hasActiveFilters {
+    return selectedTopics.isNotEmpty ||
+        selectedDifficulties.isNotEmpty ||
+        selectedQuestionTypes.isNotEmpty ||
+        selectedStatus.value != null;
+  }
+
+  void clearFilters() {
+    selectedTopics.clear();
+    selectedDifficulties.clear();
+    selectedQuestionTypes.clear();
+    selectedStatus.value = null;
+  }
+
+  // ====================== FILTER CHIP LABELS ======================
+  List<String> get activeFilterLabels {
+    final List<String> out = [];
+
+    for (final t in selectedTopics) {
+      out.add(t);
+    }
+
+    for (final d in selectedDifficulties) {
+      out.add(formatDifficultyLabel(d));
+    }
+
+    for (final qt in selectedQuestionTypes) {
+      out.add(formatQuestionTypeLabel(qt));
+    }
+
+    if (selectedStatus.value != null) {
+      out.add(formatStatusLabel(selectedStatus.value!));
+    }
+
+    return out;
+  }
+
+  void removeSingleFilter(String label) {
+    selectedTopics.remove(label);
+    selectedDifficulties.removeWhere((d) => formatDifficultyLabel(d) == label);
+    selectedQuestionTypes
+        .removeWhere((qt) => formatQuestionTypeLabel(qt) == label);
+
+    if (selectedStatus.value != null &&
+        formatStatusLabel(selectedStatus.value!) == label) {
+      selectedStatus.value = null;
+    }
+  }
+
+  void clearAllFilters() {
+    selectedTopics.clear();
+    selectedDifficulties.clear();
+    selectedQuestionTypes.clear();
+    selectedStatus.value = null;
+  }
+
+  String formatDifficultyLabel(Difficulty d) =>
+      d.name.toUpperCase().replaceAll('_', ' ');
+
+  String formatQuestionTypeLabel(QuestionType qt) =>
+      qt.name.toUpperCase().replaceAll('_', ' ');
+
+  String formatStatusLabel(Status s) =>
+      s.name.toUpperCase().replaceAll('_', ' ');
+
   // ============================================================
   // 🔄 LIFECYCLE
   // ============================================================
   @override
   void onInit() {
     super.onInit();
+    // Listen to saved questions stream and keep local list updated
+    savedQuestionsStream.listen((list) {
+      savedQuestions.assignAll(list);
+    });
 
     // Tab bar
     tabController = TabController(length: 3, vsync: this);
@@ -125,6 +259,133 @@ class LibraryController extends GetxController
   }
 
   // ============================================================
+  // 🟦 MULTI-SELECT MODE FUNCTIONS
+  // ============================================================
+
+  /// Seçim modunu başlat
+  void startSelecting() {
+    isSelecting.value = true;
+    selectedQuestionIds.clear();
+  }
+
+  /// Bir soruyu seç / kaldır
+  void toggleSelect(String qId) {
+    if (selectedQuestionIds.contains(qId)) {
+      selectedQuestionIds.remove(qId);
+    } else {
+      selectedQuestionIds.add(qId);
+    }
+  }
+
+  /// Seçim modunu sonlandır
+  void stopSelecting() {
+    isSelecting.value = false;
+    selectedQuestionIds.clear();
+  }
+
+  /// Seçilen soruları var olan koleksiyona taşı
+  Future<void> moveSelectedToCollection(String collectionId) async {
+    final items = selectedQuestionIds.toList();
+    if (items.isEmpty) return;
+
+    for (final qId in items) {
+      await LibraryService.instance.addToCollection(collectionId, qId);
+    }
+
+    stopSelecting(); // seçim modu kapatılır
+  }
+
+  /// Yeni koleksiyon oluştur → seçilenleri ekle
+  Future<void> createCollectionAndMoveSelected(String name) async {
+    final newId = await createCollection(name);
+    await moveSelectedToCollection(newId);
+  }
+
+  Future<void> deleteSelectedQuestions() async {
+    final ids = selectedQuestionIds.toList();
+    if (ids.isEmpty) return;
+
+    for (final id in ids) {
+      await LibraryService.instance.removeQuestionEverywhere(id);
+    }
+
+    stopSelecting();
+  }
+
+  /// Kullanıcı bir soruyu hangi koleksiyonlara eklemek istiyorsa
+  /// save sheet'i açar, seçilen tüm koleksiyonları Firestore'a ekler.
+  /// Ardından bookmark ikonunu ve ALL tab'ını yeniler.
+  Future<void> openSaveSheetFor(String questionId) async {
+    final result = await Get.bottomSheet(
+      SaveQuestionToCollectionSheet(questionId: questionId),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+    );
+
+    if (result == null) return;
+
+    final bool saveToLibrary = result["library"] == true;
+    final List<String> collectionIds = List<String>.from(result["collections"]);
+
+    // 🟦 1) Library'ye kaydet
+    if (saveToLibrary) {
+      await LibraryService.instance.saveToAll(questionId);
+    }
+
+    // 🟦 2) Seçilen koleksiyonlara kaydet
+    for (final cId in collectionIds) {
+      await LibraryService.instance.addToCollection(cId, questionId);
+    }
+
+    // 🟦 3) Bookmark UI güncelle
+    await updateBookmarkState(questionId);
+
+    // 🟦 4) ALL tab yenile
+    await reloadSavedQuestions();
+  }
+
+  Future<void> updateBookmarkState(String questionId) async {
+    final isSaved = await LibraryService.instance.isSavedOnce(questionId);
+
+    final idx = savedQuestions.indexWhere((q) => q.id == questionId);
+
+    if (isSaved && idx == -1) {
+      // yeni ekleniyorsa listeye eklemen gerek ama soru datası sende yok
+      // ALL sekmesinin Stream'i zaten otomatik güncelleyecek
+      return;
+    }
+
+    if (!isSaved && idx != -1) {
+      savedQuestions.removeAt(idx);
+    }
+  }
+
+  Future<void> reloadSavedQuestions() async {
+    savedQuestions.assignAll(
+      await LibraryService.instance.savedQuestionsStream().first,
+    );
+  }
+
+  Future<void> removeQuestionEverywhere(String questionId) async {
+    // Service çağır → tüm saved + collection'lardan kaldırır
+    await LibraryService.instance.removeQuestionEverywhere(questionId);
+
+    // UI güncelle
+    await updateBookmarkState(questionId);
+    await reloadSavedQuestions();
+  }
+
+  Future<void> removeFromCollection(
+      String collectionId, String questionId) async {
+    await LibraryService.instance
+        .removeFromCollection(collectionId, questionId);
+
+    // UI güncellemesi
+    await updateBookmarkState(questionId);
+    await reloadSavedQuestions();
+  }
+
+  // ============================================================
   // 🧩 UI ACTION HANDLERS
   // ============================================================
   void onSearchChanged(String v) {
@@ -136,7 +397,7 @@ class LibraryController extends GetxController
   }
 
   Future<void> onCreateCollectionPressed() async {
-    final name = await _askText('New Collection', 'Collection name');
+    final name = await askText('New Collection', 'Collection name');
     if (name == null || name.trim().isEmpty) return;
     await LibraryService.instance.createCollection(name.trim());
   }
@@ -150,7 +411,7 @@ class LibraryController extends GetxController
     return newId;
   }
 
-  Future<String?> _askText(String title, String hint) async {
+  Future<String?> askText(String title, String hint) async {
     final ctrl = TextEditingController();
     return await Get.defaultDialog<String?>(
       title: title,
@@ -171,6 +432,47 @@ class LibraryController extends GetxController
     );
   }
 
+  // =======================
+  // OPEN FILTER POPUP
+  // (Only for ALL TAB)
+  // =======================
+
+  void openFilterSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        return FilterPopup(
+          // Dinamik seçenekler
+          topics: dynamicTopics,
+          difficulties: Difficulty.values,
+          statuses: Status.values,
+          questionTypes: QuestionType.values,
+
+          // Mevcut seçimler
+          selectedTopics: selectedTopics,
+          selectedDifficulties: selectedDifficulties,
+          selectedQuestionTypes: selectedQuestionTypes,
+          selectedStatus: selectedStatus.value,
+
+          // Kullanıcı Apply diyince controller’daki değerlere yaz
+          onApply: ({
+            required List<String> topics,
+            required List<Difficulty> difficulties,
+            required List<QuestionType> questionTypes,
+            required Status? status,
+          }) {
+            selectedTopics.assignAll(topics);
+            selectedDifficulties.assignAll(difficulties);
+            selectedQuestionTypes.assignAll(questionTypes);
+            selectedStatus.value = status;
+          },
+        );
+      },
+    );
+  }
+
   // ============================================================
   // 🔗 STREAMS
   // ============================================================
@@ -183,12 +485,38 @@ class LibraryController extends GetxController
   // ============================================================
   // 🔎 FILTER FUNCTIONS
   // ============================================================
-  List<Question> filterQuestions(List<Question> all) {
+  List<Question> filterQuestions(List<Question> raw) {
     final q = searchQuery.value.trim().toLowerCase();
-    if (q.isEmpty) return all;
 
-    return all.where((question) {
-      return question.title.toLowerCase().contains(q);
+    return raw.where((item) {
+      // Search filter
+      if (q.isNotEmpty && !item.title.toLowerCase().contains(q)) {
+        return false;
+      }
+
+      // Topic filter
+      if (selectedTopics.isNotEmpty && !selectedTopics.contains(item.topic)) {
+        return false;
+      }
+
+      // Difficulty filter
+      if (selectedDifficulties.isNotEmpty &&
+          !selectedDifficulties.contains(item.difficulty)) {
+        return false;
+      }
+
+      // Question type filter
+      if (selectedQuestionTypes.isNotEmpty &&
+          !selectedQuestionTypes.contains(item.type)) {
+        return false;
+      }
+
+      // Status filter
+      if (selectedStatus.value != null && item.status != selectedStatus.value) {
+        return false;
+      }
+
+      return true;
     }).toList();
   }
 
