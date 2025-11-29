@@ -197,6 +197,16 @@ class LibraryService {
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
+
+  /// 🔹 Bir soru “saved” klasöründe var mı? (tek seferlik hızlı kontrol)
+  Future<bool> isSavedOnce(String questionId) async {
+    final q = await _savedColl
+        .where('questionId', isEqualTo: questionId)
+        .limit(1)
+        .get();
+    return q.docs.isNotEmpty;
+  }
+
 }
 
 /// 🔹 Model
