@@ -6,8 +6,8 @@ import '../../../constants/colors.dart';
 import '../../../constants/constants.dart';
 import '../../../constants/text_styles.dart';
 import '../controllers/library_controller.dart';
+import 'move_to_collection_sheet.dart';
 import 'new_collection_dialog.dart';
-import 'save_question_to_collection_sheet.dart';
 
 class LibraryMultiSelectBar extends StatelessWidget {
   const LibraryMultiSelectBar({super.key});
@@ -55,11 +55,16 @@ class LibraryMultiSelectBar extends StatelessWidget {
             _ActionBtn(
               label: "Move",
               onTap: () async {
-                final selectedCollectionId =
-                    await _openMultiCollectionPicker(context, c);
-
-                if (selectedCollectionId != null) {
-                  await c.moveSelectedToCollection(selectedCollectionId);
+                final result = await Get.bottomSheet<String>(
+                  MoveToCollectionSheet(
+                    questionIds: c.selectedQuestionIds.toList(),
+                  ),
+                  isScrollControlled: true,
+                );
+                // kullanıcı bir collection seçtiyse:
+                if (result != null) {
+                  await c.moveSelectedToCollection(result);
+                  c.stopSelecting(); // seçim modu kapansın
                 }
               },
             ),
@@ -108,42 +113,10 @@ class LibraryMultiSelectBar extends StatelessWidget {
                 c.deleteSelectedQuestions();
               },
             ),
-
-            const SizedBox(width: AppSpacing.sm),
-
-            // -------- CANCEL --------
-            GestureDetector(
-              onTap: c.stopSelecting,
-              child: const Text(
-                "Cancel",
-                style: TextStyle(
-                  color: Colors.red,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
           ],
         ),
       );
     });
-  }
-
-  Future<String?> _openMultiCollectionPicker(
-      BuildContext context, LibraryController c) async {
-    final result = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) {
-        return SafeArea(
-          child: SaveQuestionToCollectionSheet.multi(
-            selectedIds: c.selectedQuestionIds.toSet(),
-          ),
-        );
-      },
-    );
-
-    // Seçim modu burada kapanmaz → Move işlemi bitince kapanır
-    return result; // seçilen collection ID
   }
 }
 

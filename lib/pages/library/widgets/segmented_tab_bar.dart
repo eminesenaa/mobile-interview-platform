@@ -1,9 +1,11 @@
 // ===================== File: lib/pages/library/widgets/segmented_tab_bar.dart =====================
 
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../../../constants/colors.dart';
 import '../../../constants/text_styles.dart';
 import '../../../constants/constants.dart';
+import '../controllers/library_controller.dart';
 
 class LibrarySegmentedTabBar extends StatelessWidget {
   final TabController controller;
@@ -19,6 +21,14 @@ class LibrarySegmentedTabBar extends StatelessWidget {
       ),
       child: TabBar(
         controller: controller,
+        onTap: (index) {
+          final c = Get.find<LibraryController>();
+          c.currentTab.value = LibraryTab.values[index];
+          c.searchCtrl.clear();
+          c.search.value = '';
+          c.searchQuery.value = '';
+        },
+
         indicatorSize: TabBarIndicatorSize.tab,
         dividerColor: Colors.transparent,
 

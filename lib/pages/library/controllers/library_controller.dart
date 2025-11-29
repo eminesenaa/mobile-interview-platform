@@ -236,9 +236,14 @@ class LibraryController extends GetxController
 
     // Tab bar
     tabController = TabController(length: 3, vsync: this);
+    // ⭐ TAB DEĞİŞİNCE SEARCH RESETLE
     tabController.addListener(() {
       if (!tabController.indexIsChanging) {
-        currentTab.value = LibraryTab.values[tabController.index];
+        isSelecting.value = false;
+        selectedQuestionIds.clear();
+        searchCtrl.clear();
+        searchQuery.value = '';
+        search.value = '';
       }
     });
 

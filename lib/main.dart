@@ -76,6 +76,15 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
+        colorScheme: const ColorScheme.light(
+          primary: AppColors.primary,
+          secondary: AppColors.primary,
+          surface: AppColors.surface,
+          background: AppColors.background,
+          onPrimary: Colors.white,
+          onSurface: AppColors.textPrimary,
+        ),
+
       ),
       // 🔹 Ana yönlendirme
       home: GetX<AuthController>(

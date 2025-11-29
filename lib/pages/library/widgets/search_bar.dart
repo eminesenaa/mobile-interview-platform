@@ -7,6 +7,7 @@ import '../../../constants/colors.dart';
 import '../../../constants/text_styles.dart';
 import '../../../constants/constants.dart';
 import '../controllers/library_controller.dart';
+import 'new_collection_dialog.dart';
 import 'round_icon_button.dart';
 
 class LibrarySearchBar extends StatelessWidget {
@@ -62,6 +63,7 @@ class LibrarySearchBar extends StatelessWidget {
     });
   }
 }
+
 /// 🔥 Tab’a göre dinamik aksiyon butonları
 class _LibraryActionButtons extends StatelessWidget {
   @override
@@ -79,8 +81,10 @@ class _LibraryActionButtons extends StatelessWidget {
             children: [
               // FILTER BUTTON (Phosphor icon + renk değişimi)
               RoundIconButton(
-                icon: PhosphorIcons.slidersHorizontal(), // Practice ile birebir aynı ikon!
-                selected: c.hasActiveFilters,      // renk değiştirme mantığı
+                icon: PhosphorIcons.slidersHorizontal(),
+                // Practice ile birebir aynı ikon!
+                selected: c.hasActiveFilters,
+                // renk değiştirme mantığı
                 onTap: () => c.openFilterSheet(context),
               ),
 
@@ -97,7 +101,6 @@ class _LibraryActionButtons extends StatelessWidget {
                     c.stopSelecting();
                   }
                 },
-
               ),
             ],
           );
@@ -107,7 +110,29 @@ class _LibraryActionButtons extends StatelessWidget {
             children: [
               RoundIconButton(
                 icon: PhosphorIcons.plus(),
-                onTap: c.onCreateCollectionPressed,
+                onTap: () async {
+                  final c = Get.find<LibraryController>();
+                  final createdName = await Get.dialog<String?>(
+                    NewCollectionDialog(),
+                    barrierDismissible: true,
+                  );
+
+                  if (createdName == null || createdName.trim().isEmpty) return;
+
+                  // Stream’in güncellenmesi için mini delay
+                  await Future.delayed(const Duration(milliseconds: 350));
+
+                  final match = c.lastRawCollections.firstWhereOrNull(
+                    (x) =>
+                        x.name.trim().toLowerCase() ==
+                        createdName.trim().toLowerCase(),
+                  );
+
+                  // Yeni oluşturulan collection’ı otomatik seç
+                  if (match != null) {
+                    c.autoSelectCollectionId.value = match.id;
+                  }
+                },
               ),
             ],
           );
