@@ -1,7 +1,7 @@
 // lib/services/ai/gemini_service.dart
 import 'dart:async';
 import 'dart:convert';
-
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:google_generative_ai/google_generative_ai.dart';
 
@@ -14,22 +14,13 @@ class GeminiService {
 
   GeminiService._internal(this._modelName, this._apiKey);
 
-  /// Önerilen kullanım:
-  /// flutter run --dart-define=GEMINI_API_KEY=xxx
   factory GeminiService({
     String? model,
     String? apiKey,
   }) {
-    final resolvedModel = model ?? 'gemini-1.5-flash-latest';
-    final resolvedKey =
-        apiKey ?? const String.fromEnvironment('GEMINI_API_KEY', defaultValue: '');
-    if (resolvedKey.isEmpty) {
-      throw StateError(
-        'GEMINI_API_KEY is not set. '
-        'Pass it via --dart-define=GEMINI_API_KEY=YOUR_KEY or provide apiKey parameter.',
-      );
-    }
-    return GeminiService._internal(resolvedModel, resolvedKey);
+    final resolvedModel = model ?? 'gemini-2.5-flash';
+    final resolvedKey = dotenv.env['GEMINI_API_KEY'];
+    return GeminiService._internal(resolvedModel, resolvedKey!);
   }
 
   // -------------------- Prompt yükleme (OpenAI ile aynı dosyalar) --------------------

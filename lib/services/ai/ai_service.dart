@@ -1,6 +1,8 @@
 // lib/services/ai/ai_service.dart
 import '../../models/exam.dart';
 import '../../models/question.dart';
+import 'ai_config.dart';
+import 'gemini_service.dart';
 import 'openai_service.dart';
 //import 'gemini_service.dart';
 
@@ -8,6 +10,7 @@ class AiService {
   /// Her tip soru için tek giriş noktası.
   /// MCQ: userAnswer = seçilen index (int) veya text
   /// ShortAnswer/FillBlank: userAnswer = String
+  ///
   Future<AiEvaluateResult> evaluate({
     required Question question,
     required dynamic userAnswer,
@@ -20,12 +23,24 @@ class AiService {
     // burada karar verilecek: training mi interview mu
     const promptType = PromptType.training;
 
-    final result = await OpenAIService.gradeWithTemplate(
-      promptType: promptType,
-      category: category,
-      qMeta: meta,
-      candidateAnswer: candidate,
-    );
+    print("Soru türü: ${question.type.name}");
+    final provider = AiConfig.chooseModel(questionType: question.type.name);
+    print("kullanılacak provider: $provider");
+    final result = switch (provider) {
+      AiProvider.openai => await OpenAIService.gradeWithTemplate(
+        promptType: promptType,
+        category: category,
+        qMeta: meta,
+        candidateAnswer: candidate,
+      ),
+      AiProvider.gemini => await GeminiService().gradeWithTemplate(
+        promptType: promptType,
+        category: category,
+        qMeta: meta,
+        candidateAnswer: candidate,
+      ),
+    };
+
 
     return AiEvaluateResult(
       finalAnswer: result.expected,
@@ -75,11 +90,19 @@ class AiService {
         });
       }
 
-      final results = await OpenAIService.gradeBatch(
-        batchId:
-            "exam_${exam.id ?? 'local'}_${DateTime.now().millisecondsSinceEpoch}",
-        items: items,
-      );
+      const provider = AiConfig.provider;
+
+      final results = switch (provider) {
+        AiProvider.openai => await OpenAIService.gradeBatch(
+          batchId: "exam_${exam.id}_${DateTime.now().millisecondsSinceEpoch}",
+          items: items,
+        ),
+        AiProvider.gemini => await GeminiService().gradeBatch(
+          batchId: "exam_${exam.id}_${DateTime.now().millisecondsSinceEpoch}",
+          items: items,
+        ),
+      };
+
 
       for (final r in results) {
         final i = (r['index'] as num).toInt();
