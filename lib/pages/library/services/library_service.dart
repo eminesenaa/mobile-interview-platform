@@ -5,6 +5,7 @@ import '../../../models/question.dart';
 
 class LibraryService {
   LibraryService._();
+
   static final instance = LibraryService._();
 
   final _db = FirebaseFirestore.instance;
@@ -89,8 +90,8 @@ class LibraryService {
   }
 
   Stream<List<CollectionData>> collectionsStream() {
-    return _collectionsColl.snapshots().map(
-        (snap) => snap.docs.map((d) => CollectionData.fromFirestore(d)).toList());
+    return _collectionsColl.snapshots().map((snap) =>
+        snap.docs.map((d) => CollectionData.fromFirestore(d)).toList());
   }
 
   Future<List<String>> getCollectionsOfQuestion(String questionId) async {
@@ -122,10 +123,13 @@ class LibraryService {
     final batch = _db.batch();
 
     final ref = _collectionsColl.doc(collectionId);
-    batch.set(ref, {
-      'questionIds': FieldValue.arrayUnion([questionId]),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    batch.set(
+        ref,
+        {
+          'questionIds': FieldValue.arrayUnion([questionId]),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true));
 
     final exists = await _savedColl
         .where('questionId', isEqualTo: questionId)
@@ -142,7 +146,8 @@ class LibraryService {
     await batch.commit();
   }
 
-  Future<void> removeFromCollection(String collectionId, String questionId) async {
+  Future<void> removeFromCollection(
+      String collectionId, String questionId) async {
     final ref = _collectionsColl.doc(collectionId);
     await ref.set({
       'questionIds': FieldValue.arrayRemove([questionId]),
@@ -160,10 +165,13 @@ class LibraryService {
     // tüm koleksiyonlardan kaldır
     final collections = await _collectionsColl.get();
     for (final c in collections.docs) {
-      batch.set(c.reference, {
-        'questionIds': FieldValue.arrayRemove([questionId]),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      batch.set(
+          c.reference,
+          {
+            'questionIds': FieldValue.arrayRemove([questionId]),
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true));
     }
 
     await batch.commit();
@@ -187,9 +195,27 @@ class LibraryService {
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    return ref.id;   // ⭐ EKLENEN TEK SATIR (ref yerine ref.id dönüyoruz)
+    return ref.id; // ⭐ EKLENEN TEK SATIR (ref yerine ref.id dönüyoruz)
   }
 
+  // ============================================================
+  // 🗑️ DELETE COLLECTION
+  // ============================================================
+  /// Bir koleksiyonu tamamen siler.
+  /// Kullanıcı çoklu seçim yaptığında controller burayı çağırır.
+  ///
+  /// NOT:
+  ///  - Koleksiyonun içindeki soru ID’lerini silmiyoruz.
+  ///    Çünkü sorular başka koleksiyonlarda olabilir.
+  ///  - Sadece koleksiyon dokümanı silinir.
+  Future<void> deleteCollection(String collectionId) async {
+    try {
+      await _collectionsColl.doc(collectionId).delete();
+    } catch (e) {
+      print("🔥 deleteCollection ERROR: $e");
+      rethrow;
+    }
+  }
 
   Future<void> bumpSavedCount(int delta) async {
     await _libraryMeta.set({
@@ -206,7 +232,6 @@ class LibraryService {
         .get();
     return q.docs.isNotEmpty;
   }
-
 }
 
 /// 🔹 Model
@@ -214,11 +239,15 @@ class CollectionData {
   final String id;
   final String name;
   final List<String> questionIds;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   CollectionData({
     required this.id,
     required this.name,
     required this.questionIds,
+    this.createdAt,
+    this.updatedAt,
   });
 
   int get count => questionIds.length;
@@ -230,6 +259,12 @@ class CollectionData {
       id: doc.id,
       name: data['name'] ?? '',
       questionIds: List<String>.from(data['questionIds'] ?? []),
+      createdAt: (data['createdAt'] is Timestamp)
+          ? (data['createdAt'] as Timestamp).toDate()
+          : null,
+      updatedAt: (data['updatedAt'] is Timestamp)
+          ? (data['updatedAt'] as Timestamp).toDate()
+          : null,
     );
   }
 }

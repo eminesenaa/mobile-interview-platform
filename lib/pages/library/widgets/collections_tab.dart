@@ -9,6 +9,7 @@ import '../collection_detail_page.dart';
 import '../controllers/library_controller.dart';
 import '../widgets/collection_card.dart';
 import '../widgets/empty_state.dart';
+import 'collections_selection_toolbar.dart';
 
 class LibraryCollectionsTab extends StatelessWidget {
   const LibraryCollectionsTab({super.key});
@@ -28,12 +29,11 @@ class LibraryCollectionsTab extends StatelessWidget {
           }
 
           final all = snapshot.data!;
-          // 🔎 Search filter
-          final items = query.isEmpty
-              ? all
-              : all.where((col) =>
-              col.name.toLowerCase().contains(query),
-          ).toList();
+          // Güncel listeyi controller'a yaz
+          c.lastRawCollections = all;
+
+          // ⭐ Controller içindeki SORT + SEARCH + CUSTOM ORDER hepsi burada
+          final items = c.filteredCollections(all);
 
           if (items.isEmpty) {
             return const LibraryEmptyState(
@@ -43,35 +43,59 @@ class LibraryCollectionsTab extends StatelessWidget {
             );
           }
 
-          return GridView.custom(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            physics: const BouncingScrollPhysics(),
-            gridDelegate: SliverQuiltedGridDelegate(
-              crossAxisCount: 2,
-              mainAxisSpacing: AppSpacing.sm,
-              crossAxisSpacing: AppSpacing.sm,
-              pattern: const [
-                QuiltedGridTile(1, 1),
-                QuiltedGridTile(1, 1),
-                QuiltedGridTile(1, 2),
-              ],
-            ),
-            childrenDelegate: SliverChildBuilderDelegate(
-                  (context, i) {
-                final col = items[i];
-                return CollectionCard(
-                  name: col.name,
-                  count: col.count,
-                  onTap: () => Get.to(
-                        () => CollectionDetailPage(
-                      collectionId: col.id,
-                      collectionName: col.name,
-                    ),
+          return Column(
+            children: [
+              Expanded(
+                child: GridView.custom(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  physics: const BouncingScrollPhysics(),
+                  gridDelegate: SliverQuiltedGridDelegate(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: AppSpacing.sm,
+                    crossAxisSpacing: AppSpacing.sm,
+                    pattern: const [
+                      QuiltedGridTile(1, 1),
+                      QuiltedGridTile(1, 1),
+                      QuiltedGridTile(1, 2),
+                    ],
                   ),
-                );
-              },
-              childCount: items.length,
-            ),
+                  childrenDelegate: SliverChildBuilderDelegate(
+                    (context, i) {
+                      final col = items[i];
+
+                      // ⭐ HER KARTI OBX İLE SAR — kart reaktif olsun
+                      return Obx(() {
+                        final isSelected =
+                            c.selectedCollectionIds.contains(col.id);
+                        final selectionMode = c.isSelectingCollections.value;
+
+                        return CollectionCard(
+                          name: col.name,
+                          count: col.count,
+                          selectionMode: selectionMode,
+                          isSelected: isSelected,
+                          onSelect: () => c.toggleSelectCollection(col.id),
+                          onTap: () {
+                            if (selectionMode) {
+                              c.toggleSelectCollection(col.id);
+                              return;
+                            }
+                            Get.to(() => CollectionDetailPage(
+                                  collectionId: col.id,
+                                  collectionName: col.name,
+                                ));
+                          },
+                        );
+                      });
+                    },
+                    childCount: items.length,
+                  ),
+                ),
+              ),
+
+              // ⭐ ALTTAN ÇIKAN TOOLBAR
+              const CollectionsSelectionToolbar(),
+            ],
           );
         },
       );

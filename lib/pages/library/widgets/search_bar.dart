@@ -7,6 +7,7 @@ import '../../../constants/colors.dart';
 import '../../../constants/text_styles.dart';
 import '../../../constants/constants.dart';
 import '../controllers/library_controller.dart';
+import 'collections_menu_sheet.dart';
 import 'new_collection_dialog.dart';
 import 'round_icon_button.dart';
 
@@ -108,6 +109,7 @@ class _LibraryActionButtons extends StatelessWidget {
         case LibraryTab.collections:
           return Row(
             children: [
+              // ➕ NEW COLLECTION
               RoundIconButton(
                 icon: PhosphorIcons.plus(),
                 onTap: () async {
@@ -128,9 +130,23 @@ class _LibraryActionButtons extends StatelessWidget {
                         createdName.trim().toLowerCase(),
                   );
 
-                  // Yeni oluşturulan collection’ı otomatik seç
                   if (match != null) {
                     c.autoSelectCollectionId.value = match.id;
+                  }
+                },
+              ),
+
+              const SizedBox(width: AppSpacing.sm),
+
+              // ⋯ OVERFLOW MENU
+              RoundIconButton(
+                icon: PhosphorIcons.dotsThreeOutline(),
+                selected: c.isSelectingCollections.value,
+                onTap: () {
+                  if (c.isSelectingCollections.value) {
+                    c.stopCollectionSelecting();
+                  } else {
+                    _openCollectionsMenu(context);
                   }
                 },
               ),
@@ -142,4 +158,15 @@ class _LibraryActionButtons extends StatelessWidget {
       }
     });
   }
+  void _openCollectionsMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (_) => const CollectionsMenuSheet(),
+    );
+  }
+
 }

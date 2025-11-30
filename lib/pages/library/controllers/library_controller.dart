@@ -15,6 +15,12 @@ import '../widgets/save_question_to_collection_sheet.dart';
 /// Library sayfasındaki 3 ana tab
 enum LibraryTab { all, collections, modules }
 
+///  COLLECTION SORT MODES
+enum CollectionSortMode {
+  nameAsc,
+  createdDesc,
+}
+
 class LibraryController extends GetxController
     with GetSingleTickerProviderStateMixin {
   // ============================================================
@@ -56,6 +62,46 @@ class LibraryController extends GetxController
   final RxBool isSelecting = false.obs; // seçim modu açık mı?
   final RxList<String> selectedQuestionIds = <String>[].obs; // seçilenler
 
+  /// Aktif sıralama modu (varsayılan: A → Z)
+  final Rx<CollectionSortMode> sortMode = CollectionSortMode.nameAsc.obs;
+
+  // ============================================================
+  // 🗂️ MULTI-SELECT (COLLECTIONS TAB)
+  // ============================================================
+  /// Collections tab'da seçim modu açık mı?
+  final RxBool isSelectingCollections = false.obs;
+
+  /// Seçilen collection ID'leri
+  final RxSet<String> selectedCollectionIds = <String>{}.obs;
+
+  // ============================================================
+  // 🗑️ COLLECTIONS — MULTI SELECT MODE
+  // ============================================================
+
+  /// UI'da üç nokta menüsünden tetiklenir
+  void startCollectionSelecting() {
+    isSelectingCollections.value = true;
+    selectedCollectionIds.clear();
+  }
+
+  void stopCollectionSelecting() {
+    isSelectingCollections.value = false;
+    selectedCollectionIds.clear();
+  }
+
+  void toggleSelectCollection(String id) {
+    if (selectedCollectionIds.contains(id)) {
+      selectedCollectionIds.remove(id);
+    } else {
+      selectedCollectionIds.add(id);
+    }
+  }
+
+  void selectAllCollections() {
+    selectedCollectionIds
+        .assignAll(lastRawCollections.map((c) => c.id).toList());
+  }
+
   // =============================
   // SAVED QUESTIONS (local cache)
   // =============================
@@ -73,15 +119,40 @@ class LibraryController extends GetxController
   // 🔎 COLLECTION FILTERING
   // ============================================================
   List<CollectionData> filteredCollections(List<CollectionData> all) {
-    final q = search.value.trim().toLowerCase();
+    final q = searchQuery.value.trim().toLowerCase();
 
-    // 1) Search
     List<CollectionData> filtered = q.isEmpty
         ? List.from(all)
         : all.where((c) => c.name.toLowerCase().contains(q)).toList();
 
-    // 2) Sorting
-    filtered.sort(_collectionSorter);
+    switch (sortMode.value) {
+      case CollectionSortMode.nameAsc:
+        filtered.sort((a, b) => a.name.compareTo(b.name));
+        break;
+
+      case CollectionSortMode.createdDesc:
+        // ⭐ Yeni sırala: createdAt varsa ona göre, yoksa id fallback
+        filtered.sort((a, b) {
+          final aTime = a.createdAt;
+          final bTime = b.createdAt;
+
+          // İkisi de null → fallback doc id
+          if (aTime == null && bTime == null) {
+            return b.id.compareTo(a.id);
+          }
+
+          // Sadece a null → b üstte
+          if (aTime == null) return 1;
+
+          // Sadece b null → a üstte
+          if (bTime == null) return -1;
+
+          // İkisi de tarihli → büyük olan (yeni) üstte
+          return bTime.compareTo(aTime);
+        });
+
+        break;
+    }
 
     return filtered;
   }
@@ -241,6 +312,10 @@ class LibraryController extends GetxController
       if (!tabController.indexIsChanging) {
         isSelecting.value = false;
         selectedQuestionIds.clear();
+        // ⭐ COLLECTION SELECT RESET
+        isSelectingCollections.value = false;
+        selectedCollectionIds.clear();
+
         searchCtrl.clear();
         searchQuery.value = '';
         search.value = '';
@@ -391,6 +466,31 @@ class LibraryController extends GetxController
   }
 
   // ============================================================
+  // 🗑️ DELETE SELECTED COLLECTIONS
+  // ============================================================
+  Future<void> deleteSelectedCollections() async {
+    final ids = selectedCollectionIds.toList();
+    if (ids.isEmpty) return;
+
+    for (final id in ids) {
+      await LibraryService.instance.deleteCollection(id);
+    }
+
+    stopCollectionSelecting();
+  }
+
+  /// Bir collection kartına tıklanınca seç / kaldır
+  void toggleCollectionSelected(String id) {
+    if (!isSelectingCollections.value) return;
+
+    if (selectedCollectionIds.contains(id)) {
+      selectedCollectionIds.remove(id);
+    } else {
+      selectedCollectionIds.add(id);
+    }
+  }
+
+  // ============================================================
   // 🧩 UI ACTION HANDLERS
   // ============================================================
   void onSearchChanged(String v) {
@@ -404,6 +504,7 @@ class LibraryController extends GetxController
   Future<void> onCreateCollectionPressed() async {
     final name = await askText('New Collection', 'Collection name');
     if (name == null || name.trim().isEmpty) return;
+    sortMode.value = CollectionSortMode.createdDesc;
     await LibraryService.instance.createCollection(name.trim());
   }
 
