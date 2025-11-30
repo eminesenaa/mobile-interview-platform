@@ -67,36 +67,32 @@ class TrainingModuleCard extends StatelessWidget {
               // Üst kısım: format label
               _FormatChip(format: module.format),
 
-              // Orta kısım: başlık + alt açıklama
-              Expanded(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        module.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.headline.copyWith(
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        module.subtitle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.body.copyWith(
-                          color: Colors.white.withOpacity(0.9),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              const SizedBox(height: AppSpacing.sm), // Boşluk ekle
 
+              // Orta kısım: başlık + alt açıklama
+              Column(
+                mainAxisSize: MainAxisSize.min, // Sadece içeriği kadar yer kapla
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    module.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.headline.copyWith(
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    module.subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.body.copyWith(
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: AppSpacing.sm),
               // Alt kısım:
               // - Henüz başlanmadıysa sadece "X questions"

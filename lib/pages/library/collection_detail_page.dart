@@ -5,7 +5,6 @@ import 'package:get/get.dart';
 import '../../models/question.dart';
 import '../runner/question_feed.dart';
 import '../runner/question_runner_page.dart';
-import 'library_page.dart';
 import 'services/library_service.dart';
 import '../../widgets/question_card.dart';
 import 'widgets/save_question_to_collection_sheet.dart';
@@ -13,12 +12,10 @@ import 'widgets/save_question_to_collection_sheet.dart';
 class CollectionDetailPage extends StatelessWidget {
   final String collectionId;
   final String? collectionName;
-  final OpenRunner openRunner;
   const CollectionDetailPage({
     super.key,
     required this.collectionId,
     this.collectionName,
-    required this.openRunner,
   });
 
   @override
@@ -54,6 +51,7 @@ class CollectionDetailPage extends StatelessWidget {
                   return QuestionCard(
                     question: q,
                     isSaved: isSaved,
+                    collectionId: collectionId,
                     onTap: () =>  _openRunnerFromCollection(
                       questions,
                       i,

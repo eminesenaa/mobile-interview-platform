@@ -5,6 +5,7 @@ class Collection {
   final String name;
   final List<String> questionIds;
   final DateTime? updatedAt;
+  final DateTime? createdAt;
 
   int get itemCount => questionIds.length;
 
@@ -13,6 +14,7 @@ class Collection {
     required this.name,
     required this.questionIds,
     this.updatedAt,
+    this.createdAt,
   });
 
   factory Collection.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -22,6 +24,7 @@ class Collection {
       name: (data['name'] as String?) ?? 'Untitled',
       questionIds: List<String>.from((data['questionIds'] as List?) ?? const []),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -33,6 +36,9 @@ class Collection {
       updatedAt: (data['updatedAt'] is Timestamp)
           ? (data['updatedAt'] as Timestamp).toDate()
           : null,
+      createdAt: (data['createdAt'] is Timestamp)
+          ? (data['createdAt'] as Timestamp).toDate()
+          : null,
     );
   }
 
@@ -41,6 +47,7 @@ class Collection {
       'name': name,
       'questionIds': questionIds,
       if (updatedAt != null) 'updatedAt': Timestamp.fromDate(updatedAt!),
+      if (createdAt != null) 'createdAt': Timestamp.fromDate(createdAt!),
     };
   }
 
@@ -49,12 +56,14 @@ class Collection {
     String? name,
     List<String>? questionIds,
     DateTime? updatedAt,
+    DateTime? createdAt,
   }) {
     return Collection(
       id: id ?? this.id,
       name: name ?? this.name,
       questionIds: questionIds ?? this.questionIds,
       updatedAt: updatedAt ?? this.updatedAt,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 }
