@@ -27,18 +27,22 @@ class AiService {
     final provider = AiConfig.chooseModel(questionType: question.type.name);
     print("kullanılacak provider: $provider");
     final result = switch (provider) {
+
       AiProvider.openai => await OpenAIService.gradeWithTemplate(
         promptType: promptType,
         category: category,
         qMeta: meta,
         candidateAnswer: candidate,
       ),
+
       AiProvider.gemini => await GeminiService().gradeWithTemplate(
         promptType: promptType,
         category: category,
         qMeta: meta,
         candidateAnswer: candidate,
       ),
+
+      AiProvider.anthropic => throw Exception("Anthropic provider not implemented yet."),
     };
 
 
@@ -101,6 +105,7 @@ class AiService {
           batchId: "exam_${exam.id}_${DateTime.now().millisecondsSinceEpoch}",
           items: items,
         ),
+        AiProvider.anthropic => throw Exception("Anthropic provider not implemented yet."),
       };
 
 
