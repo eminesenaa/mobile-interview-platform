@@ -11,11 +11,27 @@ enum AiProvider {
 class AiConfig {
   /// Hangi provider kullanılacak? Default: OpenAI
   static const AiProvider provider = AiProvider.openai;
+  static bool OPENAIoutOfTokenFlag = false;
+  static bool GEMINIoutOfTokenFlag = false;
+  static bool ANTHROPICoutOfTokenFlag = false;
 
   /// Varsayılan prompt tipi
   static const PromptType defaultPromptType = PromptType.training;
 
   static AiProvider chooseModel({String? questionType}) {
+
+    if(OPENAIoutOfTokenFlag && GEMINIoutOfTokenFlag && ANTHROPICoutOfTokenFlag){
+      // !!! BİRİNİN TOKENI BİTTİ !!!
+
+      if(OPENAIoutOfTokenFlag == false) {
+        // Eğer openai tokenı bitmediyse openai kullan
+        return AiProvider.openai;
+      } else {
+        // Eğer openai tokenı bitmişse gemini kullan
+        return AiProvider.gemini;
+      }
+
+    }
 
     //print(questionType);
 

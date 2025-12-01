@@ -6,6 +6,8 @@ import 'package:flutter/services.dart' show rootBundle;
 //import '../../models/question.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import 'ai_config.dart';
+
 enum PromptType {
   training,
   interview,
@@ -236,27 +238,43 @@ class OpenAIService {
 
   /// --- HTTP yardımcıları ---
   static Future<http.Response> _post(
-    Map<String, dynamic> body, {
-    required Duration timeout,
-  }) async {
+      Map<String, dynamic> body, {
+        required Duration timeout,
+      }) async {
+
     final res = await http
         .post(
-          Uri.parse(_endpoint),
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer $_apiKey",
-          },
-          body: jsonEncode(body),
-        )
+      Uri.parse(_endpoint),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $_apiKey",
+      },
+      body: jsonEncode(body),
+    )
         .timeout(timeout);
 
-    // HTTP hata kodlarını erken yakala
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      // Burada res.body’yi UI’ye fırlatıyoruz ki ham hata görülsün
+      try {
+        final decoded = jsonDecode(res.body);
+
+        final err = decoded["error"];
+        final type = err?["type"]?.toString();
+        final code = err?["code"]?.toString();
+
+        // ❗ TOKEN BİTTİ / QUOTA BİTTİ DURUMU
+        if (type == "insufficient_quota" || code == "insufficient_quota") {
+          AiConfig.OPENAIoutOfTokenFlag = true;
+        }
+      } catch (_) {
+        // JSON parse edilemezse bir şey yapma
+      }
+
       throw Exception('OpenAI error ${res.statusCode}: ${res.body}');
     }
+
     return res;
   }
+
 
   /// JSON mode’a uygun, savunmacı ayrıştırma + debug
   static GradeResult _extractGradeResult(http.Response res, PromptType type) {

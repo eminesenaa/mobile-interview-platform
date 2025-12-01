@@ -6,6 +6,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:google_generative_ai/google_generative_ai.dart';
 
 // OpenAI tarafındaki tip ve mapper'ları kullanıyoruz → %100 alan uyumu
+import 'ai_config.dart';
 import 'openai_service.dart' show PromptType, GradeResult, GradeResultMapper;
 
 class GeminiService {
@@ -110,6 +111,16 @@ class GeminiService {
           return GradeResultMapper.fromDetailedTraining(obj);
       }
     } catch (e) {
+      // --- QUOTA/TOKEN BITTI MI? ---
+      final msg = e.toString().toLowerCase();
+
+      // Google: RESOURCE_EXHAUSTED = quota exceeded
+      if (msg.contains("resource_exhausted") ||
+          msg.contains("quota exceeded") ||
+          msg.contains("quota") && msg.contains("exceeded")) {
+        AiConfig.GEMINIoutOfTokenFlag = true;
+      }
+
       return GradeResult(
         correct: false,
         expected: '',
