@@ -1,11 +1,12 @@
 // lib/services/ai/gemini_service.dart
 import 'dart:async';
 import 'dart:convert';
-
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:google_generative_ai/google_generative_ai.dart';
 
 // OpenAI tarafındaki tip ve mapper'ları kullanıyoruz → %100 alan uyumu
+import 'ai_config.dart';
 import 'openai_service.dart' show PromptType, GradeResult, GradeResultMapper;
 
 class GeminiService {
@@ -14,22 +15,13 @@ class GeminiService {
 
   GeminiService._internal(this._modelName, this._apiKey);
 
-  /// Önerilen kullanım:
-  /// flutter run --dart-define=GEMINI_API_KEY=xxx
   factory GeminiService({
     String? model,
     String? apiKey,
   }) {
-    final resolvedModel = model ?? 'gemini-1.5-flash-latest';
-    final resolvedKey =
-        apiKey ?? const String.fromEnvironment('GEMINI_API_KEY', defaultValue: '');
-    if (resolvedKey.isEmpty) {
-      throw StateError(
-        'GEMINI_API_KEY is not set. '
-        'Pass it via --dart-define=GEMINI_API_KEY=YOUR_KEY or provide apiKey parameter.',
-      );
-    }
-    return GeminiService._internal(resolvedModel, resolvedKey);
+    final resolvedModel = model ?? 'gemini-2.5-flash';
+    final resolvedKey = dotenv.env['GEMINI_API_KEY'];
+    return GeminiService._internal(resolvedModel, resolvedKey!);
   }
 
   // -------------------- Prompt yükleme (OpenAI ile aynı dosyalar) --------------------
@@ -119,6 +111,16 @@ class GeminiService {
           return GradeResultMapper.fromDetailedTraining(obj);
       }
     } catch (e) {
+      // --- QUOTA/TOKEN BITTI MI? ---
+      final msg = e.toString().toLowerCase();
+
+      // Google: RESOURCE_EXHAUSTED = quota exceeded
+      if (msg.contains("resource_exhausted") ||
+          msg.contains("quota exceeded") ||
+          msg.contains("quota") && msg.contains("exceeded")) {
+        AiConfig.GEMINIoutOfTokenFlag = true;
+      }
+
       return GradeResult(
         correct: false,
         expected: '',
