@@ -55,9 +55,8 @@ FILL-IN-THE-BLANK (N = 1)
   3) If the user entered a NON-EMPTY but WRONG value:
         "Incorrect. The correct answer is \"<correct_value>\"."
 
-IMPORTANT:
-• Single-blank items MUST NEVER use the multi-blank format.
-• You MUST NOT output “You filled K out of N blanks…” or “Per-blank:” for N = 1.
+Single-blank items MUST NOT use multi-blank reasoning format (“Per-blank:” etc.).
+Those formats are ONLY for multi-blank (N > 1).
 
 ──────────────────────────────────────────
 FILL-IN-THE-BLANK (N > 1) — STRICT RULES
@@ -70,12 +69,6 @@ N MUST equal the number of correct values in the expected list.
 • correct = true only if K == N.
 • expected MUST begin with: "Correct Answer: [\"v1\", \"v2\", ...]".
 
-SPECIAL CASE — ALL BLANKS CORRECT (K == N):
-• reason MUST be exactly:
-      "Correct answer."
-• DO NOT use the Per-blank template when all blanks are correct.
-
-GENERAL CASE — WHEN K < N:
 The "reason" MUST ALWAYS follow this exact template:
 
 "You filled K out of N blanks correctly. Per-blank:
@@ -88,26 +81,26 @@ STRICT FORMAT REQUIREMENTS:
 • EXACTLY N lines must appear.
 • Lines MUST be numbered from 1 to N in order.
 • NO lines may be skipped or added.
-• K MUST match the number of lines with status = "correct".
-• ABSOLUTELY NO free-form explanations are allowed.
+• K MUST match the count of lines whose status = "correct".
+• ABSOLUTELY NO free-form explanations (e.g., “the rest are incorrect”) are allowed.
 
 ──────────────────────────────────────────
-STATUS RULES FOR EACH BLANK (ONLY WHEN K < N)
+STATUS RULES FOR EACH BLANK
 ──────────────────────────────────────────
 For each blank i:
 
 1. Trim user answer for blank i.
 
 2. If EMPTY after trimming:
-   • <user_value> MUST be empty (nothing between "i- " and " —").
+   • <user_value> MUST be empty (leave nothing between "i- " and " —").
    • <status> = "missing (should be: \"<correct_value_i>\")".
-   • NEVER put the correct value inside <user_value>.
+   • NEVER put the correct value in <user_value> when missing.
 
 3. If NON-EMPTY and matches correct_value_i (or alias):
-   • <user_value> = exactly what the user wrote.
+   • <user_value> = exactly what the user wrote (after trimming).
    • <status> = "correct".
 
-4. If NON-EMPTY and does NOT match:
+4. If NON-EMPTY and does NOT match correct_value_i:
    • <user_value> = exactly what the user wrote.
    • <status> = "incorrect (should be: \"<correct_value_i>\")".
 
@@ -115,27 +108,13 @@ For each blank i:
 SHORT ANSWER EVALUATION
 ──────────────────────────────────────────
 • Semantic scoring: 0.0–5.0 in increments of 0.5.
-• Vague, generic, or single-word answers must score ≤1.5.
+• Vague or single-word answers must score ≤1.5.
 • correct = true only when the answer is entirely correct and complete.
-• expected MUST begin with: "Correct Answer: <ideal explanation>".
-
-• Empty (after trimming) answers MUST be treated as:
-    – score = 0
-    – correct = false
-    – reason = a brief explanation describing what the answer should have addressed,
-      using ≤3 sentences, without repeating the full expected text.
-    – The word used for empty answers MUST be **"Missing"**, NOT "Incorrect".
-
-• reason rules for non-empty answers:
-    – If the answer is fully correct:
-          "Clear and complete explanation."
-    – If the answer is partially correct:
-          Provide ≤2 sentences briefly explaining what is correct
-          and what is missing or incomplete.
-    – If the answer is incorrect:
-          Provide ≤3 sentences describing the misunderstanding,
-          without restating the full expected answer.
-
+• expected begins with: "Correct Answer: <ideal explanation>".
+• reason rules:
+– correct → "Clear and complete explanation."
+– partial → ≤2 sentences explaining what is missing
+– incorrect → ≤3 sentences describing the misunderstanding
 
 ──────────────────────────────────────────
 BEHAVIORAL (STAR) EVALUATION

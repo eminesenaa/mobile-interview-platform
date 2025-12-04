@@ -8,7 +8,11 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'ai_config.dart';
 
-enum PromptType { training, interview, detailedTraining }
+enum PromptType {
+  training,
+  interview,
+  detailedTraining
+}
 
 /// Basit sonuç modeli
 class GradeResult {
@@ -17,11 +21,12 @@ class GradeResult {
   final String reason;
   final double score;
 
-  GradeResult(
-      {required this.correct,
-      required this.expected,
-      required this.reason,
-      required this.score});
+  GradeResult({
+    required this.correct,
+    required this.expected,
+    required this.reason,
+    required this.score
+  });
 
   static GradeResult fromSafeFallback(String rawText) {
     // JSON gelmediyse ama yine de UI çökmemesi için anlamlı bir fallback
@@ -71,8 +76,7 @@ class GradeResultMapper {
     final weaknesses = (json['weaknesses'] as List?)?.join(', ') ?? '';
 
     return GradeResult(
-      correct: decision == "advance" ||
-          correctness >= 0.8, // çünkü bu prompt [0,1] scale
+      correct: decision == "advance" || correctness >= 0.8, // çünkü bu prompt [0,1] scale
       expected: "overall_score=${json['overall_score']}, decision=$decision",
       reason: strengths.isNotEmpty ? strengths : weaknesses,
       score: (json['overall_score'] is num)
@@ -80,26 +84,26 @@ class GradeResultMapper {
           : 0.0,
     );
   }
+
 }
+
 
 class OpenAIService {
   static final _apiKey = dotenv.env['OPENAI_API_KEY'];
   static const _endpoint = 'https://api.openai.com/v1/chat/completions';
-  static const _model = 'gpt-4.1';
+  static const _model = 'gpt-4o-mini';
 
   static Future<String> _loadPromptTemplate(PromptType type) async {
     switch (type) {
       case PromptType.training:
-        return await rootBundle
-            .loadString('assets/prompts/TrainingAnalysis.txt');
+        return await rootBundle.loadString('assets/prompts/TrainingAnalysis.txt');
       case PromptType.interview:
-        return await rootBundle
-            .loadString('assets/prompts/InterviewAnalysis.txt');
+        return await rootBundle.loadString('assets/prompts/InterviewAnalysis.txt');
       case PromptType.detailedTraining:
-        return await rootBundle
-            .loadString('assets/prompts/TrainingDetailedAnalysis.txt');
+        return await rootBundle.loadString('assets/prompts/TrainingDetailedAnalysis.txt');
     }
   }
+
 
   static String _renderTemplate(String template, Map<String, String> vars) {
     var out = template;
@@ -140,12 +144,14 @@ class OpenAIService {
     }
   }
 
-  static Future<GradeResult> gradeWithTemplate(
-      {required String category,
-      required Map<String, String> qMeta,
-      required String candidateAnswer,
-      Duration timeout = const Duration(seconds: 60),
-      required PromptType promptType}) async {
+  static Future<GradeResult> gradeWithTemplate({
+    required String category,
+    required Map<String, String> qMeta,
+    required String candidateAnswer,
+    Duration timeout = const Duration(seconds: 60),
+    required PromptType promptType
+  }) async {
+
     final template = await _loadPromptTemplate(promptType);
     final systemRole = _buildSystemRole(category);
 
@@ -181,73 +187,70 @@ class OpenAIService {
     final resp = await _post(body, timeout: timeout);
     return _extractGradeResult(resp, promptType);
   }
-
   static Future<List<Map<String, dynamic>>> gradeBatch({
-    required String batchId,
-    required List<Map<String, dynamic>>
-        items, // { index, meta, user_answer, topic }
-    Duration timeout = const Duration(seconds: 60),
-  }) async {
-    // 1) Batch payload
-    final payload = {
-      "batch_id": batchId,
-      "questions": items,
-      "output_schema": {
-        "type": "array",
-        "items": {
-          "index": "int",
-          "correct": "boolean",
-          "expected": "string",
-          "reason": "string",
-          "score": "number"
-        }
+  required String batchId,
+  required List<Map<String, dynamic>> items, // { index, meta, user_answer, topic }
+  Duration timeout = const Duration(seconds: 60),
+}) async {
+  // 1) Batch payload
+  final payload = {
+    "batch_id": batchId,
+    "questions": items,
+    "output_schema": {
+      "type": "array",
+      "items": {
+        "index": "int",
+        "correct": "boolean",
+        "expected": "string",
+        "reason": "string",
+        "score": "number"
       }
-    };
+    }
+  };
 
-    // 2) Prompt dosyasını oku ve payload'ı göm
-    final tmpl =
-        await rootBundle.loadString('assets/prompts/ExamBatchEvaluation.txt');
-    final userContent =
-        tmpl.replaceFirst('{{BATCH_PAYLOAD_JSON}}', jsonEncode(payload));
+  // 2) Prompt dosyasını oku ve payload'ı göm
+  final tmpl = await rootBundle.loadString('assets/prompts/ExamBatchEvaluation.txt');
+  final userContent = tmpl.replaceFirst('{{BATCH_PAYLOAD_JSON}}', jsonEncode(payload));
 
-    // 3) Chat çağrısı — JSON ARRAY istediğimiz için response_format kullanmıyoruz
-    final body = {
-      "model": _model,
-      "temperature": 0.2,
-      "messages": [
-        {"role": "system", "content": "Output ONLY a raw JSON array."},
-        {"role": "user", "content": userContent},
-      ],
-    };
+  // 3) Chat çağrısı — JSON ARRAY istediğimiz için response_format kullanmıyoruz
+  final body = {
+    "model": _model,
+    "temperature": 0.2,
+    "messages": [
+      {"role": "system", "content": "Output ONLY a raw JSON array."},
+      {"role": "user", "content": userContent},
+    ],
+  };
 
-    final res = await _post(body, timeout: timeout);
+  final res = await _post(body, timeout: timeout);
 
-    // 4) Parse: content bir JSON array olmalı
-    final outer = jsonDecode(res.body);
-    final content = outer['choices']?[0]?['message']?['content'];
-    if (content == null)
-      throw Exception("OpenAI returned empty content for batch.");
+  // 4) Parse: content bir JSON array olmalı
+  final outer = jsonDecode(res.body);
+  final content = outer['choices']?[0]?['message']?['content'];
+  if (content == null) throw Exception("OpenAI returned empty content for batch.");
 
-    final parsed = jsonDecode(content);
-    if (parsed is! List) throw Exception("Batch result is not a JSON array.");
+  final parsed = jsonDecode(content);
+  if (parsed is! List) throw Exception("Batch result is not a JSON array.");
 
-    return (parsed as List).cast<Map<String, dynamic>>();
-  }
+  return (parsed as List).cast<Map<String, dynamic>>();
+}
+
 
   /// --- HTTP yardımcıları ---
   static Future<http.Response> _post(
-    Map<String, dynamic> body, {
-    required Duration timeout,
-  }) async {
+      Map<String, dynamic> body, {
+        required Duration timeout,
+      }) async {
+
     final res = await http
         .post(
-          Uri.parse(_endpoint),
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer $_apiKey",
-          },
-          body: jsonEncode(body),
-        )
+      Uri.parse(_endpoint),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $_apiKey",
+      },
+      body: jsonEncode(body),
+    )
         .timeout(timeout);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
@@ -272,6 +275,7 @@ class OpenAIService {
     return res;
   }
 
+
   /// JSON mode’a uygun, savunmacı ayrıştırma + debug
   static GradeResult _extractGradeResult(http.Response res, PromptType type) {
     final raw = res.body;
@@ -282,8 +286,7 @@ class OpenAIService {
       if (content == null) return GradeResult.fromSafeFallback(raw);
 
       final parsed = jsonDecode(content);
-      if (parsed is! Map<String, dynamic>)
-        return GradeResult.fromSafeFallback(content);
+      if (parsed is! Map<String, dynamic>) return GradeResult.fromSafeFallback(content);
 
       switch (type) {
         case PromptType.training:
