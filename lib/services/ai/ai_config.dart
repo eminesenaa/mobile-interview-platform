@@ -20,7 +20,7 @@ class AiConfig {
 
   static AiProvider chooseModel({String? questionType}) {
 
-    if(OPENAIoutOfTokenFlag && GEMINIoutOfTokenFlag && ANTHROPICoutOfTokenFlag){
+    if(OPENAIoutOfTokenFlag || GEMINIoutOfTokenFlag || ANTHROPICoutOfTokenFlag){
       // !!! BİRİNİN TOKENI BİTTİ !!!
 
       if(OPENAIoutOfTokenFlag == false) {
