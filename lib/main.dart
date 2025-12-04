@@ -84,7 +84,6 @@ class MyApp extends StatelessWidget {
           onPrimary: Colors.white,
           onSurface: AppColors.textPrimary,
         ),
-
       ),
       // 🔹 Ana yönlendirme
       home: GetX<AuthController>(

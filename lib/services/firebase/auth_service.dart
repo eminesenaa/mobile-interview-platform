@@ -6,6 +6,7 @@ import 'package:interview_project/models/user_library.dart';
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  static final AuthService instance = AuthService();
 
   /// 🔹 Kullanıcı kaydı (sign up) + Username kontrol
   Future<User?> signUp({
@@ -48,6 +49,20 @@ class AuthService {
           "username": username, // 🔹 kullanıcıdan gelen değer
           "photoUrl": null,
           "age": null,
+
+          /// Yeni profil alanları
+          "role": null,
+          "location": null,
+          "school": null,
+          "company": null,
+          "website": null,
+          "linkedinUrl": null,
+          "githubUrl": null,
+          "cvUrl": null,
+
+          "phoneNumber": null,
+          "phoneCountryCode": "+90",
+          "phoneCountryIso": "TR",
 
           /// XP / Level
           "totalXp": 0,

@@ -1,111 +1,208 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:get/get.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'dart:io';
 
+import '../../../models/user.dart';
+import '../../../models/streak.dart';
+import '../profile_edit_page.dart';
+import '../widgets/contact_info_modal.dart';
+import '../widgets/pdf_viewer_page.dart';
+
+/// ============================================================================
+/// PROFILE CONTROLLER
+/// Amaç: Kullanıcı profil verisini canlı olarak dinlemek, profil fotoğrafı
+/// ve CV yükleme gibi işlemleri yönetmek.
+/// Bu controller "read-only + actions" mantığında çalışır.
+/// ============================================================================
+
 class ProfileController extends GetxController {
-  // ---- Normalized fields for UI ----
-  final RxString name = ''.obs;
-  final RxString surname = ''.obs;
-  final RxString email = ''.obs;
-  final RxnString photoUrl = RxnString();
-
-  final RxInt level = 1.obs;
-  final RxInt totalXp = 0.obs;
-  final RxInt streakDays = 0.obs;
-  final RxInt savedCount = 0.obs;
-
-  final RxBool isLoading = false.obs;
-  final RxnString error = RxnString();
+  /// 🔹 Uygulama içinde gösterilecek domain model
+  final Rx<User?> user = Rx<User?>(null);
 
   @override
   void onInit() {
     super.onInit();
-    listenProfile(); // switched to real-time listener
+    _listenToUserDocument();
   }
 
-  /// Listen to Firestore in real-time
-  void listenProfile() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+  // --------------------------------------------------------------------------
+  // 🔹 LISTEN FIRESTORE USER SNAPSHOT
+  // --------------------------------------------------------------------------
+  void _listenToUserDocument() {
+    final uid = fb.FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    FirebaseFirestore.instance
-        .collection("users")
-        .doc(uid)
-        .snapshots()
-        .listen((snapshot) {
+    FirebaseFirestore.instance.collection("users").doc(uid).snapshots().listen(
+        (snapshot) {
       if (!snapshot.exists) return;
-
       final data = snapshot.data() ?? {};
 
-      name.value = data['name'] ?? '';
-      surname.value = data['surname'] ?? '';
-      email.value = data['email'] ?? '';
-      photoUrl.value = data['photoUrl'];
+      // Streak parse (güvenli)
+      final streakJson = data['streak'] ?? {};
+      final parsedStreak = Streak.fromMap(streakJson);
 
-      level.value = data['level'] ?? 1;
-      totalXp.value = data['xp'] ?? 0;
-      streakDays.value = data['streakDays'] ?? 0;
-      savedCount.value = data['savedCount'] ?? 0;
+      // Firestore JSON → Domain User
+      user.value = User.fromJson({
+        'id': uid,
+        ...data,
+        'streak': parsedStreak.toJson(),
+      });
+
+      print("PROFILE DEBUG → streakCount = ${parsedStreak.streakCount}");
     }, onError: (err) {
-      error.value = err.toString();
+      Get.snackbar("Error", err.toString());
     });
   }
 
-  // ---- Profil fotoğrafı seçme & yükleme ----
-  Future<void> pickAndUploadProfilePhoto() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+  // --------------------------------------------------------------------------
+  // 🔹 FIRESTORE FIELD UPDATE HELPERS (for contact info modal)
+  // --------------------------------------------------------------------------
+  Future<void> _updateContactField(String field, dynamic value) async {
+    try {
+      final uid = fb.FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
 
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+      await FirebaseFirestore.instance
+          .collection("users")
+          .doc(uid)
+          .update({field: value});
 
-    if (pickedFile != null) {
-      final file = File(pickedFile.path);
+      // local user model update
+      user.value = user.value?.copyWith(
+        // dynamic olarak doğru alana yazıyoruz
+        email: field == "email" ? value : user.value?.email,
+        phoneNumber: field == "phoneNumber" ? value : user.value?.phoneNumber,
+        linkedinUrl: field == "linkedinUrl" ? value : user.value?.linkedinUrl,
+        githubUrl: field == "githubUrl" ? value : user.value?.githubUrl,
+        website: field == "website" ? value : user.value?.website,
+      );
 
-      try {
-        // Storage referansı
-        final ref = FirebaseStorage.instance
-            .ref()
-            .child('profile_photos')
-            .child('$uid.jpg');
-
-        // Yükle
-        await ref.putFile(file);
-
-        // URL al
-        final url = await ref.getDownloadURL();
-
-        // Firestore’a kaydet
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .update({'photoUrl': url});
-
-        // Local state güncelle
-        photoUrl.value = url;
-      } catch (e) {
-        error.value = e.toString();
-      }
+      Get.snackbar("Updated", "$field updated successfully");
+    } catch (e) {
+      Get.snackbar("Error", "Failed to update $field: $e");
     }
   }
 
-  // ---- Navigation / Actions ----
-  void goToSettings() {
-    Get.snackbar('Settings', 'Coming soon ✨');
+  // ======================================================================
+  // 🔹 Public update methods (UI will call these)
+  // ======================================================================
+  Future<void> updateEmail(String v) async => _updateContactField("email", v);
+
+  Future<void> updatePhone(String v) async =>
+      _updateContactField("phoneNumber", v);
+
+  Future<void> updateLinkedIn(String v) async =>
+      _updateContactField("linkedinUrl", v);
+
+  Future<void> updateGithub(String v) async =>
+      _updateContactField("githubUrl", v);
+
+  Future<void> updateWebsite(String v) async =>
+      _updateContactField("website", v);
+
+  // --------------------------------------------------------------------------
+  // 🔹 UPLOAD PROFILE PHOTO
+  // --------------------------------------------------------------------------
+  Future<void> pickAndUploadProfilePhoto() async {
+    final uid = fb.FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+
+    final file = File(picked.path);
+
+    try {
+      final ref =
+          FirebaseStorage.instance.ref().child("users/$uid/profile_photo.jpg");
+
+      await ref.putFile(file);
+      final url = await ref.getDownloadURL();
+
+      await FirebaseFirestore.instance
+          .collection("users")
+          .doc(uid)
+          .update({"photoUrl": url});
+
+      user.value = user.value?.copyWith(photoUrl: url);
+      Get.snackbar("Success", "Profile photo updated!");
+    } catch (e) {
+      Get.snackbar("Error", "Failed to upload photo: $e");
+    }
   }
 
-  void goToProgress() {
-    Get.snackbar('Progress', 'Opening…');
+  // --------------------------------------------------------------------------
+  // 🔹 UPLOAD CV (PDF)
+  // --------------------------------------------------------------------------
+  Future<void> uploadCV() async {
+    try {
+      final uid = fb.FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+
+      final picked = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
+
+      if (picked == null || picked.files.isEmpty) {
+        Get.snackbar("Cancelled", "No file selected");
+        return;
+      }
+
+      final path = picked.files.single.path;
+      if (path == null) return;
+
+      final file = File(path);
+
+      final ref = FirebaseStorage.instance.ref().child("users/$uid/cv.pdf");
+      await ref.putFile(file);
+
+      final url = await ref.getDownloadURL();
+
+      await FirebaseFirestore.instance
+          .collection("users")
+          .doc(uid)
+          .update({"cvUrl": url});
+
+      user.value = user.value?.copyWith(cvUrl: url);
+
+      Get.snackbar("Success", "Your CV has been uploaded! 📄");
+    } catch (e) {
+      Get.snackbar("Error", "Failed to upload CV: $e");
+    }
   }
 
-  void goToInterviewResults() {
-    Get.snackbar('Interview Results', 'Opening…');
+  // --------------------------------------------------------------------------
+  // 🔹 OPEN CV VIEWER
+  // --------------------------------------------------------------------------
+  void openCVViewer() {
+    final url = user.value?.cvUrl;
+    if (url == null || url.isEmpty) {
+      Get.snackbar("No CV", "You have not uploaded a CV yet.");
+      return;
+    }
+    Get.to(() => PDFViewerPage(pdfUrl: url));
   }
 
-  void goToEditProfile() {
-    Get.snackbar('Edit Profile', 'Coming soon ✍️');
+  // --------------------------------------------------------------------------
+  // 🔹 UI Actions (navigation helpers)
+  // --------------------------------------------------------------------------
+  void openEditProfile() => Get.to(() => const ProfileSettingsPage());
+
+  void openProgressPage() => Get.snackbar("Progress", "Opening...");
+
+  void openInterviewResults() =>
+      Get.snackbar("Interview Results", "Coming soon");
+
+  void openContactInfoModal() {
+    Get.bottomSheet(
+      ContactInfoModal(),
+      isScrollControlled: true,
+    );
   }
 }

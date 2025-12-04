@@ -34,7 +34,6 @@ class LibraryPage extends StatelessWidget {
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.textPrimary,
         centerTitle: true,
-        systemOverlayStyle: SystemUiOverlayStyle.dark,
         title: Text(
           'My Library',
           style: AppTextStyles.headline,
@@ -50,7 +49,8 @@ class LibraryPage extends StatelessWidget {
               // (AppColors.surface, genelde beyaz).
               color: AppColors.surface,
               child: Column(
-                mainAxisSize: MainAxisSize.min, // Sadece içeriği kadar yer kapla
+                mainAxisSize: MainAxisSize.min,
+                // Sadece içeriği kadar yer kapla
                 children: [
                   // ========== Üstteki segment tab ==========
                   Padding(
@@ -80,7 +80,6 @@ class LibraryPage extends StatelessWidget {
                         LibraryFilterChipsBar(),
                       ],
                     ),
-
                   ),
                 ],
               ),

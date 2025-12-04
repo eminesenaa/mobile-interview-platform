@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../models/question.dart';
 import '../../../models/training_module.dart';
+import '../../../services/firebase/auth_service.dart';
 import '../../practice/controllers/practice_controller.dart';
 import '../../practice/training_module_detail_page.dart';
 import '../../practice/widgets/filter_popup.dart';
@@ -300,6 +301,15 @@ class LibraryController extends GetxController
   @override
   void onInit() {
     super.onInit();
+    // =========================================================
+    // 🔐 USER SIGN-IN CHECK — user yoksa init’i tamamen atla
+    // =========================================================
+    final user = AuthService.instance.currentUser;
+    if (user == null) {
+      print("⚠️ LibraryController skipped — no signed-in user.");
+      return;
+    }
+
     // Listen to saved questions stream and keep local list updated
     savedQuestionsStream.listen((list) {
       savedQuestions.assignAll(list);
