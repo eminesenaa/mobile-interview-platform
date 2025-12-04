@@ -14,12 +14,22 @@ class User {
   final int? age;
   final String username;
   final String email;
-  final String? password;   // üretimde hash/token ile değişecek
+  final String? password; // üretimde hash/token ile değişecek
   final String? photoUrl;
   final Streak streak;
 
   /// Kullanıcının Library özet bilgileri (savedCount, collectionsCount vb.)
   final UserLibrary librarySummary;
+
+  /// Yeni profil alanları
+  final String? role;
+  final String? location;
+  final String? website;
+  final String? linkedinUrl;
+  final String? githubUrl;
+  final String? cvUrl;
+
+  final String? phoneNumber;
 
   /// 🔹 Yeni eklenen alanlar
   final int totalXp;
@@ -38,6 +48,13 @@ class User {
     this.photoUrl,
     required this.streak,
     required this.librarySummary,
+    this.role,
+    this.location,
+    this.website,
+    this.linkedinUrl,
+    this.githubUrl,
+    this.cvUrl,
+    this.phoneNumber,
     this.totalXp = 0,
     this.level = 1,
     this.savedQuestions = const [],
@@ -60,7 +77,8 @@ class User {
         username: username,
         email: email,
         photoUrl: photoUrl,
-        streak: Streak.empty(), //Streak.empty(timezone: timezone)
+        streak: Streak.empty(),
+        //Streak.empty(timezone: timezone)
         librarySummary: UserLibrary.empty(),
         totalXp: 0,
         level: 1,
@@ -78,13 +96,21 @@ class User {
         email: (json['email'] ?? '') as String,
         password: json['password'] as String?,
         photoUrl: json['photoUrl'] as String?,
-        streak: Streak.empty(),
-        /*streak: json['streak'] == null
+        // streak: Streak.empty(),
+        streak: json['streak'] == null
             ? Streak.empty()
-            : Streak.fromJson(json['streak'] as Map<String, dynamic>),*/
+            : Streak.fromMap(json['streak'] as Map<String, dynamic>),
+
         librarySummary: json['library'] == null
             ? UserLibrary.empty()
             : UserLibrary.fromJson(json['library'] as Map<String, dynamic>),
+        role: json['role'],
+        location: json['location'],
+        website: json['website'],
+        linkedinUrl: json['linkedinUrl'],
+        githubUrl: json['githubUrl'],
+        cvUrl: json['cvUrl'],
+        phoneNumber: json['phoneNumber'],
 
         /// 🔹 yeni alanlar
         totalXp: json['totalXp'] ?? 0,
@@ -104,6 +130,13 @@ class User {
         'photoUrl': photoUrl,
         'streak': streak.toJson(),
         'library': librarySummary.toJson(),
+        'role': role,
+        'location': location,
+        'website': website,
+        'linkedinUrl': linkedinUrl,
+        'githubUrl': githubUrl,
+        'cvUrl': cvUrl,
+        'phoneNumber': phoneNumber,
 
         /// 🔹 yeni alanlar
         'totalXp': totalXp,
@@ -119,6 +152,7 @@ class User {
     int? age,
     String? username,
     String? email,
+    String? phoneNumber,
     String? password,
     String? photoUrl,
     Streak? streak,
@@ -127,6 +161,12 @@ class User {
     int? level,
     List<String>? savedQuestions,
     Map<String, dynamic>? progress,
+    String? role,
+    String? location,
+    String? website,
+    String? linkedinUrl,
+    String? githubUrl,
+    String? cvUrl,
   }) =>
       User(
         id: id ?? this.id,
@@ -135,6 +175,7 @@ class User {
         age: age ?? this.age,
         username: username ?? this.username,
         email: email ?? this.email,
+        phoneNumber: phoneNumber ?? this.phoneNumber,
         password: password ?? this.password,
         photoUrl: photoUrl ?? this.photoUrl,
         streak: streak ?? this.streak,
@@ -143,5 +184,11 @@ class User {
         level: level ?? this.level,
         savedQuestions: savedQuestions ?? this.savedQuestions,
         progress: progress ?? this.progress,
+        role: role ?? this.role,
+        location: location ?? this.location,
+        website: website ?? this.website,
+        linkedinUrl: linkedinUrl ?? this.linkedinUrl,
+        githubUrl: githubUrl ?? this.githubUrl,
+        cvUrl: cvUrl ?? this.cvUrl,
       );
 }
