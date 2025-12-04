@@ -38,8 +38,9 @@ class AiConfig {
     if (questionType == null) return AiProvider.openai; // default
 
     switch (questionType.toLowerCase()) {
-      case 'mcq':
-        return AiProvider.gemini;
+      //Örnek kullanım: mcq'yu gemini yapsın demek için
+      //case 'mcq':
+      //  return AiProvider.gemini;
       default:
         return AiProvider.openai;
     }
