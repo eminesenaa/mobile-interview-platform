@@ -3,22 +3,22 @@ import 'dart:math';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import '../../../controllers/progress_controller.dart';
 import '../../../controllers/question_controller.dart';
 import '../../../models/question.dart';
 import '../../../models/streak.dart';
 import '../../../models/leaderboard.dart';
-import "../services/leaderboard_service.dart";
+import '../services/leaderboard_service.dart';
 
 class HomeController extends GetxController {
-  final _rng = Random();
   final _db = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
 
   /// Services
   final LeaderboardService _leaderboardService = LeaderboardService();
 
-  /// Popular questions
+  /// Popular questions (DAILY – GLOBAL)
   final RxList<Question> popularQuestions = <Question>[].obs;
 
   /// Progress
@@ -34,25 +34,34 @@ class HomeController extends GetxController {
   final RxList<TopUser> top3 = <TopUser>[].obs;
   final Rxn<MeRank> me = Rxn<MeRank>();
 
+  /// Internal flag (HOT RESTART fix)
+  bool _popularLoadedOnce = false;
+
+  // ------------------ LIFECYCLE ------------------
   @override
   void onInit() {
     super.onInit();
-    // 🔹 Popular questions
-    // 1) Hemen bir kez dene (eğer sorular hazırsa ilk açılışta dolu gelsin)
-    _loadPopularQuestions();
 
-    // 2) QuestionController içindeki soru listesi her değiştiğinde
-    // (örneğin Firestore'dan ilk kez yüklendiğinde) popüler soruları yeniden hesapla.
-    try {
-      final qc = Get.find<QuestionController>();
-      ever(qc.allQuestions, (_) => _loadPopularQuestions());
-    } catch (_) {
-      // QuestionController henüz register edilmemişse uygulama çökmemesi için
-      // sessizce geçiyoruz. (Normal flow'da zaten register edilmiş olacak.)
-    }
+    final qc = Get.find<QuestionController>();
+
+    // İlk deneme (hot restart’ta boş olabilir)
+    loadDailyPopularQuestions();
+
+    // Sorular sonradan gelirse → SADECE 1 KEZ tekrar dene
+    ever(qc.allQuestions, (_) {
+      if (!_popularLoadedOnce && qc.allQuestions.isNotEmpty) {
+        loadDailyPopularQuestions();
+      }
+    });
 
     listenToUserStreak();
     fetchLeaderboard();
+  }
+
+  // ------------------ DATE KEY ------------------
+  String _todayKey() {
+    final now = DateTime.now();
+    return "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
   }
 
   // ------------------ STREAK ------------------
@@ -62,53 +71,89 @@ class HomeController extends GetxController {
       if (uid == null) return;
 
       _db.collection('users').doc(uid).snapshots().listen((doc) {
-        if (doc.exists && doc.data() != null) {
-          final data = doc.data()!;
-          final streakData = data['streak'] ?? {};
-          streak.value = Streak.fromMap({
-            'lastStreakDate': streakData['lastStreakDate'],
-            'longestStreak': streakData['longestStreak'],
-            'streakCount': streakData['streakCount'],
-            'streakHistory': streakData['streakHistory'],
-          });
-        }
+        if (!doc.exists || doc.data() == null) return;
+
+        final streakData = doc.data()!['streak'] ?? {};
+        streak.value = Streak.fromMap({
+          'lastStreakDate': streakData['lastStreakDate'],
+          'longestStreak': streakData['longestStreak'],
+          'streakCount': streakData['streakCount'],
+          'streakHistory': streakData['streakHistory'],
+        });
       });
     } catch (e) {
       print('🔥 listenToUserStreak error: $e');
     }
   }
 
-  // ------------------ POPULAR QUESTIONS ------------------
-  void _loadPopularQuestions() {
-    final qc = Get.find<QuestionController>();
+  // ------------------ POPULAR QUESTIONS (DAILY / GLOBAL) ------------------
+  Future<void> loadDailyPopularQuestions() async {
+    try {
+      final qc = Get.find<QuestionController>();
+      if (qc.allQuestions.isEmpty) return;
 
-    Question? pickOne(Difficulty d) {
-      final pool = qc.allQuestions.where((q) => q.difficulty == d).toList();
-      if (pool.isEmpty) return null;
-      return pool[_rng.nextInt(pool.length)];
+      final todayKey = _todayKey();
+      final docRef =
+          _db.collection('daily_popular_questions').doc(todayKey);
+
+      final snap = await docRef.get();
+
+      // ---- BUGÜN VARSA → SABİT LİSTEYİ KULLAN ----
+      if (snap.exists && snap.data() != null) {
+        final ids = List<String>.from(snap['questionIds']);
+
+        final questionMap = {
+          for (var q in qc.allQuestions) q.id: q,
+        };
+
+        popularQuestions.assignAll(
+          ids
+              .where(questionMap.containsKey)
+              .map((id) => questionMap[id]!)
+              .toList(),
+        );
+
+        _popularLoadedOnce = true;
+        return;
+      }
+
+      // ---- BUGÜN YOKSA → OLUŞTUR ----
+      final easy =
+          qc.allQuestions.where((q) => q.difficulty == Difficulty.easy).toList();
+      final medium =
+          qc.allQuestions.where((q) => q.difficulty == Difficulty.medium).toList();
+      final hard =
+          qc.allQuestions.where((q) => q.difficulty == Difficulty.hard).toList();
+
+      Question? pick(List<Question> list) =>
+          list.isEmpty ? null : list[Random().nextInt(list.length)];
+
+      final selected = <Question>[
+        if (pick(easy) != null) pick(easy)!,
+        if (pick(medium) != null) pick(medium)!,
+        if (pick(hard) != null) pick(hard)!,
+      ];
+
+      await docRef.set({
+        'date': todayKey,
+        'questionIds': selected.map((q) => q.id).toList(),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      popularQuestions.assignAll(selected);
+      _popularLoadedOnce = true;
+    } catch (e) {
+      print('🔥 loadDailyPopularQuestions error: $e');
     }
-
-    final picks = <Question>[
-      if (pickOne(Difficulty.easy) != null) pickOne(Difficulty.easy)!,
-      if (pickOne(Difficulty.medium) != null) pickOne(Difficulty.medium)!,
-      if (pickOne(Difficulty.hard) != null) pickOne(Difficulty.hard)!,
-    ];
-
-    popularQuestions.assignAll(picks);
   }
 
-  // ------------------ LEADERBOARD (Servis Tabanlı) ------------------
+  // ------------------ LEADERBOARD ------------------
   Future<void> fetchLeaderboard() async {
     lbLoading.value = true;
     try {
       final data = await _leaderboardService.fetchLeaderboardData();
-
-      // Servisten dönen verileri UI’ya aktar
       top3.assignAll(data['top3']);
       me.value = data['me'];
-
-      print(
-          "🏁 Home leaderboard updated → Me: ${me.value?.name}, Δ${me.value?.delta}");
     } catch (e) {
       print('🔥 Home fetchLeaderboard error: $e');
     } finally {
@@ -120,7 +165,7 @@ class HomeController extends GetxController {
   Future<void> refreshAll() async {
     await Future.wait([
       fetchLeaderboard(),
-      Future.delayed(const Duration(milliseconds: 400), _loadPopularQuestions),
+      loadDailyPopularQuestions(),
     ]);
   }
 }
