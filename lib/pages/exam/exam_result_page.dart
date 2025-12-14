@@ -36,39 +36,39 @@ class ExamResultPage extends StatelessWidget {
         child: Column(
           children: [
             const SizedBox(height: 16),
-            const Text("You have completed your exam",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              "You have completed your exam",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             const Text("Here is your result"),
             const SizedBox(height: 24),
 
-            // Puan
-            ScoreCircle(score: c.score.value, total: 100),
+            // SCORE
+            Obx(() => ScoreCircle(score: c.score.value, total: 100)),
 
             const SizedBox(height: 24),
 
-            // Doğru/Yanlış/Boş kutuları
-            AnswerSummaryRow(
-              correct: c.correct.value,
-              wrong: c.wrong.value,
-              unanswered: c.unanswered.value,
-            ),
+            // Correct / Wrong / Unanswered
+            Obx(() => AnswerSummaryRow(
+                  correct: c.correct.value,
+                  wrong: c.wrong.value,
+                  unanswered: c.unanswered.value,
+                )),
 
             const SizedBox(height: 24),
 
-            // Topic bazlı grafikler
+            // Topic Charts
             const TopicCharts(),
 
             const SizedBox(height: 24),
 
-            // XP ödülü
-            // XpRewardCard(xp: c.xp),
-            // XP özelliği kaldırıldı; sabit placeholder (isteğe bağlı). backendde gelicek
-            const XpRewardCard(xp: 0),
+            // 🔥 REAL XP REWARD
+            Obx(() => XpRewardCard(xp: c.earnedXp.value)),
 
             const SizedBox(height: 24),
 
-            // Butonlar
+            // Buttons
             ResultActions(
               onReview: () {
                 final currentExam = c.exam;
@@ -83,14 +83,12 @@ class ExamResultPage extends StatelessWidget {
                   Get.to(() => const ExamReviewPage(), arguments: reviewExam);
                 }
               },
-
               onSave: () {
-                // Exam kaydetme işlemi
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text("Exam saved to library!")),
                 );
               },
-              examId: c.exam?.id ?? 'unknown', // ✅ null-safe erişim
+              examId: c.exam?.id ?? 'unknown',
             ),
           ],
         ),
