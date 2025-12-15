@@ -61,6 +61,9 @@ class HomeController extends GetxController {
     
     // 🔥 GERÇEK ZAMANLI LİDERBOARD DİNLEYİCİSİ
     listenToLeaderboard();
+    
+    // 🔥 UYGULAMA AÇILDIĞINDA STREAK KONTROLÜ
+    _checkStreakOnAppStart();
   }
 
   @override
@@ -73,6 +76,18 @@ class HomeController extends GetxController {
   String _todayKey() {
     final now = DateTime.now();
     return "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+  }
+
+  // ------------------ STREAK CHECK ON APP START ------------------
+  Future<void> _checkStreakOnAppStart() async {
+    try {
+      final uid = _auth.currentUser?.uid;
+      if (uid == null) return;
+      
+      await Streak.checkAndResetStreakIfNeeded(uid);
+    } catch (e) {
+      print('🔥 _checkStreakOnAppStart error: $e');
+    }
   }
 
   // ------------------ STREAK ------------------
@@ -194,6 +209,9 @@ class HomeController extends GetxController {
 
   // ------------------ REFRESH ------------------
   Future<void> refreshAll() async {
+    // Streak kontrolü
+    await _checkStreakOnAppStart();
+    
     // Leaderboard zaten realtime, sadece popular questions'ı refresh edelim
     await loadDailyPopularQuestions();
   }
