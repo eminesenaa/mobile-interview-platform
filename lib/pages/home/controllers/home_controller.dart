@@ -1,4 +1,4 @@
-// ===================== File: lib/pages/home/controllers/home_controller.dart =====================
+import 'dart:async';
 import 'dart:math';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -37,6 +37,9 @@ class HomeController extends GetxController {
   /// Internal flag (HOT RESTART fix)
   bool _popularLoadedOnce = false;
 
+  /// 🔥 Leaderboard stream subscription
+  StreamSubscription? _leaderboardSubscription;
+
   // ------------------ LIFECYCLE ------------------
   @override
   void onInit() {
@@ -44,7 +47,7 @@ class HomeController extends GetxController {
 
     final qc = Get.find<QuestionController>();
 
-    // İlk deneme (hot restart’ta boş olabilir)
+    // İlk deneme (hot restart'ta boş olabilir)
     loadDailyPopularQuestions();
 
     // Sorular sonradan gelirse → SADECE 1 KEZ tekrar dene
@@ -55,7 +58,15 @@ class HomeController extends GetxController {
     });
 
     listenToUserStreak();
-    fetchLeaderboard();
+    
+    // 🔥 GERÇEK ZAMANLI LİDERBOARD DİNLEYİCİSİ
+    listenToLeaderboard();
+  }
+
+  @override
+  void onClose() {
+    _leaderboardSubscription?.cancel();
+    super.onClose();
   }
 
   // ------------------ DATE KEY ------------------
@@ -93,8 +104,7 @@ class HomeController extends GetxController {
       if (qc.allQuestions.isEmpty) return;
 
       final todayKey = _todayKey();
-      final docRef =
-          _db.collection('daily_popular_questions').doc(todayKey);
+      final docRef = _db.collection('daily_popular_questions').doc(todayKey);
 
       final snap = await docRef.get();
 
@@ -147,7 +157,28 @@ class HomeController extends GetxController {
     }
   }
 
-  // ------------------ LEADERBOARD ------------------
+  // ------------------ LEADERBOARD (REALTIME) ------------------
+  void listenToLeaderboard() {
+    lbLoading.value = true;
+    
+    try {
+      _leaderboardSubscription = _leaderboardService
+          .watchLeaderboardData()
+          .listen((data) {
+        top3.assignAll(data['top3']);
+        me.value = data['me'];
+        lbLoading.value = false;
+      }, onError: (e) {
+        print('🔥 Leaderboard stream error: $e');
+        lbLoading.value = false;
+      });
+    } catch (e) {
+      print('🔥 listenToLeaderboard error: $e');
+      lbLoading.value = false;
+    }
+  }
+
+  /// 🔹 Manuel refresh (opsiyonel - pull-to-refresh için)
   Future<void> fetchLeaderboard() async {
     lbLoading.value = true;
     try {
@@ -163,9 +194,7 @@ class HomeController extends GetxController {
 
   // ------------------ REFRESH ------------------
   Future<void> refreshAll() async {
-    await Future.wait([
-      fetchLeaderboard(),
-      loadDailyPopularQuestions(),
-    ]);
+    // Leaderboard zaten realtime, sadece popular questions'ı refresh edelim
+    await loadDailyPopularQuestions();
   }
 }
