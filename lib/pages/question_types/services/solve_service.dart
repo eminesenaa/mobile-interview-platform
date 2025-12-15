@@ -1,8 +1,4 @@
-/*
- * lib/services/solve/solve_service.dart
- * Practice soru sonuçlarını Firestore'a kaydeder
- * XP ekleme + improved score kontrolü + streak yönetimi
- */
+// lib/pages/question_types/services/solve_service.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -15,7 +11,6 @@ import '../../../controllers/auth_controller.dart';
 class SolveService {
   static final _db = FirebaseFirestore.instance;
 
-  /// Practice soru çözümü kaydı
   static Future<void> savePracticeResult({
     required Question question,
     required int score,
@@ -23,10 +18,7 @@ class SolveService {
   }) async {
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) {
-        print("❌ SolveService: UID is NULL!");
-        return;
-      }
+      if (uid == null) return;
 
       final userRef = _db.collection('users').doc(uid);
       final solvedRef = userRef.collection('solved').doc(question.id);
@@ -41,13 +33,12 @@ class SolveService {
 
         if (newScore > prevScore) {
           final xpDiff = earnedXp - prevXp;
-
           if (xpDiff > 0) {
-            await userRef.set({
-              'totalXp': FieldValue.increment(xpDiff),
-            }, SetOptions(merge: true));
+            await userRef.set(
+              {'totalXp': FieldValue.increment(xpDiff)},
+              SetOptions(merge: true),
+            );
           }
-
           await solvedRef.set({
             'score': newScore,
             'xpEarned': earnedXp,
@@ -59,10 +50,10 @@ class SolveService {
           }, SetOptions(merge: true));
         }
       } else {
-        // İlk kez çözülüyor
-        await userRef.set({
-          'totalXp': FieldValue.increment(earnedXp),
-        }, SetOptions(merge: true));
+        await userRef.set(
+          {'totalXp': FieldValue.increment(earnedXp)},
+          SetOptions(merge: true),
+        );
 
         await solvedRef.set({
           'status': 'solved',
@@ -72,23 +63,17 @@ class SolveService {
         }, SetOptions(merge: true));
       }
 
-      // Streak güncelle
       await _updateStreak(uid);
-    } catch (e, st) {
-      print("❌ SolveService Error: $e\n$st");
-    }
+    } catch (_) {}
   }
 
-  /// Tek streak güncelleme fonksiyonu
   static Future<void> _updateStreak(String uid) async {
-    try {
-      final auth = Get.find<AuthController>();
-      final currentUid = auth.user?.uid ?? uid;
+    final auth = Get.find<AuthController>();
+    final currentUid = auth.user?.uid ?? uid;
 
-      await Streak.updateStreak(currentUid);
-      print("🔥 Streak updated for user=$currentUid");
-    } catch (e, st) {
-      print("❌ Streak update error: $e\n$st");
-    }
+    await Streak.updateStreak(
+      uid: currentUid,
+      solvedToday: true,
+    );
   }
 }

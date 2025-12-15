@@ -1,4 +1,5 @@
 // ===================== File: lib/pages/home/home_page.dart =====================
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:interview_project/constants/colors.dart';
@@ -54,10 +55,10 @@ class HomePage extends StatelessWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md,  // left
-                  AppSpacing.lg,  // top
-                  AppSpacing.md,  // right
-                  AppSpacing.lg,  // bottom → alttaki section ile 24px
+                  AppSpacing.md,
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                  AppSpacing.lg,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -65,7 +66,7 @@ class HomePage extends StatelessWidget {
                     Obx(() {
                       final s = hc.streak.value;
                       if (s == null) {
-                        return const StreakCard.preview();
+                        return const SizedBox.shrink();
                       }
                       return StreakCard(
                         currentStreak: s.streakCount,
@@ -83,9 +84,9 @@ class HomePage extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.md,
-                  0,               // üst boşluk sıfır → yukarıdaki Streak bottom=lg zaten verdi
+                  0,
                   AppSpacing.md,
-                  AppSpacing.sm,   // başlık ile kartlar arası 8px
+                  AppSpacing.sm,
                 ),
                 child: Text(
                   "Today’s Popular Questions",
@@ -98,7 +99,7 @@ class HomePage extends StatelessWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.only(
-                  bottom: AppSpacing.lg, // Popular list ↔ Leaderboard arası 24px
+                  bottom: AppSpacing.lg,
                 ),
                 child: Obx(() {
                   final items = hc.popularQuestions;
@@ -117,7 +118,7 @@ class HomePage extends StatelessWidget {
                       ),
                       itemCount: items.length,
                       separatorBuilder: (_, __) =>
-                      const SizedBox(width: 12),
+                          const SizedBox(width: 12),
                       itemBuilder: (_, i) => PopularQuestionCard.horizontal(
                         question: items[i],
                         width: MediaQuery.of(context).size.width * 0.8,
@@ -133,7 +134,7 @@ class HomePage extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.md,
-                  0,              // üst boşluk yok; yukarıdaki list bottom=lg veriyor
+                  0,
                   AppSpacing.md,
                   0,
                 ),
@@ -150,93 +151,8 @@ class HomePage extends StatelessWidget {
               ),
             ),
             const SliverToBoxAdapter(
-              child: SizedBox(height: AppSpacing.lg), // Leaderboard ↔ Progress arası 24px
+              child: SizedBox(height: AppSpacing.lg),
             ),
-
-            // ---- YOUR PROGRESS ----
-            // SliverToBoxAdapter(
-            //   child: Padding(
-            //     padding: const EdgeInsets.fromLTRB(
-            //       AppSpacing.md,
-            //       AppSpacing.lg,
-            //       AppSpacing.md,
-            //       AppSpacing.lg,
-            //     ),
-            //     child: Column(
-            //       crossAxisAlignment: CrossAxisAlignment.start,
-            //       children: [
-            //         Row(
-            //           children: [
-            //             Text(
-            //               'Your Progress',
-            //               style: AppTextStyles.headline,
-            //             ),
-            //             const Spacer(),
-            //             TextButton(
-            //               onPressed: () {
-            //                 Get.to(() => const ProgressPage());
-            //               },
-            //               child: const Text('See all'),
-            //             ),
-            //           ],
-            //         ),
-            //         const SizedBox(height: 12),
-            //
-            //         // --- SUMMARY CARDS ---
-            //         Obx(() {
-            //           final pc = hc.pc;
-            //           final p = pc.progress.value;
-            //           final acc =
-            //               (p.questionStats.accuracy * 100).toStringAsFixed(0);
-            //
-            //           final cards = [
-            //             ProgressSummaryCard(
-            //               icon: Icons.workspace_premium_rounded,
-            //               title: 'Level ${p.level}',
-            //               value: '${pc.totalXp.value} XP',
-            //               caption:
-            //                   'to next: ${p.xpCapInLevel - p.xpInLevel} XP',
-            //               onTap: () => Get.to(() => const ProgressPage()),
-            //             ),
-            //             ProgressSummaryCard(
-            //               icon: Icons.check_circle_rounded,
-            //               title: 'Accuracy',
-            //               value: '$acc%',
-            //               caption:
-            //                   '${p.questionStats.correct}/${p.questionStats.total} correct',
-            //               onTap: () => Get.to(() => const ProgressPage()),
-            //             ),
-            //             ProgressSummaryCard(
-            //               icon: Icons.bolt_rounded,
-            //               title: 'Today',
-            //               value: '+${p.todayEarnedXp} XP',
-            //               caption: 'This week: +${p.weeklyEarnedXp} XP',
-            //               onTap: () => Get.to(() => const ProgressPage()),
-            //             ),
-            //           ];
-            //
-            //           return Column(
-            //             children: [
-            //               Row(
-            //                 children: [
-            //                   Expanded(child: cards[0]),
-            //                   const SizedBox(width: 12),
-            //                   Expanded(child: cards[1]),
-            //                 ],
-            //               ),
-            //               const SizedBox(height: 12),
-            //               Row(
-            //                 children: [
-            //                   Expanded(child: cards[2]),
-            //                 ],
-            //               ),
-            //             ],
-            //           );
-            //         }),
-            //       ],
-            //     ),
-            //   ),
-            // ),
           ],
         ),
       ),

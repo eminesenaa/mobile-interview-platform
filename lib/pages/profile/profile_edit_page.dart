@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:interview_project/pages/profile/widgets/common_phone_field.dart';
 import 'package:interview_project/pages/profile/widgets/profile_additional_field.dart';
 import 'package:interview_project/pages/profile/widgets/profile_social_input_tile.dart';
@@ -47,12 +48,14 @@ class ProfileSettingsPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // -------------------------------
-              // 🔹 PERSONAL INFORMATION SECTION
+              // AVATAR
               // -------------------------------
               const ProfileEditAvatar(),
               const SizedBox(height: AppSpacing.lg),
 
-              // ---- PERSONAL INFO HEADER ----
+              // -------------------------------
+              // PERSONAL INFORMATION
+              // -------------------------------
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -60,7 +63,6 @@ class ProfileSettingsPage extends StatelessWidget {
                   style: AppTextStyles.headline,
                 ),
               ),
-
               const SizedBox(height: AppSpacing.lg),
 
               ProfileTextInputField(
@@ -105,7 +107,7 @@ class ProfileSettingsPage extends StatelessWidget {
               const SizedBox(height: AppSpacing.xxl),
 
               // -------------------------------
-              // 🔸 ADDITIONAL INFORMATION SECTION
+              // ADDITIONAL INFORMATION
               // -------------------------------
               Align(
                 alignment: Alignment.centerLeft,
@@ -116,7 +118,6 @@ class ProfileSettingsPage extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.lg),
 
-              // ROLE (dropdown)
               ProfileAdditionalField(
                 label: "Role",
                 type: AdditionalFieldType.dropdown,
@@ -125,10 +126,8 @@ class ProfileSettingsPage extends StatelessWidget {
                 onChanged: (v) => c.role.value = v,
                 hint: "Select your role",
               ),
-
               const SizedBox(height: AppSpacing.md),
 
-              // LOCATION (country + city)
               ProfileAdditionalField(
                 label: "Location",
                 type: AdditionalFieldType.location,
@@ -139,10 +138,8 @@ class ProfileSettingsPage extends StatelessWidget {
                   c.city.value = city;
                 },
               ),
-
               const SizedBox(height: AppSpacing.md),
 
-              // SCHOOL / UNIVERSITY
               ProfileAdditionalField(
                 label: "School / University",
                 type: AdditionalFieldType.text,
@@ -150,10 +147,8 @@ class ProfileSettingsPage extends StatelessWidget {
                 onChanged: (v) => c.school.value = v,
                 hint: "e.g., METU",
               ),
-
               const SizedBox(height: AppSpacing.md),
 
-              // CURRENT COMPANY
               ProfileAdditionalField(
                 label: "Company (optional)",
                 type: AdditionalFieldType.text,
@@ -161,11 +156,10 @@ class ProfileSettingsPage extends StatelessWidget {
                 onChanged: (v) => c.company.value = v,
                 hint: "e.g., Google, Trendyol",
               ),
-
               const SizedBox(height: AppSpacing.xxl),
 
               // -------------------------------
-              // 🔗 SOCIAL LINKS SECTION
+              // SOCIAL LINKS
               // -------------------------------
               Align(
                 alignment: Alignment.centerLeft,
@@ -182,22 +176,23 @@ class ProfileSettingsPage extends StatelessWidget {
                 rxValue: c.githubUrl,
               ),
               const SizedBox(height: AppSpacing.md),
+
               ProfileSocialInputTile(
                 label: "LinkedIn",
                 icon: PhosphorIcons.linkedinLogo(),
                 rxValue: c.linkedinUrl,
               ),
               const SizedBox(height: AppSpacing.md),
+
               ProfileSocialInputTile(
                 label: "Website",
                 icon: PhosphorIcons.globe(),
                 rxValue: c.website,
               ),
-
               const SizedBox(height: AppSpacing.xxl),
 
               // -------------------------------
-              // SAVE BUTTON
+              // SAVE CHANGES
               // -------------------------------
               SizedBox(
                 width: double.infinity,
@@ -217,11 +212,13 @@ class ProfileSettingsPage extends StatelessWidget {
                         Get.snackbar("Error", "New passwords do not match");
                         return;
                       }
-                      await c.changePassword(currentPass.value, newPass.value);
+                      await c.changePassword(
+                        currentPass.value,
+                        newPass.value,
+                      );
                     }
 
                     await c.saveProfileChanges();
-
                     Get.back();
                   },
                   child: Text(
@@ -229,6 +226,37 @@ class ProfileSettingsPage extends StatelessWidget {
                     style:
                         AppTextStyles.bodyStrong.copyWith(color: Colors.white),
                   ),
+                ),
+              ),
+
+              const SizedBox(height: AppSpacing.md),
+
+              // -------------------------------
+              // LOG OUT
+              // -------------------------------
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                    ),
+                  ),
+                  onPressed: () async {
+                    await FirebaseAuth.instance.signOut();
+
+                    // GetX state temizle
+                    Get.reset();
+
+                    // Login sayfasına yönlendir
+                    Get.offAllNamed('/login');
+                    // Eğer named route yoksa:
+                    // Get.offAll(() => const LoginPage());
+                  },
+                  child: const Text("Log out"),
                 ),
               ),
             ],
