@@ -38,7 +38,7 @@ class StreakCard extends StatelessWidget {
       color: AppColors.textMuted,
     );
 
-    final today = DateTime.now().weekday; // 1 = Mon ... 7 = Sun
+    final today = DateTime.now();
 
     late final List<bool> orderedDays;
     late final List<String> weekdayLabels;
@@ -46,13 +46,25 @@ class StreakCard extends StatelessWidget {
     final bool showWeeklyView = currentStreak >= 7;
 
     if (showWeeklyView) {
-      // 7+ streak → Mon → Sun sabit görünüm
-      orderedDays = List<bool>.generate(7, (i) {
-        final key = '${i + 1}'; // Mon=1 ... Sun=7
-        return history[key] ?? false;
-      });
+      // 🔥 YENİ: Son 5 gün + bugün + yarın (bugün boş, diğerleri dolu)
+      orderedDays = [];
+      weekdayLabels = [];
 
-      weekdayLabels = const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      // Son 5 gün (hepsi dolu)
+      for (int i = -5; i <= -1; i++) {
+        final date = today.add(Duration(days: i));
+        orderedDays.add(true); // Geçmiş günler dolu
+        weekdayLabels.add(_getWeekdayShort(date.weekday));
+      }
+
+      // Bugün (boş - henüz çözülmedi)
+      orderedDays.add(false);
+      weekdayLabels.add(_getWeekdayShort(today.weekday));
+
+      // Yarın (boş)
+      final tomorrow = today.add(const Duration(days: 1));
+      orderedDays.add(false);
+      weekdayLabels.add(_getWeekdayShort(tomorrow.weekday));
     } else {
       // 0 streak → tüm noktalar boş, etiketler bugün → ileri
       if (currentStreak <= 0) {
@@ -63,11 +75,11 @@ class StreakCard extends StatelessWidget {
         final int startOffset = currentStreak - 1;
 
         orderedDays =
-        List<bool>.generate(7, (i) => i < currentStreak); // İlk N dolu
+            List<bool>.generate(7, (i) => i < currentStreak); // İlk N dolu
 
         weekdayLabels = List<String>.generate(
           7,
-              (i) => _weekdayLabelFor(i - startOffset),
+          (i) => _weekdayLabelFor(i - startOffset),
         );
       }
     }
@@ -120,7 +132,7 @@ class StreakCard extends StatelessWidget {
                               padding: EdgeInsets.only(right: i == 6 ? 0 : 6.0),
                               child: _DayDot(
                                 filled: done,
-                                isToday: i == 0,
+                                isToday: showWeeklyView ? i == 5 : i == 0,
                               ),
                             ),
                           );
@@ -216,8 +228,12 @@ class StreakCard extends StatelessWidget {
 
   static String _weekdayLabelFor(int offset) {
     final now = DateTime.now().add(Duration(days: offset));
+    return _getWeekdayShort(now.weekday);
+  }
+
+  static String _getWeekdayShort(int weekday) {
     const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return names[now.weekday - 1];
+    return names[weekday - 1];
   }
 }
 
@@ -239,7 +255,7 @@ class _DayDot extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color:
-        filled ? AppColors.primary : AppColors.surface.withValues(alpha: 0.4),
+            filled ? AppColors.primary : AppColors.surface.withValues(alpha: 0.4),
         border: Border.all(
           width: 1.6,
           color: filled
@@ -248,11 +264,11 @@ class _DayDot extends StatelessWidget {
         ),
         boxShadow: isToday && filled
             ? [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.4),
-            blurRadius: 8.0,
-          ),
-        ]
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.4),
+                  blurRadius: 8.0,
+                ),
+              ]
             : null,
       ),
       child: filled

@@ -15,6 +15,7 @@ import '../../../models/question.dart';
 import '../../../services/ai/ai_service.dart';
 import 'create_exam_controller.dart'; // ✅ düzeltildi
 import '../exam_result_page.dart'; // ✅ bir üst klasörde
+import '../services/exam_xp_service.dart';  
 
 class ExamController extends GetxController {
   final Exam exam;
@@ -249,35 +250,41 @@ class ExamController extends GetxController {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('exam_${exam.id}_answers');
 
-    // ✅ 1️⃣ Exam kopyasını oluştur (kullanıcı cevaplarını ekleyerek)
+    // 1️⃣ Kullanıcının cevaplarını ekleyerek yeni exam oluştur
     final resultExam = exam.copyWith(answers: snapshotAnswers);
 
-// ✅ 2️⃣ AI değerlendirmesini başlat
-    // ✅ 1️⃣ AI değerlendirmesini başlat
     try {
+      // 2️⃣ AI değerlendirmesi
       final aiService = Get.find<AiService>();
       final aiEval = await aiService.evaluateExam(
         exam: resultExam,
         userAnswers: snapshotAnswers,
       );
-      // ✅ 2️⃣ AI sonucu modeline dönüştür (AiExamResult)
+
       final aiResult = AiExamResult.fromEvaluateResult(aiEval);
 
-      // AI açıklamalarını (feedback) questionGeneralIndex -> explanation olarak map’e dönüştür
       final Map<String, dynamic> aiFeedbackMap = {
         for (final qEval in aiEval.questionEvaluations)
           qEval.questionGeneralIndex: qEval.explanation,
       };
 
-      // Exam objesine AI sonuçlarını ekle
-      final updatedExam =
-          resultExam.copyWith(aiFeedback: aiFeedbackMap, stats: {
-        'correct': aiResult.correctCount,
-        'wrong': aiResult.wrongCount,
-        'unanswered': aiResult.unansweredCount,
-      });
+      // 3️⃣ Exam istatistiklerini güncelle
+      final updatedExam = resultExam.copyWith(
+        aiFeedback: aiFeedbackMap,
+        stats: {
+          'correct': aiResult.correctCount,
+          'wrong': aiResult.wrongCount,
+          'unanswered': aiResult.unansweredCount,
+        },
+      );
 
-      // ✅ 3️⃣ ResultPage'e yeni exami + aiResult gönder
+      // 🔥🔥 4️⃣ EXAM XP KAYDI (FIRESTORE'A YAZILAN YER)
+      await ExamXpService.saveExamResult(
+        exam: updatedExam,
+        aiResult: aiResult,
+      );
+
+      // 5️⃣ Sonuç sayfasına yönlendir
       Get.offAll(
         () => const ExamResultPage(),
         arguments: {
@@ -287,7 +294,7 @@ class ExamController extends GetxController {
       );
     } catch (e, st) {
       debugPrint("⚠️ AI evaluation failed: $e\n$st");
-      // AI başarısız olursa sadece exam ile yönlendir
+
       Get.offAll(
         () => const ExamResultPage(),
         arguments: {
