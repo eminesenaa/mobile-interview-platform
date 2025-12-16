@@ -53,6 +53,7 @@ class LoginPage extends StatelessWidget {
                             const AuthHeader(
                               title: "Welcome to MIPP",
                               subtitle: "Login to continue",
+                              size: AuthHeaderSize.large,
                             ),
 
                             const SizedBox(height: AppSpacing.lg),
