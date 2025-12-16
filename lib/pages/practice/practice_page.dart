@@ -1,16 +1,12 @@
-// ===================== File: lib/pages/practice_page.dart =====================
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:interview_project/pages/practice/training_module_detail_page.dart';
-import 'package:interview_project/pages/practice/widgets/daily_challenge_card.dart';
-import 'package:interview_project/pages/practice/widgets/training_module_card.dart';
 import 'package:sliver_tools/sliver_tools.dart';
 
-import 'package:interview_project/constants/colors.dart';
 import 'package:interview_project/constants/constants.dart';
 
 import 'package:interview_project/pages/practice/controllers/practice_controller.dart';
+import 'package:interview_project/pages/practice/training_module_detail_page.dart';
+import 'package:interview_project/pages/practice/widgets/training_module_card.dart';
 import 'package:interview_project/pages/practice/widgets/topic_chip_scroll.dart';
 import 'package:interview_project/pages/practice/widgets/search_add_bar.dart';
 import 'package:interview_project/pages/practice/widgets/filter_popup.dart';
@@ -20,7 +16,6 @@ import 'package:interview_project/pages/library/widgets/save_question_to_collect
 import 'package:interview_project/pages/library/services/library_service.dart';
 
 import '../../models/question.dart';
-import '../../models/training_module.dart';
 import '../runner/question_feed.dart';
 import '../runner/question_runner_page.dart';
 
@@ -30,14 +25,12 @@ class PracticePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(PracticeController());
-    final lib = LibraryService.instance; // ✅ Tek referans
+    final lib = LibraryService.instance;
 
     final bottomInset = MediaQuery.of(context).padding.bottom + 12;
-    // Training modules slider için: kartın ucu gözüksün diye viewportFraction < 1
     final trainingPageController = PageController(viewportFraction: 0.9);
 
     return Scaffold(
-      // Practice sayfası da Home / Leaderboard ile aynı arkaplanı kullanıyor.
       backgroundColor: AppColors.background,
       appBar: AppBar(
         elevation: 0,
@@ -52,6 +45,7 @@ class PracticePage extends StatelessWidget {
       body: SafeArea(
         child: Obx(() {
           final questions = controller.filteredQuestions;
+
           return CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
@@ -59,16 +53,19 @@ class PracticePage extends StatelessWidget {
               SliverToBoxAdapter(
                 child: Obx(() {
                   final modules = controller.trainingModules;
-                  // Henüz module yoksa bu alanı gizle (veya istersen placeholder koy).
                   if (modules.isEmpty) {
                     return const SizedBox.shrink();
                   }
+
                   return Padding(
                     padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.md, AppSpacing.md, AppSpacing.md, 0),
+                      AppSpacing.md,
+                      AppSpacing.md,
+                      AppSpacing.md,
+                      0,
+                    ),
                     child: SizedBox(
                       height: 170,
-                      // ⭐️ EN KRİTİK KISIM — PageView’in yüksekliğini belirledik
                       child: PageView.builder(
                         controller: trainingPageController,
                         padEnds: false,
@@ -83,20 +80,22 @@ class PracticePage extends StatelessWidget {
                             ),
                             child: TrainingModuleCard(
                               module: module,
-                              progress: controller.moduleProgressById[
-                                  module.id], // ileride user progress gelecek
+                              progress: controller
+                                  .moduleProgressById[module.id],
                               onTap: () {
-                                // TEMP: Front’u test etmek için mock section + questionRef kullan
-                                final detailSections =
+                                final sections =
                                     controller.buildMockSectionsFor(module);
-                                final detailRefs =
+                                final refs =
                                     controller.buildMockQuestionRefsFor(
-                                        module, detailSections);
+                                  module,
+                                  sections,
+                                );
+
                                 Get.to(
                                   () => TrainingModuleDetailPage(
                                     module: module,
-                                    sections: detailSections,
-                                    questionRefs: detailRefs,
+                                    sections: sections,
+                                    questionRefs: refs,
                                   ),
                                 );
                               },
@@ -109,27 +108,9 @@ class PracticePage extends StatelessWidget {
                 }),
               ),
 
-              // (2) DAILY CHALLENGE
-              SliverToBoxAdapter(
-                child: Obx(() {
-                  final q =
-                      controller.todaysQuestion; // şimdilik bunu kullanıyoruz
-                  if (q == null) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    child: DailyChallengeCard(
-                      question: q,
-                      onSolveTap: () {
-                        // Burada direkt runner'a götürebilirsin
-                        final questions = [q];
-                        _openRunner(questions, 0);
-                      },
-                    ),
-                  );
-                }),
-              ),
 
-              // (3) FILTER BAR
+
+              // (2) FILTER BAR
               SliverPinnedHeader(
                 child: Material(
                   elevation: 3,
@@ -152,22 +133,19 @@ class PracticePage extends StatelessWidget {
                         const Divider(height: 24),
                         SearchAddBar(
                           searchText: controller.searchQuery.value,
-                          onSearchChanged: (val) =>
-                              controller.updateSearch(val),
+                          onSearchChanged: controller.updateSearch,
                           onFilterPressed: () {
                             showModalBottomSheet(
                               context: context,
                               isScrollControlled: true,
                               backgroundColor: Colors.transparent,
                               builder: (_) => FilterPopup(
-                                // "All" olanı çoklu seçim listesine sokmuyoruz
                                 topics: controller.allTopics
                                     .where((t) => t != 'All')
                                     .toList(),
                                 difficulties: Difficulty.values,
                                 statuses: Status.values,
                                 questionTypes: QuestionType.values,
-
                                 selectedTopics:
                                     controller.selectedTopicsMulti.toList(),
                                 selectedDifficulties: controller
@@ -176,7 +154,8 @@ class PracticePage extends StatelessWidget {
                                 selectedQuestionTypes: controller
                                     .selectedQuestionTypesMulti
                                     .toList(),
-                                selectedStatus: controller.selectedStatus.value,
+                                selectedStatus:
+                                    controller.selectedStatus.value,
                                 onApply: ({
                                   required List<String> topics,
                                   required List<Difficulty> difficulties,
@@ -193,21 +172,20 @@ class PracticePage extends StatelessWidget {
                               ),
                             );
                           },
-                          // onAddPressed: () => controller.onAddQuestion(),
                           onRandomPressed: () {
-                            final random = controller.getRandomQuestion();
-                            if (random != null) {
-                              final idx = questions.indexWhere(
-                                (qq) =>
-                                    _extractQuestionId(qq) ==
-                                    _extractQuestionId(random),
-                              );
-                              if (idx >= 0) {
-                                _openRunner(questions, idx);
-                              }
+                            final random =
+                                controller.getRandomQuestion();
+                            if (random == null) return;
+
+                            final idx = questions.indexWhere(
+                              (q) =>
+                                  _extractQuestionId(q) ==
+                                  _extractQuestionId(random),
+                            );
+                            if (idx >= 0) {
+                              _openRunner(questions, idx);
                             }
                           },
-                          // canAdd: controller.filteredQuestions.isNotEmpty,
                         ),
                         const SizedBox(height: 8),
                       ],
@@ -238,33 +216,41 @@ class PracticePage extends StatelessWidget {
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
-                        if (index.isOdd) return const SizedBox(height: 10);
+                        if (index.isOdd) {
+                          return const SizedBox(height: 10);
+                        }
+
                         final itemIndex = index ~/ 2;
                         final q = questions[itemIndex];
-                        final qId = _extractQuestionId(q); // ✅ tutarlı id
+                        final qId = _extractQuestionId(q);
 
                         return StreamBuilder<bool>(
-                          stream: lib.isSavedStream(qId), // ✅ artık qId
+                          stream: lib.isSavedStream(qId),
                           builder: (context, snapshot) {
                             final isSaved = snapshot.data ?? false;
                             return QuestionCard(
                               question: q,
-                              onTap: () => _openRunner(questions, itemIndex),
+                              onTap: () =>
+                                  _openRunner(questions, itemIndex),
+                              isSaved: isSaved,
                               onSaveTap: () async {
-                                final result = await showModalBottomSheet(
+                                final result =
+                                    await showModalBottomSheet<bool>(
                                   context: context,
                                   isScrollControlled: true,
                                   builder: (_) =>
-                                      SaveQuestionToCollectionSheet(questionId: qId),
+                                      SaveQuestionToCollectionSheet(
+                                    questionId: qId,
+                                  ),
                                 );
 
                                 if (result == true) {
                                   await lib.saveToAll(qId);
                                 } else if (result == false) {
-                                  await lib.removeQuestionEverywhere(qId);
+                                  await lib
+                                      .removeQuestionEverywhere(qId);
                                 }
                               },
-                              isSaved: isSaved,
                             );
                           },
                         );
@@ -283,10 +269,10 @@ class PracticePage extends StatelessWidget {
   void _openRunner(List<Question> questions, int startIndex) {
     final controller = Get.find<PracticeController>();
     final selected = controller.selectedTopic.value;
-    final isAll = selected == null || selected == 'All';
+    final isAll = selected == 'All';
 
     final feed = QuestionFeed(
-      questionIds: questions.map((q) => _extractQuestionId(q)).toList(),
+      questionIds: questions.map(_extractQuestionId).toList(),
       questions: questions,
       startIndex: startIndex,
       source: QuestionSourceContext(
