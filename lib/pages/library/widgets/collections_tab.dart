@@ -10,6 +10,7 @@ import '../controllers/library_controller.dart';
 import '../widgets/collection_card.dart';
 import '../widgets/empty_state.dart';
 import 'collections_selection_toolbar.dart';
+import '../services/library_service.dart';
 
 class LibraryCollectionsTab extends StatelessWidget {
   const LibraryCollectionsTab({super.key});
@@ -18,21 +19,18 @@ class LibraryCollectionsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Get.find<LibraryController>();
 
-    return Obx(() {
-      final query = c.searchQuery.value.trim().toLowerCase();
+    return StreamBuilder<List<CollectionData>>(
+      stream: c.collectionsStream,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-      return StreamBuilder(
-        stream: c.collectionsStream,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
+        final all = snapshot.data!;
+        c.lastRawCollections = all;
 
-          final all = snapshot.data!;
-          // Güncel listeyi controller'a yaz
-          c.lastRawCollections = all;
-
-          // ⭐ Controller içindeki SORT + SEARCH + CUSTOM ORDER hepsi burada
+        // 🔴 KRİTİK: sortMode ve search’i dinleyen Obx BURADA
+        return Obx(() {
           final items = c.filteredCollections(all);
 
           if (items.isEmpty) {
@@ -63,18 +61,19 @@ class LibraryCollectionsTab extends StatelessWidget {
                     (context, i) {
                       final col = items[i];
 
-                      // ⭐ HER KARTI OBX İLE SAR — kart reaktif olsun
                       return Obx(() {
                         final isSelected =
                             c.selectedCollectionIds.contains(col.id);
-                        final selectionMode = c.isSelectingCollections.value;
+                        final selectionMode =
+                            c.isSelectingCollections.value;
 
                         return CollectionCard(
                           name: col.name,
                           count: col.count,
                           selectionMode: selectionMode,
                           isSelected: isSelected,
-                          onSelect: () => c.toggleSelectCollection(col.id),
+                          onSelect: () =>
+                              c.toggleSelectCollection(col.id),
                           onTap: () {
                             if (selectionMode) {
                               c.toggleSelectCollection(col.id);
@@ -92,13 +91,11 @@ class LibraryCollectionsTab extends StatelessWidget {
                   ),
                 ),
               ),
-
-              // ⭐ ALTTAN ÇIKAN TOOLBAR
               const CollectionsSelectionToolbar(),
             ],
           );
-        },
-      );
-    });
+        });
+      },
+    );
   }
 }

@@ -63,8 +63,8 @@ class LibraryController extends GetxController
   final RxBool isSelecting = false.obs; // seçim modu açık mı?
   final RxList<String> selectedQuestionIds = <String>[].obs; // seçilenler
 
-  /// Aktif sıralama modu (varsayılan: A → Z)
-  final Rx<CollectionSortMode> sortMode = CollectionSortMode.nameAsc.obs;
+  /// Aktif sıralama modu (varsayılan: EN SON EKLENEN ÜSTTE)
+  final Rx<CollectionSortMode> sortMode = CollectionSortMode.createdDesc.obs;
 
   // ============================================================
   // 🗂️ MULTI-SELECT (COLLECTIONS TAB)
