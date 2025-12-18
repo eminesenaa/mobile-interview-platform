@@ -52,9 +52,13 @@ class PracticePage extends StatelessWidget {
               // (1) TRAINING MODULES
               SliverToBoxAdapter(
                 child: Obx(() {
-                  final modules = controller.trainingModules;
+                  final modules = controller.trainingModules.toList();
+
                   if (modules.isEmpty) {
-                    return const SizedBox.shrink();
+                    return const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
                   }
 
                   return Padding(
@@ -80,16 +84,15 @@ class PracticePage extends StatelessWidget {
                             ),
                             child: TrainingModuleCard(
                               module: module,
-                              progress: controller
-                                  .moduleProgressById[module.id],
+                              progress:
+                                  controller.moduleProgressById[module.id] ??
+                                      0.0,
                               onTap: () {
                                 final sections =
-                                    controller.buildMockSectionsFor(module);
+                                    controller.sectionsByModule[module.id] ??
+                                        [];
                                 final refs =
-                                    controller.buildMockQuestionRefsFor(
-                                  module,
-                                  sections,
-                                );
+                                    controller.refsByModule[module.id] ?? [];
 
                                 Get.to(
                                   () => TrainingModuleDetailPage(
@@ -107,8 +110,6 @@ class PracticePage extends StatelessWidget {
                   );
                 }),
               ),
-
-
 
               // (2) FILTER BAR
               SliverPinnedHeader(
@@ -154,8 +155,7 @@ class PracticePage extends StatelessWidget {
                                 selectedQuestionTypes: controller
                                     .selectedQuestionTypesMulti
                                     .toList(),
-                                selectedStatus:
-                                    controller.selectedStatus.value,
+                                selectedStatus: controller.selectedStatus.value,
                                 onApply: ({
                                   required List<String> topics,
                                   required List<Difficulty> difficulties,
@@ -173,8 +173,7 @@ class PracticePage extends StatelessWidget {
                             );
                           },
                           onRandomPressed: () {
-                            final random =
-                                controller.getRandomQuestion();
+                            final random = controller.getRandomQuestion();
                             if (random == null) return;
 
                             final idx = questions.indexWhere(
@@ -230,16 +229,13 @@ class PracticePage extends StatelessWidget {
                             final isSaved = snapshot.data ?? false;
                             return QuestionCard(
                               question: q,
-                              onTap: () =>
-                                  _openRunner(questions, itemIndex),
+                              onTap: () => _openRunner(questions, itemIndex),
                               isSaved: isSaved,
                               onSaveTap: () async {
-                                final result =
-                                    await showModalBottomSheet<bool>(
+                                final result = await showModalBottomSheet<bool>(
                                   context: context,
                                   isScrollControlled: true,
-                                  builder: (_) =>
-                                      SaveQuestionToCollectionSheet(
+                                  builder: (_) => SaveQuestionToCollectionSheet(
                                     questionId: qId,
                                   ),
                                 );
@@ -247,8 +243,7 @@ class PracticePage extends StatelessWidget {
                                 if (result == true) {
                                   await lib.saveToAll(qId);
                                 } else if (result == false) {
-                                  await lib
-                                      .removeQuestionEverywhere(qId);
+                                  await lib.removeQuestionEverywhere(qId);
                                 }
                               },
                             );

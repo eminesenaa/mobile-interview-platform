@@ -1,17 +1,32 @@
+import 'dart:math';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../models/question.dart';
 import '../../../models/training_module.dart';
-import '../../../models/training_module_question_ref.dart';
 import '../../../models/training_section.dart';
+import '../../../models/training_module_question_ref.dart';
 
 class PracticeController extends GetxController {
+  // =========================
+  // QUESTION POOL
+  // =========================
   final RxList<Question> allQuestions = <Question>[].obs;
 
-  final RxString searchQuery = ''.obs;
+  // =========================
+  // TRAINING STRUCTURE
+  // =========================
+  final RxList<TrainingModule> trainingModules = <TrainingModule>[].obs;
+  final RxMap<String, List<TrainingSection>> sectionsByModule =
+      <String, List<TrainingSection>>{}.obs;
+  final RxMap<String, List<TrainingModuleQuestionRef>> refsByModule =
+      <String, List<TrainingModuleQuestionRef>>{}.obs;
 
+  // =========================
+  // PRACTICE FILTER STATE
+  // =========================
+  final RxString searchQuery = ''.obs;
   final RxString selectedTopic = 'All'.obs;
   final Rxn<Difficulty> selectedDifficulty = Rxn<Difficulty>();
   final Rxn<Status> selectedStatus = Rxn<Status>();
@@ -23,78 +38,20 @@ class PracticeController extends GetxController {
 
   final RxList<String> allTopics = <String>['All'].obs;
 
-  final RxList<TrainingModule> trainingModules = <TrainingModule>[].obs;
+  // =========================
+  // SHUFFLE
+  // =========================
+  final RxBool shuffleEnabled = true.obs;
+  final RxInt shuffleSeed = DateTime.now().millisecondsSinceEpoch.obs;
 
-  /// Kullanıcının çözdüğü soru id’leri
+  // =========================
+  // USER STATE
+  // =========================
   final RxSet<String> solvedQuestionIds = <String>{}.obs;
 
-  Question? get todaysQuestion =>
-      allQuestions.firstWhereOrNull((q) {
-        final id = _questionIdFromQuestion(q);
-        return !solvedQuestionIds.contains(id);
-      });
-
   // =========================
-  // FILTERED QUESTIONS
+  // UI COMPAT (PROGRESS PLACEHOLDER)
   // =========================
-  List<Question> get filteredQuestions {
-    var list = allQuestions.toList();
-
-    // TOPIC
-    if (selectedTopicsMulti.isNotEmpty) {
-      list = list.where((q) => selectedTopicsMulti.contains(q.topic)).toList();
-    } else if (selectedTopic.value != 'All') {
-      list = list.where((q) => q.topic == selectedTopic.value).toList();
-    }
-
-    // DIFFICULTY
-    if (selectedDifficultiesMulti.isNotEmpty) {
-      list = list
-          .where((q) => selectedDifficultiesMulti.contains(q.difficulty))
-          .toList();
-    } else if (selectedDifficulty.value != null) {
-      list = list.where((q) => q.difficulty == selectedDifficulty.value).toList();
-    }
-
-    // STATUS (user-based)
-    if (selectedStatus.value != null) {
-      if (selectedStatus.value == Status.solved) {
-        list = list.where((q) {
-          final qId = _questionIdFromQuestion(q);
-          return solvedQuestionIds.contains(qId);
-        }).toList();
-      } else if (selectedStatus.value == Status.todo) {
-        list = list.where((q) {
-          final qId = _questionIdFromQuestion(q);
-          return !solvedQuestionIds.contains(qId);
-        }).toList();
-      }
-    }
-
-    // QUESTION TYPE
-    if (selectedQuestionTypesMulti.isNotEmpty) {
-      list = list
-          .where((q) => selectedQuestionTypesMulti.contains(q.type))
-          .toList();
-    } else if (selectedQuestionType.value != null) {
-      list = list.where((q) => q.type == selectedQuestionType.value).toList();
-    }
-
-    // SEARCH
-    final query = searchQuery.value.trim().toLowerCase();
-    if (query.isNotEmpty) {
-      list = list.where((it) {
-        final haystack =
-            '${it.title} ${it.description ?? ''} ${it.topic} ${it.tags.join(" ")}'
-                .toLowerCase();
-        return haystack.contains(query);
-      }).toList();
-    }
-
-    return list;
-  }
-
-  // progress map (mock)
   final RxMap<String, double> moduleProgressById = <String, double>{}.obs;
 
   // =========================
@@ -103,22 +60,70 @@ class PracticeController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _loadMockTrainingModules();
     loadQuestionsFromFirebase();
+    loadTrainingModulesFromFirestore();
     loadSolvedQuestionsForUser();
-
-    moduleProgressById['warmup_quick_win'] = 0.45;
-    moduleProgressById['daily_data_structures'] = 0.2;
   }
 
   // =========================
-  // FILTER SETTERS
+  // FILTERED QUESTIONS
+  // =========================
+  List<Question> get filteredQuestions {
+    var list = allQuestions.toList();
+
+    if (selectedTopicsMulti.isNotEmpty) {
+      list = list.where((q) => selectedTopicsMulti.contains(q.topic)).toList();
+    } else if (selectedTopic.value != 'All') {
+      list = list.where((q) => q.topic == selectedTopic.value).toList();
+    }
+
+    if (selectedDifficultiesMulti.isNotEmpty) {
+      list = list
+          .where((q) => selectedDifficultiesMulti.contains(q.difficulty))
+          .toList();
+    } else if (selectedDifficulty.value != null) {
+      list =
+          list.where((q) => q.difficulty == selectedDifficulty.value).toList();
+    }
+
+    if (selectedStatus.value != null) {
+      list = list.where((q) {
+        final id = _questionIdFromQuestion(q);
+        return selectedStatus.value == Status.solved
+            ? solvedQuestionIds.contains(id)
+            : !solvedQuestionIds.contains(id);
+      }).toList();
+    }
+
+    if (selectedQuestionTypesMulti.isNotEmpty) {
+      list = list
+          .where((q) => selectedQuestionTypesMulti.contains(q.type))
+          .toList();
+    } else if (selectedQuestionType.value != null) {
+      list = list.where((q) => q.type == selectedQuestionType.value).toList();
+    }
+
+    final query = searchQuery.value.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      list = list.where((q) {
+        final haystack =
+            '${q.title} ${q.description ?? ''} ${q.topic} ${q.tags.join(" ")}'
+                .toLowerCase();
+        return haystack.contains(query);
+      }).toList();
+    }
+
+    if (shuffleEnabled.value) {
+      list.shuffle(Random(shuffleSeed.value));
+    }
+
+    return list;
+  }
+
+  // =========================
+  // FILTER API (UI UYUMLU)
   // =========================
   void updateSearch(String query) => searchQuery.value = query;
-
-  Future<void> refreshSolved() async {
-    await loadSolvedQuestionsForUser();
-  }
 
   Future<void> updateFilters({
     String? topic,
@@ -134,8 +139,6 @@ class PracticeController extends GetxController {
     selectedTopicsMulti.clear();
     selectedDifficultiesMulti.clear();
     selectedQuestionTypesMulti.clear();
-
-    await refreshSolved();
   }
 
   Future<void> updateFiltersMulti({
@@ -146,168 +149,107 @@ class PracticeController extends GetxController {
   }) async {
     selectedTopicsMulti
       ..clear()
-      ..addAll(topics ?? const []);
+      ..addAll(topics ?? []);
     selectedDifficultiesMulti
       ..clear()
-      ..addAll(difficulties ?? const []);
+      ..addAll(difficulties ?? []);
     selectedQuestionTypesMulti
       ..clear()
-      ..addAll(questionTypes ?? const []);
+      ..addAll(questionTypes ?? []);
 
     selectedStatus.value = status;
-
-    selectedTopic.value =
-        selectedTopicsMulti.isEmpty ? 'All' : selectedTopicsMulti.first;
-    selectedDifficulty.value =
-        selectedDifficultiesMulti.isEmpty ? null : selectedDifficultiesMulti.first;
-    selectedQuestionType.value =
-        selectedQuestionTypesMulti.isEmpty ? null : selectedQuestionTypesMulti.first;
-
-    await refreshSolved();
   }
 
   Question? getRandomQuestion() {
     final list = filteredQuestions;
     if (list.isEmpty) return null;
-    list.shuffle();
     return list.first;
   }
 
-  void setAllQuestions(List<Question> items) {
+  // =========================
+  // FIREBASE LOADERS
+  // =========================
+  Future<void> loadQuestionsFromFirebase() async {
+    final snap = await FirebaseFirestore.instance.collection('questions').get();
+    final items =
+        snap.docs.map((d) => Question.fromFirestore(d.data(), d.id)).toList();
     allQuestions.assignAll(items);
+
     final topics = <String>{'All', ...items.map((e) => e.topic)};
     allTopics.assignAll(topics.toList()..sort());
   }
 
-  // =========================
-  // FIREBASE
-  // =========================
-  Future<void> loadSolvedQuestionsForUser() async {
-    try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) return;
+  Future<void> loadTrainingModulesFromFirestore() async {
+    final db = FirebaseFirestore.instance;
 
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('solved')
+    final moduleSnap =
+        await db.collection('modules').orderBy('sortOrder').get();
+    final modules = moduleSnap.docs
+        .map((d) => TrainingModule.fromFirestore(d.data(), d.id))
+        .toList();
+    trainingModules.assignAll(modules);
+
+    final snap = await db.collection('modules').get();
+    print('🔥 MODULE COUNT: ${snap.docs.length}');
+
+    for (final module in modules) {
+      final sectionSnap = await db
+          .collection('modules')
+          .doc(module.id)
+          .collection('sections')
+          .orderBy('order')
           .get();
 
-      solvedQuestionIds
-        ..clear()
-        ..addAll(snapshot.docs.map((d) => d.id));
-    } catch (e) {
-      print('🔥 Error loading solved: $e');
-    }
-  }
-
-  Future<void> loadQuestionsFromFirebase() async {
-    try {
-      final snapshot =
-          await FirebaseFirestore.instance.collection("questions").get();
-
-      final items = snapshot.docs
-          .map((doc) {
-            try {
-              return Question.fromFirestore(doc.data(), doc.id);
-            } catch (_) {
-              return null;
-            }
-          })
-          .whereType<Question>()
+      final sections = sectionSnap.docs
+          .map((d) => TrainingSection.fromFirestore(d.data(), d.id))
           .toList();
 
-      setAllQuestions(items);
-    } catch (e) {
-      print("🔥 Firestore load error: $e");
+      sectionsByModule[module.id] = sections;
+
+      final List<TrainingModuleQuestionRef> allRefs = [];
+
+      for (final section in sections) {
+        final refSnap = await db
+            .collection('modules')
+            .doc(module.id)
+            .collection('sections')
+            .doc(section.id)
+            .collection('questions')
+            .orderBy('order')
+            .get();
+
+        allRefs.addAll(
+          refSnap.docs.map(
+            (d) => TrainingModuleQuestionRef.fromFirestore(d.data(), d.id),
+          ),
+        );
+      }
+
+      refsByModule[module.id] = allRefs;
+
+      // geçici progress placeholder
+      moduleProgressById[module.id] = 0.0;
     }
   }
 
-  // =========================
-  // MOCK TRAINING MODULES
-  // =========================
-  void _loadMockTrainingModules() {
-    trainingModules.assignAll([
-      const TrainingModule(
-        id: 'warmup_quick_win',
-        title: 'Warm-up • Quick Win',
-        subtitle: 'Solve 5 starter questions.',
-        description: 'Short warm-up before real practice.',
-        format: TrainingModuleFormat.challenge,
-        totalQuestions: 5,
-        estimatedMinutes: 10,
-        isFeatured: true,
-        sortOrder: 1,
-      ),
-      const TrainingModule(
-        id: 'daily_data_structures',
-        title: 'Daily Data Structures',
-        subtitle: 'Arrays, stacks, queues.',
-        description: 'Daily structured practice.',
-        format: TrainingModuleFormat.crashCourse,
-        totalQuestions: 14,
-        estimatedMinutes: 20,
-        isFeatured: true,
-        sortOrder: 2,
-      ),
-    ]);
-  }
+  Future<void> loadSolvedQuestionsForUser() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
 
-  // =========================
-  // MOCK DETAIL BUILDERS
-  // =========================
-  List<TrainingSection> buildMockSectionsFor(TrainingModule module) {
-    return [
-      TrainingSection(
-        id: '${module.id}_sec1',
-        moduleId: module.id,
-        title: 'Warm-up basics',
-        description: 'Easy starter questions.',
-        order: 1,
-        type: TrainingSectionType.topicBased,
-      ),
-      TrainingSection(
-        id: '${module.id}_sec2',
-        moduleId: module.id,
-        title: 'Level up',
-        description: 'More challenging questions.',
-        order: 2,
-        type: TrainingSectionType.topicBased,
-      ),
-    ];
-  }
+    final snap = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('solved')
+        .get();
 
-  List<TrainingModuleQuestionRef> buildMockQuestionRefsFor(
-    TrainingModule module,
-    List<TrainingSection> sections,
-  ) {
-    if (sections.isEmpty || allQuestions.isEmpty) return [];
-
-    final refs = <TrainingModuleQuestionRef>[];
-    final questions = allQuestions.take(5).toList();
-
-    var order = 0;
-    for (var i = 0; i < questions.length; i++) {
-      final section = sections[i < 3 ? 0 : 1];
-
-      refs.add(
-        TrainingModuleQuestionRef(
-          id: '',
-          moduleId: module.id,
-          sectionId: section.id,
-          questionId: _questionIdFromQuestion(questions[i]),
-          order: ++order,
-          difficulty: questions[i].difficulty,
-        ),
-      );
-    }
-
-    return refs;
+    solvedQuestionIds
+      ..clear()
+      ..addAll(snap.docs.map((d) => d.id));
   }
 }
 
 // =========================
-// HELPERS
+// HELPER
 // =========================
 String _questionIdFromQuestion(Question q) {
   try {
