@@ -46,25 +46,27 @@ class StreakCard extends StatelessWidget {
     final bool showWeeklyView = currentStreak >= 7;
 
     if (showWeeklyView) {
-      // 🔥 YENİ: Son 5 gün + bugün + yarın (bugün boş, diğerleri dolu)
       orderedDays = [];
       weekdayLabels = [];
 
-      // Son 5 gün (hepsi dolu)
-      for (int i = -5; i <= -1; i++) {
-        final date = today.add(Duration(days: i));
-        orderedDays.add(true); // Geçmiş günler dolu
+      final today = DateTime.now();
+      const daysInWindow = 7;
+
+      // 🔁 UI resetli streak başlangıcı
+      final uiStart =
+          today.subtract(Duration(days: (currentStreak - 1) % daysInWindow));
+
+      // 🔥 resetten sonra kaç gün dolu olmalı
+      final uiProgress = ((currentStreak - 1) % daysInWindow) + 1;
+
+      for (int i = 0; i < daysInWindow; i++) {
+        final date = uiStart.add(Duration(days: i));
+
+        final isFilled = i < uiProgress;
+
+        orderedDays.add(isFilled);
         weekdayLabels.add(_getWeekdayShort(date.weekday));
       }
-
-      // Bugün (boş - henüz çözülmedi)
-      orderedDays.add(false);
-      weekdayLabels.add(_getWeekdayShort(today.weekday));
-
-      // Yarın (boş)
-      final tomorrow = today.add(const Duration(days: 1));
-      orderedDays.add(false);
-      weekdayLabels.add(_getWeekdayShort(tomorrow.weekday));
     } else {
       // 0 streak → tüm noktalar boş, etiketler bugün → ileri
       if (currentStreak <= 0) {
@@ -132,7 +134,7 @@ class StreakCard extends StatelessWidget {
                               padding: EdgeInsets.only(right: i == 6 ? 0 : 6.0),
                               child: _DayDot(
                                 filled: done,
-                                isToday: showWeeklyView ? i == 5 : i == 0,
+                                isToday: i == 6,
                               ),
                             ),
                           );
@@ -254,8 +256,9 @@ class _DayDot extends StatelessWidget {
       height: 24,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color:
-            filled ? AppColors.primary : AppColors.surface.withValues(alpha: 0.4),
+        color: filled
+            ? AppColors.primary
+            : AppColors.surface.withValues(alpha: 0.4),
         border: Border.all(
           width: 1.6,
           color: filled
