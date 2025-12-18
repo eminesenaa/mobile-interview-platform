@@ -104,6 +104,7 @@ class OpenAIService {
   static final _apiKey = dotenv.env['OPENAI_API_KEY'];
   static const _endpoint = 'https://api.openai.com/v1/chat/completions';
   static const _model = 'gpt-4.1';
+  static const _examModel = 'gpt-4.1';
 
   static Future<String> _loadPromptTemplate(PromptType type) async {
     switch (type) {
@@ -191,8 +192,8 @@ class OpenAIService {
       ],
     };
 
-    print("body:");
-    debugPrint(body.toString(), wrapWidth: 10000);
+    //print("body:");
+    //debugPrint(body.toString(), wrapWidth: 10000);
 
     final resp = await _post(body, timeout: timeout);
 
@@ -230,7 +231,7 @@ class OpenAIService {
 
     // 3) Chat çağrısı — JSON ARRAY istediğimiz için response_format kullanmıyoruz
     final body = {
-      "model": _model,
+      "model": _examModel,
       "temperature": 0.2,
       "messages": [
         {"role": "system", "content": "Output ONLY a raw JSON array."},
