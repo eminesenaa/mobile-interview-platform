@@ -1,45 +1,61 @@
-// ================= File: lib/models/user_training_progress.dart =============
-// Purpose: Kullanıcının training module bazlı ilerlemesini tutar.
-//          Örn: "Warm-up Quick Win" modülünde 8/10 soru → %80 progress.
-// Notes:
-// - Bu model, Progress (global XP) modelinden bağımsızdır.
-// - XP artışları Progress içinde tutulurken, hangi modülde ne kadar
-//   ilerlenmiş olduğu burada saklanır.
-// ==========================================================================
+// ===================== File: lib/models/user_training_progress.dart =====================
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Tek bir modül için, kullanıcının toplam ilerlemesini temsil eder.
 class UserTrainingModuleProgress {
-  /// Kullanıcı id (User.id).
   final String userId;
-
-  /// TrainingModule.id
   final String moduleId;
-
-  /// Bu modülde tamamlanan soru sayısı.
   final int completedQuestions;
-
-  /// Bu modülde toplam soru sayısı.
-  /// (TrainingModule.totalQuestions ile aynı olabilir, ama
-  /// cache / offline kullanım için burada da saklayabiliriz.)
   final int totalQuestions;
+  final DateTime lastUpdated;
+  final bool isCompleted;
+  
+  // Çözülen soruların ID listesi
+  final List<String> solvedQuestionIds; 
 
-  const UserTrainingModuleProgress({
+  UserTrainingModuleProgress({
     required this.userId,
     required this.moduleId,
     required this.completedQuestions,
     required this.totalQuestions,
+    required this.lastUpdated,
+    this.isCompleted = false,
+    this.solvedQuestionIds = const [], 
   });
 
-  /// 0.0 – 1.0 arası progress yüzdesi.
   double get progress =>
       totalQuestions == 0 ? 0.0 : completedQuestions / totalQuestions;
 
   factory UserTrainingModuleProgress.fromJson(Map<String, dynamic> j) {
+    // 1. Çözülen soru ID'lerini ayıkla
+    List<String> parsedSolvedIds = [];
+    if (j['questions'] != null && j['questions'] is List) {
+      for (var q in j['questions']) {
+        if (q is Map && q['status'] == 'completed') {
+          parsedSolvedIds.add(q['questionId'].toString());
+        }
+      }
+    }
+
+    // 2. Tarih Dönüşümü (Hem Timestamp hem int desteği)
+    DateTime parsedDate = DateTime.now();
+    final rawDate = j['lastUpdated'];
+
+    if (rawDate is Timestamp) {
+      parsedDate = rawDate.toDate();
+    } else if (rawDate is int) {
+      parsedDate = DateTime.fromMillisecondsSinceEpoch(rawDate);
+    }
+
     return UserTrainingModuleProgress(
       userId: (j['userId'] ?? '').toString(),
       moduleId: (j['moduleId'] ?? '').toString(),
       completedQuestions: (j['completedQuestions'] ?? 0) as int,
       totalQuestions: (j['totalQuestions'] ?? 0) as int,
+      lastUpdated: parsedDate,
+      isCompleted: j['isCompleted'] ?? false,
+      solvedQuestionIds: parsedSolvedIds,
     );
   }
 
@@ -49,6 +65,8 @@ class UserTrainingModuleProgress {
       'moduleId': moduleId,
       'completedQuestions': completedQuestions,
       'totalQuestions': totalQuestions,
+      'lastUpdated': lastUpdated.millisecondsSinceEpoch,
+      'isCompleted': isCompleted,
     };
   }
 
@@ -57,24 +75,30 @@ class UserTrainingModuleProgress {
     String? moduleId,
     int? completedQuestions,
     int? totalQuestions,
+    DateTime? lastUpdated,
+    bool? isCompleted,
+    List<String>? solvedQuestionIds,
   }) {
     return UserTrainingModuleProgress(
       userId: userId ?? this.userId,
       moduleId: moduleId ?? this.moduleId,
       completedQuestions: completedQuestions ?? this.completedQuestions,
       totalQuestions: totalQuestions ?? this.totalQuestions,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
+      isCompleted: isCompleted ?? this.isCompleted,
+      solvedQuestionIds: solvedQuestionIds ?? this.solvedQuestionIds,
     );
   }
 }
 
-/// Tek bir soru özelinde, kullanıcının o sorunun durumunu gösterir.
-/// Örn: notStarted, inProgress, completed
+/// 🔥 BU ENUM EKSİK KALDIĞI İÇİN HATA ALIYORDUNUZ:
 enum TrainingQuestionStatus {
   notStarted,
   inProgress,
   completed,
 }
 
+/// Tek bir soru özelinde, kullanıcının o sorunun durumunu gösterir.
 class UserTrainingQuestionProgress {
   final String userId;
   final String moduleId;
@@ -93,7 +117,7 @@ class UserTrainingQuestionProgress {
   factory UserTrainingQuestionProgress.fromJson(Map<String, dynamic> j) {
     final statusRaw = (j['status'] ?? 'notStarted').toString();
     final parsedStatus = TrainingQuestionStatus.values.firstWhere(
-          (s) => s.name == statusRaw,
+      (s) => s.name == statusRaw,
       orElse: () => TrainingQuestionStatus.notStarted,
     );
 

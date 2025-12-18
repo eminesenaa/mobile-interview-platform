@@ -1,15 +1,22 @@
 // ===================== File: lib/pages/library/controllers/library_controller.dart =====================
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
 import '../../../models/question.dart';
 import '../../../models/training_module.dart';
+import '../../../models/user_training_progress.dart';
+
 import '../../../services/firebase/auth_service.dart';
+import '../../practice/services/training_progress_service.dart';
+
 import '../../practice/controllers/practice_controller.dart';
 import '../../practice/training_module_detail_page.dart';
 import '../../practice/widgets/filter_popup.dart';
 import '../../runner/question_feed.dart';
 import '../../runner/question_runner_page.dart';
+
 import '../services/library_service.dart';
 import '../widgets/save_question_to_collection_sheet.dart';
 
@@ -24,6 +31,13 @@ enum CollectionSortMode {
 
 class LibraryController extends GetxController
     with GetSingleTickerProviderStateMixin {
+  
+  // ============================================================
+  // SERVICES
+  // ============================================================
+  final TrainingProgressService _progressService = TrainingProgressService();
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+
   // ============================================================
   // 🧩 TAB CONTROLLER & REACTIVE STATE
   // ============================================================
@@ -109,9 +123,17 @@ class LibraryController extends GetxController
   final RxList<Question> savedQuestions = <Question>[].obs;
 
   // ============================================================
-  // 📚 MODULES (Temporary Dummy Data — backend gelene kadar)
+  // 📚 MODULES (REAL DATA)
   // ============================================================
+  /// Kullanıcının başladığı gerçek modüller
   final RxList<TrainingModule> modules = <TrainingModule>[].obs;
+  
+  /// Modül ID -> İlerleme verisi (Progress bar için)
+  final RxMap<String, UserTrainingModuleProgress> modulesProgressMap = 
+      <String, UserTrainingModuleProgress>{}.obs;
+
+  /// Yükleniyor durumu
+  final RxBool isLoadingModules = false.obs;
 
   // UI'da StreamBuilder ile kullanılacak
   Stream<List<TrainingModule>> get modulesStream => modules.stream;
@@ -158,42 +180,9 @@ class LibraryController extends GetxController
     return filtered;
   }
 
-  int _collectionSorter(CollectionData a, CollectionData b) {
-    final nameA = a.name.trim();
-    final nameB = b.name.trim();
-
-    final startsNumA = _startsWithNumber(nameA);
-    final startsNumB = _startsWithNumber(nameB);
-    final startsAlphaA = _startsWithLetter(nameA);
-    final startsAlphaB = _startsWithLetter(nameB);
-
-    // 1) Numbers first
-    if (startsNumA && !startsNumB) return -1;
-    if (!startsNumA && startsNumB) return 1;
-
-    // 2) Letters second
-    if (startsAlphaA && !startsAlphaB) return -1;
-    if (!startsAlphaA && startsAlphaB) return 1;
-
-    // 3) Special characters last
-    return nameA.toLowerCase().compareTo(nameB.toLowerCase());
-  }
-
-  bool _startsWithNumber(String s) {
-    if (s.isEmpty) return false;
-    return int.tryParse(s[0]) != null;
-  }
-
-  bool _startsWithLetter(String s) {
-    if (s.isEmpty) return false;
-    return s[0].toLowerCase().contains(RegExp(r'[a-zğüşöçı]'));
-  }
-
   // ================================
   // DYNAMIC FILTER OPTIONS (READ-ONLY)
-  // Saved Questions içinden otomatik oluşur
   // ================================
-
   List<String> get dynamicTopics {
     return savedQuestions
         .map((q) => q.topic)
@@ -206,8 +195,6 @@ class LibraryController extends GetxController
   List<Difficulty> get dynamicDifficulties {
     return savedQuestions
         .map((q) => q.difficulty)
-        .where((d) => d != null)
-        .map((d) => d!)
         .toSet()
         .toList();
   }
@@ -215,8 +202,6 @@ class LibraryController extends GetxController
   List<QuestionType> get dynamicQuestionTypes {
     return savedQuestions
         .map((q) => q.type)
-        .where((t) => t != null)
-        .map((t) => t!)
         .toSet()
         .toList();
   }
@@ -224,8 +209,6 @@ class LibraryController extends GetxController
   List<Status> get dynamicStatuses {
     return savedQuestions
         .map((q) => q.status)
-        .where((s) => s != null)
-        .map((s) => s!)
         .toSet()
         .toList();
   }
@@ -247,34 +230,26 @@ class LibraryController extends GetxController
   // ====================== FILTER CHIP LABELS ======================
   List<String> get activeFilterLabels {
     final List<String> out = [];
-
     for (final t in selectedTopics) {
       out.add(t);
     }
-
     for (final d in selectedDifficulties) {
       out.add(formatDifficultyLabel(d));
     }
-
     for (final qt in selectedQuestionTypes) {
       out.add(formatQuestionTypeLabel(qt));
     }
-
     if (selectedStatus.value != null) {
       out.add(formatStatusLabel(selectedStatus.value!));
     }
-
     return out;
   }
 
   void removeSingleFilter(String label) {
     selectedTopics.remove(label);
     selectedDifficulties.removeWhere((d) => formatDifficultyLabel(d) == label);
-    selectedQuestionTypes
-        .removeWhere((qt) => formatQuestionTypeLabel(qt) == label);
-
-    if (selectedStatus.value != null &&
-        formatStatusLabel(selectedStatus.value!) == label) {
+    selectedQuestionTypes.removeWhere((qt) => formatQuestionTypeLabel(qt) == label);
+    if (selectedStatus.value != null && formatStatusLabel(selectedStatus.value!) == label) {
       selectedStatus.value = null;
     }
   }
@@ -286,14 +261,9 @@ class LibraryController extends GetxController
     selectedStatus.value = null;
   }
 
-  String formatDifficultyLabel(Difficulty d) =>
-      d.name.toUpperCase().replaceAll('_', ' ');
-
-  String formatQuestionTypeLabel(QuestionType qt) =>
-      qt.name.toUpperCase().replaceAll('_', ' ');
-
-  String formatStatusLabel(Status s) =>
-      s.name.toUpperCase().replaceAll('_', ' ');
+  String formatDifficultyLabel(Difficulty d) => d.name.toUpperCase().replaceAll('_', ' ');
+  String formatQuestionTypeLabel(QuestionType qt) => qt.name.toUpperCase().replaceAll('_', ' ');
+  String formatStatusLabel(Status s) => s.name.toUpperCase().replaceAll('_', ' ');
 
   // ============================================================
   // 🔄 LIFECYCLE
@@ -301,12 +271,9 @@ class LibraryController extends GetxController
   @override
   void onInit() {
     super.onInit();
-    // =========================================================
-    // 🔐 USER SIGN-IN CHECK — user yoksa init’i tamamen atla
-    // =========================================================
     final user = AuthService.instance.currentUser;
     if (user == null) {
-      print("⚠️ LibraryController skipped — no signed-in user.");
+      debugPrint("⚠️ LibraryController skipped — no signed-in user.");
       return;
     }
 
@@ -317,23 +284,28 @@ class LibraryController extends GetxController
 
     // Tab bar
     tabController = TabController(length: 3, vsync: this);
-    // ⭐ TAB DEĞİŞİNCE SEARCH RESETLE
+    
+    // ⭐ TAB DEĞİŞİKLİĞİ DİNLEYİCİSİ
     tabController.addListener(() {
       if (!tabController.indexIsChanging) {
+        // Genel resetler
         isSelecting.value = false;
         selectedQuestionIds.clear();
-        // ⭐ COLLECTION SELECT RESET
         isSelectingCollections.value = false;
         selectedCollectionIds.clear();
-
         searchCtrl.clear();
         searchQuery.value = '';
         search.value = '';
+
+        // 🔥 Eğer Modules sekmesine geçildiyse veriyi tazele
+        if (tabController.index == 2) {
+           fetchStartedModules();
+        }
       }
     });
 
-    // TEMP: dummy modules
-    modules.value = dummyModules;
+    // Initial fetch for modules
+    fetchStartedModules();
 
     // SearchController listener
     searchCtrl.addListener(() {
@@ -349,16 +321,61 @@ class LibraryController extends GetxController
   }
 
   // ============================================================
+  // 🔥 FETCH STARTED MODULES (BACKEND INTEGRATION)
+  // ============================================================
+  Future<void> fetchStartedModules() async {
+    final user = AuthService.instance.currentUser;
+    if (user == null) return;
+    
+    try {
+      isLoadingModules.value = true;
+      
+      // 1. Kullanıcının progress kayıtlarını çek
+      final progressList = await _progressService.getAllProgressForUser(user.uid);
+      
+      if (progressList.isEmpty) {
+        modules.clear();
+        modulesProgressMap.clear();
+        return;
+      }
+
+      // 2. Progress map'ini ve ID listesini hazırla
+      modulesProgressMap.clear();
+      final startedIds = <String>{};
+      for (var p in progressList) {
+        modulesProgressMap[p.moduleId] = p;
+        startedIds.add(p.moduleId);
+      }
+
+      // 3. Modülleri 'modules' koleksiyonundan çek
+      final snap = await _db.collection('modules').get();
+      final allModules = snap.docs
+          .map((d) => TrainingModule.fromFirestore(d.data(), d.id))
+          .toList();
+
+      // Sadece başlanmış olanları filtrele
+      final startedModules = allModules
+          .where((m) => startedIds.contains(m.id))
+          .toList();
+
+      modules.assignAll(startedModules);
+
+    } catch (e) {
+      debugPrint("Error fetching started modules: $e");
+    } finally {
+      isLoadingModules.value = false;
+    }
+  }
+
+  // ============================================================
   // 🟦 MULTI-SELECT MODE FUNCTIONS
   // ============================================================
 
-  /// Seçim modunu başlat
   void startSelecting() {
     isSelecting.value = true;
     selectedQuestionIds.clear();
   }
 
-  /// Bir soruyu seç / kaldır
   void toggleSelect(String qId) {
     if (selectedQuestionIds.contains(qId)) {
       selectedQuestionIds.remove(qId);
@@ -367,25 +384,20 @@ class LibraryController extends GetxController
     }
   }
 
-  /// Seçim modunu sonlandır
   void stopSelecting() {
     isSelecting.value = false;
     selectedQuestionIds.clear();
   }
 
-  /// Seçilen soruları var olan koleksiyona taşı
   Future<void> moveSelectedToCollection(String collectionId) async {
     final items = selectedQuestionIds.toList();
     if (items.isEmpty) return;
-
     for (final qId in items) {
       await LibraryService.instance.addToCollection(collectionId, qId);
     }
-
-    stopSelecting(); // seçim modu kapatılır
+    stopSelecting();
   }
 
-  /// Yeni koleksiyon oluştur → seçilenleri ekle
   Future<void> createCollectionAndMoveSelected(String name) async {
     final newId = await createCollection(name);
     await moveSelectedToCollection(newId);
@@ -394,60 +406,34 @@ class LibraryController extends GetxController
   Future<void> deleteSelectedQuestions() async {
     final ids = selectedQuestionIds.toList();
     if (ids.isEmpty) return;
-
     for (final id in ids) {
       await LibraryService.instance.removeQuestionEverywhere(id);
     }
-
     stopSelecting();
   }
 
-  /// Kullanıcı bir soruyu hangi koleksiyonlara eklemek istiyorsa
-  /// save sheet'i açar, seçilen tüm koleksiyonları Firestore'a ekler.
-  /// Ardından bookmark ikonunu ve ALL tab'ını yeniler.
   Future<void> openSaveSheetFor(String questionId) async {
     final result = await Get.bottomSheet(
       SaveQuestionToCollectionSheet(questionId: questionId),
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
     );
-
     if (result == null) return;
-
     final bool saveToLibrary = result["library"] == true;
     final List<String> collectionIds = List<String>.from(result["collections"]);
-
-    // 🟦 1) Library'ye kaydet
-    if (saveToLibrary) {
-      await LibraryService.instance.saveToAll(questionId);
-    }
-
-    // 🟦 2) Seçilen koleksiyonlara kaydet
+    if (saveToLibrary) await LibraryService.instance.saveToAll(questionId);
     for (final cId in collectionIds) {
       await LibraryService.instance.addToCollection(cId, questionId);
     }
-
-    // 🟦 3) Bookmark UI güncelle
     await updateBookmarkState(questionId);
-
-    // 🟦 4) ALL tab yenile
     await reloadSavedQuestions();
   }
 
   Future<void> updateBookmarkState(String questionId) async {
     final isSaved = await LibraryService.instance.isSavedOnce(questionId);
-
     final idx = savedQuestions.indexWhere((q) => q.id == questionId);
-
-    if (isSaved && idx == -1) {
-      // yeni ekleniyorsa listeye eklemen gerek ama soru datası sende yok
-      // ALL sekmesinin Stream'i zaten otomatik güncelleyecek
-      return;
-    }
-
-    if (!isSaved && idx != -1) {
-      savedQuestions.removeAt(idx);
-    }
+    if (isSaved && idx == -1) return;
+    if (!isSaved && idx != -1) savedQuestions.removeAt(idx);
   }
 
   Future<void> reloadSavedQuestions() async {
@@ -457,42 +443,28 @@ class LibraryController extends GetxController
   }
 
   Future<void> removeQuestionEverywhere(String questionId) async {
-    // Service çağır → tüm saved + collection'lardan kaldırır
     await LibraryService.instance.removeQuestionEverywhere(questionId);
-
-    // UI güncelle
     await updateBookmarkState(questionId);
     await reloadSavedQuestions();
   }
 
-  Future<void> removeFromCollection(
-      String collectionId, String questionId) async {
-    await LibraryService.instance
-        .removeFromCollection(collectionId, questionId);
-
-    // UI güncellemesi
+  Future<void> removeFromCollection(String collectionId, String questionId) async {
+    await LibraryService.instance.removeFromCollection(collectionId, questionId);
     await updateBookmarkState(questionId);
     await reloadSavedQuestions();
   }
 
-  // ============================================================
-  // 🗑️ DELETE SELECTED COLLECTIONS
-  // ============================================================
   Future<void> deleteSelectedCollections() async {
     final ids = selectedCollectionIds.toList();
     if (ids.isEmpty) return;
-
     for (final id in ids) {
       await LibraryService.instance.deleteCollection(id);
     }
-
     stopCollectionSelecting();
   }
 
-  /// Bir collection kartına tıklanınca seç / kaldır
   void toggleCollectionSelected(String id) {
     if (!isSelectingCollections.value) return;
-
     if (selectedCollectionIds.contains(id)) {
       selectedCollectionIds.remove(id);
     } else {
@@ -503,13 +475,9 @@ class LibraryController extends GetxController
   // ============================================================
   // 🧩 UI ACTION HANDLERS
   // ============================================================
-  void onSearchChanged(String v) {
-    searchQuery.value = v;
-  }
+  void onSearchChanged(String v) => searchQuery.value = v;
 
-  void onSortPressed() {
-    Get.snackbar('Sort', 'Sort & filter coming soon');
-  }
+  void onSortPressed() => Get.snackbar('Sort', 'Sort & filter coming soon');
 
   Future<void> onCreateCollectionPressed() async {
     final name = await askText('New Collection', 'Collection name');
@@ -518,9 +486,6 @@ class LibraryController extends GetxController
     await LibraryService.instance.createCollection(name.trim());
   }
 
-  // ============================================================
-  // 📁 CREATE COLLECTION (Save Sheet için)
-  // ============================================================
   Future<String> createCollection(String name) async {
     final newId = await LibraryService.instance.createCollection(name.trim());
     autoSelectCollectionId.value = newId;
@@ -548,11 +513,6 @@ class LibraryController extends GetxController
     );
   }
 
-  // =======================
-  // OPEN FILTER POPUP
-  // (Only for ALL TAB)
-  // =======================
-
   void openFilterSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -560,19 +520,14 @@ class LibraryController extends GetxController
       backgroundColor: Colors.transparent,
       builder: (_) {
         return FilterPopup(
-          // Dinamik seçenekler
           topics: dynamicTopics,
           difficulties: Difficulty.values,
           statuses: Status.values,
           questionTypes: QuestionType.values,
-
-          // Mevcut seçimler
           selectedTopics: selectedTopics,
           selectedDifficulties: selectedDifficulties,
           selectedQuestionTypes: selectedQuestionTypes,
           selectedStatus: selectedStatus.value,
-
-          // Kullanıcı Apply diyince controller’daki değerlere yaz
           onApply: ({
             required List<String> topics,
             required List<Difficulty> difficulties,
@@ -603,35 +558,12 @@ class LibraryController extends GetxController
   // ============================================================
   List<Question> filterQuestions(List<Question> raw) {
     final q = searchQuery.value.trim().toLowerCase();
-
     return raw.where((item) {
-      // Search filter
-      if (q.isNotEmpty && !item.title.toLowerCase().contains(q)) {
-        return false;
-      }
-
-      // Topic filter
-      if (selectedTopics.isNotEmpty && !selectedTopics.contains(item.topic)) {
-        return false;
-      }
-
-      // Difficulty filter
-      if (selectedDifficulties.isNotEmpty &&
-          !selectedDifficulties.contains(item.difficulty)) {
-        return false;
-      }
-
-      // Question type filter
-      if (selectedQuestionTypes.isNotEmpty &&
-          !selectedQuestionTypes.contains(item.type)) {
-        return false;
-      }
-
-      // Status filter
-      if (selectedStatus.value != null && item.status != selectedStatus.value) {
-        return false;
-      }
-
+      if (q.isNotEmpty && !item.title.toLowerCase().contains(q)) return false;
+      if (selectedTopics.isNotEmpty && !selectedTopics.contains(item.topic)) return false;
+      if (selectedDifficulties.isNotEmpty && !selectedDifficulties.contains(item.difficulty)) return false;
+      if (selectedQuestionTypes.isNotEmpty && !selectedQuestionTypes.contains(item.type)) return false;
+      if (selectedStatus.value != null && item.status != selectedStatus.value) return false;
       return true;
     }).toList();
   }
@@ -639,7 +571,6 @@ class LibraryController extends GetxController
   List<TrainingModule> filterModules(List<TrainingModule> all) {
     final q = searchQuery.value.trim().toLowerCase();
     if (q.isEmpty) return all;
-
     return all.where((m) {
       return m.title.toLowerCase().contains(q) ||
           m.subtitle.toLowerCase().contains(q);
@@ -667,11 +598,9 @@ class LibraryController extends GetxController
   // ============================================================
   Future<void> openQuestionOptions(Question q) async {
     final qId = q.id;
-
     final isSaved = await LibraryService.instance.isSavedOnce(qId);
 
     if (isSaved) {
-      // Already saved → Show menu
       await Get.bottomSheet(
         SafeArea(
           child: Column(
@@ -703,7 +632,6 @@ class LibraryController extends GetxController
         ),
       );
     } else {
-      // Not saved → Directly open collection picker
       await Get.bottomSheet(
         SafeArea(
           child: SaveQuestionToCollectionSheet(questionId: qId),
@@ -728,98 +656,43 @@ class LibraryController extends GetxController
       startIndex: startIndex,
       source: QuestionSourceContext(
         kind: QuestionSourceKind.collection,
-        label: collectionName != null
-            ? 'Collection: $collectionName'
-            : 'Collection',
+        label: collectionName != null ? 'Collection: $collectionName' : 'Collection',
         refId: collectionId,
       ),
     );
-
     Get.to(() => QuestionRunnerPage(feed: feed));
   }
 
-  // Yeni navigasyon fonksiyonu:
-  void navigateToModuleDetail(TrainingModule module) {
-    // GetX kullanıldığı varsayılarak Get.to kullanılır.
-    // 'TrainingModuleDetailPage' import etmeyi unutmayın.
-    // Eğer zaten PracticeController başka bir yerde (örneğin PracticePage'de) Get.put ile eklenmişse ve silinmemişse, Get onu tekrar eklemeyecektir.
-// Silinmişse (ki LibraryPage'den açarken muhtemelen silinmiştir), tekrar eklenir.
-// Bu, Module Detail Page'in çalışması için gereken Controller'ı garanti eder.
-    if (Get.isRegistered<PracticeController>() == false) {
-      Get.put(PracticeController());
+  // ============================================================
+  // 🔥 NAVIGATE TO MODULE DETAIL (PracticeController Logic)
+  // ============================================================
+  void navigateToModuleDetail(TrainingModule module) async {
+    // 1. PracticeController'a eriş (Yoksa yarat)
+    PracticeController practiceController;
+    
+    if (Get.isRegistered<PracticeController>()) {
+      practiceController = Get.find<PracticeController>();
+    } else {
+      practiceController = Get.put(PracticeController());
     }
 
-    Get.to(() => TrainingModuleDetailPage(module: module));
+    // 2. Eğer PracticeController'ın verisi henüz yüklenmediyse bekle
+    // (Practice sayfası hiç açılmadıysa boş olabilir)
+    if (practiceController.sectionsByModule.isEmpty) {
+      // Veriyi yükle
+      await practiceController.loadTrainingModulesFromFirestore();
+      await practiceController.loadQuestionsFromFirebase();
+    }
+
+    // 3. Modüle ait section ve referansları PracticeController hafızasından çek
+    final sections = practiceController.sectionsByModule[module.id] ?? [];
+    final refs = practiceController.refsByModule[module.id] ?? [];
+
+    // 4. Detay sayfasına dolu paketle git
+    Get.to(() => TrainingModuleDetailPage(
+      module: module,
+      sections: sections,      // 🔥 ARTIK DOLU GİDECEK
+      questionRefs: refs,      // 🔥 ARTIK DOLU GİDECEK
+    ));
   }
 }
-
-// ============================================================
-// 🧪 TEMP: Dummy training modules
-// ============================================================
-final List<TrainingModule> dummyModules = [
-  TrainingModule(
-    id: 'module_algorithms',
-    title: 'Algorithms Basics',
-    subtitle: 'Learn core algorithm concepts step-by-step',
-    description:
-        'This module introduces fundamental algorithm concepts including time complexity, searching, sorting and problem-solving strategies.',
-    format: TrainingModuleFormat.crashCourse,
-    coverImageUrl: null,
-    totalQuestions: 20,
-    estimatedMinutes: 45,
-    isFeatured: true,
-    sortOrder: 1,
-  ),
-  TrainingModule(
-    id: 'module_data_structures',
-    title: 'Data Structures Mastery',
-    subtitle: 'Arrays, Linked Lists, Trees, Graphs & more',
-    description:
-        'Deep dive into essential data structures. Perfect for strengthening coding interview performance.',
-    format: TrainingModuleFormat.interviewPrep,
-    coverImageUrl: null,
-    totalQuestions: 30,
-    estimatedMinutes: 60,
-    isFeatured: false,
-    sortOrder: 2,
-  ),
-  TrainingModule(
-    id: 'module_system_design',
-    title: 'System Design Intro',
-    subtitle: 'Understand basic high-level architecture',
-    description:
-        'System design for beginners. Learn how to design scalable applications with real-world interview examples.',
-    format: TrainingModuleFormat.challenge,
-    coverImageUrl: null,
-    totalQuestions: 15,
-    estimatedMinutes: 50,
-    isFeatured: false,
-    sortOrder: 3,
-  ),
-  TrainingModule(
-    id: 'module_sql_crash',
-    title: 'SQL Crash Course',
-    subtitle: 'Master SQL queries fast',
-    description:
-        'A short and intensive path for learning SQL SELECT, JOIN, GROUP BY, aggregate functions and real interview tasks.',
-    format: TrainingModuleFormat.crashCourse,
-    coverImageUrl: null,
-    totalQuestions: 18,
-    estimatedMinutes: 40,
-    isFeatured: true,
-    sortOrder: 4,
-  ),
-  TrainingModule(
-    id: 'module_js_30day',
-    title: '30 Days JavaScript Challenge',
-    subtitle: 'Daily JS tasks to build strong fundamentals',
-    description:
-        'A 30-day JavaScript challenge to make you comfortable with loops, functions, DOM, promises, async/await and more.',
-    format: TrainingModuleFormat.challenge,
-    coverImageUrl: null,
-    totalQuestions: 30,
-    estimatedMinutes: 120,
-    isFeatured: false,
-    sortOrder: 5,
-  ),
-];

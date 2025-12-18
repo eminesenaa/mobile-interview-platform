@@ -76,6 +76,9 @@ class PracticePage extends StatelessWidget {
                         itemCount: modules.length,
                         itemBuilder: (context, index) {
                           final module = modules[index];
+                          
+                          final userProgress = controller.userProgressMap[module.id];
+                          final progressValue = userProgress?.progress ?? 0.0;
 
                           return Padding(
                             padding: const EdgeInsets.symmetric(
@@ -84,9 +87,7 @@ class PracticePage extends StatelessWidget {
                             ),
                             child: TrainingModuleCard(
                               module: module,
-                              progress:
-                                  controller.moduleProgressById[module.id] ??
-                                      0.0,
+                              progress: progressValue, 
                               onTap: () {
                                 final sections =
                                     controller.sectionsByModule[module.id] ??
@@ -212,6 +213,7 @@ class PracticePage extends StatelessWidget {
                     AppSpacing.md,
                     bottomInset,
                   ),
+                  // DÜZELTME BURADA: slivers -> sliver
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {

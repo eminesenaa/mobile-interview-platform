@@ -1,14 +1,27 @@
+// ===================== File: lib/pages/practice/controllers/practice_controller.dart =====================
+
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+// Modeller
 import '../../../models/question.dart';
 import '../../../models/training_module.dart';
 import '../../../models/training_section.dart';
 import '../../../models/training_module_question_ref.dart';
+import '../../../models/user_training_progress.dart';
+
+// Servisler
+import '../../practice/services/training_progress_service.dart';
 
 class PracticeController extends GetxController {
+  // =========================
+  // SERVICES
+  // =========================
+  final TrainingProgressService _progressService = TrainingProgressService();
+
   // =========================
   // QUESTION POOL
   // =========================
@@ -22,6 +35,25 @@ class PracticeController extends GetxController {
       <String, List<TrainingSection>>{}.obs;
   final RxMap<String, List<TrainingModuleQuestionRef>> refsByModule =
       <String, List<TrainingModuleQuestionRef>>{}.obs;
+
+  // =========================
+  // TRAINING PROGRESS STATE
+  // =========================
+  
+  /// Modül ID'sine göre kullanıcının ilerlemesi (Progress Bar için)
+  final RxMap<String, UserTrainingModuleProgress> userProgressMap =
+      <String, UserTrainingModuleProgress>{}.obs;
+
+  /// Modül ID -> Çözülen Soru ID'leri Seti (UI'da tik işareti ve Start/Continue hesabı için)
+  final RxMap<String, Set<String>> completedQuestionIdsByModule =
+      <String, Set<String>>{}.obs;
+
+  /// Library sekmesi için "Başlanmış Modüller" listesi
+  List<TrainingModule> get startedModules {
+    return trainingModules
+        .where((m) => userProgressMap.containsKey(m.id))
+        .toList();
+  }
 
   // =========================
   // PRACTICE FILTER STATE
@@ -45,14 +77,9 @@ class PracticeController extends GetxController {
   final RxInt shuffleSeed = DateTime.now().millisecondsSinceEpoch.obs;
 
   // =========================
-  // USER STATE
+  // USER STATE (GLOBAL PRACTICE)
   // =========================
   final RxSet<String> solvedQuestionIds = <String>{}.obs;
-
-  // =========================
-  // UI COMPAT (PROGRESS PLACEHOLDER)
-  // =========================
-  final RxMap<String, double> moduleProgressById = <String, double>{}.obs;
 
   // =========================
   // INIT
@@ -63,10 +90,13 @@ class PracticeController extends GetxController {
     loadQuestionsFromFirebase();
     loadTrainingModulesFromFirestore();
     loadSolvedQuestionsForUser();
+    
+    // Yeni eklenen progress yükleme işlemi
+    _loadUserProgress(); 
   }
 
   // =========================
-  // FILTERED QUESTIONS
+  // FILTERED QUESTIONS LOGIC
   // =========================
   List<Question> get filteredQuestions {
     var list = allQuestions.toList();
@@ -167,7 +197,7 @@ class PracticeController extends GetxController {
   }
 
   // =========================
-  // FIREBASE LOADERS
+  // FIREBASE LOADERS (CORE)
   // =========================
   Future<void> loadQuestionsFromFirebase() async {
     final snap = await FirebaseFirestore.instance.collection('questions').get();
@@ -188,9 +218,6 @@ class PracticeController extends GetxController {
         .map((d) => TrainingModule.fromFirestore(d.data(), d.id))
         .toList();
     trainingModules.assignAll(modules);
-
-    final snap = await db.collection('modules').get();
-    print('🔥 MODULE COUNT: ${snap.docs.length}');
 
     for (final module in modules) {
       final sectionSnap = await db
@@ -224,11 +251,7 @@ class PracticeController extends GetxController {
           ),
         );
       }
-
       refsByModule[module.id] = allRefs;
-
-      // geçici progress placeholder
-      moduleProgressById[module.id] = 0.0;
     }
   }
 
@@ -245,6 +268,91 @@ class PracticeController extends GetxController {
     solvedQuestionIds
       ..clear()
       ..addAll(snap.docs.map((d) => d.id));
+  }
+
+  // =========================
+  // TRAINING PROGRESS LOGIC
+  // =========================
+  
+  /// Kullanıcının modül ilerlemelerini çeker ve state'i doldurur.
+  Future<void> _loadUserProgress() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid; 
+    if (userId == null) return;
+
+    try {
+      final progressList = await _progressService.getAllProgressForUser(userId);
+
+      // Map'leri doldur
+      for (var p in progressList) {
+        userProgressMap[p.moduleId] = p;
+        
+        // Eğer detaylı soru listesini de çekiyorsak buraya ekleyebiliriz
+        // Şimdilik sadece modül bazlı genel ilerlemeyi alıyoruz
+        // Soru bazlı tikler için 'completedQuestionIdsByModule' zaten UI tarafında
+        // detay sayfasına girince dolacak veya ayrıca bir servis çağrısı yapılabilir.
+        // Ancak TrainingProgressService şu an sadece summary dönüyor olabilir.
+        // Detaylar için o servisin içindeki 'questions' array'ini de parse etmek gerekebilir.
+        // Şimdilik basit tutuyoruz.
+      }
+      update(); // GetX update
+    } catch (e) {
+      debugPrint("Error loading user progress: $e");
+    }
+  }
+
+  /// Bir soru çözüldüğünde çağrılır (Training Mode)
+  Future<void> markModuleQuestionCompleted(String moduleId, String questionId) async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    // 1. Modülü bul (Total question sayısı için)
+    final module = trainingModules.firstWhereOrNull((m) => m.id == moduleId);
+    if (module == null) return;
+
+    // 2. Servise yaz
+    await _progressService.markQuestionSolved(
+      userId: userId,
+      moduleId: moduleId,
+      questionId: questionId,
+      totalQuestionsInModule: module.totalQuestions,
+    );
+
+    // 3. Local state'i güncelle (Tekrar fetch yapmamak için)
+    // Progress Map güncelle
+    final currentProgress = userProgressMap[moduleId] ??
+        UserTrainingModuleProgress(
+            userId: userId,
+            moduleId: moduleId,
+            completedQuestions: 0,
+            totalQuestions: module.totalQuestions,
+            // 🔥 DÜZELTME: lastUpdated zorunlu alan olduğu için eklendi.
+            lastUpdated: DateTime.now(),
+            isCompleted: false, 
+        );
+
+    // Eğer bu soru zaten çözülmemişse sayacı artır
+    final currentSet = completedQuestionIdsByModule[moduleId] ?? {};
+    if (!currentSet.contains(questionId)) {
+      currentSet.add(questionId);
+      completedQuestionIdsByModule[moduleId] = currentSet;
+
+      final newCompletedCount = currentProgress.completedQuestions + 1;
+      
+      userProgressMap[moduleId] = currentProgress.copyWith(
+          completedQuestions: newCompletedCount,
+          // 🔥 DÜZELTME: lastUpdated ve isCompleted güncellendi
+          lastUpdated: DateTime.now(),
+          isCompleted: newCompletedCount >= module.totalQuestions,
+      );
+    }
+
+    update();
+    debugPrint('[Training Progress] Updated locally: $moduleId -> $questionId');
+  }
+
+  /// UI Helper: Bir soru çözüldü mü? (Training Mode)
+  bool isQuestionCompleted(String moduleId, String questionId) {
+    return completedQuestionIdsByModule[moduleId]?.contains(questionId) ?? false;
   }
 }
 
