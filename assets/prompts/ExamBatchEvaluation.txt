@@ -37,73 +37,69 @@ If meta["Question Format"] == "MCQ":
 • reason:
 – correct → "Correct choice."
 – incorrect → "The correct answer was explained by: <brief reason>."
-
 ──────────────────────────────────────────
-FILL-IN-THE-BLANK (N = 1)
+FILL-IN-THE-BLANK — ULTRA COMPACT STRICT SPEC
 ──────────────────────────────────────────
-• Exact or alias match → score=5, correct=true.
-• Otherwise → score=0, correct=false.
-• expected MUST start with: "Correct Answer: [\"<correct_value>\"]".
-
-• reason rules for single-blank items:
-  1) If the answer is correct (after trimming):
-        "Correct answer."
-
-  2) If the user left the blank EMPTY (after trimming):
-        "Missing. The correct answer is \"<correct_value>\"."
-
-  3) If the user entered a NON-EMPTY but WRONG value:
-        "Incorrect. The correct answer is \"<correct_value>\"."
-
-Single-blank items MUST NOT use multi-blank reasoning format (“Per-blank:” etc.).
-Those formats are ONLY for multi-blank (N > 1).
-
+GENERAL
+Applies to all fill-in-the-blank questions.
 ──────────────────────────────────────────
-FILL-IN-THE-BLANK (N > 1) — STRICT RULES
+MANDATORY NORMALIZATION
 ──────────────────────────────────────────
-Determine the exact number of blanks (N).
-N MUST equal the number of correct values in the expected list.
+Before any evaluation, the model MUST for every answer:
+• trim whitespace
+• convert to lowercase
 
-• Let K = number of blanks marked “correct”.
-• score = round((K / N) * 5, 1).
-• correct = true only if K == N.
-• expected MUST begin with: "Correct Answer: [\"v1\", \"v2\", ...]".
+The normalized value MUST be used everywhere (<user_value> included).
+If normalization is skipped or wrong → evaluation is invalid.
+──────────────────────────────────────────
+SINGLE BLANK (N = 1 — SPECIAL RULE)
+──────────────────────────────────────────
+If the single blank is correct:
+Correct answer.
+If the single blank is incorrect:
+The correct answer is "<correct_value>". <short_reason>.
+Strict rules for SINGLE BLANK:
+• Do NOT use “You filled K out of N blanks correctly.”
+• Do NOT use per-blank lists
+• Output must be short and direct
+• <correct_value> must be shown exactly
+• <short_reason> must be a brief explanation of the mistake
+──────────────────────────────────────────
+EVALUATION (MANDATORY ORDER)
+──────────────────────────────────────────
+Let N = number of blanks.
+Normalize all answers
+Assign each blank a status: correct or incorrect
+Compute K = number of “correct” blanks
+score = round((K / N) × 5, 1)
+"correct" = true only if K == N, otherwise false
+No guessing, no reordering, no early reasoning.
+──────────────────────────────────────────
+STATUS RULE
+──────────────────────────────────────────
+For blank i with expected <correct_value_i>:
+• Match (or alias) → correct
+• Otherwise → incorrect (should be: "<correct_value_i>", because <short_reason>)
+──────────────────────────────────────────
+REASON RULE (MULTI-BLANK ONLY)
+──────────────────────────────────────────
+This section applies only when N > 1.
+If K == N (ALL correct):
+You filled K out of N blanks correctly.
+(Exactly one sentence. Nothing else.)
 
-The "reason" MUST ALWAYS follow this exact template:
-
-"You filled K out of N blanks correctly. Per-blank:
-1- <user_value> — <status>,
-2- <user_value> — <status>,
+If K < N (ANY incorrect):
+You filled K out of N blanks correctly. Per-blank:
+1- <user_value> — <status>
+2- <user_value> — <status>
 ...
-N- <user_value> — <status>."
-
-STRICT FORMAT REQUIREMENTS:
-• EXACTLY N lines must appear.
-• Lines MUST be numbered from 1 to N in order.
-• NO lines may be skipped or added.
-• K MUST match the count of lines whose status = "correct".
-• ABSOLUTELY NO free-form explanations (e.g., “the rest are incorrect”) are allowed.
-
+N- <user_value> — <status>
+Strict:
+• Exactly N lines
+• <user_value> = normalized input
+• K must equal number of “correct” statuses
+• No extra text
 ──────────────────────────────────────────
-STATUS RULES FOR EACH BLANK
-──────────────────────────────────────────
-For each blank i:
-
-1. Trim user answer for blank i.
-
-2. If EMPTY after trimming:
-   • <user_value> MUST be empty (leave nothing between "i- " and " —").
-   • <status> = "missing (should be: \"<correct_value_i>\")".
-   • NEVER put the correct value in <user_value> when missing.
-
-3. If NON-EMPTY and matches correct_value_i (or alias):
-   • <user_value> = exactly what the user wrote (after trimming).
-   • <status> = "correct".
-
-4. If NON-EMPTY and does NOT match correct_value_i:
-   • <user_value> = exactly what the user wrote.
-   • <status> = "incorrect (should be: \"<correct_value_i>\")".
-
 ──────────────────────────────────────────
 SHORT ANSWER EVALUATION
 ──────────────────────────────────────────
@@ -155,4 +151,5 @@ FEEDBACK & OUTPUT CONSTRAINTS
 ──────────────────────────────────────────
 FAILSAFE
 ──────────────────────────────────────────
+
 If any rule cannot be satisfied, or if the batch input cannot be parsed, output [].
