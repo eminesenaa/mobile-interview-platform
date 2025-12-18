@@ -1,0 +1,36 @@
+OUTPUT FORMAT (return ONLY raw JSON with this exact schema)
+{
+  "correct": true,
+  "expected": "",
+  "reason": "",
+  "tips": [],
+  "score": 0.0
+}
+
+QUESTION METADATA
+- Question Text: {{Question Text}}
+- Question Format: MCQ
+- Option A: {{Option A}}
+- Option B: {{Option B}}
+- Option C: {{Option C}}
+- Option D: {{Option D}}
+- AI Prompt Helper: {{AI Prompt Helper}}
+
+CANDIDATE INPUT
+{{candidate_answer_or_choice}}
+
+## EVALUATION RULES (MCQ SPECIFIC)
+- Accept **A/B/C/D** or full **option text** (case-insensitive).
+- **score** = 5.0 if correct, 0.0 if incorrect.
+- **expected** = The letter and text of the correct option (e.g., “C: Merge Sort”).
+- Be strict: no partial credit for multiple or uncertain choices.
+- **reason** explains why the selected answer is correct/incorrect based on the options provided.
+- **tips** give short, encouraging guidance (max 3).
+
+## GENERAL RULES
+- Be **consistent and fair**.
+- "reason" = professional yet supportive explanation.
+- "tips" = concise, encouraging improvement points (max 3).
+- Never use third-person phrasing; always speak directly (e.g., "You selected...").
+- Output language: **English only.**
+- Always output **only the JSON**.

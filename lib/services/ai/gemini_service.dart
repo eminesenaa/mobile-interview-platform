@@ -25,14 +25,29 @@ class GeminiService {
   }
 
   // -------------------- Prompt yükleme (OpenAI ile aynı dosyalar) --------------------
-  Future<String> _loadPromptTemplate(PromptType type) async {
+  static Future<String> _loadPromptTemplate(PromptType type) async {
     switch (type) {
       case PromptType.training:
-        return await rootBundle.loadString('assets/prompts/TrainingAnalysis.txt');
+        return await rootBundle
+            .loadString('assets/prompts/TrainingAnalysis.txt');
       case PromptType.interview:
-        return await rootBundle.loadString('assets/prompts/InterviewAnalysis.txt');
+        return await rootBundle
+            .loadString('assets/prompts/InterviewAnalysis.txt');
       case PromptType.detailedTraining:
-        return await rootBundle.loadString('assets/prompts/TrainingDetailedAnalysis.txt');
+        return await rootBundle
+            .loadString('assets/prompts/TrainingDetailedAnalysis.txt');
+      case PromptType.mcq:
+        return await rootBundle
+            .loadString('assets/prompts/MultipleChoiceQuestionTraining.txt');
+      case PromptType.fillBlanks:
+        return await rootBundle
+            .loadString('assets/prompts/FillInTheBlanksTraining.txt');
+      case PromptType.shortAnswer:
+        return await rootBundle
+            .loadString('assets/prompts/ShortAnswerTraining.txt');
+      case PromptType.codeWriting:
+        return await rootBundle
+            .loadString('assets/prompts/CodeWritingTraining.txt');
     }
   }
 
@@ -109,6 +124,14 @@ class GeminiService {
           return GradeResultMapper.fromInterview(obj);
         case PromptType.detailedTraining:
           return GradeResultMapper.fromDetailedTraining(obj);
+        case PromptType.mcq:
+          return GradeResultMapper.fromTraining(obj);
+        case PromptType.fillBlanks:
+          return GradeResultMapper.fromTraining(obj);
+        case PromptType.shortAnswer:
+          return GradeResultMapper.fromTraining(obj);
+        case PromptType.codeWriting:
+          return GradeResultMapper.fromTraining(obj);
       }
     } catch (e) {
       // --- QUOTA/TOKEN BITTI MI? ---

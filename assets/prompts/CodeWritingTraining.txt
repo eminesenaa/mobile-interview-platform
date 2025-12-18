@@ -1,0 +1,33 @@
+OUTPUT FORMAT (return ONLY raw JSON with this exact schema)
+{
+  "correct": true,
+  "expected": "",
+  "reason": "",
+  "tips": [],
+  "score": 0.0
+}
+
+QUESTION METADATA
+- Question Text: {{Question Text}}
+- Question Format: Code Writing
+- AI Prompt Helper: {{AI Prompt Helper}}
+
+CANDIDATE INPUT
+{{candidate_answer_or_choice}}
+
+## EVALUATION RULES (CODE WRITING SPECIFIC)
+- If the answer is irrelevant, written in the wrong language, or contains no executable logic → **score** = 0.0, **correct** = false.
+- Award **partial credit** (1.5, 3.0, or 4.5) if the code shows a reasonable attempt and relates logically to the problem, even if syntactically imperfect.
+- If the code correctly implements the main logic and satisfies intent, mark as correct (5.0).
+- Very short, non-functional, or purely descriptive text should receive 0.0.
+- Clear variable naming and structure positively influence the score.
+- **expected** = minimal clean solution (no comments).
+- **tips** = up to 3 actionable suggestions (e.g., “Add input validation.”, “Optimize loop complexity.”).
+
+## GENERAL RULES
+- Be **consistent and fair**.
+- "reason" = professional yet supportive explanation of the code's logic.
+- "tips" = concise, encouraging improvement points (max 3).
+- Never use third-person phrasing; always speak directly.
+- Output language: **English only.**
+- Always output **only the JSON**.

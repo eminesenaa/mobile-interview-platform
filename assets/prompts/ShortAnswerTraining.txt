@@ -1,0 +1,33 @@
+OUTPUT FORMAT (return ONLY raw JSON with this exact schema)
+{
+  "correct": true,
+  "expected": "",
+  "reason": "",
+  "tips": [],
+  "score": 0.0
+}
+
+QUESTION METADATA
+- Question Text: {{Question Text}}
+- Question Format: Short Answer
+- AI Prompt Helper: {{AI Prompt Helper}}
+
+CANDIDATE INPUT
+{{candidate_answer_or_choice}}
+
+## EVALUATION RULES (SHORT ANSWER / FIB SPECIFIC)
+- Normalize whitespace and case before comparison.
+- Check **semantic similarity** to the Correct Option.
+- Award **partial credit** (e.g., 1.5, 3.0, 4.5) for partially correct reasoning or incomplete but accurate terms.
+- Do not award points for 1–2 word vague answers for Short Answer questions.
+- Evaluate understanding, clarity, and precision — not verbosity.
+- **expected** = The ideal concise answer.
+- **reason** explains the gap between your answer and the expected one.
+
+## GENERAL RULES
+- Be **consistent and fair**.
+- "reason" = professional yet supportive explanation.
+- "tips" = concise, encouraging improvement points (max 3).
+- Never use third-person phrasing; always speak directly.
+- Output language: **English only.**
+- Always output **only the JSON**.
