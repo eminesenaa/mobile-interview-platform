@@ -192,8 +192,8 @@ class OpenAIService {
       ],
     };
 
-    //print("body:");
-    //debugPrint(body.toString(), wrapWidth: 10000);
+    print("body:");
+    debugPrint(body.toString(), wrapWidth: 10000);
 
     final resp = await _post(body, timeout: timeout);
 

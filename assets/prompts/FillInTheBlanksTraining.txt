@@ -7,27 +7,66 @@ OUTPUT FORMAT (return ONLY raw JSON with this exact schema)
   "score": 0.0
 }
 
-QUESTION METADATA
-- Question Text: {{Question Text}}
-- Question Format: Fill in Blank
-- AI Prompt Helper: {{AI Prompt Helper}}
+QUESTION DATA:
+Question Text: {{Question Text}}
+Question Format: Fill in Blanks
+Helper: {{AI Prompt Helper}}
+Tags: {{Tags}}
 
-CANDIDATE INPUT
+CANDIDATE INPUT(s)
 {{candidate_answer_or_choice}}
 
-## EVALUATION RULES (SHORT ANSWER / FIB SPECIFIC)
-- Normalize whitespace and case before comparison.
-- Check **semantic similarity** to the Correct Option.
-- Award **partial credit** (e.g., 1.5, 3.0, 4.5) for partially correct reasoning or incomplete but accurate terms.
-- Do not award points for 1–2 word vague answers for Short Answer questions.
-- Evaluate understanding, clarity, and precision — not verbosity.
-- **expected** = The ideal concise answer.
-- **reason** explains the gap between your answer and the expected one.
+EVALUATION RULES
+BLANKS ARE DENOTED BY THREE UNDERSCORES "___"
 
-## GENERAL RULES
-- Be **consistent and fair**.
-- "reason" = professional yet supportive explanation.
-- "tips" = concise, encouraging improvement points (max 3).
-- Never use third-person phrasing; always speak directly.
-- Output language: **English only.**
-- Always output **only the JSON**.
+If the single blank is correct:
+Correct answer.
+If the single blank is incorrect:
+The correct answer is "expected". "reason".
+Strict rules for SINGLE BLANK:
+• Do NOT use “You filled K out of N blanks correctly.”
+• Do NOT use per-blank lists
+• Output must be short and direct
+• "expected" must be shown exactly
+• "reason" must be a brief explanation of the mistake
+
+Let N = number of blanks.
+Normalize all answers
+Assign each blank a status: correct or incorrect
+Compute K = number of “correct” blanks
+score = round((K / N) × 5, 1)
+"correct" = true only if K == N, otherwise false
+No guessing, no reordering, no early reasoning.
+
+For blank i with expected <correct_value_i>:
+Match (or alias) → correct
+Otherwise → incorrect (should be: "<correct_value_i>", because <short_reason>)
+
+This section applies only when N > 1.
+If K == N (ALL correct):
+You filled K out of N blanks correctly.
+(Exactly one sentence. Nothing else.)
+
+If K < N (ANY incorrect):
+You filled K out of N blanks correctly.
+1- <user_value> — <status>
+2- <user_value> — <status>
+...
+N- <user_value> — <status>
+
+Strict:
+Exactly N lines
+<user_value> = normalized input
+K must equal number of “correct” statuses
+No extra text
+
+GENERAL RULES
+Maintain a professional, supportive, and neutral tone.
+"score" = float between 0.0 and 5.0
+"expected" = the perfect answer that would get 5.0 score. Try to infer the expected answer from the Helper or the Tags
+"reason" = professional yet supportive explanation.
+"tips" = concise, encouraging improvement points (max 3).
+Never use third-person phrasing; always speak directly.
+Feedback must be concise, instructional, and minimal.
+Never output markdown, decorative symbols, or explanations outside the JSON array.
+Output must strictly be: a JSON array of objects with the required keys. Failsafe must be []

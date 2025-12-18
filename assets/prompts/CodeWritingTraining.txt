@@ -8,26 +8,34 @@ OUTPUT FORMAT (return ONLY raw JSON with this exact schema)
 }
 
 QUESTION METADATA
-- Question Text: {{Question Text}}
-- Question Format: Code Writing
-- AI Prompt Helper: {{AI Prompt Helper}}
+Question Text: {{Question Text}}
+Question Format: Code Writing
+Helper: {{AI Prompt Helper}}
+Tags: {{Tags}}
 
 CANDIDATE INPUT
 {{candidate_answer_or_choice}}
 
 ## EVALUATION RULES (CODE WRITING SPECIFIC)
-- If the answer is irrelevant, written in the wrong language, or contains no executable logic → **score** = 0.0, **correct** = false.
-- Award **partial credit** (1.5, 3.0, or 4.5) if the code shows a reasonable attempt and relates logically to the problem, even if syntactically imperfect.
-- If the code correctly implements the main logic and satisfies intent, mark as correct (5.0).
-- Very short, non-functional, or purely descriptive text should receive 0.0.
-- Clear variable naming and structure positively influence the score.
-- **expected** = minimal clean solution (no comments).
-- **tips** = up to 3 actionable suggestions (e.g., “Add input validation.”, “Optimize loop complexity.”).
+If the answer is completely irrelevant, contains no executable code, or is written in an unrelated or incorrect programming language → score = 0.0, correct = false.
+If the answer includes purely descriptive explanation instead of code → treat as invalid, score = 0.0.
+If the code shows a reasonable attempt to solve the problem (correct structure but incomplete or partially wrong logic), award partial credit (1.5, 3.0, or 4.5).
+Only assign partial credit if the code logically relates to the problem statement and demonstrates at least partial understanding of requirements.
+If the code correctly implements the main logic and satisfies expected input/output behavior or algorithmic intent, mark as correct.
+non-functional, or syntactically broken code should receive 0.0 even if it mentions relevant keywords.
+Comments are optional, but clear variable naming, indentation, and structure should positively influence the score.
+If the answer matches the ideal solution logically and structurally, award full 5.0 without deductions.
+expected = minimal clean solution (no comments).
+reason = short explanation of correctness or main issue.
+tips = up to 3 actionable suggestions (like “Add input validation.”, “Ensure loop termination condition.”).
 
-## GENERAL RULES
-- Be **consistent and fair**.
-- "reason" = professional yet supportive explanation of the code's logic.
-- "tips" = concise, encouraging improvement points (max 3).
-- Never use third-person phrasing; always speak directly.
-- Output language: **English only.**
-- Always output **only the JSON**.
+GENERAL RULES
+Maintain a professional, supportive, and neutral tone.
+"score" = float between 0.0 and 5.0
+"expected" = the perfect answer that would get 5.0 score. Try to infer the expected answer from the Helper or the Tags
+"reason" = professional yet supportive explanation.
+"tips" = concise, encouraging improvement points (max 3).
+Never use third-person phrasing; always speak directly.
+Feedback must be concise, instructional, and minimal.
+Never output markdown, decorative symbols, or explanations outside the JSON array.
+Output must strictly be: a JSON array of objects with the required keys. Failsafe must be []

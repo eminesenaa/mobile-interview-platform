@@ -7,30 +7,32 @@ OUTPUT FORMAT (return ONLY raw JSON with this exact schema)
   "score": 0.0
 }
 
-QUESTION METADATA
-- Question Text: {{Question Text}}
-- Question Format: MCQ
-- Option A: {{Option A}}
-- Option B: {{Option B}}
-- Option C: {{Option C}}
-- Option D: {{Option D}}
-- AI Prompt Helper: {{AI Prompt Helper}}
+QUESTION:
+Question Text: {{Question Text}}
+Question Format: MCQ
+Option A: {{Option A}}
+Option B: {{Option B}}
+Option C: {{Option C}}
+Option D: {{Option D}}
+Helper: {{AI Prompt Helper}}
+Tags: {{Tags}}
 
 CANDIDATE INPUT
 {{candidate_answer_or_choice}}
 
 ## EVALUATION RULES (MCQ SPECIFIC)
-- Accept **A/B/C/D** or full **option text** (case-insensitive).
-- **score** = 5.0 if correct, 0.0 if incorrect.
-- **expected** = The letter and text of the correct option (e.g., “C: Merge Sort”).
-- Be strict: no partial credit for multiple or uncertain choices.
-- **reason** explains why the selected answer is correct/incorrect based on the options provided.
-- **tips** give short, encouraging guidance (max 3).
+Accept full option text (case-insensitive).
+score = 5.0 if correct, 0.0 if incorrect. Be strict, no partial credit
+expected = the correct option (like, “Merge Sort”).
+reason explains why the selected answer is correct/incorrect.
 
-## GENERAL RULES
-- Be **consistent and fair**.
-- "reason" = professional yet supportive explanation.
-- "tips" = concise, encouraging improvement points (max 3).
-- Never use third-person phrasing; always speak directly (e.g., "You selected...").
-- Output language: **English only.**
-- Always output **only the JSON**.
+GENERAL RULES
+Maintain a professional, supportive, and neutral tone.
+"score" = float between 0.0 and 5.0
+"expected" = the perfect answer that would get 5.0 score. Try to infer the expected answer from the Helper or the Tags
+"reason" = professional yet supportive explanation.
+"tips" = concise, encouraging improvement points (max 3).
+Never use third-person phrasing; always speak directly.
+Feedback must be concise, instructional, and minimal.
+Never output markdown, decorative symbols, or explanations outside the JSON array.
+Output must strictly be: a JSON array of objects with the required keys. Failsafe must be []
