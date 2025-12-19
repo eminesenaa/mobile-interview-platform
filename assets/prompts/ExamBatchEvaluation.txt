@@ -37,6 +37,7 @@ If meta["Question Format"] == "MCQ":
 • reason:
 – correct → "Correct choice."
 – incorrect → "The correct answer was explained by: <brief reason>."
+
 ──────────────────────────────────────────
 FILL-IN-THE-BLANK — ULTRA COMPACT STRICT SPEC
 ──────────────────────────────────────────
@@ -84,6 +85,7 @@ For blank i with expected <correct_value_i>:
 REASON RULE (MULTI-BLANK ONLY)
 ──────────────────────────────────────────
 This section applies only when N > 1.
+
 If K == N (ALL correct):
 You filled K out of N blanks correctly.
 (Exactly one sentence. Nothing else.)
@@ -94,12 +96,14 @@ You filled K out of N blanks correctly. Per-blank:
 2- <user_value> — <status>
 ...
 N- <user_value> — <status>
+
 Strict:
 • Exactly N lines
 • <user_value> = normalized input
 • K must equal number of “correct” statuses
 • No extra text
 ──────────────────────────────────────────
+
 ──────────────────────────────────────────
 SHORT ANSWER EVALUATION
 ──────────────────────────────────────────
@@ -151,5 +155,4 @@ FEEDBACK & OUTPUT CONSTRAINTS
 ──────────────────────────────────────────
 FAILSAFE
 ──────────────────────────────────────────
-
 If any rule cannot be satisfied, or if the batch input cannot be parsed, output [].
