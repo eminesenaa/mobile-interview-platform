@@ -1,139 +1,251 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:interview_project/services/firebase/auth_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:interview_project/pages/auth/login_page.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-class SignUpPage extends StatefulWidget {
+import '../../constants/constants.dart';
+import 'controllers/signup_controller.dart';
+import 'widgets/auth_header.dart';
+import 'widgets/auth_text_field.dart';
+import 'widgets/auth_primary_button.dart';
+import 'widgets/auth_divider.dart';
+import 'widgets/auth_social_buttons.dart';
+
+/// Signup Page
+/// - Same layout system as LoginPage
+/// - Header on top
+/// - Card pinned visually to bottom
+/// - Back button (Signup only)
+class SignUpPage extends StatelessWidget {
   const SignUpPage({super.key});
 
   @override
-  State<SignUpPage> createState() => _SignUpPageState();
-}
-
-class _SignUpPageState extends State<SignUpPage> {
-  final nameCtrl = TextEditingController();
-  final surnameCtrl = TextEditingController();
-  final usernameCtrl = TextEditingController();
-  final emailCtrl = TextEditingController();
-  final passwordCtrl = TextEditingController();
-
-  final authService = AuthService();
-  bool isLoading = false;
-
-  Future<void> _signUp() async {
-  setState(() => isLoading = true);
-
-  final email = emailCtrl.text.trim();
-  final password = passwordCtrl.text.trim();
-  final name = nameCtrl.text.trim();
-  final surname = surnameCtrl.text.trim();
-  final username = usernameCtrl.text.trim();
-
-  try {
-    final user = await authService.signUp(
-      email: email,
-      password: password,
-      username: username,
-      name: name,
-      surname: surname,
-    );
-
-    setState(() => isLoading = false);
-if (user == null) {
-  Get.snackbar("Error", "Sign Up failed.");
-} else {
-  Get.offAll(() => LoginPage()); // 🔹 direkt LoginPage’e gönder
-  Get.snackbar("Success", "Account created successfully! Please login.");
-}
-
-  } on FirebaseAuthException catch (e) {
-    setState(() => isLoading = false);
-
-    String msg;
-    if (e.code == "username-already-in-use") {
-      msg = "This username is already taken.";
-    } else if (e.code == "email-already-in-use") {
-      msg = "This email is already registered.";
-    } else if (e.code == "weak-password") {
-      msg = "Password is too weak (min 6 characters).";
-    } else {
-      msg = e.message ?? "Unknown error.";
-    }
-
-    Get.snackbar("Sign Up Error", msg,
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red.shade100,
-        colorText: Colors.black);
-  } catch (e) {
-    setState(() => isLoading = false);
-    Get.snackbar("Error", "Unexpected error: $e");
-  }
-}
-
-
-  @override
   Widget build(BuildContext context) {
+    final controller = Get.put(SignupController());
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Create Account")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Stack(
           children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(
-                labelText: "First Name",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
+            // =========================
+            // Main content
+            // =========================
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
+                    child: IntrinsicHeight(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.lg,
+                          vertical: AppSpacing.xl,
+                        ),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints:
+                            const BoxConstraints(maxWidth: 420),
+                            child: Column(
+                              crossAxisAlignment:
+                              CrossAxisAlignment.stretch,
+                              children: [
+                                // =========================
+                                // Header
+                                // =========================
+                                const AuthHeader(
+                                  title: "Create an account",
+                                  subtitle:
+                                  "Join MIPP and start practicing",
+                                  size: AuthHeaderSize.tiny,
+                                ),
 
-            TextField(
-              controller: surnameCtrl,
-              decoration: const InputDecoration(
-                labelText: "Last Name",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
+                                const SizedBox(height: AppSpacing.lg),
 
-            TextField(
-              controller: usernameCtrl,
-              decoration: const InputDecoration(
-                labelText: "Username",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
+                                const Spacer(),
 
-            TextField(
-              controller: emailCtrl,
-              decoration: const InputDecoration(
-                labelText: "Email",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
+                                // =========================
+                                // Signup Card
+                                // =========================
+                                Container(
+                                  padding: const EdgeInsets.all(
+                                      AppSpacing.lg),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surface,
+                                    borderRadius:
+                                    BorderRadius.circular(
+                                        AppRadius.lg),
+                                    boxShadow: AppShadows.medium,
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      AuthTextField(
+                                        controller:
+                                        controller.nameCtrl,
+                                        hint: "First name",
+                                        icon:
+                                        PhosphorIcons.user(),
+                                      ),
+                                      const SizedBox(
+                                          height: AppSpacing.md),
 
-            TextField(
-              controller: passwordCtrl,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: "Password",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 24),
+                                      AuthTextField(
+                                        controller:
+                                        controller.surnameCtrl,
+                                        hint: "Last name",
+                                        icon:
+                                        PhosphorIcons.user(),
+                                      ),
+                                      const SizedBox(
+                                          height: AppSpacing.md),
 
-            ElevatedButton(
-              onPressed: isLoading ? null : _signUp,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50),
+                                      AuthTextField(
+                                        controller:
+                                        controller.usernameCtrl,
+                                        hint: "Username",
+                                        icon:
+                                        PhosphorIcons.at(),
+                                      ),
+                                      const SizedBox(
+                                          height: AppSpacing.md),
+
+                                      AuthTextField(
+                                        controller:
+                                        controller.emailCtrl,
+                                        hint: "Email",
+                                        icon:
+                                        PhosphorIcons.envelope(),
+                                      ),
+                                      const SizedBox(
+                                          height: AppSpacing.md),
+
+                                      AuthTextField(
+                                        controller:
+                                        controller.passwordCtrl,
+                                        hint: "Password",
+                                        icon:
+                                        PhosphorIcons.lock(),
+                                        isPassword: true,
+                                      ),
+
+                                      const SizedBox(
+                                          height: AppSpacing.sm),
+
+                                      // =========================
+                                      // Terms of Service
+                                      // =========================
+                                      Row(
+                                        crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                        children: [
+                                          Obx(
+                                                () => Checkbox(
+                                              value: controller
+                                                  .acceptedTerms
+                                                  .value,
+                                              onChanged: (v) =>
+                                              controller
+                                                  .acceptedTerms
+                                                  .value =
+                                                  v ?? false,
+                                              activeColor:
+                                              AppColors.primary,
+                                              side:
+                                              const BorderSide(
+                                                color: AppColors
+                                                    .borderStrong,
+                                                width: 1.5,
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: Text(
+                                              "I agree to the Terms of Service",
+                                              style: AppTextStyles
+                                                  .bodySmall,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+
+                                      const SizedBox(
+                                          height: AppSpacing.md),
+
+                                      // =========================
+                                      // Create account button
+                                      // =========================
+                                      Obx(
+                                            () => AuthPrimaryButton(
+                                          label: "Create account",
+                                          isLoading: controller
+                                              .isLoading.value,
+                                          onPressed:
+                                          controller.signUp,
+                                        ),
+                                      ),
+
+                                      const SizedBox(
+                                          height: AppSpacing.lg),
+
+                                      const AuthDivider(),
+
+                                      const SizedBox(
+                                          height: AppSpacing.lg),
+
+                                      // =========================
+                                      // Social signup
+                                      // =========================
+                                      AuthSocialButtons(
+                                        onGoogle: () =>
+                                            Get.snackbar(
+                                              "Coming soon",
+                                              "Google signup will be added",
+                                            ),
+                                        onApple: () =>
+                                            Get.snackbar(
+                                              "Coming soon",
+                                              "Apple signup will be added",
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+
+            // =========================
+            // Back button (Signup only)
+            // =========================
+            Positioned(
+              // ⬇️ SmartNest benzeri: biraz aşağı + biraz içeri
+              top: AppSpacing.xl,
+              left: AppSpacing.md,
+              child: GestureDetector(
+                onTap: () => Get.back(),
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    shape: BoxShape.circle,
+                    boxShadow: AppShadows.low,
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    size: 16, // daha ince his
+                    color: AppColors.textSecondary, // siyah değil
+                  ),
+                ),
               ),
-              child: isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text("Sign Up"),
             ),
           ],
         ),

@@ -1,122 +1,199 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:interview_project/services/firebase/auth_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-import '../main_view.dart';   // 🔹 MainView'i import et
+import '../../constants/constants.dart';
+import 'controllers/login_controller.dart';
+import 'widgets/auth_header.dart';
+import 'widgets/auth_text_field.dart';
+import 'widgets/auth_primary_button.dart';
+import 'widgets/auth_divider.dart';
+import 'widgets/auth_social_buttons.dart';
 import 'signup_page.dart';
 
-class LoginPage extends StatefulWidget {
+/// Login Page
+/// - Soft background
+/// - Header on top (logo + title)
+/// - White card pinned to bottom
+/// - Signup moved INSIDE the card
+/// - Design-system compliant
+class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
-}
-
-class _LoginPageState extends State<LoginPage> {
-  final emailOrUsernameCtrl = TextEditingController();
-  final passwordCtrl = TextEditingController();
-  final authService = AuthService();
-
-  bool isLoading = false;
-
-  Future<void> _login() async {
-    setState(() => isLoading = true);
-
-    String input = emailOrUsernameCtrl.text.trim();
-    final password = passwordCtrl.text.trim();
-    String email;
-
-    if (input.contains("@")) {
-      // Kullanıcı email yazdı
-      email = input;
-    } else {
-      // Kullanıcı username yazdı → Firestore’dan email bul
-      final snapshot = await FirebaseFirestore.instance
-          .collection("users")
-          .where("username", isEqualTo: input)
-          .limit(1)
-          .get();
-
-      if (snapshot.docs.isEmpty) {
-        setState(() => isLoading = false);
-        Get.snackbar("Error", "Username not found.");
-        return;
-      }
-
-      email = snapshot.docs.first["email"];
-    }
-
-    final user = await authService.signIn(email, password);
-
-    setState(() => isLoading = false);
-
-    if (user == null) {
-      Get.snackbar("Error", "Login failed. Please check your credentials.");
-    } else {
-      // 🔹 Login başarılı → Ana sayfaya yönlendir
-      Get.offAll(() => const MainView());
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final controller = Get.put(LoginController());
+    final rememberMe = false.obs;
+
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text("Welcome Back 👋",
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              const Text("Login to continue",
-                  style: TextStyle(color: Colors.black54, fontSize: 16)),
-              const SizedBox(height: 32),
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
+                ),
+                child: IntrinsicHeight(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.xl,
+                    ),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 420),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // =========================
+                            // Header (TOP)
+                            // =========================
+                            const AuthHeader(
+                              title: "Welcome to MIPP",
+                              subtitle: "Login to continue",
+                              size: AuthHeaderSize.large,
+                            ),
 
-              TextField(
-                controller: emailOrUsernameCtrl,
-                decoration: const InputDecoration(
-                  labelText: "Email or Username",
-                  border: OutlineInputBorder(),
+                            const SizedBox(height: AppSpacing.lg),
+
+                            // Push card to bottom
+                            const Spacer(),
+
+                            // =========================
+                            // Login Card
+                            // =========================
+                            Container(
+                              padding: const EdgeInsets.all(AppSpacing.lg),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius:
+                                BorderRadius.circular(AppRadius.lg),
+                                boxShadow: AppShadows.medium,
+                              ),
+                              child: Column(
+                                children: [
+                                  // Email / Username
+                                  AuthTextField(
+                                    controller:
+                                    controller.emailOrUsernameCtrl,
+                                    hint: "Email or username",
+                                    icon: PhosphorIcons.user(),
+                                  ),
+
+                                  const SizedBox(height: AppSpacing.md),
+
+                                  // Password
+                                  AuthTextField(
+                                    controller: controller.passwordCtrl,
+                                    hint: "Password",
+                                    icon: PhosphorIcons.lock(),
+                                    isPassword: true,
+                                  ),
+
+                                  const SizedBox(height: AppSpacing.sm),
+
+                                  // Remember me + Forgot password
+                                  Row(
+                                    children: [
+                                      Obx(
+                                            () => Checkbox(
+                                          value: rememberMe.value,
+                                          onChanged: (v) =>
+                                          rememberMe.value = v ?? false,
+                                          activeColor: AppColors.primary,
+                                          side: const BorderSide(
+                                            color: AppColors.borderStrong,
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                      ),
+                                      Text(
+                                        "Remember me",
+                                        style: AppTextStyles.bodySmall,
+                                      ),
+                                      const Spacer(),
+                                      TextButton(
+                                        onPressed: () {
+                                          Get.snackbar(
+                                            "Coming soon",
+                                            "Password reset will be added",
+                                          );
+                                        },
+                                        child: Text(
+                                          "Forgot password?",
+                                          style:
+                                          AppTextStyles.textButton,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+
+                                  const SizedBox(height: AppSpacing.md),
+
+                                  // Login button
+                                  Obx(
+                                        () => AuthPrimaryButton(
+                                      label: "Login",
+                                      isLoading:
+                                      controller.isLoading.value,
+                                      onPressed: controller.login,
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: AppSpacing.lg),
+
+                                  const AuthDivider(),
+
+                                  const SizedBox(height: AppSpacing.lg),
+
+                                  // Social login
+                                  AuthSocialButtons(
+                                    onGoogle:
+                                    controller.loginWithGoogle,
+                                    onApple:
+                                    controller.loginWithApple,
+                                  ),
+
+                                  const SizedBox(height: AppSpacing.lg),
+
+                                  // =========================
+                                  // Signup redirect (INSIDE CARD)
+                                  // =========================
+                                  Row(
+                                    mainAxisAlignment:
+                                    MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        "Don’t have an account? ",
+                                        style:
+                                        AppTextStyles.bodySmall,
+                                      ),
+                                      GestureDetector(
+                                        onTap: () => Get.to(
+                                              () => const SignUpPage(),
+                                        ),
+                                        child: Text(
+                                          "Sign up",
+                                          style:
+                                          AppTextStyles.textButton,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: 16),
-
-              TextField(
-                controller: passwordCtrl,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: "Password",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              ElevatedButton(
-                onPressed: isLoading ? null : _login,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50),
-                ),
-                child: isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text("Login"),
-              ),
-
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text("Don't have an account? "),
-                  TextButton(
-                    onPressed: () => Get.to(() => const SignUpPage()),
-                    child: const Text("Sign Up"),
-                  )
-                ],
-              )
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
