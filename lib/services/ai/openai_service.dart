@@ -1,6 +1,8 @@
 // lib/services/openai_service.dart
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
+import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart' show rootBundle;
 //import '../../models/question.dart';
@@ -8,7 +10,15 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'ai_config.dart';
 
-enum PromptType { training, interview, detailedTraining }
+enum PromptType {
+  mcq,
+  fillBlanks,
+  shortAnswer,
+  codeWriting,
+  training,
+  interview,
+  detailedTraining
+}
 
 /// Basit sonuç modeli
 class GradeResult {
@@ -37,16 +47,20 @@ class GradeResult {
 }
 
 class GradeResultMapper {
+
   static GradeResult fromTraining(Map<String, dynamic> json) {
+
     return GradeResult(
       correct: json['correct'] ?? false,
       expected: json['expected']?.toString() ?? "",
       reason: json['reason']?.toString() ?? "",
       score: (json['score'] is num) ? (json['score'] as num).toDouble() : 0.0,
     );
+
   }
 
   static GradeResult fromInterview(Map<String, dynamic> json) {
+
     final subscores = json['subscores'] ?? {};
     final correctness = (subscores['correctness'] ?? 0) as num;
     final decision = json['decision']?.toString() ?? '';
@@ -61,9 +75,11 @@ class GradeResultMapper {
           ? (json['overall_score'] as num).toDouble()
           : 0.0,
     );
+
   }
 
   static GradeResult fromDetailedTraining(Map<String, dynamic> json) {
+
     final subscores = json['subscores'] ?? {};
     final correctness = (subscores['correctness'] ?? 0) as num;
     final decision = json['decision']?.toString() ?? '';
@@ -79,13 +95,16 @@ class GradeResultMapper {
           ? (json['overall_score'] as num).toDouble()
           : 0.0,
     );
+
   }
 }
 
 class OpenAIService {
+
   static final _apiKey = dotenv.env['OPENAI_API_KEY'];
   static const _endpoint = 'https://api.openai.com/v1/chat/completions';
   static const _model = 'gpt-4.1';
+  static const _examModel = 'gpt-4.1';
 
   static Future<String> _loadPromptTemplate(PromptType type) async {
     switch (type) {
@@ -98,10 +117,28 @@ class OpenAIService {
       case PromptType.detailedTraining:
         return await rootBundle
             .loadString('assets/prompts/TrainingDetailedAnalysis.txt');
+      case PromptType.mcq:
+        print("MCQ Promptu Kullanılacak");
+        return await rootBundle
+            .loadString('assets/prompts/MultipleChoiceQuestionTraining.txt');
+      case PromptType.fillBlanks:
+        print("Fill in the blanks Promptu Kullanılacak");
+        return await rootBundle
+            .loadString('assets/prompts/FillInTheBlanksTraining.txt');
+      case PromptType.shortAnswer:
+        print("Short Answer Promptu Kullanılacak");
+        return await rootBundle
+            .loadString('assets/prompts/ShortAnswerTraining.txt');
+      case PromptType.codeWriting:
+        print("Code Writing Promptu Kullanılacak");
+        return await rootBundle
+            .loadString('assets/prompts/CodeWritingTraining.txt');
     }
   }
 
   static String _renderTemplate(String template, Map<String, String> vars) {
+    //Doldurur
+
     var out = template;
     vars.forEach((k, v) {
       out = out.replaceAll('{{$k}}', v);
@@ -109,63 +146,40 @@ class OpenAIService {
     return out;
   }
 
-  static String _buildSystemRole(String category) {
-    switch (category.toLowerCase()) {
-      case 'algorithm':
-        return 'You are an algorithm expert.';
-      case 'data structure':
-        return 'You are a data structures expert.';
-      case 'git':
-        return 'You are a Git/version control expert.';
-      case 'oop':
-        return 'You are an OOP expert.';
-      case 'sql':
-        return 'You are an SQL/query optimization expert.';
-      case 'behavioral hr questions':
-        return 'You are a senior HR interviewer evaluating with the STAR technique.';
-      case 'ml basics':
-        return 'You are a machine learning fundamentals expert.';
-      case 'network':
-        return 'You are a computer networking expert.';
-      case 'java':
-        return 'You are a senior Java software engineer.';
-      case 'c/c++':
-        return 'You are a senior C/C++ systems programming expert.';
-      case 'python':
-        return 'You are a senior Python software engineer.';
-      case 'data science':
-        return 'You are a senior Data Science expert.';
-      default:
-        return 'You are a senior technical interviewer.';
-    }
-  }
-
   static Future<GradeResult> gradeWithTemplate(
-      {required String category,
+
+      {
       required Map<String, String> qMeta,
       required String candidateAnswer,
       Duration timeout = const Duration(seconds: 60),
-      required PromptType promptType}) async {
-    final template = await _loadPromptTemplate(promptType);
-    final systemRole = _buildSystemRole(category);
+      required PromptType promptType}
 
-    final userContent = _renderTemplate(template, {
-      "Category": category,
-      "Question Content Type": qMeta["Question Content Type"] ?? "",
-      "Difficulty Level (1–5)": qMeta["Difficulty Level (1–5)"] ?? "",
-      "Source Reference": qMeta["Source Reference"] ?? "",
-      "Question Title": qMeta["Question Title"] ?? "",
+    ) async {
+
+    final template = await _loadPromptTemplate(promptType);
+    const systemRole = "You are an expert Computer Science Interwiever";
+
+    var userContent = _renderTemplate(template, {
       "Question Text": qMeta["Question Text"] ?? "",
       "Question Format": qMeta["Question Format"] ?? "",
-      "Option A": qMeta["Option A"] ?? "",
-      "Option B": qMeta["Option B"] ?? "",
-      "Option C": qMeta["Option C"] ?? "",
-      "Option D": qMeta["Option D"] ?? "",
-      "Correct Option": qMeta["Correct Option"] ?? "",
-      "Tags": qMeta["Tags"] ?? "",
       "AI Prompt Helper": qMeta["AI Prompt Helper"] ?? "",
       "candidate_answer_or_choice": candidateAnswer,
     });
+
+    if(promptType == PromptType.mcq){
+      userContent = _renderTemplate(template, {
+        "Question Text": qMeta["Question Text"] ?? "",
+        "Question Format": qMeta["Question Format"] ?? "",
+        "Option A": qMeta["Option A"] ?? "",
+        "Option B": qMeta["Option B"] ?? "",
+        "Option C": qMeta["Option C"] ?? "",
+        "Option D": qMeta["Option D"] ?? "",
+        "Correct Option": qMeta["Correct Option"] ?? "",
+        "Tags": qMeta["Tags"] ?? "",
+        "AI Prompt Helper": qMeta["AI Prompt Helper"] ?? "",
+        "candidate_answer_or_choice": candidateAnswer,
+      });
+    }
 
     final body = {
       "model": _model,
@@ -178,7 +192,12 @@ class OpenAIService {
       ],
     };
 
+    print("GPT'ye gönderilen body:");
+    debugPrint(body.toString(), wrapWidth: 10000);
+
     final resp = await _post(body, timeout: timeout);
+
+
     return _extractGradeResult(resp, promptType);
   }
 
@@ -212,7 +231,7 @@ class OpenAIService {
 
     // 3) Chat çağrısı — JSON ARRAY istediğimiz için response_format kullanmıyoruz
     final body = {
-      "model": _model,
+      "model": _examModel,
       "temperature": 0.2,
       "messages": [
         {"role": "system", "content": "Output ONLY a raw JSON array."},
@@ -292,6 +311,14 @@ class OpenAIService {
           return GradeResultMapper.fromInterview(parsed);
         case PromptType.detailedTraining:
           return GradeResultMapper.fromDetailedTraining(parsed);
+        case PromptType.mcq:
+          return GradeResultMapper.fromTraining(parsed);
+        case PromptType.fillBlanks:
+          return GradeResultMapper.fromTraining(parsed);
+        case PromptType.shortAnswer:
+          return GradeResultMapper.fromTraining(parsed);
+        case PromptType.codeWriting:
+          return GradeResultMapper.fromTraining(parsed);
       }
     } catch (_) {
       return GradeResult.fromSafeFallback(raw);

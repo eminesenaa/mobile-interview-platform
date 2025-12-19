@@ -12,16 +12,41 @@ class AiService {
   /// ShortAnswer/FillBlank: userAnswer = String
   ///
   Future<AiEvaluateResult> evaluate({
+
     required Question question,
     required dynamic userAnswer,
     //Belki eklenebilir, dışardan almak için: required PromptType promptType
+
   }) async {
+
     final meta = _toMeta(question);
+    //print(meta);
     final candidate = _candidateFromAnswer(question, userAnswer);
     final category = _mapTopicToCategory(question.topic);
 
     // burada karar verilecek: training mi interview mu
-    const promptType = PromptType.training;
+    var promptType = PromptType.training;
+
+    switch(question.type.name){
+      case 'mcq':
+        promptType = PromptType.mcq;
+        break;
+      case 'shortAnswer':
+        promptType = PromptType.shortAnswer;
+        break;
+      case 'coding':
+        promptType = PromptType.codeWriting;
+        break;
+      case 'fillBlank':
+        promptType = PromptType.fillBlanks;
+        break;
+    }
+
+    /*
+    if(question is Behavioral) {
+      promptType = PromptType.interview;
+    }
+    */
 
     print("Soru türü: ${question.type.name}");
     final provider = AiConfig.chooseModel(questionType: question.type.name);
@@ -30,7 +55,6 @@ class AiService {
 
       AiProvider.openai => await OpenAIService.gradeWithTemplate(
         promptType: promptType,
-        category: category,
         qMeta: meta,
         candidateAnswer: candidate,
       ),
@@ -203,10 +227,10 @@ class AiService {
     // Arkadaşının template’inde beklenen anahtar adları:
     // "Question Text", "Question Format", "Option A"..."Option D", "Correct Option", "Tags", "AI Prompt Helper"
     final meta = <String, String>{
-      "Question Text": q.title,
+      "Question Text": q.description ?? '',
       "Question Format": (q.type?.name ?? '').toUpperCase(),
       "Tags": (q.tags?.join(', ') ?? ''),
-      "AI Prompt Helper": q.description ?? '',
+      "AI Prompt Helper": q.aiPromptHelper ?? '',
     };
 
     // MCQ opsiyonlarını yerleştir (varsa)
@@ -258,6 +282,14 @@ class AiService {
 }
 
 /// ------------ Templates ------------
+
+//Sonra eklenmesi için enum
+enum Correctness {
+  correct,
+  incorrect,
+  partiallyCorrect,
+  empty
+}
 
 // Alıştırmalar için
 class AiEvaluateResult {
