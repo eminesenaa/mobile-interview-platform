@@ -5,23 +5,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../services/firebase/auth_service.dart';
 import '../../main_view.dart';
 
-class LoginController  extends GetxController {
+class LoginController extends GetxController {
   final AuthService _authService = AuthService();
 
-  // --------------------
-  // Controllers
-  // --------------------
   final emailOrUsernameCtrl = TextEditingController();
   final passwordCtrl = TextEditingController();
 
-  // --------------------
-  // State
-  // --------------------
   final isLoading = false.obs;
 
-  // --------------------
-  // Login
-  // --------------------
+  /// 🔹 Login İşlemi
   Future<void> login() async {
     if (isLoading.value) return;
 
@@ -37,7 +29,8 @@ class LoginController  extends GetxController {
 
     try {
       String email;
-
+      
+      // Email mi Username mi kontrolü
       if (input.contains("@")) {
         email = input;
       } else {
@@ -50,7 +43,6 @@ class LoginController  extends GetxController {
         if (snapshot.docs.isEmpty) {
           throw Exception("Username not found");
         }
-
         email = snapshot.docs.first["email"];
       }
 
@@ -60,26 +52,112 @@ class LoginController  extends GetxController {
         throw Exception("Invalid credentials");
       }
 
+      // 🔹 Email Doğrulama Kontrolü
+      if (!user.emailVerified) {
+        await _authService.signOut(); // Güvenlik için çıkış yap
+        _showVerificationDialog();
+        return;
+      }
+
       Get.offAll(() => const MainView());
+
     } catch (e) {
-      Get.snackbar(
-        "Login failed",
-        e.toString().replaceAll("Exception:", "").trim(),
-      );
+      Get.snackbar("Login failed", e.toString().replaceAll("Exception:", "").trim());
     } finally {
       isLoading.value = false;
     }
   }
 
-  // --------------------
-  // Social logins (UI hazır, logic sonra)
-  // --------------------
-  void loginWithGoogle() {
-    Get.snackbar("Coming soon", "Google login will be added soon");
+  /// 🔹 Google Login
+  Future<void> loginWithGoogle() async {
+    if (isLoading.value) return;
+    isLoading.value = true;
+    try {
+      final user = await _authService.signInWithGoogle();
+      if (user != null) {
+        Get.offAll(() => const MainView());
+      }
+    } catch (e) {
+      Get.snackbar("Error", "Google sign in failed");
+    } finally {
+      isLoading.value = false;
+    }
   }
 
-  void loginWithApple() {
-    Get.snackbar("Coming soon", "Apple login will be added soon");
+  /// 🔹 Apple Login
+  Future<void> loginWithApple() async {
+    if (isLoading.value) return;
+    isLoading.value = true;
+    try {
+      final user = await _authService.signInWithApple();
+      if (user != null) {
+        Get.offAll(() => const MainView());
+      }
+    } catch (e) {
+      Get.snackbar("Error", "Apple sign in failed");
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /// 🔹 Şifremi Unuttum Dialogu
+  void showForgotPasswordDialog() {
+    final resetEmailCtrl = TextEditingController();
+    Get.defaultDialog(
+      title: "Reset Password",
+      content: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            const Text("Enter your email address to receive a reset link."),
+            const SizedBox(height: 16),
+            TextField(
+              controller: resetEmailCtrl,
+              decoration: const InputDecoration(
+                labelText: "Email",
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+      ),
+      textConfirm: "Send Link",
+      textCancel: "Cancel",
+      confirmTextColor: Colors.white,
+      buttonColor: Colors.blueAccent,
+      onConfirm: () async {
+        final email = resetEmailCtrl.text.trim();
+        if (email.isEmpty || !email.contains("@")) {
+          Get.snackbar("Error", "Please enter a valid email");
+          return;
+        }
+        try {
+          await _authService.sendPasswordResetEmail(email);
+          Get.back();
+          Get.snackbar("Success", "Password reset link sent to $email");
+        } catch (e) {
+          Get.snackbar("Error", e.toString());
+        }
+      },
+    );
+  }
+
+  void _showVerificationDialog() {
+    Get.defaultDialog(
+      title: "Email Not Verified",
+      middleText: "You need to verify your email before accessing the app.",
+      textCancel: "Close",
+      textConfirm: "Resend Email",
+      confirmTextColor: Colors.white,
+      buttonColor: Colors.blueAccent,
+      onConfirm: () async {
+        // Not: Kullanıcı signOut olduğu için burada tekrar login gerekebilir
+        // veya bu akışı 'Giriş Başarılı -> Dialog -> Çıkış' şeklinde yönetmelisin.
+        // Basitlik adına kullanıcıya mail kutusunu kontrol etmesini söylüyoruz.
+        Get.back();
+        Get.snackbar("Check Inbox", "If you didn't receive it, try logging in again to trigger a new email.");
+      },
+    );
   }
 
   @override

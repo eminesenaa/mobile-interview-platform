@@ -116,15 +116,12 @@ class LoginPage extends StatelessWidget {
                                       const Spacer(),
                                       TextButton(
                                         onPressed: () {
-                                          Get.snackbar(
-                                            "Coming soon",
-                                            "Password reset will be added",
-                                          );
+                                          // 🔹 GÜNCELLENEN KISIM BURASI
+                                          controller.showForgotPasswordDialog();
                                         },
                                         child: Text(
                                           "Forgot password?",
-                                          style:
-                                          AppTextStyles.textButton,
+                                          style: AppTextStyles.textButton,
                                         ),
                                       ),
                                     ],

@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:interview_project/models/streak.dart';
 import 'package:interview_project/models/user_library.dart';
 
@@ -17,7 +19,7 @@ class AuthService {
     required String username,
   }) async {
     try {
-      // ✅ Username Firestore’da daha önce alınmış mı kontrol et
+      // ✅ Username kontrolü
       final existing = await _db
           .collection("users")
           .where("username", isEqualTo: username)
@@ -31,7 +33,7 @@ class AuthService {
         );
       }
 
-      // ✅ Firebase Authentication’da kullanıcı oluştur
+      // ✅ Kullanıcı oluştur
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -40,18 +42,30 @@ class AuthService {
       final user = credential.user;
 
       if (user != null) {
-        // ✅ Firestore’da users/{uid} dökümanı oluştur
+        // ✅ Firestore kaydı
         await _db.collection("users").doc(user.uid).set({
           "id": user.uid,
           "email": email,
           "name": name,
           "surname": surname,
-          "username": username, // 🔹 kullanıcıdan gelen değer
+          "username": username,
           "photoUrl": null,
-          "age": null,
+          
+          "role": "user",
+          "totalXp": 0,
+          "level": 1,
+          "currentRank": 0,
+          "previousRank": 0,
 
-          /// Yeni profil alanları
-          "role": null,
+          "savedQuestions": [],
+          "library": UserLibrary.empty().toJson(),
+          "progress": {},
+          "streak": Streak.empty().toJson(),
+
+          "createdAt": FieldValue.serverTimestamp(),
+          
+          // Boş profil alanları
+          "age": null,
           "location": null,
           "school": null,
           "company": null,
@@ -59,33 +73,16 @@ class AuthService {
           "linkedinUrl": null,
           "githubUrl": null,
           "cvUrl": null,
-
           "phoneNumber": null,
           "phoneCountryCode": "+90",
           "phoneCountryIso": "TR",
-
-          /// XP / Level
-          "totalXp": 0,
-          "level": 1,
-
-          /// Library
-          "savedQuestions": [],
-          "library": UserLibrary.empty().toJson(),
-
-          /// Progress
-          "progress": {},
-
-          /// Streak (boş başlangıç)
-          "streak": Streak.empty().toJson(),
-
-          "createdAt": FieldValue.serverTimestamp(),
         });
       }
 
       return user;
     } on FirebaseAuthException catch (e) {
       print("❌ SignUp error: ${e.code} - ${e.message}");
-      rethrow; // UI'da snackbar gösterebilmek için hata fırlatıyoruz
+      rethrow;
     } catch (e) {
       print("❌ Unexpected error: $e");
       return null;
@@ -109,18 +106,133 @@ class AuthService {
     }
   }
 
+  /// 🔹 Google ile Giriş
+  Future<User?> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) return null;
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      final User? user = userCredential.user;
+
+      if (user != null) {
+        final userDoc = await _db.collection("users").doc(user.uid).get();
+        if (!userDoc.exists) {
+          await _createSocialUserInFirestore(user);
+        }
+      }
+      return user;
+    } catch (e) {
+      print("❌ Google Sign In Error: $e");
+      return null;
+    }
+  }
+
+  /// 🔹 Apple ile Giriş
+  Future<User?> signInWithApple() async {
+    try {
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      final OAuthProvider oAuthProvider = OAuthProvider("apple.com");
+      final AuthCredential credential = oAuthProvider.credential(
+        idToken: appleCredential.identityToken,
+        accessToken: appleCredential.authorizationCode,
+      );
+
+      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      final User? user = userCredential.user;
+
+      if (user != null) {
+        final userDoc = await _db.collection("users").doc(user.uid).get();
+        if (!userDoc.exists) {
+          await _createSocialUserInFirestore(user);
+        }
+      }
+      return user;
+    } catch (e) {
+      print("❌ Apple Sign In Error: $e");
+      return null;
+    }
+  }
+
+  /// 🔹 Sosyal medya yardımcısı (Veritabanı oluşturucu)
+  Future<void> _createSocialUserInFirestore(User user) async {
+    String name = "User";
+    String surname = "";
+    if (user.displayName != null) {
+      var names = user.displayName!.split(" ");
+      name = names.first;
+      if (names.length > 1) surname = names.sublist(1).join(" ");
+    }
+    
+    String username = "${user.email!.split("@")[0]}_${user.uid.substring(0, 4)}";
+
+    await _db.collection("users").doc(user.uid).set({
+      "id": user.uid,
+      "email": user.email,
+      "name": name,
+      "surname": surname,
+      "username": username,
+      "photoUrl": user.photoURL,
+      "role": "user",
+      
+      "totalXp": 0,
+      "level": 1,
+      "currentRank": 0,
+      "previousRank": 0,
+      
+      "savedQuestions": [],
+      "library": UserLibrary.empty().toJson(),
+      "progress": {},
+      "streak": Streak.empty().toJson(),
+      "createdAt": FieldValue.serverTimestamp(),
+      
+      "age": null,
+      "location": null,
+      "school": null,
+      "company": null,
+      "website": null,
+      "linkedinUrl": null,
+      "githubUrl": null,
+      "cvUrl": null,
+      "phoneNumber": null,
+      "phoneCountryCode": "+90",
+      "phoneCountryIso": "TR",
+    });
+  }
+
   /// 🔹 Çıkış
   Future<void> signOut() async {
     await _auth.signOut();
+    try {
+      await GoogleSignIn().signOut();
+    } catch (_) {}
   }
 
-  /// 🔹 Şu anki kullanıcı
-  User? get currentUser => _auth.currentUser;
-
-  /// 🔹 Firestore’daki user dökümanını getir
-  Future<DocumentSnapshot<Map<String, dynamic>>?> getUserDoc() async {
+  /// 🔹 Email Doğrulama Gönder
+  Future<void> sendEmailVerification() async {
     final user = _auth.currentUser;
-    if (user == null) return null;
-    return _db.collection("users").doc(user.uid).get();
+    if (user != null && !user.emailVerified) {
+      await user.sendEmailVerification();
+    }
   }
+
+  /// 🔹 Şifre Sıfırlama Gönder
+  Future<void> sendPasswordResetEmail(String email) async {
+    await _auth.sendPasswordResetEmail(email: email);
+  }
+
+  User? get currentUser => _auth.currentUser;
 }
