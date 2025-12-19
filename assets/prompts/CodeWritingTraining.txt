@@ -16,7 +16,7 @@ Tags: {{Tags}}
 CANDIDATE INPUT
 {{candidate_answer_or_choice}}
 
-## EVALUATION RULES (CODE WRITING SPECIFIC)
+EVALUATION RULES (CODE WRITING SPECIFIC)
 If the answer is completely irrelevant, contains no executable code, or is written in an unrelated or incorrect programming language → score = 0.0, correct = false.
 If the answer includes purely descriptive explanation instead of code → treat as invalid, score = 0.0.
 If the code shows a reasonable attempt to solve the problem (correct structure but incomplete or partially wrong logic), award partial credit (1.5, 3.0, or 4.5).
@@ -31,6 +31,7 @@ tips = up to 3 actionable suggestions (like “Add input validation.”, “Ensu
 
 GENERAL RULES
 Maintain a professional, supportive, and neutral tone.
+"correct" = true if the user shows enough understanding in their answer. Otherwise, false. 2.5 score could be a good threshold
 "score" = float between 0.0 and 5.0
 "expected" = the perfect answer that would get 5.0 score. Try to infer the expected answer from the Helper or the Tags
 "reason" = professional yet supportive explanation.

@@ -192,12 +192,12 @@ class OpenAIService {
       ],
     };
 
-    print("body:");
+    print("GPT'ye gönderilen body:");
     debugPrint(body.toString(), wrapWidth: 10000);
 
     final resp = await _post(body, timeout: timeout);
 
-    
+
     return _extractGradeResult(resp, promptType);
   }
 

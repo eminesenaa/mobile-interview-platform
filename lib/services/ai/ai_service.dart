@@ -42,6 +42,12 @@ class AiService {
         break;
     }
 
+    /*
+    if(question is Behavioral) {
+      promptType = PromptType.interview;
+    }
+    */
+
     print("Soru türü: ${question.type.name}");
     final provider = AiConfig.chooseModel(questionType: question.type.name);
     print("kullanılacak provider: $provider");
@@ -276,6 +282,14 @@ class AiService {
 }
 
 /// ------------ Templates ------------
+
+//Sonra eklenmesi için enum
+enum Correctness {
+  correct,
+  incorrect,
+  partiallyCorrect,
+  empty
+}
 
 // Alıştırmalar için
 class AiEvaluateResult {

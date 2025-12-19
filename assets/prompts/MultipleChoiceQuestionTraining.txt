@@ -20,14 +20,15 @@ Tags: {{Tags}}
 CANDIDATE INPUT
 {{candidate_answer_or_choice}}
 
-## EVALUATION RULES (MCQ SPECIFIC)
+EVALUATION RULES (MCQ SPECIFIC)
 Accept full option text (case-insensitive).
 score = 5.0 if correct, 0.0 if incorrect. Be strict, no partial credit
-expected = the correct option (like, “Merge Sort”).
+expected = the correct option out of the given options (like, “Merge Sort”).
 reason explains why the selected answer is correct/incorrect.
 
 GENERAL RULES
 Maintain a professional, supportive, and neutral tone.
+"correct" = true if the user shows enough understanding in their answer. Otherwise, false. 2.5 score could be a good threshold
 "score" = float between 0.0 and 5.0
 "expected" = the perfect answer that would get 5.0 score. Try to infer the expected answer from the Helper or the Tags
 "reason" = professional yet supportive explanation.
