@@ -213,7 +213,7 @@ class OpenAIService {
     // 3) Chat çağrısı — JSON ARRAY istediğimiz için response_format kullanmıyoruz
     final body = {
       "model": _model,
-      "temperature": 0.2,
+      "temperature": 1,
       "messages": [
         {"role": "system", "content": "Output ONLY a raw JSON array."},
         {"role": "user", "content": userContent},

@@ -111,7 +111,6 @@ SHORT ANSWER EVALUATION
 • Vague or single-word answers must score ≤1.5.
 • correct = true only when the answer is entirely correct and complete.
 • expected MUST begin with: "Correct Answer: <ideal explanation>".
-
 REASON RULES:
 • If the user’s answer is FULLY CORRECT:
       "Clear and complete explanation."
@@ -123,8 +122,9 @@ REASON RULES:
       ≤3 sentences describing the misunderstanding and the expected concept.
 
 • If the user’s answer is EMPTY or whitespace only:
-      "Missing answer. Provide a brief explanation based on the key concept."
+      Provide a brief explanation based on the key concept."
       (Never say “you left it blank”; no shaming language.)
+─────────────────────────────────────────
 
 ──────────────────────────────────────────
 BEHAVIORAL (STAR) EVALUATION

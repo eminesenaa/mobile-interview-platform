@@ -26,25 +26,23 @@ class AiService {
     print("Soru türü: ${question.type.name}");
     final provider = AiConfig.chooseModel(questionType: question.type.name);
     print("kullanılacak provider: $provider");
+
     final result = switch (provider) {
-
       AiProvider.openai => await OpenAIService.gradeWithTemplate(
-        promptType: promptType,
-        category: category,
-        qMeta: meta,
-        candidateAnswer: candidate,
-      ),
-
+          promptType: promptType,
+          category: category,
+          qMeta: meta,
+          candidateAnswer: candidate,
+        ),
       AiProvider.gemini => await GeminiService().gradeWithTemplate(
-        promptType: promptType,
-        category: category,
-        qMeta: meta,
-        candidateAnswer: candidate,
-      ),
-
-      AiProvider.anthropic => throw Exception("Anthropic provider not implemented yet."),
+          promptType: promptType,
+          category: category,
+          qMeta: meta,
+          candidateAnswer: candidate,
+        ),
+      AiProvider.anthropic =>
+        throw Exception("Anthropic provider not implemented yet."),
     };
-
 
     return AiEvaluateResult(
       finalAnswer: result.expected,
@@ -73,9 +71,19 @@ class AiService {
     int correctCount = 0, falseCount = 0, emptyCount = 0;
     double totalScore = 0.0;
 
-    final idxChunks = _chunkIndices(exam.questions.length, 5);
+    // ✅ Speed: chunk size 5 -> 2 (2+2+...+1)
+    final idxChunks = _chunkIndices(exam.questions.length, 2);
 
-    for (final chunk in idxChunks) {
+    // ✅ Speed/trace: batchId'yi tek sefer üret
+    final baseBatchId =
+        "exam_${exam.id}_${DateTime.now().millisecondsSinceEpoch}";
+
+    // ✅ Speed: chunk'ları paralel çalıştır
+    final futures = <Future<List<Map<String, dynamic>>>>[];
+
+    for (int c = 0; c < idxChunks.length; c++) {
+      final chunk = idxChunks[c];
+
       final items = <Map<String, dynamic>>[];
       for (final i in chunk) {
         final q = exam.questions[i];
@@ -96,50 +104,58 @@ class AiService {
 
       const provider = AiConfig.provider;
 
-      final results = switch (provider) {
-        AiProvider.openai => await OpenAIService.gradeBatch(
-          batchId: "exam_${exam.id}_${DateTime.now().millisecondsSinceEpoch}",
-          items: items,
-        ),
-        AiProvider.gemini => await GeminiService().gradeBatch(
-          batchId: "exam_${exam.id}_${DateTime.now().millisecondsSinceEpoch}",
-          items: items,
-        ),
-        AiProvider.anthropic => throw Exception("Anthropic provider not implemented yet."),
-      };
-
-
-      for (final r in results) {
-        final i = (r['index'] as num).toInt();
-        final isCorrect = (r['correct'] as bool?) ?? false;
-        final expected = (r['expected'] as String?) ?? '';
-        final reason = (r['reason'] as String?) ?? '';
-        final score = (r['score'] as num?)?.toDouble() ?? 0.0;
-        final q = exam.questions[i];
-        final questionKey = q.id;
-        final answered =
-            userAnswers[questionKey]?.toString().trim().isNotEmpty ?? false;
-        if (!answered) {
-          emptyCount++;
-        } else if (isCorrect) {
-          correctCount++;
-        } else {
-          falseCount++;
-        }
-
-        totalScore += score;
-
-        questionEvaluations.add(
-          AiExamQuestionEvaluateResult(
-            questionGeneralIndex: exam.questions[i].id,
-            questionIndex: i,
-            correctness: !answered ? 0 : (isCorrect ? 1 : -1),
-            correctAnswer: expected.isEmpty ? [] : [expected],
-            explanation: reason,
-            score: score,
+      futures.add(switch (provider) {
+        AiProvider.openai => OpenAIService.gradeBatch(
+            batchId: "${baseBatchId}_chunk_$c",
+            items: items,
           ),
-        );
+        AiProvider.gemini => GeminiService().gradeBatch(
+            batchId: "${baseBatchId}_chunk_$c",
+            items: items,
+          ),
+        AiProvider.anthropic =>
+          throw Exception("Anthropic provider not implemented yet."),
+      });
+    }
+
+    final allChunkResults = await Future.wait(futures);
+    final allResults = allChunkResults.expand((x) => x).toList();
+
+    for (final r in allResults) {
+      final i = (r['index'] as num).toInt();
+      final isCorrect = (r['correct'] as bool?) ?? false;
+      final expected = (r['expected'] as String?) ?? '';
+      final reason = (r['reason'] as String?) ?? '';
+
+      final q = exam.questions[i];
+      final questionKey = q.id;
+
+      final answered =
+          userAnswers[questionKey]?.toString().trim().isNotEmpty ?? false;
+
+      // ✅ (optional but safe): boşsa score kesin 0 olsun
+      final score = answered ? ((r['score'] as num?)?.toDouble() ?? 0.0) : 0.0;
+
+      if (!answered) {
+        emptyCount++;
+      } else if (isCorrect) {
+        correctCount++;
+      } else {
+        falseCount++;
       }
+
+      totalScore += score;
+
+      questionEvaluations.add(
+        AiExamQuestionEvaluateResult(
+          questionGeneralIndex: exam.questions[i].id,
+          questionIndex: i,
+          correctness: !answered ? 0 : (isCorrect ? 1 : -1),
+          correctAnswer: expected.isEmpty ? [] : [expected],
+          explanation: reason,
+          score: score,
+        ),
+      );
     }
 
     questionEvaluations
@@ -170,20 +186,6 @@ class AiService {
       questionEvaluations: questionEvaluations,
       topicPercentage: topicPercentage,
     );
-/*
-  print(result.totalScore);
-  print(result.correctCount);
-  print(result.falseCount);
-  print(result.emptyCount);
-  print(result.questionEvaluations[0].explanation);
-  print(result.questionEvaluations[1].explanation);
-  print(result.questionEvaluations[2].explanation);
-  print(result.questionEvaluations[3].explanation);
-  print(result.questionEvaluations[4].explanation);
-  print(result.questionEvaluations[5].explanation);
-  print(result.questionEvaluations[6].explanation);
-  print(result.topicPercentage);
-  */
 
     return result;
   }
