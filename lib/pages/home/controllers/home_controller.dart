@@ -47,23 +47,21 @@ class HomeController extends GetxController {
 
     final qc = Get.find<QuestionController>();
 
-    // İlk deneme (hot restart'ta boş olabilir)
     loadDailyPopularQuestions();
 
-    // Sorular sonradan gelirse → SADECE 1 KEZ tekrar dene
     ever(qc.allQuestions, (_) {
       if (!_popularLoadedOnce && qc.allQuestions.isNotEmpty) {
         loadDailyPopularQuestions();
       }
     });
 
-    listenToUserStreak();
-    
-    // 🔥 GERÇEK ZAMANLI LİDERBOARD DİNLEYİCİSİ
+    // 🔥 ÖNCE STREAK RESET
+    _checkStreakOnAppStart().then((_) {
+      // 🔥 RESETTEN SONRA DİNLE
+      listenToUserStreak();
+    });
+
     listenToLeaderboard();
-    
-    // 🔥 UYGULAMA AÇILDIĞINDA STREAK KONTROLÜ
-    _checkStreakOnAppStart();
   }
 
   @override
@@ -83,7 +81,7 @@ class HomeController extends GetxController {
     try {
       final uid = _auth.currentUser?.uid;
       if (uid == null) return;
-      
+
       await Streak.checkAndResetStreakIfNeeded(uid);
     } catch (e) {
       print('🔥 _checkStreakOnAppStart error: $e');
@@ -143,12 +141,15 @@ class HomeController extends GetxController {
       }
 
       // ---- BUGÜN YOKSA → OLUŞTUR ----
-      final easy =
-          qc.allQuestions.where((q) => q.difficulty == Difficulty.easy).toList();
-      final medium =
-          qc.allQuestions.where((q) => q.difficulty == Difficulty.medium).toList();
-      final hard =
-          qc.allQuestions.where((q) => q.difficulty == Difficulty.hard).toList();
+      final easy = qc.allQuestions
+          .where((q) => q.difficulty == Difficulty.easy)
+          .toList();
+      final medium = qc.allQuestions
+          .where((q) => q.difficulty == Difficulty.medium)
+          .toList();
+      final hard = qc.allQuestions
+          .where((q) => q.difficulty == Difficulty.hard)
+          .toList();
 
       Question? pick(List<Question> list) =>
           list.isEmpty ? null : list[Random().nextInt(list.length)];
@@ -175,11 +176,10 @@ class HomeController extends GetxController {
   // ------------------ LEADERBOARD (REALTIME) ------------------
   void listenToLeaderboard() {
     lbLoading.value = true;
-    
+
     try {
-      _leaderboardSubscription = _leaderboardService
-          .watchLeaderboardData()
-          .listen((data) {
+      _leaderboardSubscription =
+          _leaderboardService.watchLeaderboardData().listen((data) {
         top3.assignAll(data['top3']);
         me.value = data['me'];
         lbLoading.value = false;
@@ -211,7 +211,7 @@ class HomeController extends GetxController {
   Future<void> refreshAll() async {
     // Streak kontrolü
     await _checkStreakOnAppStart();
-    
+
     // Leaderboard zaten realtime, sadece popular questions'ı refresh edelim
     await loadDailyPopularQuestions();
   }

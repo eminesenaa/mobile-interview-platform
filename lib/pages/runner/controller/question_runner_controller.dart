@@ -1,8 +1,7 @@
 // ============================================================================
 // File: lib/pages/runner/controller/question_runner_controller.dart
 // Purpose: Soru koşum (runner) akışı için merkezi controller.
-// Düzenleme Notu: Aşağıdaki kodun tek bir satırı bile değiştirilmemiştir.
-//                 Yalnızca bölümlere ayrılarak yeniden sıralanmıştır.
+// Update: Training Module entegrasyonu eklendi.
 // ============================================================================
 
 import 'package:flutter/material.dart';
@@ -13,8 +12,10 @@ import '../../question_types/controllers/coding_controller.dart';
 import '../../question_types/controllers/fill_blank_controller.dart';
 import '../../question_types/controllers/mcq_controller.dart';
 import '../../question_types/controllers/short_answer_controller.dart';
-import '../../question_types/widgets/coding_editor_page.dart';
 import '../question_feed.dart';
+
+// 🔥 TRAINING MODULE ENTEGRASYONU İÇİN EKLENDİ
+import '../../practice/controllers/practice_controller.dart';
 
 // ============================================================================
 // [1] CONTROLLER TANIMI & ALANLAR
@@ -229,39 +230,42 @@ class QuestionRunnerController extends GetxController {
       isLocked.value = true;
 
       // ============================
-      // TRAINING MODULE PROGRESS HOOK
+      // 🔥 TRAINING MODULE PROGRESS HOOK (ACTIVE)
       // ============================
-      // Eğer bu soru bir training module akışının parçasıysa,
-      // ileride backend burada "module içindeki soru çözüldü" bilgisini
-      // UserTrainingProgress koleksiyonuna yazabilir.
       if (feed.value != null &&
           feed.value!.source.kind == QuestionSourceKind.trainingModule &&
           feed.value!.source.refId != null &&
-          feed.value!.questionIds != null &&
+          feed.value!.questionIds.isNotEmpty &&
           currentIndex.value >= 0 &&
-          currentIndex.value < feed.value!.questionIds!.length) {
+          currentIndex.value < feed.value!.questionIds.length) {
+        
         final moduleId = feed.value!.source.refId!;
-        final questionId = feed.value!.questionIds![currentIndex.value];
+        final questionId = feed.value!.questionIds[currentIndex.value];
 
-        // TODO(back-end): Burada bir TrainingProgressService çağır.
-        // Örnek pseudo-kod:
-        // await trainingProgressService.markQuestionSolved(
-        //   moduleId: moduleId,
-        //   questionId: questionId,
-        // );
+        // PracticeController üzerinden Backend'e yaz
+        if (Get.isRegistered<PracticeController>()) {
+          final practiceCtrl = Get.find<PracticeController>();
+          
+          await practiceCtrl.markModuleQuestionCompleted(
+            moduleId,
+            questionId,
+          );
 
-        debugPrint(
-          '[TrainingProgress] completed → module=$moduleId, question=$questionId',
-        );
+          debugPrint(
+            '[TrainingProgress] ✔️ SAVED → module=$moduleId, question=$questionId',
+          );
+        } else {
+          debugPrint('[TrainingProgress] ⚠️ PracticeController not found, progress not saved.');
+        }
       }
     } finally {
       isSubmitting.value = false;
     }
   }
 
-// ========================================================================
-// [7] EDITOR / CODING AKIŞI (flag ve payload yönetimi)
-// ========================================================================
+  // ========================================================================
+  // [7] EDITOR / CODING AKIŞI (flag ve payload yönetimi)
+  // ========================================================================
   void toggleEditor() => isEditorOpen.toggle();
 
   bool _isCoding(Question q) {
@@ -321,6 +325,10 @@ class QuestionRunnerController extends GetxController {
           await cc.evaluateWithAi(); // feedback UI view’de gösterilecek
           _answerPayload = {'code': cc.getCode()};
           _answerById[q.id] = _answerPayload;
+          
+          // 🔥 Coding tipi için de Training Progress kaydı lazım
+          await _handleTrainingProgress();
+
         } catch (e) {
           Get.snackbar('Send failed', e.toString());
         } finally {
@@ -333,6 +341,27 @@ class QuestionRunnerController extends GetxController {
     // coding dışındaki tiplerde submit zaten switch-case içinden çağrılıyor
     await submit();
   }
+
+  // Coding için özel progress handler (submit metoduna girmeden doğrudan çalışıyorsa)
+  Future<void> _handleTrainingProgress() async {
+      if (feed.value != null &&
+          feed.value!.source.kind == QuestionSourceKind.trainingModule &&
+          feed.value!.source.refId != null &&
+          feed.value!.questionIds.isNotEmpty &&
+          currentIndex.value >= 0 &&
+          currentIndex.value < feed.value!.questionIds.length) {
+        
+        final moduleId = feed.value!.source.refId!;
+        final questionId = feed.value!.questionIds[currentIndex.value];
+
+        if (Get.isRegistered<PracticeController>()) {
+          final practiceCtrl = Get.find<PracticeController>();
+          await practiceCtrl.markModuleQuestionCompleted(moduleId, questionId);
+          debugPrint('[TrainingProgress - Code] ✔️ SAVED → $moduleId, $questionId');
+        }
+      }
+  }
+
 
   void flushCodingDraftIfAny() {
     // İstersen taslağı burada persist edebilirsin.

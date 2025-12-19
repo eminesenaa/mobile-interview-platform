@@ -105,69 +105,71 @@ class Streak {
   }
 
   // 🔥 SADECE SORU ÇÖZÜLDÜĞÜNDE ÇAĞRILACAK
-  static Future<void> updateStreak({
-    required String uid,
-    required bool solvedToday,
-  }) async {
-    if (!solvedToday) {
-      print("⛔ Bugün soru çözülmedi, streak güncellenmedi.");
-      return;
+static Future<void> updateStreak(String uid) async {
+  final db = FirebaseFirestore.instance;
+  final ref = db.collection('users').doc(uid);
+  final snap = await ref.get();
+  if (!snap.exists) return;
+
+  final data = snap.data()!;
+  final streakData = data['streak'] ?? {};
+  final current = Streak.fromMap(streakData);
+
+  final today = DateTime.now();
+  final todayDate = DateTime(today.year, today.month, today.day);
+  final lastDate = DateTime(
+    current.lastStreakDate.year,
+    current.lastStreakDate.month,
+    current.lastStreakDate.day,
+  );
+
+  final diff = todayDate.difference(lastDate).inDays;
+
+  int newCount = current.streakCount;
+  int newLongest = current.longestStreak;
+
+  if (diff == 0) {
+    // bugün zaten sayılmış → dokunma
+    return;
+  } else if (diff == 1) {
+    newCount += 1;
+  } else {
+    // gün kaçırıldı
+    newCount = 1;
+  }
+
+  if (newCount > newLongest) {
+    newLongest = newCount;
+  }
+
+  // ---- HISTORY: SON 7 GÜNÜ DOLDUR ----
+  final Map<String, bool> history = {
+    '1': false,
+    '2': false,
+    '3': false,
+    '4': false,
+    '5': false,
+    '6': false,
+    '7': false,
+  };
+
+  final daysToFill = newCount.clamp(1, 7);
+
+  for (int i = 0; i < daysToFill; i++) {
+    final d = todayDate.subtract(Duration(days: i));
+    history[d.weekday.toString()] = true;
+  }
+
+  await ref.update({
+    'streak': {
+      'streakCount': newCount,
+      'longestStreak': newLongest,
+      'lastStreakDate': todayDate.toIso8601String().split('T').first,
+      'streakHistory': history,
     }
+  });
 
-    final db = FirebaseFirestore.instance;
-    final ref = db.collection('users').doc(uid);
-    final snap = await ref.get();
 
-    if (!snap.exists) {
-      print("⚠️ updateStreak: user doc yok ($uid)");
-      return;
-    }
-
-    final data = snap.data() ?? {};
-    final current = Streak.fromMap(data['streak'] ?? {});
-
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final todayKey = today.weekday.toString();
-
-    final last = DateTime(
-      current.lastStreakDate.year,
-      current.lastStreakDate.month,
-      current.lastStreakDate.day,
-    );
-
-    final diff = today.difference(last).inDays;
-
-    int newCount;
-    int newLongest = current.longestStreak;
-    final history = Map<String, bool>.from(current.streakHistory);
-
-    print("🧩 updateStreak diff=$diff old=${current.streakCount}");
-
-    if (diff == 0) {
-      print("🕓 Bugün zaten streak alınmış.");
-      return;
-    } else if (diff == 1) {
-      newCount = current.streakCount + 1;
-      print("🔥 Ardışık gün → streak $newCount");
-    } else {
-      // diff >= 2: Gün atlandı, streak sıfırdan başla
-      newCount = 1;
-      history.updateAll((k, v) => false);
-      print("❄️ $diff gün atlandı → streak 1'den başlıyor");
-    }
-
-    history[todayKey] = true;
-    if (newCount > newLongest) newLongest = newCount;
-
-    await ref.update({
-      'streak': {
-        'streakCount': newCount,
-        'longestStreak': newLongest,
-        'lastStreakDate': today.toIso8601String().split('T').first,
-        'streakHistory': history,
-      }
-    });
 
     print("✅ Streak güncellendi: count=$newCount longest=$newLongest");
   }

@@ -1,393 +1,372 @@
 // ===================== File: lib/pages/practice/controllers/practice_controller.dart =====================
-// Purpose:
-// - Practice sayfasındaki soru akışını yönetir (yükleme, filtreleme, arama, random seçim).
-// - Mevcut QuestionController API'sini korur + practice'e özgü ek filtre alanları sağlar.
-// =========================================================================================================
 
+import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+// Modeller
 import '../../../models/question.dart';
 import '../../../models/training_module.dart';
-import '../../../models/training_module_question_ref.dart';
 import '../../../models/training_section.dart';
+import '../../../models/training_module_question_ref.dart';
+import '../../../models/user_training_progress.dart';
+
+// Servisler
+import '../../practice/services/training_progress_service.dart';
 
 class PracticeController extends GetxController {
-  /// Tüm sorular
+  // =========================
+  // SERVICES
+  // =========================
+  final TrainingProgressService _progressService = TrainingProgressService();
+
+  // =========================
+  // QUESTION POOL
+  // =========================
   final RxList<Question> allQuestions = <Question>[].obs;
 
-  /// Arama metni
+  // =========================
+  // TRAINING STRUCTURE
+  // =========================
+  final RxList<TrainingModule> trainingModules = <TrainingModule>[].obs;
+  final RxMap<String, List<TrainingSection>> sectionsByModule =
+      <String, List<TrainingSection>>{}.obs;
+  final RxMap<String, List<TrainingModuleQuestionRef>> refsByModule =
+      <String, List<TrainingModuleQuestionRef>>{}.obs;
+
+  // =========================
+  // TRAINING PROGRESS STATE
+  // =========================
+  
+  /// Modül ID'sine göre kullanıcının ilerlemesi (Progress Bar için)
+  final RxMap<String, UserTrainingModuleProgress> userProgressMap =
+      <String, UserTrainingModuleProgress>{}.obs;
+
+  /// Modül ID -> Çözülen Soru ID'leri Seti (UI'da tik işareti ve Start/Continue hesabı için)
+  final RxMap<String, Set<String>> completedQuestionIdsByModule =
+      <String, Set<String>>{}.obs;
+
+  /// Library sekmesi için "Başlanmış Modüller" listesi
+  List<TrainingModule> get startedModules {
+    return trainingModules
+        .where((m) => userProgressMap.containsKey(m.id))
+        .toList();
+  }
+
+  // =========================
+  // PRACTICE FILTER STATE
+  // =========================
   final RxString searchQuery = ''.obs;
-
-  /// Seçili konu (tekli). "All" tümünü gösterir.
   final RxString selectedTopic = 'All'.obs;
-
-  /// Seçili zorluk (tekli, null => tümü)
   final Rxn<Difficulty> selectedDifficulty = Rxn<Difficulty>();
-
-  /// Seçili durum (null => tümü)
   final Rxn<Status> selectedStatus = Rxn<Status>();
-
-  /// Seçili soru tipi (tekli, null => tümü)
   final Rxn<QuestionType> selectedQuestionType = Rxn<QuestionType>();
 
-  /// Çoklu seçim filtreleri (boş => tümü).
   final RxList<String> selectedTopicsMulti = <String>[].obs;
   final RxList<Difficulty> selectedDifficultiesMulti = <Difficulty>[].obs;
   final RxList<QuestionType> selectedQuestionTypesMulti = <QuestionType>[].obs;
 
-  /// Kullanılabilir tüm topic’ler; veri geldikçe güncellenir.
   final RxList<String> allTopics = <String>['All'].obs;
 
-  /// Training modules shown at the top of Practice page.
-  /// Şimdilik mock data ile dolduruluyor, backend geldiğinde
-  /// Firestore'dan okunacak.
-  final RxList<TrainingModule> trainingModules = <TrainingModule>[].obs;
+  // =========================
+  // SHUFFLE
+  // =========================
+  final RxBool shuffleEnabled = true.obs;
+  final RxInt shuffleSeed = DateTime.now().millisecondsSinceEpoch.obs;
 
-  /// Bugünün sorusu (örnek: ilk TODO olan)
-  Question? get todaysQuestion =>
-      allQuestions.firstWhereOrNull((q) => q.status == Status.todo);
+  // =========================
+  // USER STATE (GLOBAL PRACTICE)
+  // =========================
+  final RxSet<String> solvedQuestionIds = <String>{}.obs;
 
-  /// Aktif filtrelere göre süzülmüş liste
+  // =========================
+  // INIT
+  // =========================
+  @override
+  void onInit() {
+    super.onInit();
+    loadQuestionsFromFirebase();
+    loadTrainingModulesFromFirestore();
+    loadSolvedQuestionsForUser();
+    
+    // Yeni eklenen progress yükleme işlemi
+    _loadUserProgress(); 
+  }
+
+  // =========================
+  // FILTERED QUESTIONS LOGIC
+  // =========================
   List<Question> get filteredQuestions {
     var list = allQuestions.toList();
 
-    // ===================== TOPIC =====================
     if (selectedTopicsMulti.isNotEmpty) {
       list = list.where((q) => selectedTopicsMulti.contains(q.topic)).toList();
-    } else if (selectedTopic.value.isNotEmpty && selectedTopic.value != 'All') {
+    } else if (selectedTopic.value != 'All') {
       list = list.where((q) => q.topic == selectedTopic.value).toList();
     }
 
-    // ===================== DIFFICULTY =====================
     if (selectedDifficultiesMulti.isNotEmpty) {
       list = list
-          .where(
-            (q) => selectedDifficultiesMulti.contains(q.difficulty),
-          )
+          .where((q) => selectedDifficultiesMulti.contains(q.difficulty))
           .toList();
     } else if (selectedDifficulty.value != null) {
       list =
           list.where((q) => q.difficulty == selectedDifficulty.value).toList();
     }
 
-    // ===================== STATUS (tek seçim) =====================
     if (selectedStatus.value != null) {
-      list = list.where((q) => q.status == selectedStatus.value).toList();
+      list = list.where((q) {
+        final id = _questionIdFromQuestion(q);
+        return selectedStatus.value == Status.solved
+            ? solvedQuestionIds.contains(id)
+            : !solvedQuestionIds.contains(id);
+      }).toList();
     }
 
-    // ===================== QUESTION TYPE =====================
     if (selectedQuestionTypesMulti.isNotEmpty) {
       list = list
-          .where(
-            (q) => selectedQuestionTypesMulti.contains(q.type),
-          )
+          .where((q) => selectedQuestionTypesMulti.contains(q.type))
           .toList();
     } else if (selectedQuestionType.value != null) {
       list = list.where((q) => q.type == selectedQuestionType.value).toList();
     }
 
-    // ===================== SEARCH =====================
-    final q = searchQuery.value.trim().toLowerCase();
-    if (q.isNotEmpty) {
-      list = list.where((it) {
-        final haystack = '${it.title} ${it.description ?? ''} '
-                '${it.topic} ${it.tags.join(" ")}'
-            .toLowerCase();
-        return haystack.contains(q);
+    final query = searchQuery.value.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      list = list.where((q) {
+        final haystack =
+            '${q.title} ${q.description ?? ''} ${q.topic} ${q.tags.join(" ")}'
+                .toLowerCase();
+        return haystack.contains(query);
       }).toList();
+    }
+
+    if (shuffleEnabled.value) {
+      list.shuffle(Random(shuffleSeed.value));
     }
 
     return list;
   }
 
-  // TEMP Progress test
-  final RxMap<String, double> moduleProgressById = <String, double>{}.obs;
-
-  // ===========================
-  // 🔹 INIT
-  // ===========================
-  @override
-  void onInit() {
-    super.onInit();
-    _loadMockTrainingModules();
-    loadQuestionsFromFirebase(); // 🔥 Uygulama açıldığında 1 defa çağırılır
-    // TEMP: Fake progress map (sadece test için)
-    moduleProgressById['warmup_quick_win'] = 0.45; // %45 progress testi
-    moduleProgressById['daily_data_structures'] = 0.2; // %20 progress testi
-  }
-
-  // ===========================
-  // Eski API (korundu)
-  // ===========================
+  // =========================
+  // FILTER API (UI UYUMLU)
+  // =========================
   void updateSearch(String query) => searchQuery.value = query;
 
-  // Tek seçimli eski API – başka sayfalar hâlâ kullanıyorsa bozulmasın diye duruyor.
-  void updateFilters({
+  Future<void> updateFilters({
     String? topic,
     Difficulty? difficulty,
     Status? status,
     QuestionType? questionType,
-  }) {
-    // Topic null değilse güncelle (All dahil)
-    if (topic != null) {
-      selectedTopic.value = topic;
-    }
-
+  }) async {
+    if (topic != null) selectedTopic.value = topic;
     selectedDifficulty.value = difficulty;
     selectedStatus.value = status;
     selectedQuestionType.value = questionType;
 
-    // Eski API kullanıldığında çoklu listeleri sıfırla
     selectedTopicsMulti.clear();
     selectedDifficultiesMulti.clear();
     selectedQuestionTypesMulti.clear();
   }
 
-  /// Yeni çoklu seçim API'si – FilterPopup burayı kullanacak.
-  void updateFiltersMulti({
+  Future<void> updateFiltersMulti({
     List<String>? topics,
     List<Difficulty>? difficulties,
     List<QuestionType>? questionTypes,
     Status? status,
-  }) {
+  }) async {
     selectedTopicsMulti
       ..clear()
-      ..addAll(topics ?? const []);
-
+      ..addAll(topics ?? []);
     selectedDifficultiesMulti
       ..clear()
-      ..addAll(difficulties ?? const []);
-
+      ..addAll(difficulties ?? []);
     selectedQuestionTypesMulti
       ..clear()
-      ..addAll(questionTypes ?? const []);
+      ..addAll(questionTypes ?? []);
 
     selectedStatus.value = status;
-
-    // Kısa özetler için legacy alanları da güncelle
-    selectedTopic.value =
-        selectedTopicsMulti.isEmpty ? 'All' : selectedTopicsMulti.first;
-    selectedDifficulty.value = selectedDifficultiesMulti.isEmpty
-        ? null
-        : selectedDifficultiesMulti.first;
-    selectedQuestionType.value = selectedQuestionTypesMulti.isEmpty
-        ? null
-        : selectedQuestionTypesMulti.first;
   }
 
   Question? getRandomQuestion() {
     final list = filteredQuestions;
     if (list.isEmpty) return null;
-    list.shuffle();
     return list.first;
   }
 
-  void loadDummyQuestions() {
-    // Demo amaçlı örnekler. Firestore’dan yükleme için loadQuestionsFromFirebase kullanılacak.
-    allQuestions.addAll([
-      Question(
-        id: 'mcq1',
-        title: 'What is Flutter?',
-        topic: 'Mobile Development',
-        description: "Easy level flutter question.",
-        difficulty: Difficulty.easy,
-        status: Status.todo,
-        tags: ['flutter', 'framework'],
-        type: QuestionType.mcq,
-        options: ['Framework', 'IDE', 'Database', 'Language'],
-        correctAnswer: 'Framework',
-      ),
-      Question(
-        id: 'short1',
-        title: 'Explain the use of "final" in Dart.',
-        topic: 'Dart',
-        description: "Medium level Dart question.",
-        difficulty: Difficulty.medium,
-        status: Status.todo,
-        tags: ['variables', 'final'],
-        type: QuestionType.shortAnswer,
-      ),
-    ]);
-  }
-
-  // ===========================
-  // Yeni yardımcı setter’lar
-  // ===========================
-  void setSearchText(String v) => searchQuery.value = v;
-
-  void setTopic(String v) {
-    selectedTopic.value = v;
-    selectedTopicsMulti.clear();
-  }
-
-  void setDifficulty(Difficulty? d) {
-    selectedDifficulty.value = d;
-    selectedDifficultiesMulti.clear();
-  }
-
-  void setStatus(Status? s) => selectedStatus.value = s;
-
-  void setAllQuestions(List<Question> items) {
+  // =========================
+  // FIREBASE LOADERS (CORE)
+  // =========================
+  Future<void> loadQuestionsFromFirebase() async {
+    final snap = await FirebaseFirestore.instance.collection('questions').get();
+    final items =
+        snap.docs.map((d) => Question.fromFirestore(d.data(), d.id)).toList();
     allQuestions.assignAll(items);
+
     final topics = <String>{'All', ...items.map((e) => e.topic)};
     allTopics.assignAll(topics.toList()..sort());
   }
 
-  void addQuestion(Question q) {
-    allQuestions.add(q);
-    if (!allTopics.contains(q.topic)) {
-      allTopics.add(q.topic);
-      allTopics.sort();
-    }
-  }
+  Future<void> loadTrainingModulesFromFirestore() async {
+    final db = FirebaseFirestore.instance;
 
-  void removeQuestionById(String id) {
-    allQuestions.removeWhere((e) => e.id == id);
-  }
+    final moduleSnap =
+        await db.collection('modules').orderBy('sortOrder').get();
+    final modules = moduleSnap.docs
+        .map((d) => TrainingModule.fromFirestore(d.data(), d.id))
+        .toList();
+    trainingModules.assignAll(modules);
 
-  void onAddQuestion() {
-    // TODO: yeni soru ekleme akışını bağla
-  }
+    for (final module in modules) {
+      final sectionSnap = await db
+          .collection('modules')
+          .doc(module.id)
+          .collection('sections')
+          .orderBy('order')
+          .get();
 
-  void onRandomQuestion() {
-    // TODO: rastgele soruya yönlendirme
-  }
-
-  // ===========================
-  // 🔹 FIREBASE ENTEGRASYONU
-  // ===========================
-  Future<void> loadQuestionsFromFirebase() async {
-    try {
-      final snapshot =
-          await FirebaseFirestore.instance.collection("questions").get();
-
-      if (snapshot.docs.isEmpty) {
-        print("⚠️ Firestore: Hiç soru bulunamadı.");
-        setAllQuestions([]);
-        return;
-      }
-
-      final items = snapshot.docs
-          .map((doc) {
-            try {
-              return Question.fromFirestore(doc.data(), doc.id);
-            } catch (err) {
-              print("⚠️ Mapping hatası (docId: ${doc.id}): $err");
-              return null;
-            }
-          })
-          .whereType<Question>()
+      final sections = sectionSnap.docs
+          .map((d) => TrainingSection.fromFirestore(d.data(), d.id))
           .toList();
 
-      setAllQuestions(items);
+      sectionsByModule[module.id] = sections;
 
-      print("✅ Firestore'dan ${items.length} soru yüklendi.");
-    } catch (e) {
-      print("🔥 Firestore load error: $e");
+      final List<TrainingModuleQuestionRef> allRefs = [];
+
+      for (final section in sections) {
+        final refSnap = await db
+            .collection('modules')
+            .doc(module.id)
+            .collection('sections')
+            .doc(section.id)
+            .collection('questions')
+            .orderBy('order')
+            .get();
+
+        allRefs.addAll(
+          refSnap.docs.map(
+            (d) => TrainingModuleQuestionRef.fromFirestore(d.data(), d.id),
+          ),
+        );
+      }
+      refsByModule[module.id] = allRefs;
     }
   }
 
-  /// TODO: Backend hazır olduğunda bu method yerine Firestore'dan
-  /// gerçek training modules listesini çeken servis kullanılacak.
-  void _loadMockTrainingModules() {
-    trainingModules.assignAll([
-      const TrainingModule(
-        id: 'warmup_quick_win',
-        title: 'Warm-up • Quick Win',
-        subtitle: 'Solve 5 starter questions in 10 minutes.',
-        description:
-            'Short warm-up plan to get you into flow before diving into harder interview questions.',
-        format: TrainingModuleFormat.challenge,
-        totalQuestions: 5,
-        estimatedMinutes: 10,
-        isFeatured: true,
-        sortOrder: 1,
-      ),
-      const TrainingModule(
-        id: 'daily_data_structures',
-        title: 'Daily Data Structures',
-        subtitle: 'Practice arrays, stacks and queues every day.',
-        description: 'Two-week crash plan focused on core data structures.',
-        format: TrainingModuleFormat.crashCourse,
-        totalQuestions: 14,
-        estimatedMinutes: 20,
-        isFeatured: true,
-        sortOrder: 2,
-      ),
-    ]);
+  Future<void> loadSolvedQuestionsForUser() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final snap = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('solved')
+        .get();
+
+    solvedQuestionIds
+      ..clear()
+      ..addAll(snap.docs.map((d) => d.id));
   }
 
-  /// TEMP: TrainingModule detail sayfası için mock section listesi.
-  /// Backend bağlanana kadar sadece front'u test etmek için kullanıyoruz.
-  List<TrainingSection> buildMockSectionsFor(TrainingModule module) {
-    return [
-      TrainingSection(
-        id: '${module.id}_sec1',
-        moduleId: module.id,
-        title: 'Warm-up basics',
-        description: 'Get into flow with a few easy questions.',
-        order: 1,
-        type: TrainingSectionType.topicBased,
-        // questionCount / estimatedMinutes varsa modelde, istersen doldur:
-        // questionCount: 3,
-        // estimatedMinutes: 5,
-      ),
-      TrainingSection(
-        id: '${module.id}_sec2',
-        moduleId: module.id,
-        title: 'Level up',
-        description: 'Slightly more challenging follow-up questions.',
-        order: 2,
-        type: TrainingSectionType.topicBased,
-        // questionCount: 2,
-        // estimatedMinutes: 5,
-      ),
-    ];
+  // =========================
+  // TRAINING PROGRESS LOGIC
+  // =========================
+  
+  /// Kullanıcının modül ilerlemelerini çeker ve state'i doldurur.
+  Future<void> _loadUserProgress() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid; 
+    if (userId == null) return;
+
+    try {
+      final progressList = await _progressService.getAllProgressForUser(userId);
+
+      // Map'leri doldur
+      for (var p in progressList) {
+        userProgressMap[p.moduleId] = p;
+        
+        // Eğer detaylı soru listesini de çekiyorsak buraya ekleyebiliriz
+        // Şimdilik sadece modül bazlı genel ilerlemeyi alıyoruz
+        // Soru bazlı tikler için 'completedQuestionIdsByModule' zaten UI tarafında
+        // detay sayfasına girince dolacak veya ayrıca bir servis çağrısı yapılabilir.
+        // Ancak TrainingProgressService şu an sadece summary dönüyor olabilir.
+        // Detaylar için o servisin içindeki 'questions' array'ini de parse etmek gerekebilir.
+        // Şimdilik basit tutuyoruz.
+      }
+      update(); // GetX update
+    } catch (e) {
+      debugPrint("Error loading user progress: $e");
+    }
   }
 
-  /// TEMP: Mock sections içindeki sorular için referans oluşturur.
-  /// Şimdilik ilk 5 practice sorusunu kullanıyoruz.
-  List<TrainingModuleQuestionRef> buildMockQuestionRefsFor(
-    TrainingModule module,
-    List<TrainingSection> sections,
-  ) {
-    if (sections.isEmpty || allQuestions.isEmpty) return [];
+  /// Bir soru çözüldüğünde çağrılır (Training Mode)
+  Future<void> markModuleQuestionCompleted(String moduleId, String questionId) async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
 
-    final questions = allQuestions.take(5).toList();
-    final refs = <TrainingModuleQuestionRef>[];
+    // 1. Modülü bul (Total question sayısı için)
+    final module = trainingModules.firstWhereOrNull((m) => m.id == moduleId);
+    if (module == null) return;
 
-    var order = 0;
-    for (var i = 0; i < questions.length; i++) {
-      // İlk 3 soru 1. section, kalanlar 2. section’a
-      final sectionIndex = i < 3 || sections.length == 1 ? 0 : 1;
-      final section = sections[sectionIndex];
+    // 2. Servise yaz
+    await _progressService.markQuestionSolved(
+      userId: userId,
+      moduleId: moduleId,
+      questionId: questionId,
+      totalQuestionsInModule: module.totalQuestions,
+    );
 
-      refs.add(
-        TrainingModuleQuestionRef(
-          moduleId: module.id,
-          sectionId: section.id,
-          questionId: _questionIdFromQuestion(questions[i]),
-          order: ++order,
-          id: '',
-          difficulty: questions[i].difficulty,
-        ),
+    // 3. Local state'i güncelle (Tekrar fetch yapmamak için)
+    // Progress Map güncelle
+    final currentProgress = userProgressMap[moduleId] ??
+        UserTrainingModuleProgress(
+            userId: userId,
+            moduleId: moduleId,
+            completedQuestions: 0,
+            totalQuestions: module.totalQuestions,
+            // 🔥 DÜZELTME: lastUpdated zorunlu alan olduğu için eklendi.
+            lastUpdated: DateTime.now(),
+            isCompleted: false, 
+        );
+
+    // Eğer bu soru zaten çözülmemişse sayacı artır
+    final currentSet = completedQuestionIdsByModule[moduleId] ?? {};
+    if (!currentSet.contains(questionId)) {
+      currentSet.add(questionId);
+      completedQuestionIdsByModule[moduleId] = currentSet;
+
+      final newCompletedCount = currentProgress.completedQuestions + 1;
+      
+      userProgressMap[moduleId] = currentProgress.copyWith(
+          completedQuestions: newCompletedCount,
+          // 🔥 DÜZELTME: lastUpdated ve isCompleted güncellendi
+          lastUpdated: DateTime.now(),
+          isCompleted: newCompletedCount >= module.totalQuestions,
       );
     }
 
-    return refs;
+    update();
+    debugPrint('[Training Progress] Updated locally: $moduleId -> $questionId');
+  }
+
+  /// UI Helper: Bir soru çözüldü mü? (Training Mode)
+  bool isQuestionCompleted(String moduleId, String questionId) {
+    return completedQuestionIdsByModule[moduleId]?.contains(questionId) ?? false;
   }
 }
 
+// =========================
+// HELPER
+// =========================
 String _questionIdFromQuestion(Question q) {
   try {
     final dynamic v = (q as dynamic).id;
     if (v != null) return v.toString();
   } catch (_) {}
-
   try {
     final dynamic v = (q as dynamic).docId;
     if (v != null) return v.toString();
   } catch (_) {}
-
   return q.title.toString();
 }

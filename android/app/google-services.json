@@ -12,7 +12,20 @@
           "package_name": "com.example.interview_project"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1034529822481-tle77ovtn2atl065ahctc9095lop9rge.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.interview_project",
+            "certificate_hash": "8a27bf1557a10db298bf7b5e4cd9bd59011c598f"
+          }
+        },
+        {
+          "client_id": "1034529822481-ruv8vtifijt4g8i26rl57hsjl2pj04vo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyC4gWO2Wxmze_T2niaEUw-ddYbs9bhnv6M"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1034529822481-ruv8vtifijt4g8i26rl57hsjl2pj04vo.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1034529822481-osn3hkvgqf6n54li5legb7a4s991fqlp.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.interviewProject"
+              }
+            }
+          ]
         }
       }
     }

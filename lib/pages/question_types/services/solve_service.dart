@@ -67,13 +67,8 @@ class SolveService {
     } catch (_) {}
   }
 
-  static Future<void> _updateStreak(String uid) async {
-    final auth = Get.find<AuthController>();
-    final currentUid = auth.user?.uid ?? uid;
+static Future<void> _updateStreak(String uid) async {
+  await Streak.updateStreak(uid);
+}
 
-    await Streak.updateStreak(
-      uid: currentUid,
-      solvedToday: true,
-    );
-  }
 }

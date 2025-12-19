@@ -5,31 +5,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../services/firebase/auth_service.dart';
 import '../login_page.dart';
 
-/// Signup page controller
-/// - Handles form state
-/// - Calls AuthService.signUp
-/// - No UI code here
 class SignupController extends GetxController {
   final AuthService _authService = AuthService();
 
-  // --------------------
-  // Text controllers
-  // --------------------
   final nameCtrl = TextEditingController();
   final surnameCtrl = TextEditingController();
   final usernameCtrl = TextEditingController();
   final emailCtrl = TextEditingController();
   final passwordCtrl = TextEditingController();
 
-  // --------------------
-  // State
-  // --------------------
   final isLoading = false.obs;
   final acceptedTerms = false.obs;
 
-  // --------------------
-  // Sign up logic
-  // --------------------
   Future<void> signUp() async {
     if (isLoading.value) return;
 
@@ -39,11 +26,7 @@ class SignupController extends GetxController {
     final email = emailCtrl.text.trim();
     final password = passwordCtrl.text.trim();
 
-    if (name.isEmpty ||
-        surname.isEmpty ||
-        username.isEmpty ||
-        email.isEmpty ||
-        password.isEmpty) {
+    if (name.isEmpty || surname.isEmpty || username.isEmpty || email.isEmpty || password.isEmpty) {
       Get.snackbar("Error", "Please fill all fields");
       return;
     }
@@ -56,6 +39,7 @@ class SignupController extends GetxController {
     isLoading.value = true;
 
     try {
+      // 1. Kayıt
       final user = await _authService.signUp(
         email: email,
         password: password,
@@ -64,18 +48,26 @@ class SignupController extends GetxController {
         surname: surname,
       );
 
-      if (user == null) {
-        throw Exception("Sign up failed");
-      }
+      if (user == null) throw Exception("Sign up failed");
 
-      Get.offAll(() => const LoginPage());
-      Get.snackbar(
-        "Success",
-        "Account created successfully. Please login.",
+      // 2. Doğrulama Maili
+      await _authService.sendEmailVerification();
+
+      // 3. Bilgilendirme ve Yönlendirme
+      Get.defaultDialog(
+        title: "Verify Your Email",
+        middleText: "We have sent a verification link to $email.\nPlease verify your account before logging in.",
+        textConfirm: "OK",
+        confirmTextColor: Colors.white,
+        buttonColor: Colors.blueAccent,
+        barrierDismissible: false,
+        onConfirm: () {
+          Get.back();
+          Get.offAll(() => const LoginPage());
+        },
       );
     } on FirebaseAuthException catch (e) {
       String message;
-
       switch (e.code) {
         case "username-already-in-use":
           message = "This username is already taken.";
@@ -89,13 +81,9 @@ class SignupController extends GetxController {
         default:
           message = e.message ?? "Unknown error.";
       }
-
       Get.snackbar("Sign Up Error", message);
     } catch (e) {
-      Get.snackbar(
-        "Error",
-        e.toString().replaceAll("Exception:", "").trim(),
-      );
+      Get.snackbar("Error", e.toString().replaceAll("Exception:", "").trim());
     } finally {
       isLoading.value = false;
     }

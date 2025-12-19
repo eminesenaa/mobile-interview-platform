@@ -47,5 +47,17 @@
 		<true/>
 		<key>UIStatusBarHidden</key>
 		<false/>
+
+		<key>CFBundleURLTypes</key>
+<array>
+	<dict>
+		<key>CFBundleTypeRole</key>
+		<string>Editor</string>
+		<key>CFBundleURLSchemes</key>
+		<array>
+			<string>com.googleusercontent.apps.1034529822481-osn3hkvgqf6n54li5legb7a4s991fqlp</string>
+		</array>
+	</dict>
+</array>
 	</dict>
 </plist>
