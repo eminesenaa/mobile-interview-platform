@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_highlight/flutter_highlight.dart';
+
 import '../../../../constants/constants.dart';
+import '../../../theme/code_highlight_theme.dart';
 
 class ReadOnlyCodeBlock extends StatelessWidget {
   final String code;
 
+  /// highlight.js language key
+  /// examples: 'sql', 'python', 'dart', 'javascript'
+  final String language;
+
   const ReadOnlyCodeBlock({
     super.key,
     required this.code,
+    required this.language,
   });
 
   @override
@@ -18,17 +26,21 @@ class ReadOnlyCodeBlock extends StatelessWidget {
         color: AppColors.surfaceMuted,
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(
-          color: AppColors.textSecondary.withOpacity(0.25),
+          color: AppColors.primary.withOpacity(0.35),
           width: 1.2,
         ),
       ),
-      child: SelectableText(
+      child: HighlightView(
         code,
-        style: AppTextStyles.bodySmall.copyWith(
+        language: language,
+        theme: CodeHighlightTheme.theme,
+        padding: EdgeInsets.zero,
+
+        // 🔴 ÖNEMLİ: soft wrap aktif
+        textStyle: AppTextStyles.bodySmall.copyWith(
           fontFamily: 'monospace',
           fontWeight: FontWeight.w500,
-          color: AppColors.textPrimary,
-          height: 1.5,
+          height: 1.55,
         ),
       ),
     );

@@ -1,5 +1,3 @@
-// lib/pages/question_types/fill_blank/widgets/blank_input_chip.dart
-
 import 'package:flutter/material.dart';
 import '../../../../constants/constants.dart';
 
@@ -48,18 +46,18 @@ class _BlankInputChipState extends State<BlankInputChip> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 64),
+      constraints: const BoxConstraints(minWidth: 80, maxHeight: 26), // ⬅ daha geniş
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
-        vertical: 6,
+        vertical: 0.1,
       ),
       decoration: BoxDecoration(
         color: AppColors.surfaceMuted,
         borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(
           color: _focused
-              ? AppColors.textPrimary // focus → net koyu
-              : AppColors.textSecondary.withOpacity(0.5), // idle → antrasit
+              ? AppColors.textPrimary
+              : AppColors.textSecondary.withOpacity(0.5),
           width: _focused ? 1.6 : 1.4,
         ),
       ),
@@ -68,19 +66,14 @@ class _BlankInputChipState extends State<BlankInputChip> {
           controller: _controller,
           focusNode: _focusNode,
           showCursor: true,
+          cursorHeight: 18,      // ⬅ cursor kısaldı
+          cursorWidth: 1.6,
+          textAlign: TextAlign.center, // ⬅ ortadan başlasın
           onChanged: widget.onChanged,
-          style: AppTextStyles.bodySmall.copyWith(
-            fontFamily: 'monospace',
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-          decoration: InputDecoration(
+          style: AppTextStyles.questionText,
+          decoration: const InputDecoration(
             isDense: true,
             border: InputBorder.none,
-            hintStyle: AppTextStyles.bodySmall.copyWith(
-              fontFamily: 'monospace',
-              color: AppColors.primary.withValues(alpha: 0.6),
-            ),
             contentPadding: EdgeInsets.zero,
           ),
         ),

@@ -52,8 +52,16 @@ class FillBlankController extends GetxController {
 
   /// Count blanks ONLY from codeTemplate (single source of truth)
   void _initializeBlanks() {
-    final template = question.codeTemplate ?? '';
-    final blankCount = RegExp(r'___').allMatches(template).length;
+    final code = question.codeTemplate;
+    final desc = question.description;
+
+    int blankCount = 0;
+
+    if (code != null && code.isNotEmpty) {
+      blankCount = RegExp(r'___').allMatches(code).length;
+    } else if (desc != null && desc.isNotEmpty) {
+      blankCount = RegExp(r'___').allMatches(desc).length;
+    }
 
     answers.assignAll(List.filled(blankCount, ''));
 

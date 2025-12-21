@@ -3,10 +3,13 @@ import 'package:get/get.dart';
 
 import '../../../constants/constants.dart';
 import '../../../models/question.dart';
+import '../../../utils/code_language_utils.dart';
 import '../../../widgets/ai_explanation_sheet.dart';
 import '../../../widgets/answer_result_banner.dart';
 import '../controllers/mcq_controller.dart';
+import '../widgets/difficulty_chip.dart';
 import '../widgets/read_only_code_block.dart';
+import '../widgets/subtopic_chip.dart';
 
 class McqQuestionView extends StatelessWidget {
   final Question question;
@@ -42,7 +45,23 @@ class McqQuestionView extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.lg),
+
+        // ===================================================
+        // DIFFICULTY + SUBTOPICS
+        // ===================================================
+        Wrap(
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xs,
+          children: [
+            DifficultyChip(difficulty: question.difficulty),
+            ...question.subtopics.map(
+                  (s) => SubtopicChip(label: s),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: AppSpacing.md),
 
         // ===================================================
         // QUESTION TEXT
@@ -60,6 +79,9 @@ class McqQuestionView extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           ReadOnlyCodeBlock(
             code: question.codeTemplate!,
+            language: CodeLanguageUtils.resolveLanguageFromTopic(
+              question.topic,
+            ),
           ),
         ],
 
@@ -96,24 +118,19 @@ class McqQuestionView extends StatelessWidget {
                           : AppColors.surface,
                     ),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // RADIO INDICATOR
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Icon(
-                            selected
-                                ? Icons.radio_button_checked
-                                : Icons.radio_button_off,
-                            size: 20,
-                            color: selected
-                                ? AppColors.primary
-                                : AppColors.textSecondary,
-                          ),
+                        Icon(
+                          selected
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_off,
+                          size: 20,
+                          color: selected
+                              ? AppColors.primary
+                              : AppColors.textSecondary,
                         ),
                         const SizedBox(width: AppSpacing.sm),
 
-                        // OPTION CONTENT (CODE-LIKE)
                         Expanded(
                           child: Text(
                             option,
@@ -166,3 +183,5 @@ class McqQuestionView extends StatelessWidget {
     );
   }
 }
+
+

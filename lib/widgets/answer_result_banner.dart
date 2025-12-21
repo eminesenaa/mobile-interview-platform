@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../constants/constants.dart';
 
 /// =======================================================
@@ -83,11 +84,21 @@ class AnswerResultBanner extends StatelessWidget {
           // ===================================================
           if (earnedXp > 0) ...[
             const SizedBox(height: AppSpacing.md),
-            Text(
-              '⭐ You earned $earnedXp XP',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textSecondary,
-              ),
+            Row(
+              children: [
+                PhosphorIcon(
+                  PhosphorIcons.star(PhosphorIconsStyle.fill),
+                  size: 16,
+                  color: AppColors.warning,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'You earned $earnedXp XP',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ],
 

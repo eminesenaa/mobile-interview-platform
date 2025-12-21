@@ -6,6 +6,7 @@ import 'package:flutter_highlight/themes/github.dart';
 import 'package:get/get.dart';
 
 import '../../../../constants/constants.dart';
+import '../../../../theme/code_highlight_theme.dart';
 import 'blank_input_chip.dart';
 import 'code_template_with_blanks.dart';
 
@@ -50,7 +51,7 @@ class CodeLineWidget extends StatelessWidget {
       return HighlightView(
         part.text,
         language: 'python',
-        theme: _transparentGithubTheme(), // 🔑 önemli nokta
+        theme: CodeHighlightTheme.theme, // 🔑 önemli nokta
         padding: EdgeInsets.zero,
         textStyle: _codeTextStyle,
       );
@@ -67,19 +68,6 @@ class CodeLineWidget extends StatelessWidget {
     }
 
     return const SizedBox.shrink();
-  }
-
-  /// Removes background color coming from githubTheme['root']
-  Map<String, TextStyle> _transparentGithubTheme() {
-    return githubTheme.map((key, value) {
-      if (key == 'root') {
-        return MapEntry(
-          key,
-          value.copyWith(backgroundColor: Colors.transparent),
-        );
-      }
-      return MapEntry(key, value);
-    });
   }
 
   /// Shared monospace text style

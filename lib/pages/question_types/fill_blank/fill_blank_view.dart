@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:interview_project/pages/question_types/fill_blank/widgets/text_with_blanks_view.dart';
 
 import '../../../constants/constants.dart';
 import '../../../models/question.dart';
@@ -9,6 +10,8 @@ import '../../../widgets/ai_explanation_sheet.dart';
 import '../../../widgets/ai_feedback_widget.dart';
 import '../../../widgets/answer_result_banner.dart';
 import '../controllers/fill_blank_controller.dart';
+import '../widgets/difficulty_chip.dart';
+import '../widgets/subtopic_chip.dart';
 import 'widgets/code_template_with_blanks.dart';
 
 class FillBlankView extends StatelessWidget {
@@ -37,17 +40,46 @@ class FillBlankView extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.lg),
+        // ===================================================
+        // DIFFICULTY + SUBTOPICS
+        // ===================================================
+        Wrap(
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xs,
+          children: [
+            DifficultyChip(difficulty: question.difficulty),
+            ...question.subtopics.map(
+              (s) => SubtopicChip(label: s),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: AppSpacing.md),
 
         // ===================================================
         // QUESTION PROMPT
         // ===================================================
-        if ((question.description ?? '').isNotEmpty)
+        if ((question.description ?? '').isNotEmpty &&
+            (question.description!.contains('___')))
+          Obx(() {
+            if (controller.answers.isEmpty) {
+              return const SizedBox.shrink();
+            }
+
+            return TextWithBlanksView(
+              text: question.description!,
+              answers: controller.answers,
+              locked: controller.isEvaluating.value,
+              onChanged: (index) => (value) {
+                controller.updateAnswer(index, value);
+              },
+            );
+          })
+        else if ((question.description ?? '').isNotEmpty)
           Text(
             question.description!,
-            style: AppTextStyles.body.copyWith(
-              color: AppColors.textPrimary,
-            ),
+            style: AppTextStyles.questionText,
           ),
 
         const SizedBox(height: AppSpacing.lg),
