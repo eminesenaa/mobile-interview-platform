@@ -72,7 +72,7 @@ class AiService {
 
     return AiEvaluateResult(
       finalAnswer: result.expected,
-      explanation: result.reason,
+      explanation: "${result.correct ? "Correct" : "Incorrect"}. ${result.reason}",
       score: result.score,
       correct: result.correct,
     );

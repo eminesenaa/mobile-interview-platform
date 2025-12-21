@@ -49,13 +49,14 @@ class GradeResult {
 class GradeResultMapper {
 
   static GradeResult fromTraining(Map<String, dynamic> json) {
-
+    print(json['explaination']);
     return GradeResult(
       correct: json['correct'] ?? false,
       expected: json['expected']?.toString() ?? "",
-      reason: json['reason']?.toString() ?? "",
+      reason: json['explanation']?.toString() ?? "",
       score: (json['score'] is num) ? (json['score'] as num).toDouble() : 0.0,
     );
+
 
   }
 
@@ -197,6 +198,7 @@ class OpenAIService {
 
     final resp = await _post(body, timeout: timeout);
 
+    print(resp.body);
 
     return _extractGradeResult(resp, promptType);
   }
@@ -301,8 +303,9 @@ class OpenAIService {
       if (content == null) return GradeResult.fromSafeFallback(raw);
 
       final parsed = jsonDecode(content);
-      if (parsed is! Map<String, dynamic>)
+      if (parsed is! Map<String, dynamic>){
         return GradeResult.fromSafeFallback(content);
+      }
 
       switch (type) {
         case PromptType.training:
