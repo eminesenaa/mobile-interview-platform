@@ -12,11 +12,8 @@ class AiService {
   /// ShortAnswer/FillBlank: userAnswer = String
   ///
   Future<AiEvaluateResult> evaluate({
-
     required Question question,
     required dynamic userAnswer,
-    //Belki eklenebilir, dışardan almak için: required PromptType promptType
-
   }) async {
 
     final meta = _toMeta(question);
@@ -69,7 +66,6 @@ class AiService {
       AiProvider.anthropic => throw Exception("Anthropic provider not implemented yet."),
     };
 
-
     return AiEvaluateResult(
       finalAnswer: result.expected,
       explanation: "${result.correct ? "Correct" : "Incorrect"}. ${result.reason}",
@@ -79,7 +75,6 @@ class AiService {
   }
 
   // Exam evaluation
-
   Future<AiExamEvaluateResult> evaluateExam({
     required Exam exam,
     required Map<String, dynamic> userAnswers,
@@ -132,7 +127,6 @@ class AiService {
         AiProvider.anthropic => throw Exception("Anthropic provider not implemented yet."),
       };
 
-
       for (final r in results) {
         final i = (r['index'] as num).toInt();
         final isCorrect = (r['correct'] as bool?) ?? false;
@@ -166,17 +160,13 @@ class AiService {
       }
     }
 
-    questionEvaluations
-        .sort((a, b) => a.questionIndex.compareTo(b.questionIndex));
-
-    final avgScore =
-        exam.questions.isNotEmpty ? (totalScore / exam.questions.length) : 0.0;
+    questionEvaluations.sort((a, b) => a.questionIndex.compareTo(b.questionIndex));
+    final avgScore = exam.questions.isNotEmpty ? (totalScore / exam.questions.length) : 0.0;
     final totalScore100 = (avgScore * 20).clamp(0, 100).toInt();
 
     final topicMap = <String, List<bool>>{};
     for (final qe in questionEvaluations) {
-      final t =
-          (exam.questions[qe.questionIndex].topic ?? 'Unknown').toLowerCase();
+      final t = (exam.questions[qe.questionIndex].topic ?? 'Unknown').toLowerCase();
       final ok = qe.correctness == 1;
       topicMap.putIfAbsent(t, () => []).add(ok);
     }
@@ -194,7 +184,8 @@ class AiService {
       questionEvaluations: questionEvaluations,
       topicPercentage: topicPercentage,
     );
-/*
+
+  /*
   print(result.totalScore);
   print(result.correctCount);
   print(result.falseCount);
@@ -224,8 +215,7 @@ class AiService {
   // ---------- helpers ----------
 
   Map<String, String> _toMeta(Question q) {
-    // Arkadaşının template’inde beklenen anahtar adları:
-    // "Question Text", "Question Format", "Option A"..."Option D", "Correct Option", "Tags", "AI Prompt Helper"
+
     final meta = <String, String>{
       "Question Text": q.description ?? '',
       "Question Format": (q.type?.name ?? '').toUpperCase(),
@@ -241,8 +231,8 @@ class AiService {
       if (opts.length > 2) meta["Option C"] = opts[2];
       if (opts.length > 3) meta["Option D"] = opts[3];
     }
-    // Doğru şıkkı bilmiyorsak boş geç
-    // meta["Correct Option"] = q.correctOptionIndex != null ? String.fromCharCode(65 + q.correctOptionIndex!) : "";
+
+    //print(meta);
 
     return meta;
   }
@@ -283,20 +273,12 @@ class AiService {
 
 /// ------------ Templates ------------
 
-//Sonra eklenmesi için enum
-enum Correctness {
-  correct,
-  incorrect,
-  partiallyCorrect,
-  empty
-}
-
 // Alıştırmalar için
 class AiEvaluateResult {
-  final String finalAnswer;
-  final String explanation;
+  final String finalAnswer; // Perfect Answer
+  final String explanation; // Açıklama
   final double? score; // 0...5
-  final bool correct; // arkadaşın servisinden geliyor
+  final bool correct; // Doğru mu?
   AiEvaluateResult({
     required this.finalAnswer,
     required this.explanation,
@@ -305,7 +287,7 @@ class AiEvaluateResult {
   });
 }
 
-/// Examler için tek soru değerlendirme çıktısı (UI satırı)
+// Examler için tek soru değerlendirme çıktısı (UI satırı)
 class AiExamQuestionEvaluateResult {
   final String questionGeneralIndex; //Q231 şeklinde
   final int questionIndex; // Kaçıncı soru (0-based index)
@@ -324,7 +306,7 @@ class AiExamQuestionEvaluateResult {
   });
 }
 
-/// Tüm sınavın değerlendirme özeti
+// Tüm sınavın değerlendirme özeti
 class AiExamEvaluateResult {
   final int totalScore; // 100 üzerinden puan
   final int correctCount; // Doğru Sayısı

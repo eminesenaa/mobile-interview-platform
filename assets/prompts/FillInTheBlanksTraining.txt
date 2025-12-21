@@ -2,7 +2,7 @@ OUTPUT FORMAT (return ONLY raw JSON with this exact schema)
 {
   "correct": true,
   "expected": "",
-  "reason": "",
+  "explanation": "",
   "score": 0.0
 }
 
@@ -21,13 +21,13 @@ BLANKS ARE DENOTED BY THREE UNDERSCORES "___"
 If the single blank is correct:
 Correct answer.
 If the single blank is incorrect:
-The correct answer is "expected". "reason".
+The correct answer is "expected". "explanation".
 Strict rules for SINGLE BLANK:
 Do NOT use “You filled K out of N blanks correctly.”
 Do NOT use per-blank lists
 Output must be short and direct
 "expected" must be shown exactly
-"reason" must be a brief explanation of the mistake
+"explanation" must be a brief explanation of the mistake
 
 Let N = number of blanks.
 Normalize all answers

@@ -2,7 +2,7 @@ OUTPUT FORMAT (return ONLY raw JSON with this exact schema)
 {
   "correct": true,
   "expected": "",
-  "reason": "",
+  "explanation": "",
   "score": 0.0
 }
 
