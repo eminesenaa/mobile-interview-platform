@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
+import '../../../constants/colors.dart';
+import '../../../constants/constants.dart';
 
 class RunnerBottomBar extends StatelessWidget {
   const RunnerBottomBar({
@@ -26,79 +29,95 @@ class RunnerBottomBar extends StatelessWidget {
   final VoidCallback onFinish;
 
   final String submitLabel;
-
-  /// Coding editör açıkken Submit’i kilitlemek için
   final bool submitBlocked;
 
   @override
   Widget build(BuildContext context) {
     final bool sendEnabled = canSubmit && !isSubmitting && !submitBlocked;
+
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.sm,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // --------- Üst satır: Previous | Next ----------
+            // ===================================================
+            // PREVIOUS | NEXT / FINISH
+            // ===================================================
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                TextButton.icon(
+                // ---------- Previous ----------
+                TextButton(
                   onPressed: (hasPrev && !isSubmitting) ? onPrev : null,
-                  icon: const Icon(Icons.chevron_left),
-                  label: const Text('Previous'),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(Icons.chevron_left),
+                      SizedBox(width: 4),
+                      Text('Previous'),
+                    ],
+                  ),
                 ),
-                TextButton.icon(
+
+                // ---------- Next / Finish ----------
+                TextButton(
                   onPressed:
                       !isSubmitting ? (hasNext ? onNext : onFinish) : null,
-                  icon: Icon(hasNext ? Icons.chevron_right : Icons.check),
-                  label: Text(hasNext ? 'Next' : 'Finish'),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(hasNext ? 'Next' : 'Finish'),
+                      const SizedBox(width: 4),
+                      Icon(hasNext ? Icons.chevron_right : Icons.check),
+                    ],
+                  ),
                 ),
               ],
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
 
-            // --------- Alttaki tam genişlik Submit ----------
+            // ===================================================
+            // SEND BUTTON (NO LOADING SPINNER)
+            // ===================================================
             SizedBox(
               width: double.infinity,
               child: FilledButton(
                 onPressed: sendEnabled ? onSubmit : null,
                 style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
+                  minimumSize: const Size.fromHeight(52),
+                  backgroundColor: AppColors.primary,
+                  disabledBackgroundColor: AppColors.primary.withOpacity(0.35),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(28),
+                    borderRadius: BorderRadius.circular(AppRadius.xl),
                   ),
                 ),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
-                  child: isSubmitting
-                      ? const SizedBox(
-                          key: ValueKey('loading'),
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.2,
-                            valueColor: AlwaysStoppedAnimation(Colors.white),
+                child: isSubmitting
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          LoadingAnimationWidget.waveDots(
+                            color: Colors.white,
+                            size: 20,
                           ),
-                        )
-                      : Text(
-                          submitLabel,
-                          key: const ValueKey('label'),
+                        ],
+                      )
+                    : Text(
+                        submitLabel,
+                        style: AppTextStyles.bodyStrong.copyWith(
+                          color: Colors.white,
                         ),
-                ),
+                      ),
               ),
             ),
-
-            // Eğer ActionBar widget'ını kullanmak istersen, üstteki FilledButton'ı
-            // yorum satırına alıp bunu aç:
-            //
-            // ActionBar(
-            //   label: submitLabel,
-            //   onPressed: (canSubmit && !isSubmitting) ? onSubmit : null,
-            //   // loading/enabled prop'ları varsa burada eşle
-            // ),
           ],
         ),
       ),

@@ -2,13 +2,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../constants/constants.dart';
-import '../../../models/question.dart';
-import '../../../widgets/ai_feedback_widget.dart';
-import '../../../utils/markdown_heuristics.dart';
-import '../controllers/mcq_controller.dart';
+import '../../constants/constants.dart';
+import '../../models/question.dart';
+import '../../widgets/ai_feedback_widget.dart';
+import '../../utils/markdown_heuristics.dart';
+import 'controllers/mcq_controller.dart';
 
-import '../../../widgets/content/markdown_content.dart';
+import '../../widgets/content/markdown_content.dart';
 
 /// Presentational widget:
 /// - Sadece UI + kullanıcının şık seçimi

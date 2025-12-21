@@ -3,13 +3,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:interview_project/constants/colors.dart';
+import '../../constants/text_styles.dart';
 import '../../models/question.dart';
 import 'controller/question_runner_controller.dart';
-import '../question_types/widgets/mcq_question_view.dart';
-import '../question_types/widgets/fill_blank_view.dart';
-import '../question_types/widgets/short_answer_view.dart';
-import '../question_types/widgets/coding_question_view.dart';
-import '../question_types/widgets/coding_editor_page.dart';
+import '../question_types/mcq_question_view.dart';
+import '../question_types/fill_blank/fill_blank_view.dart';
+import '../question_types/short_answer_view.dart';
+import '../question_types/coding_question_view.dart';
+import '../question_types/coding_editor_page.dart';
 import 'package:interview_project/pages/runner/widgets/runner_bottom_bar.dart';
 import 'package:interview_project/pages/library/services/library_service.dart';
 import 'package:interview_project/pages/library/widgets/save_question_to_collection_sheet.dart';
@@ -40,30 +41,50 @@ class QuestionRunnerPage extends StatelessWidget {
 
       return Scaffold(
         appBar: AppBar(
-          leading: const BackButton(color: Colors.white),
-          backgroundColor: AppColors.primary,
-          title: Text(
-            titleText,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white),
-          ),
+          elevation: 0,
+          backgroundColor: AppColors.surface,
+          foregroundColor: AppColors.textPrimary,
+          centerTitle: true,
+
+          // ← Back button
+          leading: const BackButton(),
+
+          // ✅ CONTEXT-AWARE TITLE (Option 2)
+          title: Obx(() {
+            final rc = Get.find<QuestionRunnerController>();
+            return Text(
+              rc.appBarTitle, // "Practice", "Popular Question", "Training Module"
+              style: AppTextStyles.headline,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            );
+          }),
+
+          // → Actions (bookmark / code editor)
           actions: [
-            if (q != null && q.type == QuestionType.coding) ...[
-              IconButton(
-                icon: const Icon(Icons.code, color: Colors.white),
-                tooltip: "Open Editor",
-                onPressed: () async {
-                  final rc = Get.find<QuestionRunnerController>();
-                  rc.openEditor(q);
-                  await Get.to(() => CodingEditorPage(question: q));
-                  rc.closeEditor();
-                },
+            IconTheme(
+              data: const IconThemeData(
+                color: AppColors.textPrimary,
               ),
-              _RunnerSaveButton(question: q),
-            ] else if (q != null) ...[
-              _RunnerSaveButton(question: q),
-            ],
+              child: Row(
+                children: [
+                  if (q != null && q.type == QuestionType.coding)
+                    IconButton(
+                      icon: const Icon(Icons.code),
+                      tooltip: "Open Editor",
+                      onPressed: () async {
+                        final rc = Get.find<QuestionRunnerController>();
+                        rc.openEditor(q);
+                        await Get.to(() => CodingEditorPage(question: q));
+                        rc.closeEditor();
+                      },
+                    ),
+
+                  if (q != null)
+                    _RunnerSaveButton(question: q),
+                ],
+              ),
+            ),
           ],
         ),
 
@@ -185,13 +206,6 @@ class _QuestionTypeFactory extends StatelessWidget {
       case QuestionType.fillBlank:
         return FillBlankView(
           question: question,
-          locked: locked,
-          onChanged: (answers, valid) {
-            final payload = <String, dynamic>{
-              'answers': answers,
-            };
-            onAnswerChanged(payload, valid);
-          },
         );
       case QuestionType.coding:
         return CodingQuestionView(
@@ -224,7 +238,7 @@ class _RunnerSaveButton extends StatelessWidget {
           tooltip: "Save to Collection",
           icon: Icon(
             isSaved ? Icons.bookmark : Icons.bookmark_border_outlined,
-            color: Colors.white,
+            color: AppColors.textPrimary,
             size: 26,
           ),
           onPressed: () async {

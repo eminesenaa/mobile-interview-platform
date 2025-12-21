@@ -5,88 +5,149 @@ import 'package:interview_project/services/ai/ai_service.dart';
 
 import '../services/xp_service.dart';
 import '../services/solve_service.dart';
-
 import '../../runner/controller/question_runner_controller.dart';
 
+/// =======================================================
+///  FILL IN BLANK CONTROLLER
+/// =======================================================
+///
+/// Responsibilities:
+/// - Parse blank count from codeTemplate (___)
+/// - Manage user inputs for each blank
+/// - Control submit availability via Runner
+/// - Handle AI evaluation + XP + Firestore save
+/// - Expose unified state for AiFeedbackWidget
+///
 class FillBlankController extends GetxController {
   final Question question;
+
   FillBlankController(this.question);
 
-  final answers = <String>[].obs;
+  /// User answers for each blank (index-based)
+  final RxList<String> answers = <String>[].obs;
 
-  final aiResult = ''.obs;
-  final isEvaluating = false.obs;
+  /// Submission state (MCQ ile aynı pattern)
+  final RxBool isSubmitted = false.obs;
+
+  /// Loading state
+  final RxBool isEvaluating = false.obs;
+
+  /// AI evaluation result
   final Rx<AiEvaluateResult?> aiMeta = Rx<AiEvaluateResult?>(null);
 
+  /// Earned XP after evaluation
+  final RxInt earnedXp = 0.obs;
+
   final AiService _ai = Get.find<AiService>();
-  final earnedXp = 0.obs;
+
+  // =======================================================
+  //  INIT
+  // =======================================================
 
   @override
   void onInit() {
     super.onInit();
-
-    // Boşluk sayısını hesapla
-    final blanks = (question.description?.split("___").length ?? 1) - 1;
-    answers.assignAll(List.filled(blanks, ""));
+    _initializeBlanks();
   }
 
+  /// Count blanks ONLY from codeTemplate (single source of truth)
+  void _initializeBlanks() {
+    final template = question.codeTemplate ?? '';
+    final blankCount = RegExp(r'___').allMatches(template).length;
+
+    answers.assignAll(List.filled(blankCount, ''));
+
+    _updateCanSubmit();
+  }
+
+  // =======================================================
+  //  USER INPUT
+  // =======================================================
+
   void updateAnswer(int index, String value) {
-    if (index >= 0 && index < answers.length) {
-      answers[index] = value;
+    if (index < 0 || index >= answers.length) return;
+
+    answers[index] = value;
+
+    // 🔑 Kullanıcı tekrar yazmaya başladıysa
+    // önceki submit state’ini sıfırla
+    if (isSubmitted.value) {
+      isSubmitted.value = false;
+      aiMeta.value = null;
+      earnedXp.value = 0;
     }
 
-    final allFilled = answers.every((e) => e.trim().isNotEmpty);
+    _updateCanSubmit();
+  }
+
+
+  void _updateCanSubmit() {
+    final allFilled =
+        answers.isNotEmpty && answers.every((e) => e.trim().isNotEmpty);
 
     if (Get.isRegistered<QuestionRunnerController>()) {
       Get.find<QuestionRunnerController>().setCanSubmit(allFilled);
     }
   }
 
-  Future<void> submitAnswersWithAI() async {
-    final userAns = answers.map((e) => e.trim()).toList();
-    final joined = userAns.join(" | ").trim();
+  // =======================================================
+  //  SUBMIT (Runner bunu çağırır)
+  // =======================================================
 
-    if (joined.isEmpty || userAns.any((e) => e.isEmpty)) {
-      aiResult.value = "Please fill in all blanks before submitting.";
+  Future<void> submit() async {
+    if (answers.isEmpty) return;
+
+    final userAnswers = answers.map((e) => e.trim()).toList();
+
+    if (userAnswers.any((e) => e.isEmpty)) {
+      Get.snackbar(
+        'Incomplete',
+        'Please fill in all blanks before submitting.',
+      );
       return;
     }
 
-    await _evaluateWithAi(userAns);
+    isSubmitted.value = true;
+    await _evaluateWithAi(userAnswers);
   }
 
-  Future<void> _evaluateWithAi(List<String> blanks) async {
+  // =======================================================
+  //  AI EVALUATION
+  // =======================================================
+
+  Future<void> _evaluateWithAi(List<String> userAnswers) async {
     isEvaluating.value = true;
 
     try {
       final res = await _ai.evaluate(
         question: question,
-        userAnswer: blanks.join(' | '),
+        userAnswer: userAnswers.join(' | '),
       );
+
       aiMeta.value = res;
 
-      // XP hesaplama
+      // XP calculation (MCQ ile birebir aynı)
       final score = (res.score ?? 0).toInt();
       final xp = XpService.computeXp(
         baseXp: question.xp,
         score: score,
       );
+
       earnedXp.value = xp;
 
-      final verdict = res.correct ? "✅ Doğru." : "❌ Yanlış.";
-      final explain = res.explanation.isNotEmpty ? "\n${res.explanation}" : "";
-
-      aiResult.value = "$verdict$explain\n\n⭐ You earned: $xp XP";
-
-      // Firestore + streak tek satır
+      // Persist result
       await SolveService.savePracticeResult(
         question: question,
         score: score,
         earnedXp: xp,
       );
     } catch (e, st) {
-      print("AI error: $e\n$st");
-      aiResult.value =
-          "AI error occurred. Try again.\n${question.aiPromptHelper ?? ''}";
+      print('AI error (fill blank): $e\n$st');
+
+      Get.snackbar(
+        'AI error',
+        'Something went wrong. Please try again.',
+      );
     } finally {
       isEvaluating.value = false;
     }

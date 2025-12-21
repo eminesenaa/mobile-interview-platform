@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:flutter_highlight/themes/atom-one-dark.dart';
 import 'package:get/get.dart';
-import '../../../models/question.dart';
-import '../../runner/controller/question_runner_controller.dart';
-import '../controllers/coding_controller.dart';
+import '../../models/question.dart';
+import '../runner/controller/question_runner_controller.dart';
+import 'controllers/coding_controller.dart';
 import 'package:flutter_highlight/themes/github.dart';
 
 class CodingEditorPage extends StatelessWidget {

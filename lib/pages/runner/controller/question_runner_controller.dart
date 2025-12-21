@@ -66,6 +66,37 @@ class QuestionRunnerController extends GetxController {
       "${currentIndex.value + 1}/${feed.value?.length ?? 0}";
 
   // ========================================================================
+  // [2.1] APP BAR TITLE (Context-aware)
+  // ========================================================================
+
+  String get appBarTitle {
+    final f = feed.value;
+    if (f == null) return 'Question';
+
+    switch (f.source.kind) {
+      case QuestionSourceKind.practiceAll:
+      case QuestionSourceKind.practiceFilter:
+        return 'Practice';
+
+      case QuestionSourceKind.libraryAll:
+        return 'Library';
+
+      case QuestionSourceKind.collection:
+        return f.source.label ?? 'Collection';
+
+      case QuestionSourceKind.trainingModule:
+        return 'Training Module';
+
+      case QuestionSourceKind.exam:
+        return 'Exam';
+
+      case QuestionSourceKind.practiceAll: // safety (enum genişlerse)
+      default:
+        return 'Question';
+    }
+  }
+
+  // ========================================================================
   // [3] YAŞAM DÖNGÜSÜ / BAŞLATMA
   // ========================================================================
   void init(QuestionFeed f) {
@@ -197,7 +228,7 @@ class QuestionRunnerController extends GetxController {
         case QuestionType.fillBlank:
           {
             final fb = Get.find<FillBlankController>(tag: q.id);
-            await fb.submitAnswersWithAI();
+            await fb.submit();
             break;
           }
         case QuestionType.coding:
@@ -238,14 +269,13 @@ class QuestionRunnerController extends GetxController {
           feed.value!.questionIds.isNotEmpty &&
           currentIndex.value >= 0 &&
           currentIndex.value < feed.value!.questionIds.length) {
-        
         final moduleId = feed.value!.source.refId!;
         final questionId = feed.value!.questionIds[currentIndex.value];
 
         // PracticeController üzerinden Backend'e yaz
         if (Get.isRegistered<PracticeController>()) {
           final practiceCtrl = Get.find<PracticeController>();
-          
+
           await practiceCtrl.markModuleQuestionCompleted(
             moduleId,
             questionId,
@@ -255,7 +285,8 @@ class QuestionRunnerController extends GetxController {
             '[TrainingProgress] ✔️ SAVED → module=$moduleId, question=$questionId',
           );
         } else {
-          debugPrint('[TrainingProgress] ⚠️ PracticeController not found, progress not saved.');
+          debugPrint(
+              '[TrainingProgress] ⚠️ PracticeController not found, progress not saved.');
         }
       }
     } finally {
@@ -325,10 +356,9 @@ class QuestionRunnerController extends GetxController {
           await cc.evaluateWithAi(); // feedback UI view’de gösterilecek
           _answerPayload = {'code': cc.getCode()};
           _answerById[q.id] = _answerPayload;
-          
+
           // 🔥 Coding tipi için de Training Progress kaydı lazım
           await _handleTrainingProgress();
-
         } catch (e) {
           Get.snackbar('Send failed', e.toString());
         } finally {
@@ -344,24 +374,23 @@ class QuestionRunnerController extends GetxController {
 
   // Coding için özel progress handler (submit metoduna girmeden doğrudan çalışıyorsa)
   Future<void> _handleTrainingProgress() async {
-      if (feed.value != null &&
-          feed.value!.source.kind == QuestionSourceKind.trainingModule &&
-          feed.value!.source.refId != null &&
-          feed.value!.questionIds.isNotEmpty &&
-          currentIndex.value >= 0 &&
-          currentIndex.value < feed.value!.questionIds.length) {
-        
-        final moduleId = feed.value!.source.refId!;
-        final questionId = feed.value!.questionIds[currentIndex.value];
+    if (feed.value != null &&
+        feed.value!.source.kind == QuestionSourceKind.trainingModule &&
+        feed.value!.source.refId != null &&
+        feed.value!.questionIds.isNotEmpty &&
+        currentIndex.value >= 0 &&
+        currentIndex.value < feed.value!.questionIds.length) {
+      final moduleId = feed.value!.source.refId!;
+      final questionId = feed.value!.questionIds[currentIndex.value];
 
-        if (Get.isRegistered<PracticeController>()) {
-          final practiceCtrl = Get.find<PracticeController>();
-          await practiceCtrl.markModuleQuestionCompleted(moduleId, questionId);
-          debugPrint('[TrainingProgress - Code] ✔️ SAVED → $moduleId, $questionId');
-        }
+      if (Get.isRegistered<PracticeController>()) {
+        final practiceCtrl = Get.find<PracticeController>();
+        await practiceCtrl.markModuleQuestionCompleted(moduleId, questionId);
+        debugPrint(
+            '[TrainingProgress - Code] ✔️ SAVED → $moduleId, $questionId');
       }
+    }
   }
-
 
   void flushCodingDraftIfAny() {
     // İstersen taslağı burada persist edebilirsin.
