@@ -77,7 +77,7 @@ class MarkdownContent extends StatelessWidget {
   }
 }
 
-/// Fenced codeblock'ları CodeBlock widget’ına dönüştürür.
+/// Fenced codeblock'ları CodeBlock widgets’ına dönüştürür.
 /// ```c ... ``` gibi bir fence varsa element.class = 'language-c' gelir.
 /// Fenced codeblock'ları (pre > code) CodeBlock'a çevirir.
 class _PreCodeBlockBuilder extends mdw.MarkdownElementBuilder {

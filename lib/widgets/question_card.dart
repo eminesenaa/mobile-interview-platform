@@ -10,7 +10,7 @@ import '../pages/library/controllers/library_controller.dart';
 import '../pages/library/widgets/confirm_remove_dialog.dart';
 import '../pages/library/widgets/confirm_remove_from_collection_dialog.dart';
 
-/// Soru kartı widget'ı.
+/// Soru kartı widgets'ı.
 /// - Kartın tamamına basınca [onTap] tetiklenir.
 /// - Sağ üst köşedeki kaydetme ikonuna basınca [onSaveTap] tetiklenir.
 /// - [isSaved] true olduğunda ikon dolu görünür.
@@ -184,7 +184,7 @@ class _CardBody extends StatelessWidget {
   }
 }
 
-/// Sağ üstteki kaydetme (bookmark) ikonunu çizen widget.
+/// Sağ üstteki kaydetme (bookmark) ikonunu çizen widgets.
 class _SaveIconButton extends StatelessWidget {
   const _SaveIconButton({
     required this.questionId,

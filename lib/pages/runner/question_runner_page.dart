@@ -8,7 +8,7 @@ import '../../constants/text_styles.dart';
 import '../../models/question.dart';
 import '../library/controllers/library_controller.dart';
 import 'controller/question_runner_controller.dart';
-import '../question_types/mcq_question_view.dart';
+import '../question_types/mcq/mcq_question_view.dart';
 import '../question_types/fill_blank/fill_blank_view.dart';
 import '../question_types/short_answer_view.dart';
 import '../question_types/coding_question_view.dart';

@@ -95,7 +95,7 @@ class _ExamFillBlankViewState extends State<ExamFillBlankView> {
   }
 
   void _disposeControllers() {
-    // Bazı durumlarda widget dispose olurken listener hâlâ tetiklenebiliyor.
+    // Bazı durumlarda widgets dispose olurken listener hâlâ tetiklenebiliyor.
     // Bu yüzden önce listener’ları iptal edip sonra dispose ediyoruz.
     final oldControllers = Map<int, TextEditingController>.from(_controllers);
     _controllers.clear();

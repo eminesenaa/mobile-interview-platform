@@ -6,7 +6,7 @@ import 'package:get/get.dart';
 import '../../../constants/constants.dart';
 import '../controllers/library_controller.dart';
 import '../../practice/widgets/training_module_card.dart';
-import 'empty_state.dart'; // Projenizde mevcut olan empty state widget'ı
+import 'empty_state.dart'; // Projenizde mevcut olan empty state widgets'ı
 
 class LibraryModulesTab extends StatelessWidget {
   const LibraryModulesTab({super.key});

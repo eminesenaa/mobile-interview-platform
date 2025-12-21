@@ -30,7 +30,7 @@ class QuestionRunnerController extends GetxController {
   // --- İşlem/submit durumları ---
   final isSubmitting = false.obs;
 
-  //final canSubmit = false.obs; // Tip widget “valid” sinyali verir.
+  //final canSubmit = false.obs; // Tip widgets “valid” sinyali verir.
   final isLocked = false.obs; // Submit sonrası kilit (opsiyonel)
 
   // --- Mevcut soru ve cevap payload ---
@@ -49,8 +49,8 @@ class QuestionRunnerController extends GetxController {
 
   /// EDITOR & SUBMIT ENTEGRASYONU — Coding için eklendi
   final RxBool isEditorOpen = false.obs; // Editor açık mı? (submit bloklanır)
-  final RxBool canSubmit = false.obs; // Çocuk widget'tan gelen valid bilgisi
-  Map<String, dynamic>? _answerPayload; // Çocuk widget'tan gelen payload
+  final RxBool canSubmit = false.obs; // Çocuk widgets'tan gelen valid bilgisi
+  Map<String, dynamic>? _answerPayload; // Çocuk widgets'tan gelen payload
 
   // + AI service instance
   final AiService _ai = AiService();

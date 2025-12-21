@@ -64,7 +64,7 @@ class _SaveExamToCollectionSheetState extends State<SaveExamToCollectionSheet> {
 
   void _save() {
     // Front-only: burada sadece snack gösteriyoruz.
-    // Backend bağlanınca, _selected içindeki collectionId’lere widget.examId ile kaydet.
+    // Backend bağlanınca, _selected içindeki collectionId’lere widgets.examId ile kaydet.
     final count = _selected.length;
     Navigator.pop(context); // sheet’i kapat
     if (context.mounted) {

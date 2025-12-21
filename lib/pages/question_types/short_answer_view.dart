@@ -10,7 +10,7 @@ import '../../constants/constants.dart'; // AppTextStyles vb. varsa
 
 import '../../widgets/content/markdown_content.dart';
 
-/// Presentational widget:
+/// Presentational widgets:
 /// - Sadece UI + kullanıcının serbest metin cevabı
 /// - SEND butonu içermez (Runner alt barda)
 /// - Submit sonrası feedback görünümünü controller state'inden okur
