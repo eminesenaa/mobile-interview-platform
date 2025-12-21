@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../models/question.dart';
 import '../../../services/ai/ai_service.dart';
+import '../../library/controllers/library_controller.dart';
+import '../../library/services/library_service.dart';
 import '../../question_types/controllers/coding_controller.dart';
 import '../../question_types/controllers/fill_blank_controller.dart';
 import '../../question_types/controllers/mcq_controller.dart';
@@ -41,6 +43,9 @@ class QuestionRunnerController extends GetxController {
   // Her soru için submit & cevap cache'i
   final Map<String, bool> _canSubmitById = {};
   final Map<String, dynamic> _answerById = {};
+
+  // Bookmark state (UI için)
+  final RxBool isBookmarked = false.obs;
 
   /// EDITOR & SUBMIT ENTEGRASYONU — Coding için eklendi
   final RxBool isEditorOpen = false.obs; // Editor açık mı? (submit bloklanır)
@@ -171,6 +176,9 @@ class QuestionRunnerController extends GetxController {
     canSubmit.value = false;
     isLocked.value = false;
     answerPayload = null;
+
+    // BOOKMARK STATE SYNC
+    syncBookmarkState();
   }
 
   Future<Question> _fetchQuestionById(String id) async {
@@ -415,6 +423,30 @@ class QuestionRunnerController extends GetxController {
   void _restoreStateFor(Question q) {
     canSubmit.value = _canSubmitById[q.id] ?? false;
     _answerPayload = _answerById[q.id];
+  }
+
+  // Current question değiştiğinde bookmark durumunu sync et
+  Future<void> syncBookmarkState() async {
+    final q = currentQuestion.value;
+    if (q == null) return;
+
+    final saved = await LibraryService.instance.isSavedOnce(q.id);
+
+    isBookmarked.value = saved;
+  }
+
+  // QuestionRunnerController içine EKLE
+  Future<void> onTapBookmark() async {
+    final q = currentQuestion.value;
+    if (q == null) return;
+
+    if (!Get.isRegistered<LibraryController>()) return;
+    final lib = Get.find<LibraryController>();
+
+    await lib.openSaveSheetFor(q.id);
+
+    // Sheet kapandıktan sonra state’i senkronla
+    await syncBookmarkState();
   }
 
 // ========================================================================

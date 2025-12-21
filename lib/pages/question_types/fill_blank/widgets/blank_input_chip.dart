@@ -67,7 +67,7 @@ class _BlankInputChipState extends State<BlankInputChip> {
         child: TextField(
           controller: _controller,
           focusNode: _focusNode,
-          showCursor: false, // 🔑 cursor YOK
+          showCursor: true,
           onChanged: widget.onChanged,
           style: AppTextStyles.bodySmall.copyWith(
             fontFamily: 'monospace',

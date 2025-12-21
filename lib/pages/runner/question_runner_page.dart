@@ -3,8 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:interview_project/constants/colors.dart';
+import '../../constants/constants.dart';
 import '../../constants/text_styles.dart';
 import '../../models/question.dart';
+import '../library/controllers/library_controller.dart';
 import 'controller/question_runner_controller.dart';
 import '../question_types/mcq_question_view.dart';
 import '../question_types/fill_blank/fill_blank_view.dart';
@@ -49,26 +51,29 @@ class QuestionRunnerPage extends StatelessWidget {
           // ← Back button
           leading: const BackButton(),
 
-          // ✅ CONTEXT-AWARE TITLE (Option 2)
+          // ===================================================
+          // TITLE (Context-aware, ellipsis)
+          // ===================================================
           title: Obx(() {
             final rc = Get.find<QuestionRunnerController>();
             return Text(
-              rc.appBarTitle, // "Practice", "Popular Question", "Training Module"
+              rc.appBarTitle,
+              // "Practice", "Popular Question", "Training Module"
               style: AppTextStyles.headline,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             );
           }),
 
-          // → Actions (bookmark / code editor)
+          // ===================================================
+          // ACTIONS (Code Editor + Bookmark)
+          // ===================================================
           actions: [
-            IconTheme(
-              data: const IconThemeData(
-                color: AppColors.textPrimary,
-              ),
-              child: Row(
+            if (q != null)
+              Row(
                 children: [
-                  if (q != null && q.type == QuestionType.coding)
+                  // ---------- Coding Editor ----------
+                  if (q.type == QuestionType.coding)
                     IconButton(
                       icon: const Icon(Icons.code),
                       tooltip: "Open Editor",
@@ -80,11 +85,12 @@ class QuestionRunnerPage extends StatelessWidget {
                       },
                     ),
 
-                  if (q != null)
-                    _RunnerSaveButton(question: q),
+                  // ---------- Bookmark (Sheet Açan) ----------
+                  _RunnerSaveButton(question: q),
+
+                  const SizedBox(width: AppSpacing.xs),
                 ],
               ),
-            ),
           ],
         ),
 
@@ -223,39 +229,31 @@ class _QuestionTypeFactory extends StatelessWidget {
 class _RunnerSaveButton extends StatelessWidget {
   final Question question;
 
-  const _RunnerSaveButton({required this.question});
+  const _RunnerSaveButton({
+    required this.question,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final lib = LibraryService.instance;
-    final qId = _extractQuestionId(question);
+    final libraryCtrl = Get.find<LibraryController>();
 
-    return StreamBuilder<bool>(
-      stream: lib.isSavedStream(qId), // 🔹 Firestore'dan gerçek durum
-      builder: (_, snap) {
-        final isSaved = snap.data ?? false;
-        return IconButton(
-          tooltip: "Save to Collection",
-          icon: Icon(
-            isSaved ? Icons.bookmark : Icons.bookmark_border_outlined,
-            color: AppColors.textPrimary,
-            size: 26,
-          ),
-          onPressed: () async {
-            final result = await showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              builder: (_) => SaveQuestionToCollectionSheet(questionId: qId),
-            );
-            if (result == true) {
-              await lib.saveToAll(qId);
-            } else if (result == false) {
-              await lib.removeQuestionEverywhere(qId);
-            }
-          },
-        );
-      },
-    );
+    return Obx(() {
+      final bool isSaved =
+          libraryCtrl.savedQuestions.any((q) => q.id == question.id);
+
+      return IconButton(
+        tooltip: isSaved ? 'Saved' : 'Save',
+        icon: Icon(
+          isSaved ? Icons.bookmark : Icons.bookmark_border,
+          color: isSaved ? AppColors.primary : AppColors.textSecondary,
+        ),
+        onPressed: () async {
+          // ❗❗ KRİTİK NOKTA ❗❗
+          // Runner'da bookmark → SADECE sheet açar
+          await libraryCtrl.openSaveSheetFor(question.id);
+        },
+      );
+    });
   }
 }
 
