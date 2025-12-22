@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:interview_project/constants/colors.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../constants/constants.dart';
 import '../../constants/text_styles.dart';
 import '../../models/question.dart';
@@ -10,9 +11,9 @@ import '../library/controllers/library_controller.dart';
 import 'controller/question_runner_controller.dart';
 import '../question_types/mcq/mcq_question_view.dart';
 import '../question_types/fill_blank/fill_blank_view.dart';
-import '../question_types/short_answer_view.dart';
-import '../question_types/coding_question_view.dart';
-import '../question_types/coding_editor_page.dart';
+import '../question_types/short_answer/short_answer_view.dart';
+import '../question_types/coding/coding_question_view.dart';
+import '../question_types/coding/coding_editor_page.dart';
 import 'package:interview_project/pages/runner/widgets/runner_bottom_bar.dart';
 import 'package:interview_project/pages/library/services/library_service.dart';
 import 'package:interview_project/pages/library/widgets/save_question_to_collection_sheet.dart';
@@ -75,7 +76,11 @@ class QuestionRunnerPage extends StatelessWidget {
                   // ---------- Coding Editor ----------
                   if (q.type == QuestionType.coding)
                     IconButton(
-                      icon: const Icon(Icons.code),
+                      icon: PhosphorIcon(
+                        PhosphorIcons.code(PhosphorIconsStyle.regular),
+                        size: 30,
+                        color: AppColors.textPrimary,
+                      ),
                       tooltip: "Open Editor",
                       onPressed: () async {
                         final rc = Get.find<QuestionRunnerController>();

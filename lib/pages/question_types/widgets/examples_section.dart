@@ -1,102 +1,177 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../../constants/constants.dart';
 import '../../../models/question.dart';
 
 class ExamplesSection extends StatelessWidget {
   final List<ExampleCase> examples;
 
-  const ExamplesSection({super.key, required this.examples});
+  const ExamplesSection({
+    super.key,
+    required this.examples,
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (examples.isEmpty) return const SizedBox.shrink();
+    // --------------------------------------------------
+    // FILTER VALID EXAMPLES
+    // --------------------------------------------------
+    final validExamples = examples.where((e) {
+      final hasInput = e.input.trim().isNotEmpty && e.input.trim() != '[]';
+      final hasOutput = e.output.trim().isNotEmpty && e.output.trim() != '[]';
+      final hasExplanation = (e.explanation?.trim().isNotEmpty ?? false);
 
-    final s = Theme.of(context).colorScheme;
-    final t = Theme.of(context).textTheme;
+      return hasInput || hasOutput || hasExplanation;
+    }).toList();
 
-    return Container(
-      margin: const EdgeInsets.only(top: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: s.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: s.outlineVariant.withOpacity(.35)),
-      ),
-      child: Column(
+    // 🚫 NO VALID EXAMPLES → RENDER NOTHING
+    if (validExamples.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: List.generate(validExamples.length, (i) {
+        final e = validExamples[i];
+        final isSingle = validExamples.length == 1;
+        final title = isSingle ? 'Example' : 'Example ${i + 1}';
+
+        return Padding(
+          padding: EdgeInsets.only(
+            top: i == 0 ? 0 : AppSpacing.lg,
+          ),
+          child: _ExampleBlock(
+            title: title,
+            example: e,
+          ),
+        );
+      }),
+    );
+  }
+}
+
+/// --------------------------------------------------
+/// SINGLE EXAMPLE BLOCK (LEETCODE STYLE)
+/// --------------------------------------------------
+class _ExampleBlock extends StatelessWidget {
+  final String title;
+  final ExampleCase example;
+
+  const _ExampleBlock({
+    required this.title,
+    required this.example,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Example / Example 1 / Example 2
+        Text(
+          '$title:',
+          style: AppTextStyles.questionText.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+
+        const SizedBox(height: AppSpacing.sm),
+
+        // CONTENT (Indented + vertical line)
+        _IndentedBlock(
+          children: [
+            if (example.input.trim().isNotEmpty && example.input.trim() != '[]')
+              _Line(
+                label: 'Input',
+                value: example.input,
+              ),
+            if (example.output.trim().isNotEmpty &&
+                example.output.trim() != '[]')
+              _Line(
+                label: 'Output',
+                value: example.output,
+              ),
+            if ((example.explanation ?? '').trim().isNotEmpty)
+              _Line(
+                label: 'Explanation',
+                value: example.explanation!,
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// --------------------------------------------------
+/// LEFT LINE + INDENT WRAPPER
+/// --------------------------------------------------
+class _IndentedBlock extends StatelessWidget {
+  final List<Widget> children;
+
+  const _IndentedBlock({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return IntrinsicHeight(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Examples',
-              style: t.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          // ...List.generate(examples.length, (i) {
-          //   final e = examples[i];
-          ...List.generate(examples.length, (i) {
-            final e = examples[i];
-
-            if (kDebugMode) {
-              debugPrint(
-                '[EX_WIDGET] #${i + 1} -> input="${e.input}" | output="${e.output}" | expl="${e.explanation}"',
-              );
-            }
-            return Padding(
-              padding:
-                  EdgeInsets.only(bottom: i == examples.length - 1 ? 0 : 10),
-              child: _ExampleTile(index: i + 1, e: e),
-            );
-          }),
+          Container(
+            width: 2,
+            margin: const EdgeInsets.only(top: 6),
+            decoration: BoxDecoration(
+              color: AppColors.textSecondary.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: children,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _ExampleTile extends StatelessWidget {
-  final int index;
-  final ExampleCase e;
+/// --------------------------------------------------
+/// INPUT / OUTPUT / EXPLANATION LINE
+/// --------------------------------------------------
+class _Line extends StatelessWidget {
+  final String label;
+  final String value;
 
-  const _ExampleTile({required this.index, required this.e});
+  const _Line({
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final s = Theme.of(context).colorScheme;
-
-    Widget codeBox(String value) => Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: s.primary.withOpacity(.06),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal, // uzun input/output’lar için
-            child: SelectableText(
-              (value.isEmpty ? '—' : value),
-              style: t.bodySmall?.copyWith(
-                fontFamily: 'monospace', // varsa RobotoMono ekleyebilirsin
-                height: 1.3,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: RichText(
+        text: TextSpan(
+          style: AppTextStyles.questionText,
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: AppTextStyles.questionText.copyWith(
+                fontWeight: FontWeight.w600,
               ),
             ),
-          ),
-        );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Example $index',
-            style: t.labelLarge?.copyWith(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 6),
-        Text('Input', style: t.labelSmall),
-        codeBox(e.input),
-        const SizedBox(height: 6),
-        Text('Output', style: t.labelSmall),
-        codeBox(e.output),
-        if ((e.explanation ?? '').isNotEmpty) ...[
-          const SizedBox(height: 6),
-          Text('Explanation', style: t.labelSmall),
-          codeBox(e.explanation!),
-        ],
-      ],
+            TextSpan(
+              text: value,
+              style: AppTextStyles.questionText.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
