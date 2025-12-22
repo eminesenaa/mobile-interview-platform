@@ -16,18 +16,20 @@ CANDIDATE INPUT(s)
 {{candidate_answer_or_choice}}
 
 EVALUATION RULES
+
 BLANKS ARE DENOTED BY THREE UNDERSCORES "___"
 
-If the single blank is correct:
-Correct answer.
+Be case insensitive unless exact syntax is needed.
+
 If the single blank is incorrect:
-The correct answer is "expected". "explanation".
-Strict rules for SINGLE BLANK:
+The correct answer is "expected"
+
+Strict rules for SINGLE BLANK explanation:
 Do NOT use “You filled K out of N blanks correctly.”
 Do NOT use per-blank lists
 Output must be short and direct
 "expected" must be shown exactly
-"explanation" must be a brief explanation of the mistake
+"explanation" must be a good explanation of the question and the mistake
 
 Let N = number of blanks.
 Normalize all answers
@@ -49,10 +51,13 @@ You filled K out of N blanks correctly.
 If K < N (ANY incorrect):
 You filled K out of N blanks correctly:
 
-1- <user_value> — <status>
-2- <user_value> — <status>
+explanation:
+"
+1- <user_value> — <explanation>
+2- <user_value> — <explanation>
 ...
-N- <user_value> — <status>
+N- <user_value> — <explanation>
+"
 
 Strict:
 Exactly N lines
