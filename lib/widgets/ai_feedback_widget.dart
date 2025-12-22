@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Ortak AI Feedback widget'i
+/// Ortak AI Feedback widgets'i
 /// - Tüm soru tiplerinde aynı UI ile kullanılacak.
 /// - Doğruluk, skor, açıklama ve kazanılan XP bilgisi gösterilir.
 class AiFeedbackWidget extends StatelessWidget {

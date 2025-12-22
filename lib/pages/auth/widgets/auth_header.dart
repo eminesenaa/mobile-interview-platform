@@ -13,7 +13,7 @@ enum AuthHeaderSize {
 /// Auth screens header
 /// - Responsive mascot size
 /// - Responsive typography
-/// - Same widget for login & signup
+/// - Same widgets for login & signup
 class AuthHeader extends StatelessWidget {
   final String title;
   final String subtitle;

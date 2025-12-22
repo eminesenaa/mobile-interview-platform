@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 /// Uygulamanın renk sistemi.
-/// Lütfen widget içinde doğrudan Color(0xFF...) kullanma,
+/// Lütfen widgets içinde doğrudan Color(0xFF...) kullanma,
 /// bunun yerine AppColors içindeki isimleri kullan.
 class AppColors {
   AppColors._();

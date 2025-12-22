@@ -26,11 +26,20 @@ class CodingController extends GetxController {
   final aiFeedback = ''.obs;
   final earnedXp = 0.obs;
 
+  final solveState = SolveState.idle.obs;
+
   CodingController(this.question);
 
   @override
   void onInit() {
     super.onInit();
+
+    if (solveState.value == SolveState.solvedWrong ||
+        solveState.value == SolveState.solvedCorrect) {
+      aiMeta.value = null;
+      earnedXp.value = 0;
+      solveState.value = SolveState.idle;
+    }
 
     final starterRaw = question.codeTemplate ?? '';
     final starter = CodeTemplateSanitizer.sanitize(starterRaw);
@@ -49,6 +58,9 @@ class CodingController extends GetxController {
       currentCode.value = txt;
       hasEdited.value = (txt != _initialCode);
 
+      solveState.value =
+          hasEdited.value ? SolveState.canSubmit : SolveState.idle;
+
       if (Get.isRegistered<QuestionRunnerController>()) {
         Get.find<QuestionRunnerController>().setCanSubmit(hasEdited.value);
       }
@@ -56,6 +68,7 @@ class CodingController extends GetxController {
   }
 
   String getCode() => currentCode.value;
+
   bool get edited => hasEdited.value;
 
   void setCode(String code) {
@@ -73,9 +86,13 @@ class CodingController extends GetxController {
   // AI değerlendirme + XP + Firestore
   // -------------------------------
   Future<void> evaluateWithAi() async {
+    solveState.value = SolveState.submitting;
+    isEvaluating.value = true;
+
     final code = currentCode.value.trim();
 
     if (code.isEmpty) {
+      solveState.value = SolveState.idle;
       Get.snackbar('Empty code', 'Please write some code before sending.');
       return;
     }
@@ -109,11 +126,30 @@ class CodingController extends GetxController {
         score: score,
         earnedXp: xp,
       );
+      solveState.value =
+          res.correct ? SolveState.solvedCorrect : SolveState.solvedWrong;
     } catch (e, st) {
+      solveState.value = SolveState.solvedWrong;
       print("❌ AI error (coding): $e\n$st");
       Get.snackbar("AI error", "Something went wrong. Try again.");
     } finally {
       isEvaluating.value = false;
+    }
+  }
+
+  void resetCode() {
+    codeController.text = _initialCode;
+    currentCode.value = _initialCode;
+    hasEdited.value = false;
+
+    aiMeta.value = null;
+    earnedXp.value = 0;
+    isEvaluating.value = false;
+
+    solveState.value = SolveState.idle;
+
+    if (Get.isRegistered<QuestionRunnerController>()) {
+      Get.find<QuestionRunnerController>().setCanSubmit(false);
     }
   }
 }

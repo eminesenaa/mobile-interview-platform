@@ -14,10 +14,10 @@ class McqController extends GetxController {
   final Question question;
   final bool shuffleOptions;
 
-  // AI servisi
+  final solveState = SolveState.idle.obs;
+
   final AiService _ai = Get.find<AiService>();
 
-  // UI state
   final options = <String>[].obs;
   final selectedIndex = (-1).obs;
   final isSubmitted = false.obs;
@@ -34,12 +34,10 @@ class McqController extends GetxController {
   void onInit() {
     super.onInit();
 
-    // Şıkları yükle
     final base = (question.options ?? <String>[]).map((e) => e.trim()).toList();
     if (shuffleOptions) base.shuffle();
     options.assignAll(base);
 
-    // Doğru cevabı bul
     final ans = (question.correctAnswer ?? '').trim();
     if (ans.isNotEmpty) {
       final idx = options.indexWhere(
@@ -49,28 +47,37 @@ class McqController extends GetxController {
     }
   }
 
+  // ---------------------------------
+  // SELECT OPTION
+  // ---------------------------------
   void select(int index) {
     if (isSubmitted.value) return;
+
     selectedIndex.value = index;
+    solveState.value = SolveState.canSubmit;
 
     if (Get.isRegistered<QuestionRunnerController>()) {
       Get.find<QuestionRunnerController>().setCanSubmit(true);
     }
   }
 
+  // ---------------------------------
+  // SUBMIT
+  // ---------------------------------
   Future<void> submit() async {
     if (selectedIndex.value == -1) {
       Get.snackbar('No selection', 'Please select an option.');
       return;
     }
 
+    solveState.value = SolveState.submitting;
+    isSubmitted.value = true;
+
     final chosen = options[selectedIndex.value];
     final correct = (question.correctAnswer ?? '').trim();
 
     isCorrect.value =
         chosen.trim().toLowerCase() == correct.trim().toLowerCase();
-
-    isSubmitted.value = true;
 
     await _evaluateWithAi(chosen);
   }
@@ -95,7 +102,6 @@ class McqController extends GetxController {
       );
       aiResult.value = res;
 
-      // XP hesaplama
       final score = (res.score ?? 0).toInt();
       final xp = XpService.computeXp(
         baseXp: question.xp,
@@ -109,18 +115,38 @@ class McqController extends GetxController {
 
       aiFeedback.value = "$verdict$explain\n\n⭐ You earned: $xp XP";
 
-      // Firestore kayıt (tek satır)
       await SolveService.savePracticeResult(
         question: question,
         score: score,
         earnedXp: xp,
       );
+
+      solveState.value =
+          isCorrect.value ? SolveState.solvedCorrect : SolveState.solvedWrong;
     } catch (e, st) {
       print("AI error (mcq): $e\n$st");
       aiFeedback.value =
           "AI evaluation failed. Please try again.\n${question.aiPromptHelper ?? ''}";
+      solveState.value = SolveState.solvedWrong;
     } finally {
       isEvaluating.value = false;
+    }
+  }
+
+  // ---------------------------------
+  // RESET (TRY AGAIN)
+  // ---------------------------------
+  void resetSelection() {
+    selectedIndex.value = -1;
+    isSubmitted.value = false;
+    isCorrect.value = false;
+    aiResult.value = null;
+    aiFeedback.value = '';
+    earnedXp.value = 0;
+    solveState.value = SolveState.idle;
+
+    if (Get.isRegistered<QuestionRunnerController>()) {
+      Get.find<QuestionRunnerController>().setCanSubmit(false);
     }
   }
 }

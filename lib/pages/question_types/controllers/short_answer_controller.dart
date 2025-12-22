@@ -8,6 +8,14 @@ import '../services/solve_service.dart';
 
 import '../../runner/controller/question_runner_controller.dart';
 
+enum SolveState {
+  idle,
+  canSubmit,
+  submitting,
+  solvedCorrect,
+  solvedWrong,
+}
+
 class ShortAnswerController extends GetxController {
   final Question question;
 
@@ -15,6 +23,8 @@ class ShortAnswerController extends GetxController {
 
   final answer = ''.obs;
   final isSubmitted = false.obs;
+
+  final solveState = SolveState.idle.obs;
 
   final AiService _ai = Get.find<AiService>();
 
@@ -24,14 +34,26 @@ class ShortAnswerController extends GetxController {
 
   final earnedXp = 0.obs;
 
+  // ---------------------------------
+  // INPUT CHANGE
+  // ---------------------------------
   void updateAnswer(String v) {
     answer.value = v;
+
+    if (v.trim().isNotEmpty) {
+      solveState.value = SolveState.canSubmit;
+    } else {
+      solveState.value = SolveState.idle;
+    }
 
     if (Get.isRegistered<QuestionRunnerController>()) {
       Get.find<QuestionRunnerController>().setCanSubmit(v.trim().isNotEmpty);
     }
   }
 
+  // ---------------------------------
+  // SUBMIT
+  // ---------------------------------
   Future<void> submit() async {
     final userText = answer.value.trim();
 
@@ -40,7 +62,9 @@ class ShortAnswerController extends GetxController {
       return;
     }
 
+    solveState.value = SolveState.submitting;
     isSubmitted.value = true;
+
     await _evaluateWithAi(userText);
   }
 
@@ -57,7 +81,6 @@ class ShortAnswerController extends GetxController {
       );
       aiMeta.value = res;
 
-      // XP hesaplama (XPSERVICE)
       final score = (res.score ?? 0).toInt();
       final xp = XpService.computeXp(
         baseXp: question.xp,
@@ -70,17 +93,41 @@ class ShortAnswerController extends GetxController {
 
       aiFeedback.value = "$verdict$explain\n\n⭐ You earned: $xp XP";
 
-      // Kayıt SolveService üzerinden (tek satır)
       await SolveService.savePracticeResult(
         question: question,
         score: score,
         earnedXp: xp,
       );
+
+      // 🔥 SOLVE STATE
+      if (res.correct) {
+        solveState.value = SolveState.solvedCorrect;
+      } else {
+        solveState.value = SolveState.solvedWrong;
+      }
     } catch (e, st) {
       print('AI error (short): $e\n$st');
-      aiFeedback.value = "AI error occurred. Try again.\n${question.aiPromptHelper ?? ''}";
+      aiFeedback.value =
+          "AI error occurred. Try again.\n${question.aiPromptHelper ?? ''}";
+      solveState.value = SolveState.solvedWrong;
     } finally {
       isEvaluating.value = false;
+    }
+  }
+
+  // ---------------------------------
+  // RESET (TRY AGAIN)
+  // ---------------------------------
+  void resetAnswer() {
+    answer.value = '';
+    isSubmitted.value = false;
+    aiMeta.value = null;
+    aiFeedback.value = '';
+    earnedXp.value = 0;
+    solveState.value = SolveState.idle;
+
+    if (Get.isRegistered<QuestionRunnerController>()) {
+      Get.find<QuestionRunnerController>().setCanSubmit(false);
     }
   }
 }

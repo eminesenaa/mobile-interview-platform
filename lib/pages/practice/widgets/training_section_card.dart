@@ -1,6 +1,6 @@
 // ===================== File: lib/pages/practice/widgets/training_section_card.dart =====================
 // Purpose: Training module içindeki tek bir section'ı ve o section'a bağlı
-//          soru listesini gösteren kart widget.
+//          soru listesini gösteren kart widgets.
 // UI notları:
 // - Section başlığı üstte, isteğe bağlı kısa açıklama altında.
 // - Altında numaralandırılmış soru satırları.

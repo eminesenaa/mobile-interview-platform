@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../models/question.dart';
 import '../../../services/ai/ai_service.dart';
+import '../../library/controllers/library_controller.dart';
+import '../../library/services/library_service.dart';
 import '../../question_types/controllers/coding_controller.dart';
 import '../../question_types/controllers/fill_blank_controller.dart';
 import '../../question_types/controllers/mcq_controller.dart';
@@ -16,6 +18,14 @@ import '../question_feed.dart';
 
 // 🔥 TRAINING MODULE ENTEGRASYONU İÇİN EKLENDİ
 import '../../practice/controllers/practice_controller.dart';
+
+enum SolveState {
+  idle, // ilk açılış, hiçbir input yok
+  canSubmit, // input var, send aktif
+  submitting, // AI değerlendiriyor
+  solvedCorrect, // doğru çözüldü
+  solvedWrong, // yanlış çözüldü
+}
 
 // ============================================================================
 // [1] CONTROLLER TANIMI & ALANLAR
@@ -28,7 +38,7 @@ class QuestionRunnerController extends GetxController {
   // --- İşlem/submit durumları ---
   final isSubmitting = false.obs;
 
-  //final canSubmit = false.obs; // Tip widget “valid” sinyali verir.
+  //final canSubmit = false.obs; // Tip widgets “valid” sinyali verir.
   final isLocked = false.obs; // Submit sonrası kilit (opsiyonel)
 
   // --- Mevcut soru ve cevap payload ---
@@ -42,10 +52,15 @@ class QuestionRunnerController extends GetxController {
   final Map<String, bool> _canSubmitById = {};
   final Map<String, dynamic> _answerById = {};
 
+  // Bookmark state (UI için)
+  final RxBool isBookmarked = false.obs;
+
   /// EDITOR & SUBMIT ENTEGRASYONU — Coding için eklendi
   final RxBool isEditorOpen = false.obs; // Editor açık mı? (submit bloklanır)
-  final RxBool canSubmit = false.obs; // Çocuk widget'tan gelen valid bilgisi
-  Map<String, dynamic>? _answerPayload; // Çocuk widget'tan gelen payload
+  final RxBool canSubmit = false.obs; // Çocuk widgets'tan gelen valid bilgisi
+  Map<String, dynamic>? _answerPayload; // Çocuk widgets'tan gelen payload
+
+  final solveState = SolveState.idle.obs;
 
   // + AI service instance
   final AiService _ai = AiService();
@@ -64,6 +79,37 @@ class QuestionRunnerController extends GetxController {
 
   String get positionLabel =>
       "${currentIndex.value + 1}/${feed.value?.length ?? 0}";
+
+  // ========================================================================
+  // [2.1] APP BAR TITLE (Context-aware)
+  // ========================================================================
+
+  String get appBarTitle {
+    final f = feed.value;
+    if (f == null) return 'Question';
+
+    switch (f.source.kind) {
+      case QuestionSourceKind.practiceAll:
+      case QuestionSourceKind.practiceFilter:
+        return 'Practice';
+
+      case QuestionSourceKind.libraryAll:
+        return 'Library';
+
+      case QuestionSourceKind.collection:
+        return f.source.label ?? 'Collection';
+
+      case QuestionSourceKind.trainingModule:
+        return 'Training Module';
+
+      case QuestionSourceKind.exam:
+        return 'Exam';
+
+      case QuestionSourceKind.practiceAll: // safety (enum genişlerse)
+      default:
+        return 'Question';
+    }
+  }
 
   // ========================================================================
   // [3] YAŞAM DÖNGÜSÜ / BAŞLATMA
@@ -140,6 +186,9 @@ class QuestionRunnerController extends GetxController {
     canSubmit.value = false;
     isLocked.value = false;
     answerPayload = null;
+
+    // BOOKMARK STATE SYNC
+    syncBookmarkState();
   }
 
   Future<Question> _fetchQuestionById(String id) async {
@@ -177,6 +226,8 @@ class QuestionRunnerController extends GetxController {
   }
 
   Future<void> submit() async {
+    solveState.value = SolveState.submitting;
+
     if (!canSubmit.value || currentQuestion.value == null) return;
     isSubmitting.value = true;
     try {
@@ -197,7 +248,7 @@ class QuestionRunnerController extends GetxController {
         case QuestionType.fillBlank:
           {
             final fb = Get.find<FillBlankController>(tag: q.id);
-            await fb.submitAnswersWithAI();
+            await fb.submit();
             break;
           }
         case QuestionType.coding:
@@ -225,6 +276,41 @@ class QuestionRunnerController extends GetxController {
             break;
           }
       }
+      bool? correct;
+
+      switch (q.type) {
+        case QuestionType.mcq:
+          final c = Get.find<McqController>(tag: q.id);
+          correct = c.isCorrect.value;
+          break;
+
+        case QuestionType.shortAnswer:
+          final c = Get.find<ShortAnswerController>(tag: q.id);
+          correct = c.aiMeta.value?.correct;
+          break;
+
+        case QuestionType.fillBlank:
+          final c = Get.find<FillBlankController>(tag: q.id);
+          correct = c.aiMeta.value?.correct;
+          break;
+
+        case QuestionType.coding:
+          final c = Get.find<CodingController>(tag: q.id);
+          correct = c.aiMeta.value?.correct;
+          break;
+
+        default:
+          correct = null;
+      }
+
+      if (correct == true) {
+        solveState.value = SolveState.solvedCorrect;
+      } else if (correct == false) {
+        solveState.value = SolveState.solvedWrong;
+      } else {
+        solveState.value = SolveState.idle;
+      }
+
 
       // gönderimden sonra inputları kilitle
       isLocked.value = true;
@@ -238,14 +324,13 @@ class QuestionRunnerController extends GetxController {
           feed.value!.questionIds.isNotEmpty &&
           currentIndex.value >= 0 &&
           currentIndex.value < feed.value!.questionIds.length) {
-        
         final moduleId = feed.value!.source.refId!;
         final questionId = feed.value!.questionIds[currentIndex.value];
 
         // PracticeController üzerinden Backend'e yaz
         if (Get.isRegistered<PracticeController>()) {
           final practiceCtrl = Get.find<PracticeController>();
-          
+
           await practiceCtrl.markModuleQuestionCompleted(
             moduleId,
             questionId,
@@ -255,13 +340,32 @@ class QuestionRunnerController extends GetxController {
             '[TrainingProgress] ✔️ SAVED → module=$moduleId, question=$questionId',
           );
         } else {
-          debugPrint('[TrainingProgress] ⚠️ PracticeController not found, progress not saved.');
+          debugPrint(
+              '[TrainingProgress] ⚠️ PracticeController not found, progress not saved.');
         }
       }
     } finally {
       isSubmitting.value = false;
     }
   }
+
+  Future<void> onPrimaryAction() async {
+    switch (solveState.value) {
+      case SolveState.solvedCorrect:
+        if (hasNext) {
+          await next();
+        }
+        break;
+
+      case SolveState.solvedWrong:
+        _resetCurrentAnswer();
+        break;
+
+      default:
+        await submit();
+    }
+  }
+
 
   // ========================================================================
   // [7] EDITOR / CODING AKIŞI (flag ve payload yönetimi)
@@ -325,10 +429,9 @@ class QuestionRunnerController extends GetxController {
           await cc.evaluateWithAi(); // feedback UI view’de gösterilecek
           _answerPayload = {'code': cc.getCode()};
           _answerById[q.id] = _answerPayload;
-          
+
           // 🔥 Coding tipi için de Training Progress kaydı lazım
           await _handleTrainingProgress();
-
         } catch (e) {
           Get.snackbar('Send failed', e.toString());
         } finally {
@@ -344,24 +447,23 @@ class QuestionRunnerController extends GetxController {
 
   // Coding için özel progress handler (submit metoduna girmeden doğrudan çalışıyorsa)
   Future<void> _handleTrainingProgress() async {
-      if (feed.value != null &&
-          feed.value!.source.kind == QuestionSourceKind.trainingModule &&
-          feed.value!.source.refId != null &&
-          feed.value!.questionIds.isNotEmpty &&
-          currentIndex.value >= 0 &&
-          currentIndex.value < feed.value!.questionIds.length) {
-        
-        final moduleId = feed.value!.source.refId!;
-        final questionId = feed.value!.questionIds[currentIndex.value];
+    if (feed.value != null &&
+        feed.value!.source.kind == QuestionSourceKind.trainingModule &&
+        feed.value!.source.refId != null &&
+        feed.value!.questionIds.isNotEmpty &&
+        currentIndex.value >= 0 &&
+        currentIndex.value < feed.value!.questionIds.length) {
+      final moduleId = feed.value!.source.refId!;
+      final questionId = feed.value!.questionIds[currentIndex.value];
 
-        if (Get.isRegistered<PracticeController>()) {
-          final practiceCtrl = Get.find<PracticeController>();
-          await practiceCtrl.markModuleQuestionCompleted(moduleId, questionId);
-          debugPrint('[TrainingProgress - Code] ✔️ SAVED → $moduleId, $questionId');
-        }
+      if (Get.isRegistered<PracticeController>()) {
+        final practiceCtrl = Get.find<PracticeController>();
+        await practiceCtrl.markModuleQuestionCompleted(moduleId, questionId);
+        debugPrint(
+            '[TrainingProgress - Code] ✔️ SAVED → $moduleId, $questionId');
       }
+    }
   }
-
 
   void flushCodingDraftIfAny() {
     // İstersen taslağı burada persist edebilirsin.
@@ -388,6 +490,30 @@ class QuestionRunnerController extends GetxController {
     _answerPayload = _answerById[q.id];
   }
 
+  // Current question değiştiğinde bookmark durumunu sync et
+  Future<void> syncBookmarkState() async {
+    final q = currentQuestion.value;
+    if (q == null) return;
+
+    final saved = await LibraryService.instance.isSavedOnce(q.id);
+
+    isBookmarked.value = saved;
+  }
+
+  // QuestionRunnerController içine EKLE
+  Future<void> onTapBookmark() async {
+    final q = currentQuestion.value;
+    if (q == null) return;
+
+    if (!Get.isRegistered<LibraryController>()) return;
+    final lib = Get.find<LibraryController>();
+
+    await lib.openSaveSheetFor(q.id);
+
+    // Sheet kapandıktan sonra state’i senkronla
+    await syncBookmarkState();
+  }
+
 // ========================================================================
 // [8] DURUM SIFIRLAMA / YARDIMCI
 // ========================================================================
@@ -397,4 +523,47 @@ class QuestionRunnerController extends GetxController {
     canSubmit.value = false;
     _answerPayload = null;
   }
+
+  void _resetCurrentAnswer() {
+    final q = currentQuestion.value;
+    if (q == null) return;
+
+    solveState.value = SolveState.idle;
+    canSubmit.value = false;
+    isLocked.value = false;
+
+    switch (q.type) {
+      case QuestionType.mcq:
+        Get.find<McqController>(tag: q.id)
+          ..selectedIndex.value = -1
+          ..isSubmitted.value = false;
+        break;
+
+      case QuestionType.shortAnswer:
+        Get.find<ShortAnswerController>(tag: q.id)
+          ..answer.value = ''
+          ..isSubmitted.value = false;
+        break;
+
+      case QuestionType.fillBlank:
+        Get.find<FillBlankController>(tag: q.id)
+          ..answers.assignAll(
+            List.filled(
+              Get.find<FillBlankController>(tag: q.id).answers.length,
+              '',
+            ),
+          )
+          ..isSubmitted.value = false;
+        break;
+
+      case QuestionType.coding:
+        final c = Get.find<CodingController>(tag: q.id);
+        c.setCode(c.question.codeTemplate ?? '');
+        break;
+
+      default:
+        break;
+    }
+  }
+
 }

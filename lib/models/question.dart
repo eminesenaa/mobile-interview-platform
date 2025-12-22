@@ -28,6 +28,7 @@ class Question {
   final String title;
   final String? description;
   final String topic;
+  final List<String> subtopics;
   final Difficulty difficulty;
   final Status status;
   final List<String> tags;
@@ -48,6 +49,7 @@ class Question {
     required this.title,
     required this.description,
     required this.topic,
+    this.subtopics = const [],
     required this.difficulty,
     required this.status,
     required this.tags,
@@ -66,6 +68,7 @@ class Question {
     String? title,
     String? description,
     String? topic,
+    List<String>? subtopics,
     Difficulty? difficulty,
     Status? status,
     List<String>? tags,
@@ -82,6 +85,7 @@ class Question {
       title: title ?? this.title,
       description: description ?? this.description,
       topic: topic ?? this.topic,
+      subtopics: subtopics ?? this.subtopics,
       difficulty: difficulty ?? this.difficulty,
       status: status ?? this.status,
       tags: tags ?? this.tags,
@@ -140,6 +144,7 @@ class Question {
             final low = v.trimLeft().toLowerCase();
             return low.startsWith('$label:') ? v : '$label: $v';
           }
+
           final blob = [
             _ensureLabel('input', rawIn),
             _ensureLabel('output', rawOut),
@@ -151,7 +156,8 @@ class Question {
             parsedExamples.add(ExampleCase(
                 input: p.input, output: p.output, explanation: p.explanation));
           } else {
-            final raw = (e['text'] ?? e['value'] ?? e['example'] ?? '').toString();
+            final raw =
+                (e['text'] ?? e['value'] ?? e['example'] ?? '').toString();
             if (raw.trim().isNotEmpty) {
               parsedExamples.add(ExampleCase.fromDisplayText(raw));
             }
@@ -170,7 +176,20 @@ class Question {
     }
 
     if (parsedExamples.isEmpty) {
-      final candidateKeys = ['example1', 'example2', 'example3', 'example_1', 'example_2', 'example_3', 'Example 1', 'Example 2', 'Example 3', 'ex1', 'ex2', 'ex3'];
+      final candidateKeys = [
+        'example1',
+        'example2',
+        'example3',
+        'example_1',
+        'example_2',
+        'example_3',
+        'Example 1',
+        'Example 2',
+        'Example 3',
+        'ex1',
+        'ex2',
+        'ex3'
+      ];
       for (final key in candidateKeys) {
         final raw = data[key];
         if (raw is String && raw.trim().isNotEmpty) {
@@ -190,11 +209,29 @@ class Question {
       }
     }
 
+    final List<String> parsedSubtopics;
+    final rawSub = data['subtopics'];
+
+    if (rawSub is List) {
+      parsedSubtopics = List<String>.from(
+        rawSub.map((e) => e.toString().trim()),
+      ).where((e) => e.isNotEmpty).toList();
+    } else if (rawSub is String) {
+      parsedSubtopics = rawSub
+          .split(RegExp(r'[;,]'))
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    } else {
+      parsedSubtopics = const [];
+    }
+
     return Question(
       id: documentId,
       title: data['title'] ?? '',
       description: data['description'] ?? data['text'] ?? '',
       topic: data['topic'] ?? 'General',
+      subtopics: parsedSubtopics,
       difficulty: _parseDifficulty(data['difficulty']),
       status: _parseStatus(data['status']),
       tags: data['tags'] != null ? List<String>.from(data['tags']) : [],
@@ -213,6 +250,7 @@ class Question {
       'title': title,
       'description': description,
       'topic': topic,
+      if (subtopics.isNotEmpty) 'subtopics': subtopics,
       'difficulty': difficulty.name,
       'status': status.name,
       'tags': tags,
@@ -220,7 +258,8 @@ class Question {
       'options': options,
       if (blanks != null) 'blanks': blanks,
       if (codeTemplate != null) 'codeTemplate': codeTemplate,
-      if (examples.isNotEmpty) 'examples': examples.map((e) => e.toJson()).toList(),
+      if (examples.isNotEmpty)
+        'examples': examples.map((e) => e.toJson()).toList(),
       'correctAnswer': correctAnswer,
       'aiPromptHelper': aiPromptHelper,
     };
@@ -230,18 +269,30 @@ class Question {
     if (val == null) return Difficulty.easy;
     String raw = val.toString().trim().replaceAll("–", "-").toLowerCase();
     switch (raw) {
-      case '1 - easy': case 'easy': return Difficulty.easy;
-      case '2 - easy-medium': case 'easy_medium': return Difficulty.easy_medium;
-      case '3 - medium': case 'medium': return Difficulty.medium;
-      case '4 - medium-hard': case 'medium_hard': return Difficulty.medium_hard;
-      case '5 - hard': case 'hard': return Difficulty.hard;
-      default: return Difficulty.easy;
+      case '1 - easy':
+      case 'easy':
+        return Difficulty.easy;
+      case '2 - easy-medium':
+      case 'easy_medium':
+        return Difficulty.easy_medium;
+      case '3 - medium':
+      case 'medium':
+        return Difficulty.medium;
+      case '4 - medium-hard':
+      case 'medium_hard':
+        return Difficulty.medium_hard;
+      case '5 - hard':
+      case 'hard':
+        return Difficulty.hard;
+      default:
+        return Difficulty.easy;
     }
   }
 
   static Status _parseStatus(dynamic val) {
     if (val == null) return Status.todo;
-    return Status.values.firstWhere((e) => e.name == val, orElse: () => Status.todo);
+    return Status.values
+        .firstWhere((e) => e.name == val, orElse: () => Status.todo);
   }
 
   static QuestionType _parseType(dynamic val) {
@@ -250,12 +301,20 @@ class Question {
     final core = raw.contains('.') ? raw.split('.').last : raw;
     final normalized = core.replaceAll(RegExp(r'[^a-z]'), '');
     switch (normalized) {
-      case 'mcq': return QuestionType.mcq;
-      case 'short': case 'shortanswer': return QuestionType.shortAnswer;
-      case 'coding': return QuestionType.coding;
-      case 'fill': case 'fillblank': return QuestionType.fillBlank;
-      case 'debugging': return QuestionType.debugging;
-      default: return QuestionType.mcq;
+      case 'mcq':
+        return QuestionType.mcq;
+      case 'short':
+      case 'shortanswer':
+        return QuestionType.shortAnswer;
+      case 'coding':
+        return QuestionType.coding;
+      case 'fill':
+      case 'fillblank':
+        return QuestionType.fillBlank;
+      case 'debugging':
+        return QuestionType.debugging;
+      default:
+        return QuestionType.mcq;
     }
   }
 }
@@ -265,22 +324,26 @@ class ExampleCase {
   final String output;
   final String? explanation;
 
-  const ExampleCase({required this.input, required this.output, this.explanation});
+  const ExampleCase(
+      {required this.input, required this.output, this.explanation});
 
   factory ExampleCase.fromJson(Map<String, dynamic> j) => ExampleCase(
-    input: (j['input'] ?? '').toString(),
-    output: (j['output'] ?? '').toString(),
-    explanation: (j['explanation'] ?? '').toString().trim().isEmpty ? null : (j['explanation'] ?? '').toString(),
-  );
+        input: (j['input'] ?? '').toString(),
+        output: (j['output'] ?? '').toString(),
+        explanation: (j['explanation'] ?? '').toString().trim().isEmpty
+            ? null
+            : (j['explanation'] ?? '').toString(),
+      );
 
   factory ExampleCase.fromDisplayText(String raw) {
     final p = ExampleParser.parse(raw);
-    return ExampleCase(input: p.input, output: p.output, explanation: p.explanation);
+    return ExampleCase(
+        input: p.input, output: p.output, explanation: p.explanation);
   }
 
   Map<String, dynamic> toJson() => {
-    'input': input,
-    'output': output,
-    if (explanation != null) 'explanation': explanation,
-  };
+        'input': input,
+        'output': output,
+        if (explanation != null) 'explanation': explanation,
+      };
 }

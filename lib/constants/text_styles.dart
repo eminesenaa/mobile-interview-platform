@@ -69,6 +69,15 @@ class AppTextStyles {
     color: AppColors.textMuted,
   );
 
+  /// Soru açıklaması (question text)
+  static final TextStyle questionText = GoogleFonts.inter(
+    fontSize: 16,
+    fontWeight: FontWeight.w400,
+    height: 1.6,
+    color: AppColors.textPrimary,
+  );
+
+
   // =====================
   //  Buttons & Chips
   // =====================
