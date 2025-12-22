@@ -38,6 +38,8 @@ class FillBlankController extends GetxController {
   /// Earned XP after evaluation
   final RxInt earnedXp = 0.obs;
 
+  final solveState = SolveState.idle.obs;
+
   final AiService _ai = Get.find<AiService>();
 
   // =======================================================
@@ -79,19 +81,22 @@ class FillBlankController extends GetxController {
 
     // 🔑 Kullanıcı tekrar yazmaya başladıysa
     // önceki submit state’ini sıfırla
-    if (isSubmitted.value) {
+    if (solveState.value == SolveState.solvedWrong ||
+        solveState.value == SolveState.solvedCorrect) {
       isSubmitted.value = false;
       aiMeta.value = null;
       earnedXp.value = 0;
+      solveState.value = SolveState.idle;
     }
 
     _updateCanSubmit();
   }
 
-
   void _updateCanSubmit() {
     final allFilled =
         answers.isNotEmpty && answers.every((e) => e.trim().isNotEmpty);
+
+    solveState.value = allFilled ? SolveState.canSubmit : SolveState.idle;
 
     if (Get.isRegistered<QuestionRunnerController>()) {
       Get.find<QuestionRunnerController>().setCanSubmit(allFilled);
@@ -115,7 +120,9 @@ class FillBlankController extends GetxController {
       return;
     }
 
+    solveState.value = SolveState.submitting;
     isSubmitted.value = true;
+
     await _evaluateWithAi(userAnswers);
   }
 
@@ -149,7 +156,10 @@ class FillBlankController extends GetxController {
         score: score,
         earnedXp: xp,
       );
+      solveState.value =
+          res.correct ? SolveState.solvedCorrect : SolveState.solvedWrong;
     } catch (e, st) {
+      solveState.value = SolveState.solvedWrong;
       print('AI error (fill blank): $e\n$st');
 
       Get.snackbar(
@@ -158,6 +168,22 @@ class FillBlankController extends GetxController {
       );
     } finally {
       isEvaluating.value = false;
+    }
+  }
+
+  void resetBlanks() {
+    for (var i = 0; i < answers.length; i++) {
+      answers[i] = '';
+    }
+
+    isSubmitted.value = false;
+    isEvaluating.value = false;
+    aiMeta.value = null;
+    earnedXp.value = 0;
+    solveState.value = SolveState.idle;
+
+    if (Get.isRegistered<QuestionRunnerController>()) {
+      Get.find<QuestionRunnerController>().setCanSubmit(false);
     }
   }
 }

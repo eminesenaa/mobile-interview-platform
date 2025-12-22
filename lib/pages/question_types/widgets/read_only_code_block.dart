@@ -6,9 +6,6 @@ import '../../../theme/code_highlight_theme.dart';
 
 class ReadOnlyCodeBlock extends StatelessWidget {
   final String code;
-
-  /// highlight.js language key
-  /// examples: 'sql', 'python', 'dart', 'javascript'
   final String language;
 
   const ReadOnlyCodeBlock({
@@ -36,11 +33,11 @@ class ReadOnlyCodeBlock extends StatelessWidget {
         theme: CodeHighlightTheme.theme,
         padding: EdgeInsets.zero,
 
-        // 🔴 ÖNEMLİ: soft wrap aktif
         textStyle: AppTextStyles.bodySmall.copyWith(
           fontFamily: 'monospace',
           fontWeight: FontWeight.w500,
           height: 1.55,
+          color: AppColors.textPrimary, // 👈 fallback’ı ZORLAR
         ),
       ),
     );

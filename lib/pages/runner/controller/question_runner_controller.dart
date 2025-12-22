@@ -19,6 +19,14 @@ import '../question_feed.dart';
 // 🔥 TRAINING MODULE ENTEGRASYONU İÇİN EKLENDİ
 import '../../practice/controllers/practice_controller.dart';
 
+enum SolveState {
+  idle, // ilk açılış, hiçbir input yok
+  canSubmit, // input var, send aktif
+  submitting, // AI değerlendiriyor
+  solvedCorrect, // doğru çözüldü
+  solvedWrong, // yanlış çözüldü
+}
+
 // ============================================================================
 // [1] CONTROLLER TANIMI & ALANLAR
 // ============================================================================
@@ -51,6 +59,8 @@ class QuestionRunnerController extends GetxController {
   final RxBool isEditorOpen = false.obs; // Editor açık mı? (submit bloklanır)
   final RxBool canSubmit = false.obs; // Çocuk widgets'tan gelen valid bilgisi
   Map<String, dynamic>? _answerPayload; // Çocuk widgets'tan gelen payload
+
+  final solveState = SolveState.idle.obs;
 
   // + AI service instance
   final AiService _ai = AiService();
@@ -216,6 +226,8 @@ class QuestionRunnerController extends GetxController {
   }
 
   Future<void> submit() async {
+    solveState.value = SolveState.submitting;
+
     if (!canSubmit.value || currentQuestion.value == null) return;
     isSubmitting.value = true;
     try {
@@ -264,6 +276,41 @@ class QuestionRunnerController extends GetxController {
             break;
           }
       }
+      bool? correct;
+
+      switch (q.type) {
+        case QuestionType.mcq:
+          final c = Get.find<McqController>(tag: q.id);
+          correct = c.isCorrect.value;
+          break;
+
+        case QuestionType.shortAnswer:
+          final c = Get.find<ShortAnswerController>(tag: q.id);
+          correct = c.aiMeta.value?.correct;
+          break;
+
+        case QuestionType.fillBlank:
+          final c = Get.find<FillBlankController>(tag: q.id);
+          correct = c.aiMeta.value?.correct;
+          break;
+
+        case QuestionType.coding:
+          final c = Get.find<CodingController>(tag: q.id);
+          correct = c.aiMeta.value?.correct;
+          break;
+
+        default:
+          correct = null;
+      }
+
+      if (correct == true) {
+        solveState.value = SolveState.solvedCorrect;
+      } else if (correct == false) {
+        solveState.value = SolveState.solvedWrong;
+      } else {
+        solveState.value = SolveState.idle;
+      }
+
 
       // gönderimden sonra inputları kilitle
       isLocked.value = true;
@@ -301,6 +348,24 @@ class QuestionRunnerController extends GetxController {
       isSubmitting.value = false;
     }
   }
+
+  Future<void> onPrimaryAction() async {
+    switch (solveState.value) {
+      case SolveState.solvedCorrect:
+        if (hasNext) {
+          await next();
+        }
+        break;
+
+      case SolveState.solvedWrong:
+        _resetCurrentAnswer();
+        break;
+
+      default:
+        await submit();
+    }
+  }
+
 
   // ========================================================================
   // [7] EDITOR / CODING AKIŞI (flag ve payload yönetimi)
@@ -458,4 +523,47 @@ class QuestionRunnerController extends GetxController {
     canSubmit.value = false;
     _answerPayload = null;
   }
+
+  void _resetCurrentAnswer() {
+    final q = currentQuestion.value;
+    if (q == null) return;
+
+    solveState.value = SolveState.idle;
+    canSubmit.value = false;
+    isLocked.value = false;
+
+    switch (q.type) {
+      case QuestionType.mcq:
+        Get.find<McqController>(tag: q.id)
+          ..selectedIndex.value = -1
+          ..isSubmitted.value = false;
+        break;
+
+      case QuestionType.shortAnswer:
+        Get.find<ShortAnswerController>(tag: q.id)
+          ..answer.value = ''
+          ..isSubmitted.value = false;
+        break;
+
+      case QuestionType.fillBlank:
+        Get.find<FillBlankController>(tag: q.id)
+          ..answers.assignAll(
+            List.filled(
+              Get.find<FillBlankController>(tag: q.id).answers.length,
+              '',
+            ),
+          )
+          ..isSubmitted.value = false;
+        break;
+
+      case QuestionType.coding:
+        final c = Get.find<CodingController>(tag: q.id);
+        c.setCode(c.question.codeTemplate ?? '');
+        break;
+
+      default:
+        break;
+    }
+  }
+
 }

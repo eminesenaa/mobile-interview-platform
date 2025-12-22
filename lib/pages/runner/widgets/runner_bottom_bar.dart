@@ -18,22 +18,28 @@ class RunnerBottomBar extends StatelessWidget {
     this.submitBlocked = false,
   });
 
+  // Navigation state
   final bool hasPrev;
   final bool hasNext;
+
+  // Submit state
   final bool isSubmitting;
   final bool canSubmit;
+  final bool submitBlocked;
 
+  // Actions
   final VoidCallback onPrev;
-  final VoidCallback onSubmit;
+  final VoidCallback onSubmit; // 🔑 artık Send / Continue / Try Again hepsi buradan
   final VoidCallback onNext;
   final VoidCallback onFinish;
 
+  // UI
   final String submitLabel;
-  final bool submitBlocked;
 
   @override
   Widget build(BuildContext context) {
-    final bool sendEnabled = canSubmit && !isSubmitting && !submitBlocked;
+    final bool primaryEnabled =
+        canSubmit && !isSubmitting && !submitBlocked;
 
     return SafeArea(
       top: false,
@@ -48,7 +54,7 @@ class RunnerBottomBar extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             // ===================================================
-            // PREVIOUS | NEXT / FINISH
+            // PREVIOUS | NEXT
             // ===================================================
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -66,16 +72,16 @@ class RunnerBottomBar extends StatelessWidget {
                   ),
                 ),
 
-                // ---------- Next / Finish ----------
+                // ---------- Next ----------
                 TextButton(
                   onPressed:
-                      !isSubmitting ? (hasNext ? onNext : onFinish) : null,
+                  (hasNext && !isSubmitting) ? onNext : null,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(hasNext ? 'Next' : 'Finish'),
-                      const SizedBox(width: 4),
-                      Icon(hasNext ? Icons.chevron_right : Icons.check),
+                    children: const [
+                      Text('Next'),
+                      SizedBox(width: 4),
+                      Icon(Icons.chevron_right),
                     ],
                   ),
                 ),
@@ -85,37 +91,33 @@ class RunnerBottomBar extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
 
             // ===================================================
-            // SEND BUTTON (NO LOADING SPINNER)
+            // PRIMARY ACTION BUTTON
+            // Send / Continue / Try Again
             // ===================================================
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: sendEnabled ? onSubmit : null,
+                onPressed: primaryEnabled ? onSubmit : null,
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(52),
                   backgroundColor: AppColors.primary,
-                  disabledBackgroundColor: AppColors.primary.withOpacity(0.35),
+                  disabledBackgroundColor:
+                  AppColors.primary.withOpacity(0.35),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppRadius.xl),
                   ),
                 ),
                 child: isSubmitting
-                    ? Row(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          LoadingAnimationWidget.waveDots(
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ],
-                      )
+                    ? LoadingAnimationWidget.waveDots(
+                  color: Colors.white,
+                  size: 20,
+                )
                     : Text(
-                        submitLabel,
-                        style: AppTextStyles.bodyStrong.copyWith(
-                          color: Colors.white,
-                        ),
-                      ),
+                  submitLabel,
+                  style: AppTextStyles.bodyStrong.copyWith(
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ),
           ],
