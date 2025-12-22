@@ -2,8 +2,7 @@ OUTPUT FORMAT (return ONLY raw JSON with this exact schema)
 {
   "correct": true,
   "expected": "",
-  "reason": "",
-  "tips": [],
+  "explanation": "",
   "score": 0.0
 }
 
@@ -17,18 +16,20 @@ CANDIDATE INPUT(s)
 {{candidate_answer_or_choice}}
 
 EVALUATION RULES
+
 BLANKS ARE DENOTED BY THREE UNDERSCORES "___"
 
-If the single blank is correct:
-Correct answer.
+Be case insensitive unless exact syntax is needed.
+
 If the single blank is incorrect:
-The correct answer is "expected". "reason".
-Strict rules for SINGLE BLANK:
+The correct answer is "expected"
+
+Strict rules for SINGLE BLANK explanation:
 Do NOT use “You filled K out of N blanks correctly.”
 Do NOT use per-blank lists
 Output must be short and direct
 "expected" must be shown exactly
-"reason" must be a brief explanation of the mistake
+"explanation" must be a good explanation of the question and the mistake
 
 Let N = number of blanks.
 Normalize all answers
@@ -50,10 +51,13 @@ You filled K out of N blanks correctly.
 If K < N (ANY incorrect):
 You filled K out of N blanks correctly:
 
-1- <user_value> — <status>
-2- <user_value> — <status>
+explanation:
+"
+1- <user_value> — <explanation>
+2- <user_value> — <explanation>
 ...
-N- <user_value> — <status>
+N- <user_value> — <explanation>
+"
 
 Strict:
 Exactly N lines
@@ -66,8 +70,7 @@ Maintain a professional, supportive, and neutral tone.
 "correct" = true if the user shows enough understanding in their answer. Otherwise, false. 2.5 score could be a good threshold
 "score" = float between 0.0 and 5.0
 "expected" = the perfect answer that would get 5.0 score. Try to infer the expected answer from the Helper or the Tags
-"reason" = professional yet supportive explanation.
-"tips" = concise, encouraging improvement points (max 3).
+"explanation" = The explanation of what's being asked in the question (Ex: "Overfitting is...")
 Never use third-person phrasing; always speak directly.
 Feedback must be concise, instructional, and minimal.
 Never output markdown, decorative symbols, or explanations outside the JSON array.
