@@ -51,7 +51,14 @@ class McqController extends GetxController {
   // SELECT OPTION
   // ---------------------------------
   void select(int index) {
-    if (isSubmitted.value) return;
+    // ❌ bunu kaldır
+    // if (isSubmitted.value) return;
+
+    // ✅ Runner kilitliyse engelle
+    if (Get.isRegistered<QuestionRunnerController>()) {
+      final runner = Get.find<QuestionRunnerController>();
+      if (runner.isLocked.value) return;
+    }
 
     selectedIndex.value = index;
     solveState.value = SolveState.canSubmit;
@@ -60,6 +67,7 @@ class McqController extends GetxController {
       Get.find<QuestionRunnerController>().setCanSubmit(true);
     }
   }
+
 
   // ---------------------------------
   // SUBMIT
@@ -146,7 +154,11 @@ class McqController extends GetxController {
     solveState.value = SolveState.idle;
 
     if (Get.isRegistered<QuestionRunnerController>()) {
-      Get.find<QuestionRunnerController>().setCanSubmit(false);
+      final runner = Get.find<QuestionRunnerController>();
+      runner.solveState.value = SolveState.idle;
+      runner.isLocked.value = false;
+      runner.setCanSubmit(false);
     }
+
   }
 }
