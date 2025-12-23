@@ -60,26 +60,36 @@ class _ExamMcqViewState extends State<ExamMcqView> {
   Widget build(BuildContext context) {
     final options = List<String>.from(widget.question.options ?? const []);
 
-    final questionText =
-        widget.question.description ?? widget.question.title ?? '';
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ===================================================
+        // QUESTION TEXT  ✅ (EKLENDİ)
+        // ===================================================
+        if ((widget.question.description ?? '').isNotEmpty)
+          Text(
+            widget.question.description!,
+            style: AppTextStyles.body.copyWith(
+              fontSize: 16,
+              color: AppColors.textPrimary,
+            ),
+          ),
+
+        if ((widget.question.description ?? '').isNotEmpty)
+          const SizedBox(height: AppSpacing.lg),
+
+        // ===================================================
         // OPTIONAL CODE TEMPLATE (READ ONLY)
         // ===================================================
         if ((widget.question.codeTemplate ?? '').isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.md),
           ReadOnlyCodeBlock(
             code: widget.question.codeTemplate!,
             language: CodeLanguageUtils.resolveLanguageFromTopic(
               widget.question.topic,
             ),
           ),
+          const SizedBox(height: AppSpacing.lg),
         ],
-
-        const SizedBox(height: AppSpacing.lg),
 
         // ===================================================
         // OPTIONS

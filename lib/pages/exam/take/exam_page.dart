@@ -7,6 +7,7 @@ import '../../../constants/constants.dart';
 import '../../../models/exam.dart';
 import '../../../models/question.dart';
 
+import '../../question_types/fill_blank/widgets/text_with_blanks_view.dart';
 import '../controllers/exam_controller.dart';
 import '../controllers/exam_coding_controller.dart';
 
@@ -116,17 +117,7 @@ class ExamPage extends StatelessWidget {
                       onClear: () => c.clearAnswer(q.id),
                     ),
 
-
                     const SizedBox(height: AppSpacing.md),
-
-                    // 🔹 QUESTION TEXT (TEK YER)
-                    if ((q.description ?? '').isNotEmpty)
-                      Text(
-                        q.description!,
-                        style: AppTextStyles.bodyStrong,
-                      ),
-
-                    const SizedBox(height: AppSpacing.sm),
 
                     // 🔹 QUESTION VIEW (MCQ / FILL / SHORT / CODING)
                     _buildQuestionContent(c, q, exam.id),
@@ -191,28 +182,35 @@ class ExamPage extends StatelessWidget {
     switch (q.type) {
       case QuestionType.mcq:
         return Obx(() => ExamMcqView(
-          key: ValueKey(
-            '${q.id}-${c.clearTick.value}', // 🔥 RESET ANAHTARI
-          ),
-          question: q,
-          examId: examId,
-          onAnswer: c.answerCurrent,
-          onToggleFlag: () => c.toggleFlag(q.id),
-        ));
+              key: ValueKey(
+                '${q.id}-${c.clearTick.value}', // 🔥 RESET ANAHTARI
+              ),
+              question: q,
+              examId: examId,
+              onAnswer: c.answerCurrent,
+              onToggleFlag: () => c.toggleFlag(q.id),
+            ));
       case QuestionType.fillBlank:
-        return ExamFillBlankView(
-          key: ValueKey('fill-${q.id}'),
-          question: q,
-          examId: examId,
-          onAnswerChanged: (answers) {
-            final normalized = {
-              for (final e in answers.entries) e.key.toString(): e.value,
-            };
-            c.saveAnswer(q.id, normalized);
-          },
-        );
+        return Obx(() => ExamFillBlankView(
+              // 🔑 clearTick ile key-reset (olmazsa olmaz)
+              key: ValueKey('fill-${q.id}-${c.clearTick.value}'),
+
+              question: q,
+              examId: examId,
+
+              onAnswerChanged: (answers) {
+                if (answers == null || answers.isEmpty) {
+                  c.clearAnswer(q.id);
+                } else {
+                  c.saveAnswer(q.id, answers);
+                }
+              },
+            ));
       case QuestionType.shortAnswer:
         return ExamShortAnswerView(
+          key: ValueKey(
+            'short-${q.id}-${c.clearTick.value}',
+          ),
           question: q,
           examId: examId,
           onAnswerChanged: (answer) {
