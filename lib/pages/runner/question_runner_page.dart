@@ -123,32 +123,34 @@ class QuestionRunnerPage extends StatelessWidget {
           final q = c.currentQuestion.value;
           final isCoding = (q?.type == QuestionType.coding);
           final submitBlocked = (isCoding == true) && c.isEditorOpen.value;
+
           return RunnerBottomBar(
             hasPrev: c.hasPrev,
             hasNext: c.hasNext,
             isSubmitting: c.isSubmitting.value,
             canSubmit: c.canSubmit.value,
             submitBlocked: submitBlocked,
-            submitLabel: c.primaryButtonText,
-            showSecondaryButton: c.showSecondaryButton,
-            secondaryButtonLabel: c.secondaryButtonText,
+
+            // 🔑 TEK BUTON
+            submitLabel:
+            c.solveState.value == SolveState.idle ? 'Send' : 'Solve Again',
+
+            onSubmit: c.onTapSubmitOrSolveAgain,
+
             onPrev: () {
               c.flushCodingDraftIfAny();
               _pageCtrl.previousPage(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOut);
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOut,
+              );
             },
-            onSubmit: c.onPrimaryAction,
-            onSecondaryAction: c.onSecondaryAction,
+
             onNext: () {
               c.flushCodingDraftIfAny();
               _pageCtrl.nextPage(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOut);
-            },
-            onFinish: () {
-              c.flushCodingDraftIfAny();
-              Get.back();
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOut,
+              );
             },
           );
         }),

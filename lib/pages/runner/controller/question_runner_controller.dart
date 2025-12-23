@@ -76,27 +76,12 @@ class QuestionRunnerController extends GetxController {
   String get positionLabel =>
       "${currentIndex.value + 1}/${feed.value?.length ?? 0}";
 
-  // ========================================================================
-  // [2.2] DYNAMIC BUTTON TEXT (Based on solve state)
-  // ========================================================================
-
-  String get primaryButtonText {
-    switch (solveState.value) {
-      case SolveState.solvedCorrect:
-        return 'Continue';
-      case SolveState.solvedWrong:
-        return 'Try Again';
-      default:
-        return 'Send';
+  String get submitLabel {
+    if (solveState.value == SolveState.solvedCorrect ||
+        solveState.value == SolveState.solvedWrong) {
+      return 'Solve Again';
     }
-  }
-
-  bool get showSecondaryButton {
-    return solveState.value == SolveState.solvedCorrect;
-  }
-
-  String get secondaryButtonText {
-    return 'Try Again';
+    return 'Send';
   }
 
   // ========================================================================
@@ -326,7 +311,6 @@ class QuestionRunnerController extends GetxController {
         solveState.value = SolveState.idle;
       }
 
-
       // gönderimden sonra inputları kilitle
       isLocked.value = true;
 
@@ -364,28 +348,15 @@ class QuestionRunnerController extends GetxController {
     }
   }
 
-  Future<void> onPrimaryAction() async {
-    switch (solveState.value) {
-      case SolveState.solvedCorrect:
-        if (hasNext) {
-          await next();
-        }
-        break;
-
-      case SolveState.solvedWrong:
-        _resetCurrentAnswer();
-        break;
-
-      default:
-        await submit();
+  Future<void> onTapSubmitOrSolveAgain() async {
+    if (solveState.value == SolveState.solvedCorrect ||
+        solveState.value == SolveState.solvedWrong) {
+      _resetCurrentAnswer();
+      return;
     }
-  }
 
-  Future<void> onSecondaryAction() async {
-    // This is called when "Try Again" is pressed after a correct answer
-    _resetCurrentAnswer();
+    await submit();
   }
-
 
   // ========================================================================
   // [7] EDITOR / CODING AKIŞI (flag ve payload yönetimi)
@@ -423,42 +394,42 @@ class QuestionRunnerController extends GetxController {
   }
 
   // + Ekrandaki "Send" (FAB) tetikleyicisi
-  Future<void> onTapSend() async {
-    final q = currentQuestion.value;
-    if (q == null) return;
-    if (isEditorOpen.value) {
-      Get.snackbar('Editor is open', 'Please close the editor before sending.');
-      return;
-    }
-
-    if (q.type == QuestionType.coding) {
-      if (Get.isRegistered<CodingController>(tag: q.id)) {
-        final cc = Get.find<CodingController>(tag: q.id);
-        if (cc.getCode().trim().isEmpty) {
-          Get.snackbar(
-              'Empty answer', 'Please type some code (even a single space).');
-          return;
-        }
-        isSubmitting.value = true;
-        try {
-          await cc.evaluateWithAi(); // feedback UI view’de gösterilecek
-          _answerPayload = {'code': cc.getCode()};
-          _answerById[q.id] = _answerPayload;
-
-          // 🔥 Coding tipi için de Training Progress kaydı lazım
-          await _handleTrainingProgress();
-        } catch (e) {
-          Get.snackbar('Send failed', e.toString());
-        } finally {
-          isSubmitting.value = false;
-        }
-      }
-      return;
-    }
-
-    // coding dışındaki tiplerde submit zaten switch-case içinden çağrılıyor
-    await submit();
-  }
+  // Future<void> onTapSend() async {
+  //   final q = currentQuestion.value;
+  //   if (q == null) return;
+  //   if (isEditorOpen.value) {
+  //     Get.snackbar('Editor is open', 'Please close the editor before sending.');
+  //     return;
+  //   }
+  //
+  //   if (q.type == QuestionType.coding) {
+  //     if (Get.isRegistered<CodingController>(tag: q.id)) {
+  //       final cc = Get.find<CodingController>(tag: q.id);
+  //       if (cc.getCode().trim().isEmpty) {
+  //         Get.snackbar(
+  //             'Empty answer', 'Please type some code (even a single space).');
+  //         return;
+  //       }
+  //       isSubmitting.value = true;
+  //       try {
+  //         await cc.evaluateWithAi(); // feedback UI view’de gösterilecek
+  //         _answerPayload = {'code': cc.getCode()};
+  //         _answerById[q.id] = _answerPayload;
+  //
+  //         // 🔥 Coding tipi için de Training Progress kaydı lazım
+  //         await _handleTrainingProgress();
+  //       } catch (e) {
+  //         Get.snackbar('Send failed', e.toString());
+  //       } finally {
+  //         isSubmitting.value = false;
+  //       }
+  //     }
+  //     return;
+  //   }
+  //
+  //   // coding dışındaki tiplerde submit zaten switch-case içinden çağrılıyor
+  //   await submit();
+  // }
 
   // Coding için özel progress handler (submit metoduna girmeden doğrudan çalışıyorsa)
   Future<void> _handleTrainingProgress() async {
@@ -576,5 +547,4 @@ class QuestionRunnerController extends GetxController {
         break;
     }
   }
-
 }

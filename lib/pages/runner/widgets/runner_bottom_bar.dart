@@ -12,12 +12,8 @@ class RunnerBottomBar extends StatelessWidget {
     required this.onPrev,
     required this.onSubmit,
     required this.onNext,
-    required this.onFinish,
     this.submitLabel = 'Send',
     this.submitBlocked = false,
-    this.showSecondaryButton = false,
-    this.secondaryButtonLabel = 'Try Again',
-    this.onSecondaryAction,
   });
 
   // Navigation state
@@ -28,18 +24,12 @@ class RunnerBottomBar extends StatelessWidget {
   final bool isSubmitting;
   final bool canSubmit;
   final bool submitBlocked;
+  final String submitLabel;
 
   // Actions
   final VoidCallback onPrev;
   final VoidCallback onSubmit; // 🔑 artık Send / Continue / Try Again hepsi buradan
   final VoidCallback onNext;
-  final VoidCallback onFinish;
-  final VoidCallback? onSecondaryAction;
-
-  // UI
-  final String submitLabel;
-  final bool showSecondaryButton;
-  final String secondaryButtonLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -125,35 +115,6 @@ class RunnerBottomBar extends StatelessWidget {
                 ),
               ),
             ),
-
-            // ===================================================
-            // SECONDARY ACTION BUTTON (Try Again when correct)
-            // ===================================================
-            if (showSecondaryButton && onSecondaryAction != null) ...[
-              const SizedBox(height: AppSpacing.sm),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: !isSubmitting ? onSecondaryAction : null,
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                    side: const BorderSide(
-                      color: AppColors.primary,
-                      width: 2,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.xl),
-                    ),
-                  ),
-                  child: Text(
-                    secondaryButtonLabel,
-                    style: AppTextStyles.bodyStrong.copyWith(
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              ),
-            ],
           ],
         ),
       ),
