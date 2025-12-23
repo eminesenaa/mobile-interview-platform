@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../constants/colors.dart';
+import '../../../../constants/colors.dart';
 
 class ActionBar extends StatelessWidget {
   final VoidCallback onPrev, onNext, onSubmit, onNavigator; // onNavigator artık AppBar'da ama imza kalsın

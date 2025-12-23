@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import 'package:interview_project/models/exam.dart';
-import 'package:interview_project/pages/exam/exam_page.dart';
+import 'package:interview_project/pages/exam/take/exam_page.dart';
 import 'package:interview_project/pages/exam/create/create_exam_sheet.dart';
 import 'package:interview_project/pages/exam/services/ai_duration_service.dart';
 import 'package:interview_project/pages/exam/services/exam_factory.dart';

@@ -4,7 +4,7 @@ import '../../../constants/colors.dart';
 import '../../../models/question.dart';
 import '../controllers/exam_coding_controller.dart';
 import '../controllers/exam_controller.dart';
-import '../widgets/question_header.dart';
+import '../take/widgets/question_header.dart';
 import 'exam_coding_editor_page.dart';
 
 class ExamCodingView extends StatelessWidget {

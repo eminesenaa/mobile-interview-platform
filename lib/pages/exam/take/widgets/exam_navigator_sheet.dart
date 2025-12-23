@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../constants/colors.dart';
-import '../controllers/exam_controller.dart';
+import '../../../../constants/colors.dart';
+import '../../controllers/exam_controller.dart';
 
 class ExamNavigatorSheet extends StatelessWidget {
   final String examId;

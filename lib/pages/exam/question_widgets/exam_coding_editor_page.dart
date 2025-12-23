@@ -7,7 +7,7 @@ import '../../../models/exam.dart';
 import '../../../models/question.dart';
 import '../controllers/exam_coding_controller.dart';
 import '../controllers/exam_controller.dart';
-import '../widgets/timer_badge.dart';
+import '../take/widgets/timer_badge.dart';
 import '../../../constants/colors.dart';
 
 class ExamCodingEditorPage extends StatelessWidget {

@@ -4,7 +4,7 @@ import 'package:interview_project/constants/colors.dart';
 import 'package:interview_project/models/exam.dart';
 import 'package:interview_project/models/question.dart';
 import 'package:interview_project/pages/exam/question_widgets/review_coding_editor_page.dart';
-import 'package:interview_project/pages/exam/widgets/question_header.dart';
+import 'package:interview_project/pages/exam/take/widgets/question_header.dart';
 import 'controllers/exam_review_controller.dart';
 import 'question_widgets/review_mcq_view.dart';
 import 'question_widgets/review_short_answer_view.dart';
@@ -108,7 +108,11 @@ class ExamReviewPage extends StatelessWidget {
                               QuestionHeader(
                                 current: c.currentNumber,
                                 total: c.total,
+                                isFlagged: c.isFlagged(q.id),
+                                onToggleFlag: null,
+                                onClear: null,
                               ),
+
                               if (q.type == QuestionType.coding)
                                 IconButton(
                                   tooltip: "Open Code Editor (Read-only)",

@@ -8,7 +8,7 @@ import 'package:interview_project/pages/exam/controllers/create_exam_controller.
 import 'package:interview_project/pages/exam/controllers/exam_controller.dart';
 
 // Pages
-import 'package:interview_project/pages/exam/exam_page.dart';
+import 'package:interview_project/pages/exam/take/exam_page.dart';
 
 // Widgets
 import 'widgets/section.dart';
