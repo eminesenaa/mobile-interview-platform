@@ -36,9 +36,24 @@ class CreateExamController extends GetxController {
 
       for (final doc in snap.docs) {
         final data = doc.data();
-        if (data['topic'] != null) topicSet.add(data['topic']);
-        if (data['tags'] != null && data['tags'] is List) {
-          tagSet.addAll(List<String>.from(data['tags']));
+
+        if (data['topic'] != null) {
+          topicSet.add(data['topic']);
+        }
+
+        // 🔥 FRONT TAG = SUBTOPICS
+        final rawSub = data['subtopics'];
+        if (rawSub is List) {
+          tagSet.addAll(
+            rawSub.map((e) => e.toString().trim()).where((e) => e.isNotEmpty),
+          );
+        } else if (rawSub is String) {
+          tagSet.addAll(
+            rawSub
+                .split(RegExp(r'[;,]'))
+                .map((e) => e.trim())
+                .where((e) => e.isNotEmpty),
+          );
         }
       }
 
@@ -55,13 +70,17 @@ class CreateExamController extends GetxController {
       isLoading.value = true;
       error.value = '';
 
-      debugPrint('==================== 🔍 EXAM FILTER DEBUG ====================');
+      debugPrint(
+          '==================== 🔍 EXAM FILTER DEBUG ====================');
       debugPrint('📘 Topics: ${topics.isEmpty ? "None" : topics.join(", ")}');
       debugPrint('🏷️  Tags: ${tags.isEmpty ? "None" : tags.join(", ")}');
-      debugPrint('🧩 Types: ${types.isEmpty ? "All" : types.map((e) => e.name).join(", ")}');
-      debugPrint('⚙️  Difficulties: ${difficulties.isEmpty ? "All" : difficulties.map((e) => e.name).join(", ")}');
+      debugPrint(
+          '🧩 Types: ${types.isEmpty ? "All" : types.map((e) => e.name).join(", ")}');
+      debugPrint(
+          '⚙️  Difficulties: ${difficulties.isEmpty ? "All" : difficulties.map((e) => e.name).join(", ")}');
       debugPrint('🎯 Requested Question Count: ${count.value}');
-      debugPrint('===============================================================');
+      debugPrint(
+          '===============================================================');
 
       // 🔹 1️⃣ Firestore'dan tüm soruları çek
       final pool = await _fetchAllQuestions(limit: 1000);
@@ -78,9 +97,10 @@ class CreateExamController extends GetxController {
       // 🔹 2️⃣ Filtreye göre seç (sadece tam eşleşenler)
       final selected = pool.where((q) {
         final topicOk = topics.isEmpty || topics.contains(q.topic);
-        final tagOk = tags.isEmpty || q.tags.any(tags.contains);
+        final tagOk = tags.isEmpty || q.subtopics.any(tags.contains);
         final typeOk = types.isEmpty || types.contains(q.type);
-        final diffOk = difficulties.isEmpty || difficulties.contains(q.difficulty);
+        final diffOk =
+            difficulties.isEmpty || difficulties.contains(q.difficulty);
         return topicOk && tagOk && typeOk && diffOk;
       }).toList()
         ..shuffle(Random());
@@ -88,7 +108,8 @@ class CreateExamController extends GetxController {
       // 🔹 3️⃣ İstenen sayıya kadar al (ama eksikse eksik bırak)
       final result = selected.take(count.value).toList();
 
-      debugPrint('===============================================================');
+      debugPrint(
+          '===============================================================');
       debugPrint('✅ Selected ${result.length} questions after filtering:');
       for (final q in result) {
         debugPrint(
@@ -96,7 +117,8 @@ class CreateExamController extends GetxController {
           'Diff: ${q.difficulty.name} | Tags: ${q.tags.join(", ")}',
         );
       }
-      debugPrint('===============================================================');
+      debugPrint(
+          '===============================================================');
 
       if (result.isEmpty) {
         debugPrint('❌ No questions matched the selected filters!');

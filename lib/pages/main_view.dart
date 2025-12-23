@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 
 import '../widgets/app_bottom_nav_bar.dart';
-import 'exam/exam_home_page.dart';
+import 'exam/home/exam_home_page.dart';
 import 'home/home_page.dart';
 import 'practice/practice_page.dart';
 import 'library/library_page.dart';

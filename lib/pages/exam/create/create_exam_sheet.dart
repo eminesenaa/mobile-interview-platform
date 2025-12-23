@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:interview_project/constants/colors.dart';
+
+import 'package:interview_project/constants/constants.dart';
 
 // Controllers
 import 'package:interview_project/pages/exam/controllers/create_exam_controller.dart';
@@ -10,11 +11,11 @@ import 'package:interview_project/pages/exam/controllers/exam_controller.dart';
 import 'package:interview_project/pages/exam/exam_page.dart';
 
 // Widgets
-import 'package:interview_project/pages/exam/widgets/section.dart';
-import 'package:interview_project/pages/exam/widgets/multi_select_field.dart';
-import 'package:interview_project/pages/exam/widgets/difficulty_picker.dart';
-import 'package:interview_project/pages/exam/widgets/types_picker.dart';
-import 'package:interview_project/pages/exam/widgets/count_slider.dart';
+import 'widgets/section.dart';
+import 'widgets/multi_select_field.dart';
+import 'widgets/difficulty_picker.dart';
+import 'widgets/types_picker.dart';
+import 'widgets/count_slider.dart';
 
 class CreateExamSheet extends StatelessWidget {
   const CreateExamSheet({super.key});
@@ -24,11 +25,26 @@ class CreateExamSheet extends StatelessWidget {
     final c = Get.put(CreateExamController());
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Customize Exam')),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.textPrimary,
+        centerTitle: true,
+        title: Text(
+          'Customize Exam',
+          style: AppTextStyles.headline,
+        ),
+      ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.xxl,
+        ),
         children: [
-          // Topics
+          // TOPICS
           Section(
             title: 'Topics',
             note: 'You can select multiple topics.',
@@ -40,7 +56,9 @@ class CreateExamSheet extends StatelessWidget {
             ),
           ),
 
-          // Tags
+          const SizedBox(height: AppSpacing.md),
+
+          // TAGS
           Section(
             title: 'Tags',
             note: 'Select any tags you want to include.',
@@ -52,38 +70,60 @@ class CreateExamSheet extends StatelessWidget {
             ),
           ),
 
-          // Difficulty
+          const SizedBox(height: AppSpacing.md),
+
+          // DIFFICULTY
           Section(
             title: 'Difficulty',
             child: DifficultyPicker(selected: c.difficulties),
           ),
 
-          // Types
+          const SizedBox(height: AppSpacing.md),
+
+          // QUESTION TYPES
           Section(
             title: 'Question Types',
-            child: TypesPicker(selected: c.types, options: c.availableTypes),
+            child: TypesPicker(
+              selected: c.types,
+              options: c.availableTypes,
+            ),
           ),
 
-          // Count
+          const SizedBox(height: AppSpacing.md),
+
+          // COUNT
           Section(
             title: 'Question Count',
             child: CountSlider(count: c.count),
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
 
+          // CTA
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              minimumSize: const Size.fromHeight(52),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              textStyle: AppTextStyles.button,
+            ),
             onPressed: () async {
-              // 🔹 Yeni sistem: sınavı oluştur ve sayfaya yönlendir
               final examController = await ExamController.createFromFilters();
 
               if (examController.exam.questions.isEmpty) {
-                Get.snackbar('No Questions Found', 'Try relaxing your filters.');
+                Get.snackbar(
+                  'No Questions Found',
+                  'Try relaxing your filters.',
+                );
                 return;
               }
 
-              Get.to(() => ExamPage(), arguments: examController.exam);
+              Get.to(
+                () => ExamPage(),
+                arguments: examController.exam,
+              );
             },
             child: const Text('Create Exam'),
           ),

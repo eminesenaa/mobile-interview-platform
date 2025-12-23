@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:interview_project/constants/colors.dart';
+
+import '../../../../constants/constants.dart';
 
 class Section extends StatelessWidget {
   final String title;
@@ -15,28 +16,31 @@ class Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final noteStyle = Theme.of(context)
-        .textTheme
-        .bodySmall
-        ?.copyWith(color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(.7));
-
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 🔹 TITLE
           Text(
             title,
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(color: AppColors.primary),
+            style: AppTextStyles.title.copyWith(
+              color: AppColors.primary,
+            ),
           ),
+
+          // 🔹 NOTE (OPTIONAL)
           if (note != null) ...[
-            const SizedBox(height: 6),
-            Text(note!, style: noteStyle),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              note!,
+              style: AppTextStyles.bodySmall,
+            ),
           ],
-          const SizedBox(height: 8),
+
+          const SizedBox(height: AppSpacing.sm),
+
+          // 🔹 CONTENT
           child,
         ],
       ),

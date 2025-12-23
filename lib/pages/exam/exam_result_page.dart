@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import '../../models/exam.dart';
 import '../main_view.dart';
 import 'controllers/exam_result_controller.dart';
-import 'exam_home_page.dart';
+import 'home/exam_home_page.dart';
 import 'exam_review_page.dart';
 import 'widgets/score_circle.dart';
 import 'widgets/answer_summary_row.dart';
