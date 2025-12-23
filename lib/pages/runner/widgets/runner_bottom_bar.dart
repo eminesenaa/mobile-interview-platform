@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
-import '../../../constants/colors.dart';
 import '../../../constants/constants.dart';
 
 class RunnerBottomBar extends StatelessWidget {
@@ -13,7 +12,6 @@ class RunnerBottomBar extends StatelessWidget {
     required this.onPrev,
     required this.onSubmit,
     required this.onNext,
-    required this.onFinish,
     this.submitLabel = 'Send',
     this.submitBlocked = false,
   });
@@ -26,15 +24,12 @@ class RunnerBottomBar extends StatelessWidget {
   final bool isSubmitting;
   final bool canSubmit;
   final bool submitBlocked;
+  final String submitLabel;
 
   // Actions
   final VoidCallback onPrev;
   final VoidCallback onSubmit; // 🔑 artık Send / Continue / Try Again hepsi buradan
   final VoidCallback onNext;
-  final VoidCallback onFinish;
-
-  // UI
-  final String submitLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -62,9 +57,9 @@ class RunnerBottomBar extends StatelessWidget {
                 // ---------- Previous ----------
                 TextButton(
                   onPressed: (hasPrev && !isSubmitting) ? onPrev : null,
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
+                    children: [
                       Icon(Icons.chevron_left),
                       SizedBox(width: 4),
                       Text('Previous'),
@@ -76,9 +71,9 @@ class RunnerBottomBar extends StatelessWidget {
                 TextButton(
                   onPressed:
                   (hasNext && !isSubmitting) ? onNext : null,
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
+                    children: [
                       Text('Next'),
                       SizedBox(width: 4),
                       Icon(Icons.chevron_right),
@@ -102,7 +97,7 @@ class RunnerBottomBar extends StatelessWidget {
                   minimumSize: const Size.fromHeight(52),
                   backgroundColor: AppColors.primary,
                   disabledBackgroundColor:
-                  AppColors.primary.withOpacity(0.35),
+                  AppColors.primary.withValues(alpha: 0.35),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppRadius.xl),
                   ),

@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'package:interview_project/models/question.dart';
@@ -25,6 +26,8 @@ class ShortAnswerController extends GetxController {
   final isSubmitted = false.obs;
 
   final solveState = SolveState.idle.obs;
+
+  final textController = TextEditingController();
 
   final AiService _ai = Get.find<AiService>();
 
@@ -120,6 +123,7 @@ class ShortAnswerController extends GetxController {
   // ---------------------------------
   void resetAnswer() {
     answer.value = '';
+    textController.clear();
     isSubmitted.value = false;
     aiMeta.value = null;
     aiFeedback.value = '';

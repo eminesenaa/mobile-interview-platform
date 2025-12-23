@@ -89,6 +89,7 @@ class ShortAnswerView extends StatelessWidget {
         AbsorbPointer(
           absorbing: locked,
           child: TextField(
+            controller: controller.textController,
             minLines: 3,
             maxLines: 6,
             onChanged: (v) {
