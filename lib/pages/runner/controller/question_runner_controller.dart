@@ -50,6 +50,7 @@ class QuestionRunnerController extends GetxController {
   // Her soru için submit & cevap cache'i
   final Map<String, bool> _canSubmitById = {};
   final Map<String, dynamic> _answerById = {};
+  final Map<String, SolveState> _solveStateById = {};
 
   // Bookmark state (UI için)
   final RxBool isBookmarked = false.obs;
@@ -119,6 +120,9 @@ class QuestionRunnerController extends GetxController {
   // ========================================================================
   void init(QuestionFeed f) {
     _cache.clear();
+    _canSubmitById.clear();
+    _answerById.clear();
+    _solveStateById.clear();
     feed.value = f;
     currentIndex.value = f.startIndex;
     _loadQuestionAt(f.startIndex);
@@ -189,7 +193,9 @@ class QuestionRunnerController extends GetxController {
     canSubmit.value = false;
     isLocked.value = false;
     answerPayload = null;
-    solveState.value = SolveState.idle;
+
+    // Restore state from cache instead of always setting to idle
+    _restoreStateFor(q);
 
     // BOOKMARK STATE SYNC
     syncBookmarkState();
@@ -305,10 +311,13 @@ class QuestionRunnerController extends GetxController {
 
       if (correct == true) {
         solveState.value = SolveState.solvedCorrect;
+        _solveStateById[q.id] = SolveState.solvedCorrect;
       } else if (correct == false) {
         solveState.value = SolveState.solvedWrong;
+        _solveStateById[q.id] = SolveState.solvedWrong;
       } else {
         solveState.value = SolveState.idle;
+        _solveStateById[q.id] = SolveState.idle;
       }
 
       // gönderimden sonra inputları kilitle
@@ -432,10 +441,22 @@ class QuestionRunnerController extends GetxController {
     }
   }
 
-// Soru değiştiğinde cache’ten geri yükleyen küçük yardımcı
   void _restoreStateFor(Question q) {
-    canSubmit.value = _canSubmitById[q.id] ?? false;
+    final cachedSolveState = _solveStateById[q.id] ?? SolveState.idle;
+    solveState.value = cachedSolveState;
+
+    if (cachedSolveState == SolveState.solvedCorrect ||
+        cachedSolveState == SolveState.solvedWrong) {
+      // Çözülmüşse 'Solve Again' için buton aktif olmalı
+      canSubmit.value = true;
+    } else {
+      // Çözülmemişse (idle veya canSubmit), cache'deki validlik durumuna bak
+      canSubmit.value = _canSubmitById[q.id] ?? false;
+    }
+
     _answerPayload = _answerById[q.id];
+    isLocked.value = (cachedSolveState == SolveState.solvedCorrect ||
+        cachedSolveState == SolveState.solvedWrong);
   }
 
   // Current question değiştiğinde bookmark durumunu sync et
@@ -476,37 +497,44 @@ class QuestionRunnerController extends GetxController {
     final q = currentQuestion.value;
     if (q == null) return;
 
+    // 1. Yerel state'leri sıfırla
     solveState.value = SolveState.idle;
     canSubmit.value = false;
     isLocked.value = false;
+    _answerPayload = null;
 
+    // 2. 🔥 KRİTİK: Cache kayıtlarını da sıfırla!
+    _solveStateById[q.id] = SolveState.idle;
+    _canSubmitById[q.id] = false;
+    _answerById.remove(q.id);
+
+    // 3. İlgili controller'ı sıfırla
     switch (q.type) {
       case QuestionType.mcq:
         if (Get.isRegistered<McqController>(tag: q.id)) {
           Get.find<McqController>(tag: q.id).resetSelection();
         }
         break;
-
       case QuestionType.shortAnswer:
         if (Get.isRegistered<ShortAnswerController>(tag: q.id)) {
           Get.find<ShortAnswerController>(tag: q.id).resetAnswer();
         }
         break;
-
       case QuestionType.fillBlank:
         if (Get.isRegistered<FillBlankController>(tag: q.id)) {
           Get.find<FillBlankController>(tag: q.id).resetBlanks();
         }
         break;
-
       case QuestionType.coding:
         if (Get.isRegistered<CodingController>(tag: q.id)) {
           Get.find<CodingController>(tag: q.id).resetCode();
         }
         break;
-
       default:
         break;
     }
   }
+
+
+
 }

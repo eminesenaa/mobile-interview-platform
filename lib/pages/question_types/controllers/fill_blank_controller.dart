@@ -92,14 +92,25 @@ class FillBlankController extends GetxController {
     _updateCanSubmit();
   }
 
+  // fill_blank_controller.dart içinde bul ve değiştir:
   void _updateCanSubmit() {
-    final allFilled =
-        answers.isNotEmpty && answers.every((e) => e.trim().isNotEmpty);
+    final allFilled = answers.isNotEmpty && answers.every((e) => e.trim().isNotEmpty);
 
-    solveState.value = allFilled ? SolveState.canSubmit : SolveState.idle;
+    // Eğer soru zaten çözülmüşse, state'i bozma (Runner kontrol ediyor)
+    if (solveState.value != SolveState.solvedCorrect &&
+        solveState.value != SolveState.solvedWrong) {
+      solveState.value = allFilled ? SolveState.canSubmit : SolveState.idle;
+    }
 
     if (Get.isRegistered<QuestionRunnerController>()) {
-      Get.find<QuestionRunnerController>().setCanSubmit(allFilled);
+      final runner = Get.find<QuestionRunnerController>();
+      // Eğer halihazırda çözülmüş bir soruysa canSubmit hep true kalmalı (Solve Again için)
+      if (solveState.value == SolveState.solvedCorrect ||
+          solveState.value == SolveState.solvedWrong) {
+        runner.setCanSubmit(true);
+      } else {
+        runner.setCanSubmit(allFilled);
+      }
     }
   }
 
