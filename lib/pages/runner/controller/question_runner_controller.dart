@@ -7,7 +7,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../models/question.dart';
-import '../../../services/ai/ai_service.dart';
 import '../../library/controllers/library_controller.dart';
 import '../../library/services/library_service.dart';
 import '../../question_types/controllers/coding_controller.dart';
@@ -62,9 +61,6 @@ class QuestionRunnerController extends GetxController {
 
   final solveState = SolveState.idle.obs;
 
-  // + AI service instance
-  final AiService _ai = AiService();
-
   // ========================================================================
   // [2] GETTER'LAR (Sadece-okunur arayüz)
   // ========================================================================
@@ -79,6 +75,29 @@ class QuestionRunnerController extends GetxController {
 
   String get positionLabel =>
       "${currentIndex.value + 1}/${feed.value?.length ?? 0}";
+
+  // ========================================================================
+  // [2.2] DYNAMIC BUTTON TEXT (Based on solve state)
+  // ========================================================================
+
+  String get primaryButtonText {
+    switch (solveState.value) {
+      case SolveState.solvedCorrect:
+        return 'Continue';
+      case SolveState.solvedWrong:
+        return 'Try Again';
+      default:
+        return 'Send';
+    }
+  }
+
+  bool get showSecondaryButton {
+    return solveState.value == SolveState.solvedCorrect;
+  }
+
+  String get secondaryButtonText {
+    return 'Try Again';
+  }
 
   // ========================================================================
   // [2.1] APP BAR TITLE (Context-aware)
@@ -105,7 +124,6 @@ class QuestionRunnerController extends GetxController {
       case QuestionSourceKind.exam:
         return 'Exam';
 
-      case QuestionSourceKind.practiceAll: // safety (enum genişlerse)
       default:
         return 'Question';
     }
@@ -186,6 +204,7 @@ class QuestionRunnerController extends GetxController {
     canSubmit.value = false;
     isLocked.value = false;
     answerPayload = null;
+    solveState.value = SolveState.idle;
 
     // BOOKMARK STATE SYNC
     syncBookmarkState();
@@ -201,10 +220,6 @@ class QuestionRunnerController extends GetxController {
     final cached = _cache[id];
     if (cached != null) return cached;
     throw StateError('No fetch impl for $id');
-  }
-
-  void _prefetchAround(int idx) {
-    // disabled: we don't have a fetch service yet
   }
 
   // ========================================================================
@@ -366,16 +381,16 @@ class QuestionRunnerController extends GetxController {
     }
   }
 
+  Future<void> onSecondaryAction() async {
+    // This is called when "Try Again" is pressed after a correct answer
+    _resetCurrentAnswer();
+  }
+
 
   // ========================================================================
   // [7] EDITOR / CODING AKIŞI (flag ve payload yönetimi)
   // ========================================================================
   void toggleEditor() => isEditorOpen.toggle();
-
-  bool _isCoding(Question q) {
-    // ✅ ENUM kıyası — doğru
-    return q.type == QuestionType.coding;
-  }
 
   /// Coding (ve diğer tiplerde ortak) – View'dan payload ve valid sinyali al
   void setAnswerPayload(Map<String, dynamic>? p) {
@@ -534,31 +549,27 @@ class QuestionRunnerController extends GetxController {
 
     switch (q.type) {
       case QuestionType.mcq:
-        Get.find<McqController>(tag: q.id)
-          ..selectedIndex.value = -1
-          ..isSubmitted.value = false;
+        if (Get.isRegistered<McqController>(tag: q.id)) {
+          Get.find<McqController>(tag: q.id).resetSelection();
+        }
         break;
 
       case QuestionType.shortAnswer:
-        Get.find<ShortAnswerController>(tag: q.id)
-          ..answer.value = ''
-          ..isSubmitted.value = false;
+        if (Get.isRegistered<ShortAnswerController>(tag: q.id)) {
+          Get.find<ShortAnswerController>(tag: q.id).resetAnswer();
+        }
         break;
 
       case QuestionType.fillBlank:
-        Get.find<FillBlankController>(tag: q.id)
-          ..answers.assignAll(
-            List.filled(
-              Get.find<FillBlankController>(tag: q.id).answers.length,
-              '',
-            ),
-          )
-          ..isSubmitted.value = false;
+        if (Get.isRegistered<FillBlankController>(tag: q.id)) {
+          Get.find<FillBlankController>(tag: q.id).resetBlanks();
+        }
         break;
 
       case QuestionType.coding:
-        final c = Get.find<CodingController>(tag: q.id);
-        c.setCode(c.question.codeTemplate ?? '');
+        if (Get.isRegistered<CodingController>(tag: q.id)) {
+          Get.find<CodingController>(tag: q.id).resetCode();
+        }
         break;
 
       default:

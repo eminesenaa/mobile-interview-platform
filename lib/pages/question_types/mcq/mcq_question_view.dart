@@ -110,8 +110,8 @@ class McqQuestionView extends StatelessWidget {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(AppRadius.md),
                       border: Border.all(
-                        color: selected ? AppColors.primary : AppColors.border,
-                        width: selected ? 2 : 1.2,
+                        color: selected ? AppColors.primary : AppColors.borderStrong,
+                        width: selected ? 3 : 2,
                       ),
                       color: selected
                           ? AppColors.primary.withOpacity(0.04)

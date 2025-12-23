@@ -2,10 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:interview_project/constants/colors.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../constants/constants.dart';
-import '../../constants/text_styles.dart';
 import '../../models/question.dart';
 import '../library/controllers/library_controller.dart';
 import 'controller/question_runner_controller.dart';
@@ -15,8 +13,6 @@ import '../question_types/short_answer/short_answer_view.dart';
 import '../question_types/coding/coding_question_view.dart';
 import '../question_types/coding/coding_editor_page.dart';
 import 'package:interview_project/pages/runner/widgets/runner_bottom_bar.dart';
-import 'package:interview_project/pages/library/services/library_service.dart';
-import 'package:interview_project/pages/library/widgets/save_question_to_collection_sheet.dart';
 import 'package:interview_project/pages/runner/question_feed.dart';
 
 class QuestionRunnerPage extends StatelessWidget {
@@ -38,9 +34,6 @@ class QuestionRunnerPage extends StatelessWidget {
 
     return Obx(() {
       final q = c.currentQuestion.value;
-      final titleText = (q?.title?.trim().isNotEmpty ?? false)
-          ? q!.title!.trim()
-          : (q?.description?.trim().split('\n').first ?? 'Question');
 
       return Scaffold(
         appBar: AppBar(
@@ -117,8 +110,9 @@ class QuestionRunnerPage extends StatelessWidget {
           },
           itemCount: c.feed.value?.length ?? 0,
           itemBuilder: (_, idx) {
-            if (q == null)
+            if (q == null) {
               return const Center(child: CircularProgressIndicator());
+            }
             if (idx != c.currentIndex.value) return const SizedBox.shrink();
             return _buildQuestionBody(context, c);
           },
@@ -135,13 +129,17 @@ class QuestionRunnerPage extends StatelessWidget {
             isSubmitting: c.isSubmitting.value,
             canSubmit: c.canSubmit.value,
             submitBlocked: submitBlocked,
+            submitLabel: c.primaryButtonText,
+            showSecondaryButton: c.showSecondaryButton,
+            secondaryButtonLabel: c.secondaryButtonText,
             onPrev: () {
               c.flushCodingDraftIfAny();
               _pageCtrl.previousPage(
                   duration: const Duration(milliseconds: 220),
                   curve: Curves.easeOut);
             },
-            onSubmit: c.submit,
+            onSubmit: c.onPrimaryAction,
+            onSecondaryAction: c.onSecondaryAction,
             onNext: () {
               c.flushCodingDraftIfAny();
               _pageCtrl.nextPage(
@@ -244,7 +242,7 @@ class _RunnerSaveButton extends StatelessWidget {
 
     return Obx(() {
       final bool isSaved =
-          libraryCtrl.savedQuestions.any((q) => q.id == question.id);
+      libraryCtrl.savedQuestions.any((q) => q.id == question.id);
 
       return IconButton(
         tooltip: isSaved ? 'Saved' : 'Save',
@@ -260,17 +258,4 @@ class _RunnerSaveButton extends StatelessWidget {
       );
     });
   }
-}
-
-// 🔹 Tutarlı ID extraction
-String _extractQuestionId(Question q) {
-  try {
-    final dynamic v = (q as dynamic).id;
-    if (v != null) return v.toString();
-  } catch (_) {}
-  try {
-    final dynamic v = (q as dynamic).docId;
-    if (v != null) return v.toString();
-  } catch (_) {}
-  return q.title.toString();
 }

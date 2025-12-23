@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
-import '../../../constants/colors.dart';
 import '../../../constants/constants.dart';
 
 class RunnerBottomBar extends StatelessWidget {
@@ -16,6 +15,9 @@ class RunnerBottomBar extends StatelessWidget {
     required this.onFinish,
     this.submitLabel = 'Send',
     this.submitBlocked = false,
+    this.showSecondaryButton = false,
+    this.secondaryButtonLabel = 'Try Again',
+    this.onSecondaryAction,
   });
 
   // Navigation state
@@ -32,9 +34,12 @@ class RunnerBottomBar extends StatelessWidget {
   final VoidCallback onSubmit; // 🔑 artık Send / Continue / Try Again hepsi buradan
   final VoidCallback onNext;
   final VoidCallback onFinish;
+  final VoidCallback? onSecondaryAction;
 
   // UI
   final String submitLabel;
+  final bool showSecondaryButton;
+  final String secondaryButtonLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -62,9 +67,9 @@ class RunnerBottomBar extends StatelessWidget {
                 // ---------- Previous ----------
                 TextButton(
                   onPressed: (hasPrev && !isSubmitting) ? onPrev : null,
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
+                    children: [
                       Icon(Icons.chevron_left),
                       SizedBox(width: 4),
                       Text('Previous'),
@@ -76,9 +81,9 @@ class RunnerBottomBar extends StatelessWidget {
                 TextButton(
                   onPressed:
                   (hasNext && !isSubmitting) ? onNext : null,
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
+                    children: [
                       Text('Next'),
                       SizedBox(width: 4),
                       Icon(Icons.chevron_right),
@@ -102,7 +107,7 @@ class RunnerBottomBar extends StatelessWidget {
                   minimumSize: const Size.fromHeight(52),
                   backgroundColor: AppColors.primary,
                   disabledBackgroundColor:
-                  AppColors.primary.withOpacity(0.35),
+                  AppColors.primary.withValues(alpha: 0.35),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppRadius.xl),
                   ),
@@ -120,6 +125,35 @@ class RunnerBottomBar extends StatelessWidget {
                 ),
               ),
             ),
+
+            // ===================================================
+            // SECONDARY ACTION BUTTON (Try Again when correct)
+            // ===================================================
+            if (showSecondaryButton && onSecondaryAction != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: !isSubmitting ? onSecondaryAction : null,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    side: const BorderSide(
+                      color: AppColors.primary,
+                      width: 2,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.xl),
+                    ),
+                  ),
+                  child: Text(
+                    secondaryButtonLabel,
+                    style: AppTextStyles.bodyStrong.copyWith(
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
