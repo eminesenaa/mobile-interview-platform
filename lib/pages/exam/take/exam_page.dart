@@ -219,10 +219,18 @@ class ExamPage extends StatelessWidget {
         );
       case QuestionType.coding:
         return ExamCodingView(
+          key: ValueKey(
+            'coding-${q.id}-${c.clearTick.value}', // 🔑 clear sonrası reset
+          ),
           question: q,
           examId: examId,
-          onAnswerChanged: (code) => c.saveAnswer(q.id, code),
-          onToggleFlag: () => c.toggleFlag(q.id),
+          onAnswerChanged: (code) {
+            if (code == null || code.isEmpty) {
+              c.clearAnswer(q.id);
+            } else {
+              c.saveAnswer(q.id, code);
+            }
+          },
         );
       default:
         return const SizedBox.shrink();

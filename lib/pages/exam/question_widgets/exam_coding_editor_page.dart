@@ -1,105 +1,127 @@
+// lib/pages/exam/question_widgets/exam_coding_editor_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:flutter_highlight/themes/atom-one-dark.dart';
 import 'package:flutter_highlight/themes/github.dart';
 import 'package:get/get.dart';
-import '../../../models/exam.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
+
+import '../../../constants/constants.dart';
 import '../../../models/question.dart';
 import '../controllers/exam_coding_controller.dart';
 import '../controllers/exam_controller.dart';
 import '../take/widgets/timer_badge.dart';
-import '../../../constants/colors.dart';
 
-class ExamCodingEditorPage extends StatelessWidget {
+class ExamCodingEditorPage extends StatefulWidget {
   final Question question;
+  final String examId;
 
-  const ExamCodingEditorPage({super.key, required this.question});
+  const ExamCodingEditorPage({
+    super.key,
+    required this.question,
+    required this.examId,
+  });
+
+  @override
+  State<ExamCodingEditorPage> createState() => _ExamCodingEditorPageState();
+}
+
+class _ExamCodingEditorPageState extends State<ExamCodingEditorPage> {
+  late final ExamController examCtrl;
+  late final ExamCodingController codingCtrl;
+  late final CodeController codeController;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // 🔑 CodingController mutlaka burada register edilir
+    // Get.lazyPut<ExamCodingController>(
+    //       () => ExamCodingController(),
+    //   tag: widget.question.id,
+    //   fenix: true,
+    // );
+
+    examCtrl = Get.find<ExamController>(tag: widget.examId);
+    codingCtrl = Get.find<ExamCodingController>(tag: widget.question.id);
+
+    // 🔥 CLEAR SİNYALİNİ DİNLE
+    ever<int>(examCtrl.clearTick, (_) {
+      codingCtrl.clearCode();
+      codeController.text = '';
+    });
+
+    // 🔥 DAHA ÖNCE YAZILMIŞ KOD VAR MI?
+    final saved = examCtrl.answers[widget.question.id];
+    if (saved is String && saved.isNotEmpty) {
+      codingCtrl.code.value = saved;
+    } else {
+      final template = widget.question.codeTemplate ?? '';
+      if (codingCtrl.code.value.isEmpty && template.isNotEmpty) {
+        codingCtrl.code.value = template;
+      }
+    }
+
+    final template = widget.question.codeTemplate ?? '';
+
+    // 🔹 İlk açılışta:
+    // - önceki kod varsa O
+    // - yoksa template
+
+    // 🔹 CodeController SADECE BİR KEZ
+    codeController = CodeController(
+      text: codingCtrl.code.value,
+    );
+
+    // 🔄 Yazdıkça iki controller senkron
+    codeController.addListener(() {
+      final text = codeController.text;
+      codingCtrl.code.value = text;
+      examCtrl.saveAnswer(widget.question.id, text);
+    });
+  }
+
+  @override
+  void dispose() {
+    codeController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final c = Get.find<ExamCodingController>(tag: question.id);
-
-    // 🧩 examId her yerden erişilebilsin diye burada tanımlıyoruz
-    final args = Get.arguments;
-    String? examId;
-    if (args is Map<String, dynamic>) {
-      examId = args['examId'];
-    } else if (args is Exam) {
-      examId = args.id;
-    }
-
-    // Tema algılama
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final styles = isDark ? atomOneDarkTheme : githubTheme;
-
-    // Template + kullanıcı kodunu birleştir
-    final template = question.codeTemplate ?? '';
-    if (c.code.value.isEmpty && template.isNotEmpty) {
-      // Eğer ilk defa açılıyorsa, template'i controller'a yaz
-      if (examId != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          c.updateCode(template, examId!, question.id);
-        });
-      }
-    }
-
-
-    // CodeField controller
-    final codeController = CodeController(
-      text: c.code.value,
-      language: null, // örneğin C++ dersi için dil desteği eklenebilir
-    );
-
-    // Kod değişimlerini dinle
-    codeController.addListener(() {
-      if (examId != null) {
-        c.updateCode(codeController.text, examId!, question.id);
-      }
-    });
+    final highlightTheme = isDark ? atomOneDarkTheme : githubTheme;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: AppColors.primary,
         elevation: 0,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.textPrimary,
         titleSpacing: 16,
+        automaticallyImplyLeading: false,
+
+        // 🔥 Timer SADECE Obx içinde
         title: Obx(() {
-          // ExamController'ı al
-          final args = Get.arguments;
-          String? examId;
-          if (args is Map<String, dynamic>) {
-            examId = args['examId'];
-          } else if (args is Exam) {
-            examId = args.id;
-          }
-          final examCtrl = Get.find<ExamController>(tag: examId);
           final secondsLeft = examCtrl.state.value.secondsLeft;
 
           return Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Sol: soru başlığı
-              Expanded(
-                child: Text(
-                  question.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+              Text(
+                'Coding Editor',
+                style: AppTextStyles.headline,
               ),
-              // Sağ: önce timer, sonra code icon
               Row(
                 children: [
                   TimerBadge(secondsLeft: secondsLeft),
                   IconButton(
-                    tooltip: "Back to Question",
-                    icon: const Icon(Icons.code),
-                    color: Colors.white,
+                    tooltip: 'Back to Question',
+                    icon: PhosphorIcon(
+                      PhosphorIcons.code(PhosphorIconsStyle.regular),
+                      size: 22,
+                    ),
                     onPressed: Get.back,
                   ),
                 ],
@@ -110,31 +132,40 @@ class ExamCodingEditorPage extends StatelessWidget {
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Card(
-            elevation: 2,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(12),
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(
+                color: AppColors.border,
+                width: 1.2,
               ),
-              child: CodeTheme(
-                data: CodeThemeData(styles: styles),
-                child: CodeField(
-                  controller: codeController,
-                  textStyle: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 14,
-                  ),
-                  expands: true,
-                  minLines: null,
-                  maxLines: null,
-                  lineNumberStyle: const LineNumberStyle(
-                    width: 40,
-                    textAlign: TextAlign.right,
+            ),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
+            child: CodeTheme(
+              data: CodeThemeData(styles: highlightTheme),
+              child: CodeField(
+                controller: codeController,
+                expands: true,
+                minLines: null,
+                maxLines: null,
+                textStyle: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 14,
+                  height: 1.4,
+                ),
+                lineNumberStyle: LineNumberStyle(
+                  width: 42,
+                  textAlign: TextAlign.right,
+                  textStyle: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
                   ),
                 ),
               ),
