@@ -1,3 +1,5 @@
+// lib/pages/exam/review/widgets/review_navigator_sheet.dart
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -16,6 +18,7 @@ class ReviewNavigatorSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Get.find<ExamReviewController>(tag: examId);
     final questions = c.exam.questions;
+
     final width = MediaQuery.of(context).size.width * 0.75;
 
     return Align(
@@ -35,7 +38,13 @@ class ReviewNavigatorSheet extends StatelessWidget {
               topLeft: Radius.circular(AppRadius.xl),
               bottomLeft: Radius.circular(AppRadius.xl),
             ),
-            boxShadow: AppShadows.medium,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.shadow,
+                blurRadius: 16,
+                offset: const Offset(-6, 0),
+              ),
+            ],
           ),
           child: SafeArea(
             child: Column(
@@ -52,8 +61,11 @@ class ReviewNavigatorSheet extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
+
                 Text(
-                  'Correct: ${c.correctCount} • Wrong: ${c.wrongCount} • Unanswered: ${c.unansweredCount}',
+                  'Correct: ${c.correctCount} • '
+                      'Wrong: ${c.wrongCount} • '
+                      'Unanswered: ${c.unansweredCount}',
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -62,13 +74,12 @@ class ReviewNavigatorSheet extends StatelessWidget {
                 const SizedBox(height: AppSpacing.lg),
 
                 // ===================================================
-                // QUESTION GRID
+                // QUESTIONS GRID
                 // ===================================================
                 Expanded(
                   child: GridView.builder(
-                    padding: EdgeInsets.zero,
                     gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
+                    const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 5,
                       crossAxisSpacing: AppSpacing.sm,
                       mainAxisSpacing: AppSpacing.sm,
@@ -76,31 +87,29 @@ class ReviewNavigatorSheet extends StatelessWidget {
                     itemCount: questions.length,
                     itemBuilder: (context, index) {
                       final q = questions[index];
-                      final status = c.getQuestionStatus(q.id);
 
-                      // -----------------------------------------------
-                      // Status-based styling (soft & readable)
-                      // -----------------------------------------------
+                      // 🔥 SADECE STATUS KULLANIYORUZ
+                      final status = c.reviewStatusFor(q.id);
+
                       Color bgColor;
                       Color textColor;
 
                       switch (status) {
                         case ReviewStatus.correct:
-                          bgColor = AppColors.success.withOpacity(0.15);
-                          textColor = AppColors.success;
+                          bgColor = AppColors.success;
+                          textColor = AppColors.surface;
                           break;
                         case ReviewStatus.wrong:
-                          bgColor = AppColors.error.withOpacity(0.15);
-                          textColor = AppColors.error;
+                          bgColor = AppColors.error;
+                          textColor = AppColors.surface;
                           break;
                         case ReviewStatus.unanswered:
                         default:
-                          bgColor = AppColors.surfaceMuted;
-                          textColor = AppColors.textMuted;
-                          break;
+                          bgColor = AppColors.textMuted;
+                          textColor = AppColors.surface;
                       }
 
-                      return InkWell(
+                      return GestureDetector(
                         onTap: () {
                           c.goToQuestion(index);
                           Get.back();
@@ -111,12 +120,14 @@ class ReviewNavigatorSheet extends StatelessWidget {
                             shape: BoxShape.circle,
                             border: Border.all(
                               color: AppColors.border,
+                              width: 1,
                             ),
                           ),
                           alignment: Alignment.center,
                           child: Text(
                             '${index + 1}',
-                            style: AppTextStyles.bodyStrong.copyWith(
+                            style: AppTextStyles.body.copyWith(
+                              fontWeight: FontWeight.w600,
                               color: textColor,
                             ),
                           ),
@@ -126,12 +137,19 @@ class ReviewNavigatorSheet extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.lg),
 
                 // ===================================================
                 // LEGEND
                 // ===================================================
-                _buildLegend(),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _legendItem(AppColors.success, 'Correct'),
+                    _legendItem(AppColors.error, 'Wrong'),
+                    _legendItem(AppColors.textMuted, 'Unanswered'),
+                  ],
+                ),
               ],
             ),
           ),
@@ -140,44 +158,7 @@ class ReviewNavigatorSheet extends StatelessWidget {
     );
   }
 
-  // ===================================================
-  // LEGEND
-  // ===================================================
-  Widget _buildLegend() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: const [
-        _LegendItem(
-          color: AppColors.success,
-          label: 'Correct',
-        ),
-        _LegendItem(
-          color: AppColors.error,
-          label: 'Wrong',
-        ),
-        _LegendItem(
-          color: AppColors.textMuted,
-          label: 'Unanswered',
-        ),
-      ],
-    );
-  }
-}
-
-// ===================================================
-// LEGEND ITEM (SMALL + SOFT)
-// ===================================================
-class _LegendItem extends StatelessWidget {
-  final Color color;
-  final String label;
-
-  const _LegendItem({
-    required this.color,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _legendItem(Color color, String label) {
     return Row(
       children: [
         Container(

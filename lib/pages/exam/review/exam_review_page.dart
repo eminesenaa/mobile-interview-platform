@@ -121,18 +121,6 @@ class ExamReviewPage extends StatelessWidget {
                     const SizedBox(height: AppSpacing.md),
 
                     // ---------------------------------------
-                    // QUESTION DESCRIPTION
-                    // ---------------------------------------
-                    // if ((q.description ?? '').isNotEmpty)
-                    //   Text(
-                    //     q.description!,
-                    //     style: AppTextStyles.body.copyWith(
-                    //       color: AppColors.textPrimary,
-                    //     ),
-                    //   ),
-
-
-                    // ---------------------------------------
                     // QUESTION TYPE VIEW
                     // ---------------------------------------
                     _buildQuestionContent(c, q, exam.id),
@@ -147,8 +135,9 @@ class ExamReviewPage extends StatelessWidget {
             ReviewActionBar(
               onPrev: c.prev,
               onNext: c.next,
-              onNavigator: () => _openNavigator(context, exam.id),
-              examId: exam.id,
+              onNavigator: () {
+                _openNavigator(context, exam.id);
+              },
             ),
           ],
         ),

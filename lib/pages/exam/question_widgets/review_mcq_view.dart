@@ -120,12 +120,6 @@ class ReviewMcqView extends StatelessWidget {
         Align(
           alignment: Alignment.center,
           child: OutlinedButton(
-            onPressed: () {
-              c.showAiExplanation(
-                questionId: question.id,
-                title: 'Explanation: ${question.title}',
-              );
-            },
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.primary,
               side: BorderSide(
@@ -139,14 +133,18 @@ class ReviewMcqView extends StatelessWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.md),
               ),
-            ),
-            child: Text(
-              'View Explanation',
-              style: AppTextStyles.body.copyWith(
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
+              textStyle: AppTextStyles.body.copyWith(
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
               ),
             ),
+            onPressed: () {
+              c.showAiExplanation(
+                questionId: question.id,
+                title: 'Explanation',
+              );
+            },
+            child: const Text('View Explanation'),
           ),
         ),
       ],
