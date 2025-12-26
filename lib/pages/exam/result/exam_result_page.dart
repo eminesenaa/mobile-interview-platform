@@ -6,7 +6,7 @@ import '../../../constants/constants.dart';
 import '../../../models/exam.dart';
 import '../../main_view.dart';
 import '../controllers/exam_result_controller.dart';
-import '../exam_review_page.dart';
+import '../review/exam_review_page.dart';
 
 import 'widgets/score_circle.dart';
 import 'widgets/answer_summary_row.dart';

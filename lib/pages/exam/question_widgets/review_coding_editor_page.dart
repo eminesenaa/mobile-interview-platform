@@ -8,7 +8,7 @@ import '../../../models/exam.dart';
 import '../../../models/question.dart';
 import '../controllers/exam_controller.dart';
 import '../controllers/exam_review_controller.dart';
-import '../exam_review_page.dart';
+import '../review/exam_review_page.dart';
 
 class ReviewCodingEditorPage extends StatelessWidget {
   final Question question;

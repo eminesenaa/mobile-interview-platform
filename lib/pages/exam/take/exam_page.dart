@@ -63,7 +63,7 @@ class ExamPage extends StatelessWidget {
             IconButton(
               onPressed: () => _openNavigator(context, c),
               icon: PhosphorIcon(
-                PhosphorIcons.squaresFour(PhosphorIconsStyle.regular),
+                PhosphorIcons.squaresFour(PhosphorIconsStyle.fill),
                 size: AppIconSizes.lg,
                 color: AppColors.textPrimary,
               ),

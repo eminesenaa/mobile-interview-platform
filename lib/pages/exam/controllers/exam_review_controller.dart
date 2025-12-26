@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:interview_project/models/exam.dart';
 import 'package:interview_project/models/question.dart';
 import '../../../services/ai/ai_service.dart';
-import '../widgets/review_ai_explanation_dialog.dart';
+import '../review/widgets/review_ai_explanation_dialog.dart';
 import 'exam_controller.dart';
 
 /*
@@ -619,8 +619,6 @@ class ExamReviewController extends GetxController {
           final v = correctAnswerFor(questionId);
           return (v == null || v.trim().isNotEmpty == false) ? null : v.trim();
         }),
-
-        title: title ?? 'AI Explanation',
       ),
       barrierDismissible: true,
       barrierColor: Colors.black54,
