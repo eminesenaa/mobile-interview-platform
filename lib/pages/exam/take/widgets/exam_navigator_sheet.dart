@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../../constants/colors.dart';
+
+import '../../../../constants/constants.dart';
 import '../../controllers/exam_controller.dart';
 
 class ExamNavigatorSheet extends StatelessWidget {
   final String examId;
 
-  const ExamNavigatorSheet({super.key, required this.examId});
+  const ExamNavigatorSheet({
+    super.key,
+    required this.examId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,18 +26,21 @@ class ExamNavigatorSheet extends StatelessWidget {
         child: Container(
           width: width,
           height: MediaQuery.of(context).size.height,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.lg,
+          ),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surface,
             borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(20),
-              bottomLeft: Radius.circular(20),
+              topLeft: Radius.circular(AppRadius.xl),
+              bottomLeft: Radius.circular(AppRadius.xl),
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 12,
-                offset: const Offset(-4, 0),
+                color: AppColors.shadow,
+                blurRadius: 16,
+                offset: const Offset(-6, 0),
               ),
             ],
           ),
@@ -41,81 +48,111 @@ class ExamNavigatorSheet extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // ===================================================
+                // HEADER
+                // ===================================================
                 Text(
-                  "Question Navigator",
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                  'Question Navigator',
+                  style: AppTextStyles.title.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
-                  "Total: ${questions.length} | Answered: ${c.answeredCount}",
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: Colors.grey[700]),
+                  'Total: ${questions.length} | Answered: ${c.answeredCount}',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
-                const SizedBox(height: 16),
 
-                // ✅ Scrollable area
+                const SizedBox(height: AppSpacing.lg),
+
+                // ===================================================
+                // QUESTIONS GRID
+                // ===================================================
                 Expanded(
-                  child: Scrollbar(
-                    thumbVisibility: true,
-                    radius: const Radius.circular(8),
-                    child: SingleChildScrollView(
-                      child: GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 5,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                        ),
-                        itemCount: questions.length,
-                        itemBuilder: (context, index) {
-                          final q = questions[index];
-                          final answered = c.answers.containsKey(q.id);
-                          final flagged = c.flaggedQuestions.contains(q.id);
+                  child: SingleChildScrollView(
+                    child: GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 5,
+                        crossAxisSpacing: AppSpacing.sm,
+                        mainAxisSpacing: AppSpacing.sm,
+                      ),
+                      itemCount: questions.length,
+                      itemBuilder: (context, index) {
+                        final q = questions[index];
+                        final answered = c.answers.containsKey(q.id);
+                        final flagged = c.flaggedQuestions.contains(q.id);
 
-                          Color bgColor;
-                          if (flagged) {
-                            bgColor = Colors.purpleAccent;
-                          } else if (answered) {
-                            bgColor = Colors.greenAccent.shade700;
-                          } else {
-                            bgColor = Colors.grey.shade300;
-                          }
+                        Color bgColor;
+                        Color textColor;
 
-                          return GestureDetector(
-                            onTap: () {
-                              c.goToQuestion(index);
-                              Get.back();
-                            },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: bgColor,
-                                shape: BoxShape.circle,
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                "${index + 1}",
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
+                        if (flagged) {
+                          bgColor = AppColors.primaryAccent;
+                          textColor = AppColors.surface;
+                        } else if (answered) {
+                          bgColor = AppColors.success;
+                          textColor = AppColors.surface;
+                        } else {
+                          bgColor = AppColors.surfaceMuted;
+                          textColor = AppColors.textSecondary;
+                        }
+
+                        return GestureDetector(
+                          onTap: () {
+                            c.goToQuestion(index);
+                            Get.back();
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: bgColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AppColors.border,
+                                width: 1,
                               ),
                             ),
-                          );
-                        },
-                      ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '${index + 1}',
+                              style: AppTextStyles.body.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: textColor,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 12),
-                _buildLegend(context),
+                const SizedBox(height: AppSpacing.lg),
+
+                // ===================================================
+                // LEGEND
+                // ===================================================
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _legendItem(
+                      AppColors.success,
+                      'Answered',
+                    ),
+                    _legendItem(
+                      AppColors.surfaceMuted,
+                      'Not Answered',
+                    ),
+                    _legendItem(
+                      AppColors.primaryAccent,
+                      'Flagged',
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -124,30 +161,24 @@ class ExamNavigatorSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildLegend(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _legendItem(Colors.greenAccent.shade700, "Answered"),
-        _legendItem(Colors.grey.shade300, "Not Answered"),
-        _legendItem(Colors.purpleAccent, "Flagged"),
-      ],
-    );
-  }
-
   Widget _legendItem(Color color, String label) {
     return Row(
       children: [
         Container(
-          width: 12,
-          height: 12,
+          width: 10,
+          height: 10,
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
           ),
         ),
-        const SizedBox(width: 6),
-        Text(label, style: const TextStyle(fontSize: 12)),
+        const SizedBox(width: AppSpacing.xs),
+        Text(
+          label,
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
       ],
     );
   }

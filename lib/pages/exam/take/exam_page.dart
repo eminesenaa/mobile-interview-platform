@@ -7,21 +7,16 @@ import '../../../constants/constants.dart';
 import '../../../models/exam.dart';
 import '../../../models/question.dart';
 
-import '../../question_types/fill_blank/widgets/text_with_blanks_view.dart';
 import '../controllers/exam_controller.dart';
-import '../controllers/exam_coding_controller.dart';
 
 import '../question_widgets/exam_mcq_view.dart';
 import '../question_widgets/exam_fill_blank_view.dart';
 import '../question_widgets/exam_short_answer_view.dart';
 import '../question_widgets/exam_coding_view.dart';
-import '../question_widgets/exam_coding_editor_page.dart';
 
 import 'widgets/action_bar.dart';
 import 'widgets/confirm_finish_dialog.dart';
 import 'widgets/exam_navigator_sheet.dart';
-import 'widgets/progress_bar.dart';
-import 'widgets/stats_row.dart';
 import 'widgets/question_header.dart';
 import 'widgets/timer_badge.dart';
 
@@ -55,7 +50,7 @@ class ExamPage extends StatelessWidget {
           foregroundColor: AppColors.textPrimary,
           centerTitle: false,
           title: Text(
-            'Random Exam',
+            'Exam',
             style: AppTextStyles.headline,
           ),
           actions: [

@@ -14,7 +14,7 @@ import '../../../models/exam.dart';
 import '../../../models/question.dart';
 import '../../../services/ai/ai_service.dart';
 import 'create_exam_controller.dart'; // ✅ düzeltildi
-import '../exam_result_page.dart'; // ✅ bir üst klasörde
+import '../result/exam_result_page.dart'; // ✅ bir üst klasörde
 import '../services/exam_xp_service.dart';
 
 class ExamController extends GetxController {

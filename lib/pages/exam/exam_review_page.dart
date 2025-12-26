@@ -13,7 +13,7 @@ import 'question_widgets/review_coding_view.dart';
 import 'widgets/review_action_bar.dart';
 import 'widgets/review_stats_row.dart';
 import 'widgets/review_navigator_sheet.dart';
-import 'exam_result_page.dart';
+import 'result/exam_result_page.dart';
 
 class ExamReviewPage extends StatelessWidget {
   const ExamReviewPage({super.key});

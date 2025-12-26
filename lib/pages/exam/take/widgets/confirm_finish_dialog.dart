@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:interview_project/constants/colors.dart';
 
-/// Reusable confirm dialog for finishing the exam.
-/// Returns `true` if user confirms, otherwise `false`.
+import '../../../../constants/constants.dart';
+
+/// ===================================================
+/// CONFIRM FINISH DIALOG
+/// ---------------------------------------------------
+/// - Exam bitirme aksiyonu için kullanılır
+/// - GetX üzerinden bool döner
+/// - UI, Exam ActionBar / Navigator ile uyumludur
+/// ===================================================
 class ConfirmFinishDialog extends StatelessWidget {
   final String title;
   final String message;
@@ -18,11 +24,17 @@ class ConfirmFinishDialog extends StatelessWidget {
     this.confirmText = 'Finish',
   });
 
-  /// Show via GetX and return a non-nullable boolean.
+  /// ---------------------------------------------------
+  /// STATIC HELPER
+  /// ---------------------------------------------------
+  /// Kullanım:
+  /// final confirmed = await ConfirmFinishDialog.show();
+  ///
+  /// Her zaman non-null bool döner
   static Future<bool> show() async {
     final bool? res = await Get.dialog<bool>(
       const ConfirmFinishDialog(),
-      barrierDismissible: false,
+      barrierDismissible: false, // 🔒 Bilinçli karar
     );
     return res ?? false;
   }
@@ -30,51 +42,87 @@ class ConfirmFinishDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
-      contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+      backgroundColor: AppColors.surface,
+      elevation: 8,
+
+      // 🔹 Yuvarlak, modern sheet hissi
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.lg,
+      ),
+
+      contentPadding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.md,
+      ),
+
+      // ===================================================
+      // TITLE
+      // ===================================================
       title: Text(
         title,
         textAlign: TextAlign.center,
-        style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
+        style: AppTextStyles.title.copyWith(
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary,
         ),
       ),
-      content: SizedBox(
-        height: 100, // ⬆️ diyalog yüksekliği artırıldı
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 15, height: 1.4),
+
+      // ===================================================
+      // CONTENT
+      // ===================================================
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.textSecondary,
+              height: 1.4,
             ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                TextButton(
-                  onPressed: () => Get.back(result: false),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.grey[700],
+          ),
+
+          const SizedBox(height: AppSpacing.lg),
+
+          // ===================================================
+          // ACTIONS
+          // ===================================================
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextButton(
+                onPressed: () => Get.back(result: false),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.textSecondary,
+                  textStyle: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
-                  child: Text(cancelText),
                 ),
-                const SizedBox(width: 24),
-                TextButton(
-                  onPressed: () => Get.back(result: true),
-                  style: TextButton.styleFrom(
-                    foregroundColor:
-                    AppColors.primary,
+                child: Text(cancelText),
+              ),
+
+              const SizedBox(width: AppSpacing.md), // 👈 yakın ama ayrı
+
+              TextButton(
+                onPressed: () => Get.back(result: true),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  textStyle: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
-                  child: Text(confirmText),
                 ),
-              ],
-            ),
-          ],
-        ),
+                child: Text(confirmText),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
