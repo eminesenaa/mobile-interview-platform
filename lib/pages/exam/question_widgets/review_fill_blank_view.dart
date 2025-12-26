@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../constants/colors.dart';
+
+import '../../../constants/constants.dart';
 import '../../../models/question.dart';
 import '../controllers/exam_review_controller.dart';
+
+import '../../question_types/fill_blank/widgets/text_with_blanks_view.dart';
+import '../../question_types/fill_blank/widgets/code_template_with_blanks.dart';
 
 class ReviewFillBlankView extends StatelessWidget {
   final Question question;
@@ -16,121 +20,147 @@ class ReviewFillBlankView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = Get.find<ExamReviewController>(tag: examId);
+    // ---------------------------------------------------
+    // Controller (tag güvenli)
+    // ---------------------------------------------------
+    ExamReviewController c;
+    try {
+      c = Get.find<ExamReviewController>(tag: examId);
+    } catch (_) {
+      c = Get.find<ExamReviewController>();
+    }
 
-    // 🔹 blanks verisi varsa onu kullan, yoksa description’daki boşluklardan türet
-    final blanks = question.blanks ??
-        _extractBlanksFromDescription(question.description ?? '');
+    // ===================================================
+    // BLANK COUNT HELPERS
+    // ===================================================
+    int _blankCount(String text) {
+      final regex = RegExp(r'___');
+      return regex.allMatches(text).length;
+    }
 
-    // 🔹 Kullanıcının cevaplarını al
-    final userAnswers = c.answers[question.id];
-    final savedAnswer =
-        c.userAnswerTextFor(question.id); // tek blank için fallback
+    // ===================================================
+    // ANSWERS RX (EXAM İLE AYNI MANTIK)
+    // ===================================================
+    RxList<String> _buildAnswersRx(int blanks) {
+      final raw = c.answers[question.id];
 
-    // ✅ Doğruluk durumunu controller’dan al
-    final status = c.fillBlankStatusFor(question.id);
+      if (raw is List) {
+        final list = List<String>.from(raw.map((e) => e.toString()));
+        while (list.length < blanks) {
+          list.add('');
+        }
+        return RxList<String>.from(list);
+      }
 
-    // ✅ Karşılaştırma için normalize helper
-    String norm(String? s) =>
-        (s ?? '').trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+      return RxList<String>.filled(blanks, '');
+    }
+
+    // ===================================================
+    // TEXT / CODE BLANK ANALYSIS
+    // ===================================================
+    final bool hasTextBlanks =
+    (question.description ?? '').contains('___');
+
+    final int textBlankCount = hasTextBlanks
+        ? _blankCount(question.description!)
+        : 0;
+
+    final int codeBlankCount =
+    (question.codeTemplate ?? '').isNotEmpty
+        ? _blankCount(question.codeTemplate!)
+        : 0;
+
+    // ⚠️ Aynı answers listesi hem text hem code için
+    final answersRx =
+    _buildAnswersRx(textBlankCount + codeBlankCount);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 8),
-
-        // 🔹 Her boşluk için read-only TextField oluştur
-        ...List.generate(blanks.length, (i) {
-          // 🔹 Her blank için kullanıcı cevabını çıkar
-          String answerText = '';
-          if (userAnswers is Map) {
-            final byInt = userAnswers[i];
-            final byStr = userAnswers[i.toString()];
-            if (byInt is String) {
-              answerText = byInt;
-            } else if (byStr is String) {
-              answerText = byStr;
-            }
-          } else if (userAnswers is List) {
-            final v = (i < userAnswers.length) ? userAnswers[i] : null;
-            if (v is String) answerText = v;
-          } else if (blanks.length == 1) {
-            // Tek blank senaryosu → savedAnswer fallback
-            answerText = savedAnswer;
-          }
-
-          // ✅ Bu blank için durum: unanswered / correct / wrong
-          final bool isUnanswered = answerText.trim().isEmpty;
-          bool isCorrect = false;
-          if (!isUnanswered && i < (question.blanks?.length ?? 0)) {
-            isCorrect = norm(answerText) == norm(question.blanks![i]);
-          }
-          final bool isWrong = !isUnanswered && !isCorrect;
-
-// ✅ Renkleri duruma göre seç
-          final Color border =
-              isCorrect ? Colors.green : (isWrong ? Colors.red : Colors.grey);
-          final Color? fill = isCorrect
-              ? Colors.green.withValues(alpha: 0.10)
-              : (isWrong
-                  ? Colors.red.withValues(alpha: 0.10)
-                  : Colors.grey.withValues(alpha: 0.12));
-
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: TextField(
-              controller: TextEditingController(text: answerText),
-              readOnly: true,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: fill,
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: border, width: 1.4),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: border, width: 1.6),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                border: OutlineInputBorder(
-                  borderSide: BorderSide(color: border, width: 1.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-
-                hintText: 'Blank ${i + 1}: No answer provided.',
-                // fillColor: Colors.grey.shade100,
-                // filled: true,
+        // ===================================================
+        // QUESTION DESCRIPTION (INLINE BLANKS VARSA)
+        // ===================================================
+        if ((question.description ?? '').isNotEmpty && hasTextBlanks)
+          AbsorbPointer(
+            absorbing: true,
+            child: Opacity(
+              opacity: 1.0,
+              child: TextWithBlanksView(
+                text: question.description!,
+                answers: answersRx,
+                locked: true,
+                onChanged: (_) => (_) {},
               ),
             ),
-          );
-        }),
+          )
 
-        const SizedBox(height: 8),
-        Center(
-          child: TextButton(
+        // ===================================================
+        // QUESTION DESCRIPTION (SADE METİN)
+        // ===================================================
+        else if ((question.description ?? '').isNotEmpty)
+          Text(
+            question.description!,
+            style: AppTextStyles.body.copyWith(
+              fontSize: 16,
+              color: AppColors.textPrimary,
+            ),
+          ),
+
+        if ((question.description ?? '').isNotEmpty)
+          const SizedBox(height: AppSpacing.lg),
+
+        // ===================================================
+        // CODE TEMPLATE WITH INLINE BLANKS (READ-ONLY)
+        // ===================================================
+        if ((question.codeTemplate ?? '').isNotEmpty)
+          AbsorbPointer(
+            absorbing: true,
+            child: Opacity(
+              opacity: 1.0,
+              child: CodeTemplateWithBlanksView(
+                codeTemplate: question.codeTemplate!,
+                answers: answersRx,
+                onChanged: (_, __) {},
+              ),
+            ),
+          ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        // ===================================================
+        // AI EXPLANATION
+        // ===================================================
+        Align(
+          alignment: Alignment.center,
+          child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: BorderSide(
+                color: AppColors.primary,
+                width: 1.2,
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xl,
+                vertical: AppSpacing.sm,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              textStyle: AppTextStyles.body.copyWith(
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+            ),
             onPressed: () {
               c.showAiExplanation(
                 questionId: question.id,
-                title: 'Explanation: ${question.title}',
+                title: 'Explanation',
               );
             },
-            child: const Text(
-              "See AI Explanation",
-              style: TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            child: const Text('View Explanation'),
           ),
         ),
       ],
     );
-  }
-
-  /// 🔹 Description içinden alt çizgi (___) sayısına göre blanks üret
-  List<String> _extractBlanksFromDescription(String text) {
-    final regex = RegExp(r'_{3,}');
-    final count = regex.allMatches(text).length;
-    return List.generate(count, (i) => 'blank$i');
   }
 }
