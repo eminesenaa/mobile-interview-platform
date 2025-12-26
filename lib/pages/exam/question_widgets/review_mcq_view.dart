@@ -134,7 +134,7 @@ class ReviewMcqView extends StatelessWidget {
               ),
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.xl,
-                vertical: AppSpacing.md,
+                vertical: AppSpacing.sm,
               ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.md),

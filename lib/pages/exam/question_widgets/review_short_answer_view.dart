@@ -97,7 +97,7 @@ class ReviewShortAnswerView extends StatelessWidget {
               foregroundColor: AppColors.primary,
               side: BorderSide(
                 color: AppColors.primary,
-                width: 1.4,
+                width: 1.2,
               ),
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.xl,
