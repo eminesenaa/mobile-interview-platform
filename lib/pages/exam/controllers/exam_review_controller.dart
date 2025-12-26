@@ -438,7 +438,7 @@ class ExamReviewController extends GetxController {
   /// Returns the AI-evaluated review status (Correct/Wrong/Unanswered)
   /// Fallbacks to simple text comparison if AI info missing.
   ReviewStatus reviewStatusFor(String questionId) {
-    final userAnswer = (answers[questionId] as String?)?.trim() ?? '';
+    final userAnswer = userAnswerTextFor(questionId);
     if (userAnswer.isEmpty) return ReviewStatus.unanswered;
 
     // Try to locate evaluation result (safely)

@@ -104,7 +104,7 @@ class ActionBar extends StatelessWidget {
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
-                    vertical: AppSpacing.sm,
+                    vertical: AppSpacing.md,
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppRadius.md),
