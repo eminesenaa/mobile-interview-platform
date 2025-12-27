@@ -15,7 +15,6 @@ class AiService {
     required Question question,
     required dynamic userAnswer,
   }) async {
-
     final meta = _toMeta(question);
     //print(meta);
     final candidate = _candidateFromAnswer(question, userAnswer);
@@ -24,7 +23,7 @@ class AiService {
     // burada karar verilecek: training mi interview mu
     var promptType = PromptType.training;
 
-    switch(question.type.name){
+    switch (question.type.name) {
       case 'mcq':
         promptType = PromptType.mcq;
         break;
@@ -49,26 +48,25 @@ class AiService {
     final provider = AiConfig.chooseModel(questionType: question.type.name);
     print("kullanılacak provider: $provider");
     final result = switch (provider) {
-
       AiProvider.openai => await OpenAIService.gradeWithTemplate(
-        promptType: promptType,
-        qMeta: meta,
-        candidateAnswer: candidate,
-      ),
-
+          promptType: promptType,
+          qMeta: meta,
+          candidateAnswer: candidate,
+        ),
       AiProvider.gemini => await GeminiService().gradeWithTemplate(
-        promptType: promptType,
-        category: category,
-        qMeta: meta,
-        candidateAnswer: candidate,
-      ),
-
-      AiProvider.anthropic => throw Exception("Anthropic provider not implemented yet."),
+          promptType: promptType,
+          category: category,
+          qMeta: meta,
+          candidateAnswer: candidate,
+        ),
+      AiProvider.anthropic =>
+        throw Exception("Anthropic provider not implemented yet."),
     };
 
     return AiEvaluateResult(
       finalAnswer: result.expected,
-      explanation: "${result.correct ? "Correct" : "Incorrect"}. ${result.reason}",
+      explanation:
+          "${result.correct ? "Correct" : "Incorrect"}. ${result.reason}",
       score: result.score,
       correct: result.correct,
     );
@@ -88,13 +86,23 @@ class AiService {
     required Exam exam,
     required Map<String, dynamic> userAnswers,
   }) async {
+    // ✅ TOPLAM süre ölçümü (sadece exam evaluation için)
+    final totalSw = Stopwatch()..start();
+
     final questionEvaluations = <AiExamQuestionEvaluateResult>[];
     int correctCount = 0, falseCount = 0, emptyCount = 0;
     double totalScore = 0.0;
 
+    // ✅ 5'li chunk’lara böl
     final idxChunks = _chunkIndices(exam.questions.length, 5);
+    print(
+        "🧩 [EXAM] totalQuestions=${exam.questions.length} chunks=${idxChunks.length} chunkSize=5");
 
-    for (final chunk in idxChunks) {
+    for (int chunkNo = 0; chunkNo < idxChunks.length; chunkNo++) {
+      final chunk = idxChunks[chunkNo];
+
+      final chunkSw = Stopwatch()..start();
+
       final items = <Map<String, dynamic>>[];
       for (final i in chunk) {
         final q = exam.questions[i];
@@ -115,17 +123,25 @@ class AiService {
 
       const provider = AiConfig.provider;
 
+      // ✅ provider çağrısı süre ölçümü
+      final callSw = Stopwatch()..start();
+      final batchId =
+          "exam_${exam.id}_${DateTime.now().millisecondsSinceEpoch}";
+
       final results = switch (provider) {
         AiProvider.openai => await OpenAIService.gradeBatch(
-          batchId: "exam_${exam.id}_${DateTime.now().millisecondsSinceEpoch}",
-          items: items,
-        ),
+            batchId: batchId,
+            items: items,
+          ),
         AiProvider.gemini => await GeminiService().gradeBatch(
-          batchId: "exam_${exam.id}_${DateTime.now().millisecondsSinceEpoch}",
-          items: items,
-        ),
-        AiProvider.anthropic => throw Exception("Anthropic provider not implemented yet."),
+            batchId: batchId,
+            items: items,
+          ),
+        AiProvider.anthropic =>
+          throw Exception("Anthropic provider not implemented yet."),
       };
+
+      callSw.stop();
 
       for (final r in results) {
         final i = (r['index'] as num).toInt();
@@ -137,6 +153,7 @@ class AiService {
         final questionKey = q.id;
         final answered =
             userAnswers[questionKey]?.toString().trim().isNotEmpty ?? false;
+
         if (!answered) {
           emptyCount++;
         } else if (isCorrect) {
@@ -158,15 +175,24 @@ class AiService {
           ),
         );
       }
+
+      chunkSw.stop();
+      print(
+        "⏱️ [EXAM CHUNK] chunk=$chunkNo size=${chunk.length} provider=$provider "
+        "api=${callSw.elapsedMilliseconds}ms totalChunk=${chunkSw.elapsedMilliseconds}ms",
+      );
     }
 
-    questionEvaluations.sort((a, b) => a.questionIndex.compareTo(b.questionIndex));
-    final avgScore = exam.questions.isNotEmpty ? (totalScore / exam.questions.length) : 0.0;
+    questionEvaluations
+        .sort((a, b) => a.questionIndex.compareTo(b.questionIndex));
+    final avgScore =
+        exam.questions.isNotEmpty ? (totalScore / exam.questions.length) : 0.0;
     final totalScore100 = (avgScore * 20).clamp(0, 100).toInt();
 
     final topicMap = <String, List<bool>>{};
     for (final qe in questionEvaluations) {
-      final t = (exam.questions[qe.questionIndex].topic ?? 'Unknown').toLowerCase();
+      final t =
+          (exam.questions[qe.questionIndex].topic ?? 'Unknown').toLowerCase();
       final ok = qe.correctness == 1;
       topicMap.putIfAbsent(t, () => []).add(ok);
     }
@@ -176,7 +202,7 @@ class AiService {
       topicPercentage[t] = p;
     });
 
-    AiExamEvaluateResult result = AiExamEvaluateResult(
+    final result = AiExamEvaluateResult(
       totalScore: totalScore100,
       correctCount: correctCount,
       falseCount: falseCount,
@@ -185,20 +211,12 @@ class AiService {
       topicPercentage: topicPercentage,
     );
 
-  /*
-  print(result.totalScore);
-  print(result.correctCount);
-  print(result.falseCount);
-  print(result.emptyCount);
-  print(result.questionEvaluations[0].explanation);
-  print(result.questionEvaluations[1].explanation);
-  print(result.questionEvaluations[2].explanation);
-  print(result.questionEvaluations[3].explanation);
-  print(result.questionEvaluations[4].explanation);
-  print(result.questionEvaluations[5].explanation);
-  print(result.questionEvaluations[6].explanation);
-  print(result.topicPercentage);
-  */
+    totalSw.stop();
+    print(
+      "✅ [EXAM DONE] totalQuestions=${exam.questions.length} "
+      "correct=$correctCount wrong=$falseCount empty=$emptyCount "
+      "totalScore=$totalScore100/100 totalTime=${totalSw.elapsedMilliseconds}ms",
+    );
 
     return result;
   }
@@ -215,7 +233,6 @@ class AiService {
   // ---------- helpers ----------
 
   Map<String, String> _toMeta(Question q) {
-
     final meta = <String, String>{
       "Question Text": q.description ?? '',
       "Question Format": (q.type?.name ?? '').toUpperCase(),
@@ -315,11 +332,12 @@ class AiExamEvaluateResult {
   final List<AiExamQuestionEvaluateResult>
       questionEvaluations; //Tüm Soruların Sıralanmış Hali
   final Map<String, int> topicPercentage; //Her topic'in doğruluk oranı
-  AiExamEvaluateResult(
-      {required this.totalScore,
-      required this.correctCount,
-      required this.falseCount,
-      required this.emptyCount,
-      required this.questionEvaluations,
-      required this.topicPercentage});
+  AiExamEvaluateResult({
+    required this.totalScore,
+    required this.correctCount,
+    required this.falseCount,
+    required this.emptyCount,
+    required this.questionEvaluations,
+    required this.topicPercentage,
+  });
 }
