@@ -98,88 +98,111 @@ class AiService {
     print(
         "🧩 [EXAM] totalQuestions=${exam.questions.length} chunks=${idxChunks.length} chunkSize=5");
 
+    // ✅ BatchId tek sefer üret, her chunk'a suffix ver
+    final baseBatchId =
+        "exam_${exam.id}_${DateTime.now().millisecondsSinceEpoch}";
+
+    // ✅ Provider sabit
+    const provider = AiConfig.provider;
+
+    // ✅ Chunk'ları paralel çalıştırmak için futures
+    final futures = <Future<List<Map<String, dynamic>>>>[];
+
     for (int chunkNo = 0; chunkNo < idxChunks.length; chunkNo++) {
       final chunk = idxChunks[chunkNo];
 
-      final chunkSw = Stopwatch()..start();
+      futures.add(() async {
+        final chunkSw = Stopwatch()..start();
 
-      final items = <Map<String, dynamic>>[];
-      for (final i in chunk) {
-        final q = exam.questions[i];
-        final questionKey = q.id;
-        final rawAns = userAnswers[questionKey];
-        final userAns =
-            (rawAns == null || (rawAns is String && rawAns.trim().isEmpty))
-                ? ""
-                : rawAns;
+        final items = <Map<String, dynamic>>[];
+        for (final i in chunk) {
+          final q = exam.questions[i];
+          final questionKey = q.id;
 
-        items.add({
-          "index": i,
-          "meta": _toMeta(q),
-          "user_answer": _candidateFromAnswer(q, userAns),
-          "topic": _mapTopicToCategory(q.topic),
-        });
-      }
+          // ✅ [EKLENDİ] boş cevabı tespit et
+          final answered =
+              userAnswers[questionKey]?.toString().trim().isNotEmpty ?? false;
 
-      const provider = AiConfig.provider;
+          final rawAns = userAnswers[questionKey];
+          // ✅ [DEĞİŞTİ] boşsa özel token gönder (AI düzgün açıklasın diye)
+          final userAns = answered ? rawAns : "__NO_ANSWER_PROVIDED__";
 
-      // ✅ provider çağrısı süre ölçümü
-      final callSw = Stopwatch()..start();
-      final batchId =
-          "exam_${exam.id}_${DateTime.now().millisecondsSinceEpoch}";
-
-      final results = switch (provider) {
-        AiProvider.openai => await OpenAIService.gradeBatch(
-            batchId: batchId,
-            items: items,
-          ),
-        AiProvider.gemini => await GeminiService().gradeBatch(
-            batchId: batchId,
-            items: items,
-          ),
-        AiProvider.anthropic =>
-          throw Exception("Anthropic provider not implemented yet."),
-      };
-
-      callSw.stop();
-
-      for (final r in results) {
-        final i = (r['index'] as num).toInt();
-        final isCorrect = (r['correct'] as bool?) ?? false;
-        final expected = (r['expected'] as String?) ?? '';
-        final reason = (r['reason'] as String?) ?? '';
-        final score = (r['score'] as num?)?.toDouble() ?? 0.0;
-        final q = exam.questions[i];
-        final questionKey = q.id;
-        final answered =
-            userAnswers[questionKey]?.toString().trim().isNotEmpty ?? false;
-
-        if (!answered) {
-          emptyCount++;
-        } else if (isCorrect) {
-          correctCount++;
-        } else {
-          falseCount++;
+          items.add({
+            "index": i,
+            "meta": _toMeta(q),
+            "user_answer": _candidateFromAnswer(q, userAns),
+            "topic": _mapTopicToCategory(q.topic),
+          });
         }
 
-        totalScore += score;
+        // ✅ provider çağrısı süre ölçümü
+        final callSw = Stopwatch()..start();
 
-        questionEvaluations.add(
-          AiExamQuestionEvaluateResult(
-            questionGeneralIndex: exam.questions[i].id,
-            questionIndex: i,
-            correctness: !answered ? 0 : (isCorrect ? 1 : -1),
-            correctAnswer: expected.isEmpty ? [] : [expected],
-            explanation: reason,
-            score: score,
-          ),
+        final results = switch (provider) {
+          AiProvider.openai => await OpenAIService.gradeBatch(
+              batchId: "${baseBatchId}_chunk_$chunkNo",
+              items: items,
+            ),
+          AiProvider.gemini => await GeminiService().gradeBatch(
+              batchId: "${baseBatchId}_chunk_$chunkNo",
+              items: items,
+            ),
+          AiProvider.anthropic =>
+            throw Exception("Anthropic provider not implemented yet."),
+        };
+
+        callSw.stop();
+        chunkSw.stop();
+
+        print(
+          "⏱️ [EXAM CHUNK] chunk=$chunkNo size=${chunk.length} provider=$provider "
+          "api=${callSw.elapsedMilliseconds}ms totalChunk=${chunkSw.elapsedMilliseconds}ms",
         );
+
+        return results;
+      }());
+    }
+
+    // ✅ paralel bekle + flatten
+    final allChunkResults = await Future.wait(futures);
+    final allResults = allChunkResults.expand((x) => x).toList();
+
+    // ✅ sonuçları işle
+    for (final r in allResults) {
+      final i = (r['index'] as num).toInt();
+      final isCorrect = (r['correct'] as bool?) ?? false;
+      final expected = (r['expected'] as String?) ?? '';
+      final reason = (r['reason'] as String?) ?? '';
+      final rawScore = (r['score'] as num?)?.toDouble() ?? 0.0;
+
+      final q = exam.questions[i];
+      final questionKey = q.id;
+
+      final answered =
+          userAnswers[questionKey]?.toString().trim().isNotEmpty ?? false;
+
+      if (!answered) {
+        emptyCount++;
+      } else if (isCorrect) {
+        correctCount++;
+      } else {
+        falseCount++;
       }
 
-      chunkSw.stop();
-      print(
-        "⏱️ [EXAM CHUNK] chunk=$chunkNo size=${chunk.length} provider=$provider "
-        "api=${callSw.elapsedMilliseconds}ms totalChunk=${chunkSw.elapsedMilliseconds}ms",
+      // ✅ [DEĞİŞTİ] boşsa score kesin 0 olsun (ama explanation kalsın)
+      final score = answered ? rawScore : 0.0;
+
+      totalScore += score;
+
+      questionEvaluations.add(
+        AiExamQuestionEvaluateResult(
+          questionGeneralIndex: exam.questions[i].id,
+          questionIndex: i,
+          correctness: !answered ? 0 : (isCorrect ? 1 : -1),
+          correctAnswer: expected.isEmpty ? [] : [expected],
+          explanation: reason,
+          score: score,
+        ),
       );
     }
 
