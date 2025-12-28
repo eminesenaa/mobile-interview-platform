@@ -72,23 +72,27 @@ class AnthropicService {
           "You are an expert Computer Science Interwiever.\n"
           "Return ONLY a valid JSON object. No explanations, no markdown.";
 
-      final userContent = _renderTemplate(template, {
-        "Category": category,
-        "Question Content Type": qMeta["Question Content Type"] ?? "",
-        "Difficulty Level (1–5)": qMeta["Difficulty Level (1–5)"] ?? "",
-        "Source Reference": qMeta["Source Reference"] ?? "",
-        "Question Title": qMeta["Question Title"] ?? "",
+      var userContent = _renderTemplate(template, {
         "Question Text": qMeta["Question Text"] ?? "",
         "Question Format": qMeta["Question Format"] ?? "",
-        "Option A": qMeta["Option A"] ?? "",
-        "Option B": qMeta["Option B"] ?? "",
-        "Option C": qMeta["Option C"] ?? "",
-        "Option D": qMeta["Option D"] ?? "",
-        "Correct Option": qMeta["Correct Option"] ?? "",
-        "Tags": qMeta["Tags"] ?? "",
         "AI Prompt Helper": qMeta["AI Prompt Helper"] ?? "",
         "candidate_answer_or_choice": candidateAnswer,
       });
+
+      if(promptType == PromptType.mcq){
+        userContent = _renderTemplate(template, {
+          "Question Text": qMeta["Question Text"] ?? "",
+          "Question Format": qMeta["Question Format"] ?? "",
+          "Option A": qMeta["Option A"] ?? "",
+          "Option B": qMeta["Option B"] ?? "",
+          "Option C": qMeta["Option C"] ?? "",
+          "Option D": qMeta["Option D"] ?? "",
+          "Correct Option": qMeta["Correct Option"] ?? "",
+          "Tags": qMeta["Tags"] ?? "",
+          "AI Prompt Helper": qMeta["AI Prompt Helper"] ?? "",
+          "candidate_answer_or_choice": candidateAnswer,
+        });
+      }
 
       final body = {
         "model": _model,
