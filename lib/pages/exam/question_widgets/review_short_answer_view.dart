@@ -77,6 +77,7 @@ class ReviewShortAnswerView extends StatelessWidget {
 
         const SizedBox(height: AppSpacing.lg),
 
+        /*
         // ===================================================
         // MODEL / ACCEPTED ANSWERS
         // ===================================================
@@ -85,7 +86,7 @@ class ReviewShortAnswerView extends StatelessWidget {
           acceptedAnswers: acceptedVariants,
         ),
 
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.lg),*/
 
         // ===================================================
         // AI EXPLANATION (Outlined Primary Button)

@@ -95,17 +95,41 @@ class AiService {
 
     // ✅ 5'li chunk’lara böl
     final idxChunks = _chunkIndices(exam.questions.length, 5);
-    print(
-        "🧩 [EXAM] totalQuestions=${exam.questions.length} chunks=${idxChunks.length} chunkSize=5");
+    print("🧩 [EXAM] totalQuestions=${exam.questions.length} chunks=${idxChunks.length} chunkSize=5");
 
     for (int chunkNo = 0; chunkNo < idxChunks.length; chunkNo++) {
       final chunk = idxChunks[chunkNo];
 
       final chunkSw = Stopwatch()..start();
 
+      var chunkHasMcq = false;
+      var chunkHasFillBlanks = false;
+      var chunkHasShortAnswer = false;
+      var chunkHasCodeWriting = false;
+      var chunkHasBehavioral = false;
+
       final items = <Map<String, dynamic>>[];
       for (final i in chunk) {
         final q = exam.questions[i];
+
+        switch(q.type){
+          case QuestionType.mcq:
+            chunkHasMcq = true;
+            break;
+          case QuestionType.shortAnswer:
+            chunkHasShortAnswer = true;
+            break;
+          case QuestionType.coding:
+            chunkHasCodeWriting = true;
+            break;
+          case QuestionType.fillBlank:
+            chunkHasFillBlanks = true;
+            break;
+          case QuestionType.debugging:
+            chunkHasCodeWriting = true;
+            break;
+        }
+
         final questionKey = q.id;
         final rawAns = userAnswers[questionKey];
         final userAns =
@@ -132,6 +156,11 @@ class AiService {
         AiProvider.openai => await OpenAIService.gradeBatch(
             batchId: batchId,
             items: items,
+            hasMCQ: chunkHasMcq,
+            hasFillBlanks: chunkHasFillBlanks,
+            hasShortAnswer: chunkHasShortAnswer,
+            hasCodeWriting: chunkHasCodeWriting,
+            hasBehavioral: chunkHasBehavioral,
           ),
         AiProvider.gemini => await GeminiService().gradeBatch(
             batchId: batchId,
@@ -183,16 +212,16 @@ class AiService {
       );
     }
 
-    questionEvaluations
-        .sort((a, b) => a.questionIndex.compareTo(b.questionIndex));
-    final avgScore =
-        exam.questions.isNotEmpty ? (totalScore / exam.questions.length) : 0.0;
+    questionEvaluations.sort((a, b) => a.questionIndex.compareTo(b.questionIndex));
+
+    //Final Score
+    final avgScore = exam.questions.isNotEmpty ? (totalScore / exam.questions.length) : 0.0;
     final totalScore100 = (avgScore * 20).clamp(0, 100).toInt();
 
+    // Topic Percentages
     final topicMap = <String, List<bool>>{};
     for (final qe in questionEvaluations) {
-      final t =
-          (exam.questions[qe.questionIndex].topic ?? 'Unknown').toLowerCase();
+      final t = (exam.questions[qe.questionIndex].topic ?? 'Unknown').toLowerCase();
       final ok = qe.correctness == 1;
       topicMap.putIfAbsent(t, () => []).add(ok);
     }
@@ -269,22 +298,22 @@ class AiService {
     if (t.isEmpty) return 'algorithm';
 
     if (t.contains('behavior') || t.contains('hr') || t.contains('star')) {
-      return 'behavioral hr questions';
+      return 'Behavioral hr questions';
     }
-    if (t.contains('data science')) return 'data science';
-    if (t.contains('ml') || t.contains('machine learning')) return 'ml basics';
-    if (t.contains('network')) return 'network';
-    if (t.contains('java')) return 'java';
-    if (t.contains('c/c++') || t.contains('c++') || t == 'c') return 'c/c++';
-    if (t.contains('python')) return 'python';
-    if (t.contains('sql') || t.contains('database')) return 'sql';
-    if (t.contains('git') || t.contains('version control')) return 'git';
-    if (t.contains('oop') || t.contains('object oriented')) return 'oop';
-    if (t.contains('data structure')) return 'data structure';
-    if (t.contains('algorithm')) return 'algorithm';
+    if (t.contains('data science')) return 'Data science';
+    if (t.contains('ml') || t.contains('machine learning')) return 'Ml basics';
+    if (t.contains('network')) return 'Network';
+    if (t.contains('java')) return 'Java';
+    if (t.contains('c/c++') || t.contains('c++') || t == 'c') return 'C/C++';
+    if (t.contains('python')) return 'Python';
+    if (t.contains('sql') || t.contains('database')) return 'Sql';
+    if (t.contains('git') || t.contains('version control')) return 'Git';
+    if (t.contains('oop') || t.contains('object oriented')) return 'Oop';
+    if (t.contains('data structure')) return 'Data Structures';
+    if (t.contains('algorithm')) return 'Algorithms';
 
     // eşleşme yoksa güvenli varsayılan
-    return 'algorithm';
+    return 'Algorithms';
   }
 }
 
@@ -309,8 +338,7 @@ class AiExamQuestionEvaluateResult {
   final String questionGeneralIndex; //Q231 şeklinde
   final int questionIndex; // Kaçıncı soru (0-based index)
   final int correctness; // -1: yanlış, 0: boş, 1: doğru
-  final List<String>
-      correctAnswer; // Doğru Cevap, birden fazla olabilir fill in the blanks için
+  final List<String> correctAnswer; // Doğru Cevap, birden fazla olabilir fill in the blanks için
   final String explanation; // Ai açıklama
   final double? score; // 0-5 arası
   AiExamQuestionEvaluateResult({
@@ -340,4 +368,5 @@ class AiExamEvaluateResult {
     required this.questionEvaluations,
     required this.topicPercentage,
   });
+
 }

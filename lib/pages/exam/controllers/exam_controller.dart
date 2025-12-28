@@ -284,6 +284,11 @@ class ExamController extends GetxController {
         userAnswers: snapshotAnswers,
       );
 
+
+      //print("AI değerlendirmesi tamamlandı soru başına dönen CORRECTANSWERLAR:");
+      //for (final qEval in aiEval.questionEvaluations)
+      //  print(qEval.correctAnswer);
+
       final aiResult = AiExamResult.fromEvaluateResult(aiEval);
 
       final Map<String, dynamic> aiFeedbackMap = {
@@ -299,6 +304,7 @@ class ExamController extends GetxController {
           'wrong': aiResult.wrongCount,
           'unanswered': aiResult.unansweredCount,
         },
+        aiResult: aiEval,
       );
 
       // 🔥🔥 4️⃣ EXAM XP KAYDI (FIRESTORE'A YAZILAN YER)
