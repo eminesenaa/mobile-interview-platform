@@ -273,19 +273,20 @@ class OpenAIService {
     };
 
 
-    print("Exam olarak giden:");
-    debugPrint(body.toString(), wrapWidth: 10000);
+    print("Exam olarak GPT'ye giden:");
+    debugPrint(userContent, wrapWidth: 10000);
 
     final res = await _post(body, timeout: timeout);
 
-    //print("Exam cevabı:");
-    //debugPrint(res.body, wrapWidth: 10000);
+    print("Exam cevabı:");
+    debugPrint(res.body, wrapWidth: 10000);
 
     // 4) Parse: content bir JSON array olmalı
     final outer = jsonDecode(res.body);
     final content = outer['choices']?[0]?['message']?['content'];
-    if (content == null)
+    if (content == null) {
       throw Exception("OpenAI returned empty content for batch.");
+    }
 
     final parsed = jsonDecode(content);
     if (parsed is! List) throw Exception("Batch result is not a JSON array.");

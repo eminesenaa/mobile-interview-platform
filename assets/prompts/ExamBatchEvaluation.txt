@@ -9,11 +9,11 @@ If any rule cannot be applied or the input is invalid, output [].
 Each element in the JSON array must contain exactly the following fields:
 
 {
-  "index": <integer>,           // The item’s index in the batch
-  "correct": <boolean>,         // true only when the answer is fully correct
-  "expected": <string>,         // Ideal correct answer, that would be graded 5.0 (required format rules apply)
-  "reason": <string>,           // The through explanation of the question by at most 2-3 sentences and only after the explaination, Why the user's answer is graded as such.
-  "score": <number>             // Score from 0.0 to 5.0 (decimals allowed)
+  "index": <integer>, The item’s index in the batch
+  "correct": <boolean>, true only when the answer is fully correct
+  "expected": <string>, Ideal correct answer, that would be graded 5.0 (required format rules apply)
+  "reason": <string>, The through explanation of the question by at most 2-3 sentences and only after the explaination, Why the user's answer is graded as such.
+  "score": <float>, Score from 0.0 to 5.0 (decimals allowed)
 }
 
 All five keys must appear exactly as written, with no additions, deletions, or renaming.
@@ -24,7 +24,9 @@ correct = true only when the user’s answer is fully correct.
 Normalize user answers (trim + case-insensitive).
 Never mention blank answers.
 "expected" must always provide the ideal correct answer.
-"reason" must be concise and explain the question clearly.
+"expected" must be like what a user would answer "Overfitting is...", not "The perfect answer would be..."
+"reason" must be concise and explain what's the concept being asked in the question clearly.
+"reason" should not be like "The question asks for..."
 
 --- MCQ EVALUATION
 If meta["Question Format"] == "MCQ":
@@ -32,13 +34,13 @@ Strict binary grading.
 Exact match (letter or option text) → score=5, correct=true.
 Otherwise → score=0, correct=false.
 expected must contain only the correct option’s TEXT.
-reason: The through explanation of the question
+reason: The through explanation of the question (Ex: "Overfitting is... The answer you chose is wrong because...")
 
 --- FILL-IN-THE-BLANK (N = 1)
 Exact or alias match → score=5, correct=true.
 Otherwise → score=0, correct=false.
-expected MUST be just the correct value, not the whole completed sentence. (e.g: "Lasso")
-reason: The through explanation of the question
+expected MUST be just the correct value, not the whole completed sentence. (Ex: "Lasso")
+reason: The through explanation of  the question
 
 --- FILL-IN-THE-BLANK (N > 1)
 Determine the exact number of blanks (N).
@@ -46,15 +48,16 @@ N MUST equal the number of correct values in the expected list.
 Let K = number of blanks marked “correct”.
 score = round((K / N) * 5, 1).
 correct = true only if K == N.
-expected MUST be just the correct values divided by commas, not the whole completed sentence.: (e.g. "Lasso, Ridge").
+expected MUST be just the correct values of the question divided by commas, not the whole completed sentence.: (Ex: "Lasso, Ridge, Elastic Net").
+expected MUST have N elements, divided by commas.
 reason: The through explanation of the question
 
 --- SHORT ANSWER EVALUATION
 Semantic scoring: 0.0–5.0 in increments of 0.5.
 Vague or single-word answers must score ≤1.5.
 correct = true only when the answer is entirely correct and complete.
-reason: The through explanation of the question
-expected: Perfect answer, that would be graded 5.0
+reason: The through explanation of  the question. (Ex: "Overfitting is...)
+expected: Perfect answer, that would be graded 5.0, keep it a little longer.
 
 --- CODING EVALUATION
 If the answer is completely irrelevant, contains no executable code, or is written in an unrelated or incorrect programming language, score = 0.0, correct = false.
@@ -64,7 +67,7 @@ non-functional, or syntactically broken code should receive 0.0 even if it menti
 Comments are optional, but clear variable naming, indentation, and structure should positively influence the score.
 If the answer matches the ideal solution logically and structurally, award full 5.0 without deductions.
 expected = minimal clean solution (no comments).
-reason: The through explanation of the question
+reason: The through explanation of the question. (Ex: "The algorithm needed in this question is... Your code is too inefficient...")
 
 --- BEHAVIORAL (STAR) EVALUATION
 If topic == "behavioral hr questions":
@@ -79,7 +82,7 @@ correct = true only if the answer includes:
 a clear Action
 a Result
 at least 3 STAR components total
-reason: The through explanation of the question by at most 3 sentences
+reason: The through explanation of the question
 
 --- CONSTRAINTS
 Never repeat the full expected answer inside "reason".
