@@ -203,8 +203,12 @@ class OpenAIService {
 
   static Future<List<Map<String, dynamic>>> gradeBatch({
     required String batchId,
-    required List<Map<String, dynamic>>
-        items, // { index, meta, user_answer, topic }
+    required List<Map<String, dynamic>> items, // { index, meta, user_answer, topic }
+    required bool hasMCQ,
+    required bool hasFillBlanks,
+    required bool hasShortAnswer,
+    required bool hasCodeWriting,
+    required bool hasBehavioral,
     Duration timeout = const Duration(seconds: 60),
   }) async {
     // 1) Batch payload
@@ -224,10 +228,39 @@ class OpenAIService {
     };
 
     // 2) Prompt dosyasını oku ve payload'ı göm
-    final tmpl =
+    var tmpl =
         await rootBundle.loadString('assets/prompts/ExamBatchEvaluation.txt');
+
+    print("hasMCQ: $hasMCQ");
+    print("hasFillBlanks: $hasFillBlanks");
+    print("hasShortAnswer: $hasShortAnswer");
+    print("hasCodeWriting: $hasCodeWriting");
+    print("hasBehavioral: $hasBehavioral");
+
+
+    if (!hasMCQ) {
+      tmpl = _removeSection(tmpl, 'MCQ EVALUATION');
+    }
+
+    if (!hasFillBlanks) {
+      tmpl = _removeSection(tmpl, 'FILL-IN-THE-BLANK (N = 1)');
+      tmpl = _removeSection(tmpl, 'FILL-IN-THE-BLANK (N > 1)');
+    }
+
+    if (!hasShortAnswer) {
+      tmpl = _removeSection(tmpl, 'SHORT ANSWER EVALUATION');
+    }
+
+    if (!hasCodeWriting) {
+      tmpl = _removeSection(tmpl, 'CODING EVALUATION');
+    }
+
+    if (!hasBehavioral) {
+      tmpl = _removeSection(tmpl, 'BEHAVIORAL (STAR) EVALUATION');
+    }
+
     final userContent =
-        tmpl.replaceFirst('{{BATCH_PAYLOAD_JSON}}', jsonEncode(payload));
+    tmpl.replaceFirst('{{BATCH_PAYLOAD_JSON}}', jsonEncode(payload));
 
     // 3) Chat çağrısı — JSON ARRAY istediğimiz için response_format kullanmıyoruz
     final body = {
@@ -239,8 +272,9 @@ class OpenAIService {
       ],
     };
 
-    //print("Exam olarak giden:");
-    //debugPrint(body.toString(), wrapWidth: 10000);
+
+    print("Exam olarak giden:");
+    debugPrint(body.toString(), wrapWidth: 10000);
 
     final res = await _post(body, timeout: timeout);
 
@@ -331,4 +365,20 @@ class OpenAIService {
       return GradeResult.fromSafeFallback(raw);
     }
   }
+
+  static String _removeSection(String prompt, String sectionTitle) {
+    final pattern = RegExp(
+      r'^---\s*' +
+          RegExp.escape(sectionTitle) +
+          r'\s*\n' +           // section header
+          r'([\s\S]*?)' +      // section body (non-greedy)
+          r'(?=^---\s|\Z)',    // next section or EOF
+      multiLine: true,
+    );
+
+    return prompt.replaceAll(pattern, '');
+  }
+
+
+
 }

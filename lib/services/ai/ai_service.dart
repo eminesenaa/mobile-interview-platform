@@ -102,9 +102,34 @@ class AiService {
 
       final chunkSw = Stopwatch()..start();
 
+      var chunkHasMcq = false;
+      var chunkHasFillBlanks = false;
+      var chunkHasShortAnswer = false;
+      var chunkHasCodeWriting = false;
+      var chunkHasBehavioral = false;
+
       final items = <Map<String, dynamic>>[];
       for (final i in chunk) {
         final q = exam.questions[i];
+
+        switch(q.type){
+          case QuestionType.mcq:
+            chunkHasMcq = true;
+            break;
+          case QuestionType.shortAnswer:
+            chunkHasShortAnswer = true;
+            break;
+          case QuestionType.coding:
+            chunkHasCodeWriting = true;
+            break;
+          case QuestionType.fillBlank:
+            chunkHasFillBlanks = true;
+            break;
+          case QuestionType.debugging:
+            chunkHasCodeWriting = true;
+            break;
+        }
+
         final questionKey = q.id;
         final rawAns = userAnswers[questionKey];
         final userAns =
@@ -131,6 +156,11 @@ class AiService {
         AiProvider.openai => await OpenAIService.gradeBatch(
             batchId: batchId,
             items: items,
+            hasMCQ: chunkHasMcq,
+            hasFillBlanks: chunkHasFillBlanks,
+            hasShortAnswer: chunkHasShortAnswer,
+            hasCodeWriting: chunkHasCodeWriting,
+            hasBehavioral: chunkHasBehavioral,
           ),
         AiProvider.gemini => await GeminiService().gradeBatch(
             batchId: batchId,

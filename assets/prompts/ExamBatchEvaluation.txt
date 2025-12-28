@@ -5,7 +5,7 @@ The batch input will always be provided in the form {{BATCH_PAYLOAD_JSON}} and m
 Your output must be a raw JSON array only.
 If any rule cannot be applied or the input is invalid, output [].
 
-REQUIRED OUTPUT OBJECT STRUCTURE:
+--- REQUIRED OUTPUT OBJECT STRUCTURE:
 Each element in the JSON array must contain exactly the following fields:
 
 {
@@ -18,7 +18,7 @@ Each element in the JSON array must contain exactly the following fields:
 
 All five keys must appear exactly as written, with no additions, deletions, or renaming.
 
-GENERAL SCORING RULES:
+--- GENERAL SCORING RULES:
 Score range: 0.0 to 5.0 (decimals allowed).
 correct = true only when the user’s answer is fully correct.
 Normalize user answers (trim + case-insensitive).
@@ -26,7 +26,7 @@ Never mention blank answers.
 "expected" must always provide the ideal correct answer.
 "reason" must be concise and explain the question clearly.
 
-MCQ EVALUATION
+--- MCQ EVALUATION
 If meta["Question Format"] == "MCQ":
 Strict binary grading.
 Exact match (letter or option text) → score=5, correct=true.
@@ -34,14 +34,13 @@ Otherwise → score=0, correct=false.
 expected must contain only the correct option’s TEXT.
 reason: The through explanation of the question
 
-
-FILL-IN-THE-BLANK (N = 1)
+--- FILL-IN-THE-BLANK (N = 1)
 Exact or alias match → score=5, correct=true.
 Otherwise → score=0, correct=false.
 expected MUST be just the correct value, not the whole completed sentence. (e.g: "Lasso")
 reason: The through explanation of the question
 
-FILL-IN-THE-BLANK (N > 1)
+--- FILL-IN-THE-BLANK (N > 1)
 Determine the exact number of blanks (N).
 N MUST equal the number of correct values in the expected list.
 Let K = number of blanks marked “correct”.
@@ -50,14 +49,24 @@ correct = true only if K == N.
 expected MUST be just the correct values divided by commas, not the whole completed sentence.: (e.g. "Lasso, Ridge").
 reason: The through explanation of the question
 
-SHORT ANSWER EVALUATION
+--- SHORT ANSWER EVALUATION
 Semantic scoring: 0.0–5.0 in increments of 0.5.
 Vague or single-word answers must score ≤1.5.
 correct = true only when the answer is entirely correct and complete.
 reason: The through explanation of the question
 expected: Perfect answer, that would be graded 5.0
 
-BEHAVIORAL (STAR) EVALUATION
+--- CODING EVALUATION
+If the answer is completely irrelevant, contains no executable code, or is written in an unrelated or incorrect programming language, score = 0.0, correct = false.
+If the code shows a reasonable attempt to solve the problem (correct structure but incomplete or partially wrong logic), award partial credit (1.5, 3.0, or 4.5).
+If the code correctly implements the main logic and satisfies expected input/output behavior or algorithmic intent, mark as correct.
+non-functional, or syntactically broken code should receive 0.0 even if it mentions relevant keywords.
+Comments are optional, but clear variable naming, indentation, and structure should positively influence the score.
+If the answer matches the ideal solution logically and structurally, award full 5.0 without deductions.
+expected = minimal clean solution (no comments).
+reason: The through explanation of the question
+
+--- BEHAVIORAL (STAR) EVALUATION
 If topic == "behavioral hr questions":
 Score using STAR:
 5 = complete STAR + measurable result + reflection
@@ -72,6 +81,6 @@ a Result
 at least 3 STAR components total
 reason: The through explanation of the question by at most 3 sentences
 
-CONSTRAINTS
+--- CONSTRAINTS
 Never repeat the full expected answer inside "reason".
 Never output markdown, decorative symbols, or explanations outside the JSON array.
