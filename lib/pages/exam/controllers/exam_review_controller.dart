@@ -338,22 +338,36 @@ class ExamReviewController extends GetxController {
   /// 1) Question.correctAnswer varsa öncelik o
   /// 2) Yoksa AI’dan gelen kayıttan (senin veri yapına göre) döner
   String? correctAnswerFor(String questionId) {
-    // 1) Önce exam içindeki question’dan oku
+    // 1️⃣ Önce exam içindeki question’dan oku
     try {
-      final q = exam.questions.firstWhereOrNull((e) => e.id == questionId);
-      if (q?.correctAnswer != null && q!.correctAnswer!.isNotEmpty) {
+      final qIndex =
+      exam.questions.indexWhere((e) => e.id == questionId);
+
+      if (qIndex == -1) return null;
+
+      final q = exam.questions[qIndex];
+      if (q.correctAnswer != null && q.correctAnswer!.isNotEmpty) {
         return q.correctAnswer;
       }
-    } catch (_) {}
 
-    // 2) AI değerlendirme sonuçlarından (senin map’ini kullan)
-    if (_aiCorrectByQid.containsKey(questionId)) {
-      return _aiCorrectByQid[questionId];
+      // 2️⃣ AI evaluation içinden resolve et
+      final aiResult = exam.aiResult;
+      if (aiResult == null) return null;
+
+      final aiEval = aiResult.questionEvaluations
+          .firstWhereOrNull((e) => e.questionIndex == qIndex);
+
+      if (aiEval == null || aiEval.correctAnswer.isEmpty) {
+        return null;
+      }
+
+      // 🔹 List<String> → String (UI dostu)
+      return aiEval.correctAnswer.join(', ');
+    } catch (e) {
+      return null;
     }
-
-    // TODO: Gerekirse exam.aiResult.questionEvaluations içinden resolve et
-    return null;
   }
+
 
   // ==========================================================
 // ✅ Short Answer Review Helpers

@@ -95,8 +95,7 @@ class AiService {
 
     // ✅ 5'li chunk’lara böl
     final idxChunks = _chunkIndices(exam.questions.length, 5);
-    print(
-        "🧩 [EXAM] totalQuestions=${exam.questions.length} chunks=${idxChunks.length} chunkSize=5");
+    print("🧩 [EXAM] totalQuestions=${exam.questions.length} chunks=${idxChunks.length} chunkSize=5");
 
     for (int chunkNo = 0; chunkNo < idxChunks.length; chunkNo++) {
       final chunk = idxChunks[chunkNo];
@@ -183,16 +182,16 @@ class AiService {
       );
     }
 
-    questionEvaluations
-        .sort((a, b) => a.questionIndex.compareTo(b.questionIndex));
-    final avgScore =
-        exam.questions.isNotEmpty ? (totalScore / exam.questions.length) : 0.0;
+    questionEvaluations.sort((a, b) => a.questionIndex.compareTo(b.questionIndex));
+
+    //Final Score
+    final avgScore = exam.questions.isNotEmpty ? (totalScore / exam.questions.length) : 0.0;
     final totalScore100 = (avgScore * 20).clamp(0, 100).toInt();
 
+    // Topic Percentages
     final topicMap = <String, List<bool>>{};
     for (final qe in questionEvaluations) {
-      final t =
-          (exam.questions[qe.questionIndex].topic ?? 'Unknown').toLowerCase();
+      final t = (exam.questions[qe.questionIndex].topic ?? 'Unknown').toLowerCase();
       final ok = qe.correctness == 1;
       topicMap.putIfAbsent(t, () => []).add(ok);
     }
@@ -309,8 +308,7 @@ class AiExamQuestionEvaluateResult {
   final String questionGeneralIndex; //Q231 şeklinde
   final int questionIndex; // Kaçıncı soru (0-based index)
   final int correctness; // -1: yanlış, 0: boş, 1: doğru
-  final List<String>
-      correctAnswer; // Doğru Cevap, birden fazla olabilir fill in the blanks için
+  final List<String> correctAnswer; // Doğru Cevap, birden fazla olabilir fill in the blanks için
   final String explanation; // Ai açıklama
   final double? score; // 0-5 arası
   AiExamQuestionEvaluateResult({
@@ -340,4 +338,5 @@ class AiExamEvaluateResult {
     required this.questionEvaluations,
     required this.topicPercentage,
   });
+
 }
