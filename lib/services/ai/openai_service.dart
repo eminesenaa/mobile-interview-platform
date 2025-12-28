@@ -239,7 +239,13 @@ class OpenAIService {
       ],
     };
 
+    //print("Exam olarak giden:");
+    //debugPrint(body.toString(), wrapWidth: 10000);
+
     final res = await _post(body, timeout: timeout);
+
+    //print("Exam cevabı:");
+    //debugPrint(res.body, wrapWidth: 10000);
 
     // 4) Parse: content bir JSON array olmalı
     final outer = jsonDecode(res.body);

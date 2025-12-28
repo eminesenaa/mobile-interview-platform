@@ -268,22 +268,22 @@ class AiService {
     if (t.isEmpty) return 'algorithm';
 
     if (t.contains('behavior') || t.contains('hr') || t.contains('star')) {
-      return 'behavioral hr questions';
+      return 'Behavioral hr questions';
     }
-    if (t.contains('data science')) return 'data science';
-    if (t.contains('ml') || t.contains('machine learning')) return 'ml basics';
-    if (t.contains('network')) return 'network';
-    if (t.contains('java')) return 'java';
-    if (t.contains('c/c++') || t.contains('c++') || t == 'c') return 'c/c++';
-    if (t.contains('python')) return 'python';
-    if (t.contains('sql') || t.contains('database')) return 'sql';
-    if (t.contains('git') || t.contains('version control')) return 'git';
-    if (t.contains('oop') || t.contains('object oriented')) return 'oop';
-    if (t.contains('data structure')) return 'data structure';
-    if (t.contains('algorithm')) return 'algorithm';
+    if (t.contains('data science')) return 'Data science';
+    if (t.contains('ml') || t.contains('machine learning')) return 'Ml basics';
+    if (t.contains('network')) return 'Network';
+    if (t.contains('java')) return 'Java';
+    if (t.contains('c/c++') || t.contains('c++') || t == 'c') return 'C/C++';
+    if (t.contains('python')) return 'Python';
+    if (t.contains('sql') || t.contains('database')) return 'Sql';
+    if (t.contains('git') || t.contains('version control')) return 'Git';
+    if (t.contains('oop') || t.contains('object oriented')) return 'Oop';
+    if (t.contains('data structure')) return 'Data Structures';
+    if (t.contains('algorithm')) return 'Algorithms';
 
     // eşleşme yoksa güvenli varsayılan
-    return 'algorithm';
+    return 'Algorithms';
   }
 }
 
