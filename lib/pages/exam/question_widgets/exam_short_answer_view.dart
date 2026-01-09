@@ -2,20 +2,26 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../constants/colors.dart';
+
+import '../../../constants/constants.dart';
 import '../../../models/question.dart';
+import '../../../utils/code_language_utils.dart';
+import '../../question_types/widgets/read_only_code_block.dart';
 import '../controllers/exam_controller.dart';
 
 class ExamShortAnswerView extends StatefulWidget {
   final Question question;
-  final void Function(String) onAnswerChanged;
   final String examId;
+
+  /// ExamPage’den gelen callback
+  /// (answeredCount / progress vb. güncellemeleri için)
+  final ValueChanged<String?> onAnswerChanged;
 
   const ExamShortAnswerView({
     super.key,
     required this.question,
-    required this.onAnswerChanged,
     required this.examId,
+    required this.onAnswerChanged,
   });
 
   @override
@@ -24,29 +30,39 @@ class ExamShortAnswerView extends StatefulWidget {
 
 class _ExamShortAnswerViewState extends State<ExamShortAnswerView> {
   late final TextEditingController _controller;
-  late ExamController c;
+  late final ExamController c;
 
   @override
   void initState() {
     super.initState();
-    c = Get.find<ExamController>(tag: widget.examId);
-    final prev = c.answers[widget.question.id];
-    _controller = TextEditingController(text: prev is String ? prev : '');
 
+    // 🔗 Exam controller
+    c = Get.find<ExamController>(tag: widget.examId);
+
+    // 🔁 Önceden kaydedilmiş cevap varsa geri yükle
+    final prev = c.answers[widget.question.id];
+    _controller = TextEditingController(
+      text: prev is String ? prev : '',
+    );
+
+    // 🔑 Her değişiklikte:
+    // - ExamController’a yaz
+    // - ExamPage’e bildir
     _controller.addListener(() {
-      final text = _controller.text;
-      widget.onAnswerChanged(text);
-      c.saveAnswer(widget.question.id, text);
+      final value = _controller.text.trim();
+      widget.onAnswerChanged(value.isEmpty ? null : value);
+      c.saveAnswer(widget.question.id, value.isEmpty ? null : value);
     });
   }
 
   @override
   void didUpdateWidget(covariant ExamShortAnswerView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Eğer yeni soru geldiyse, controller metnini güncelle
+
+    // 🔄 Soru değiştiyse controller’ı resetle
     if (oldWidget.question.id != widget.question.id) {
+      final prev = c.answers[widget.question.id];
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        final prev = c.answers[widget.question.id];
         _controller.text = prev is String ? prev : '';
       });
     }
@@ -58,49 +74,67 @@ class _ExamShortAnswerViewState extends State<ExamShortAnswerView> {
     super.dispose();
   }
 
-  void _notifyAnswerChanged() {
-    widget.onAnswerChanged(_controller.text);
-  }
-
   @override
   Widget build(BuildContext context) {
+    final q = widget.question;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // ===================================================
+        // QUESTION TEXT
+        // ===================================================
+        if ((q.description ?? '').isNotEmpty)
+          Text(
+            q.description!,
+            style: AppTextStyles.body.copyWith(
+              fontSize: 16,
+              color: AppColors.textPrimary,
+            ),
+          ),
+
+          const SizedBox(height: AppSpacing.lg),
+
+        // ===================================================
+        // OPTIONAL CODE TEMPLATE (READ ONLY)
+        // ===================================================
+        if ((q.codeTemplate ?? '').isNotEmpty) ...[
+          ReadOnlyCodeBlock(
+            code: q.codeTemplate!,
+            language: CodeLanguageUtils.resolveLanguageFromTopic(q.topic),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+        ],
+
+        // ===================================================
+        // ANSWER INPUT
+        // ===================================================
         TextField(
           controller: _controller,
-          onChanged: (_) => _notifyAnswerChanged(),
-          maxLines: 5,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            hintText: 'Type your answer here...',
+          minLines: 3,
+          maxLines: 6,
+          decoration: InputDecoration(
+            hintText: 'Type your answer...',
+            hintStyle: AppTextStyles.bodySmall.copyWith(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+            ),
+            filled: true,
+            fillColor: AppColors.surfaceMuted,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderSide: BorderSide(color: AppColors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderSide: BorderSide(color: AppColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderSide: BorderSide(color: AppColors.primary),
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextButton.icon(
-              onPressed: () => c.toggleFlag(widget.question.id),
-              icon: const Icon(Icons.flag_outlined, size: 18),
-              label: const Text("Flag"),
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.primary,
-              ),
-            ),
-            const SizedBox(width: 12),
-            TextButton.icon(
-              onPressed: () {
-                _controller.clear();
-                _notifyAnswerChanged();
-              },
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text("Clear"),
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.primary,
-              ),
-            ),
-          ],
+          style: AppTextStyles.questionText,
         ),
       ],
     );

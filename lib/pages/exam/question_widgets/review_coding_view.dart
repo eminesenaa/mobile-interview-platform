@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:interview_project/pages/exam/question_widgets/review_coding_editor_page.dart';
-import '../../../constants/colors.dart';
+
+import '../../../constants/constants.dart';
 import '../../../models/question.dart';
 import '../controllers/exam_review_controller.dart';
+import '../question_widgets/review_coding_editor_page.dart';
+import '../review/widgets/review_coding_entry_card.dart';
 
 class ReviewCodingView extends StatelessWidget {
   final Question question;
@@ -18,48 +20,76 @@ class ReviewCodingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = Get.find<ExamReviewController>(tag: examId);
-    final savedAnswer = c.answers[question.id]?.toString() ?? '';
-    final codeTemplate = question.codeTemplate ?? '';
+
+    final String savedAnswer = (c.answers[question.id] ?? '').toString().trim();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // const SizedBox(height: 12),
-        // Container(
-        //   width: double.infinity,
-        //   padding: const EdgeInsets.all(12),
-        //   decoration: BoxDecoration(
-        //     color: Colors.grey.shade100,
-        //     borderRadius: BorderRadius.circular(8),
-        //     border: Border.all(color: Colors.grey.shade300),
-        //   ),
-        //   child: SingleChildScrollView(
-        //     scrollDirection: Axis.horizontal,
-        //     child: Text(
-        //       savedAnswer.isEmpty ? "// No code written." : savedAnswer,
-        //       style: const TextStyle(
-        //         fontFamily: 'monospace',
-        //         fontSize: 14,
-        //       ),
-        //     ),
-        //   ),
-        // ),
-        const SizedBox(height: 12),
-        Center(
-          child: TextButton(
-            onPressed: () {
-              Get.to(() => ReviewCodingEditorPage(
-                    question: question,
-                    examId: examId,
-                  ));
+        // ===================================================
+        // QUESTION DESCRIPTION
+        // ===================================================
+        if ((question.description ?? '').isNotEmpty) ...[
+          Text(
+            question.description!,
+            style: AppTextStyles.body.copyWith(
+              fontSize: 16,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+        ],
+
+        // ===================================================
+        // CODING ENTRY CARD
+        // ===================================================
+        Opacity(
+          opacity: 0.9,
+          child: ReviewCodingEntryCard(
+            onTap: () {
+              Get.to(
+                () => ReviewCodingEditorPage(
+                  question: question,
+                  examId: examId,
+                ),
+              );
             },
-            child: const Text(
-              "See AI Explanation",
-              style: TextStyle(
+          ),
+        ),
+
+        const SizedBox(height: AppSpacing.lg),
+
+        // ===================================================
+        // AI EXPLANATION
+        // ===================================================
+        Align(
+          alignment: Alignment.center,
+          child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: BorderSide(
                 color: AppColors.primary,
+                width: 1.2,
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xl,
+                vertical: AppSpacing.sm,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              textStyle: AppTextStyles.body.copyWith(
                 fontWeight: FontWeight.w600,
+                fontSize: 15,
               ),
             ),
+            onPressed: () {
+              c.showAiExplanation(
+                questionId: question.id,
+                title: 'Explanation',
+              );
+            },
+            child: const Text('View Explanation'),
           ),
         ),
       ],

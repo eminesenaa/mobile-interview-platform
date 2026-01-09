@@ -14,8 +14,8 @@ import '../../../models/exam.dart';
 import '../../../models/question.dart';
 import '../../../services/ai/ai_service.dart';
 import 'create_exam_controller.dart'; // ✅ düzeltildi
-import '../exam_result_page.dart'; // ✅ bir üst klasörde
-import '../services/exam_xp_service.dart';  
+import '../result/exam_result_page.dart'; // ✅ bir üst klasörde
+import '../services/exam_xp_service.dart';
 
 class ExamController extends GetxController {
   final Exam exam;
@@ -44,6 +44,8 @@ class ExamController extends GetxController {
   final Map<String, TextEditingController> shortControllers = {};
   final RxSet<String> flaggedIds = <String>{}.obs;
   final RxSet<String> flaggedQuestions = <String>{}.obs;
+  final clearTick = 0.obs;
+
 
   @override
   void onInit() {
@@ -203,7 +205,28 @@ class ExamController extends GetxController {
 
   bool isAnswered(String questionId) => answers.containsKey(questionId);
 
-  bool isFlagged(String questionId) => flaggedIds.contains(questionId);
+  bool isFlagged(String questionId) => flaggedQuestions.contains(questionId);
+
+  void clearAnswer(String questionId) {
+    // 🔹 1. Local cache
+    answers.remove(questionId);
+
+    // 🔹 2. State answers'tan da sil
+    final newAnswers = Map<String, dynamic>.from(state.value.answers);
+    newAnswers.remove(questionId);
+
+    state.value = state.value.copyWith(
+      answers: newAnswers,
+    );
+    state.refresh();
+
+    // 🔹 3. MCQ key-reset için
+    clearTick.value++;
+
+    // 🔹 4. Progress yeniden hesapla
+    updateProgress();
+  }
+
 
   void updateProgress() {
     final total = exam.questions.length;
@@ -261,6 +284,11 @@ class ExamController extends GetxController {
         userAnswers: snapshotAnswers,
       );
 
+
+      //print("AI değerlendirmesi tamamlandı soru başına dönen CORRECTANSWERLAR:");
+      //for (final qEval in aiEval.questionEvaluations)
+      //  print(qEval.correctAnswer);
+
       final aiResult = AiExamResult.fromEvaluateResult(aiEval);
 
       final Map<String, dynamic> aiFeedbackMap = {
@@ -276,6 +304,7 @@ class ExamController extends GetxController {
           'wrong': aiResult.wrongCount,
           'unanswered': aiResult.unansweredCount,
         },
+        aiResult: aiEval,
       );
 
       // 🔥🔥 4️⃣ EXAM XP KAYDI (FIRESTORE'A YAZILAN YER)

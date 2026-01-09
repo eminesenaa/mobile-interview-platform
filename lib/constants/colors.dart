@@ -97,4 +97,27 @@ class AppColors {
 
   /// Hafif gölge efekti için kullanılabilecek siyah (10% opacity).
   static const Color shadow = Color(0x1A000000);
+
+  // =========
+  // Topic Chart Colors (Result Analytics – Blue/Turquoise Palette)
+  // =========
+  // Used ONLY for exam result topic charts.
+  // Chosen to be fresh, readable, and non-distracting.
+  // Ordered from deep → light for visual balance.
+
+  /// Deep Twilight – strong, high-focus topics
+  static const Color topicDeepTwilight = Color(0xFF03045E);
+
+  /// Bright Teal Blue – primary analytical topics
+  static const Color topicBrightTeal = Color(0xFF0077B6);
+
+  /// Turquoise Surf – secondary topics
+  static const Color topicTurquoise = Color(0xFF00B4D8);
+
+  /// Frosted Blue – low activity / partial topics
+  static const Color topicFrostedBlue = Color(0xFF90E0EF);
+
+  /// Light Cyan – background / minimal contribution topics
+  static const Color topicLightCyan = Color(0xFFCAF0F8);
+
 }

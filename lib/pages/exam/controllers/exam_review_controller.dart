@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:interview_project/models/exam.dart';
 import 'package:interview_project/models/question.dart';
 import '../../../services/ai/ai_service.dart';
-import '../widgets/review_ai_explanation_dialog.dart';
+import '../review/widgets/review_ai_explanation_dialog.dart';
 import 'exam_controller.dart';
 
 /*
@@ -24,6 +24,8 @@ class ExamReviewController extends GetxController {
 
   /// Kullanıcının sınavda verdiği cevaplar
   final Map<String, dynamic> answers = {};
+
+  final RxSet<String> flaggedQuestions = <String>{}.obs;
 
   // Opsiyonel: AI’nın hesapladığı doğru cevapları önceden dolduruyorsan:
   final Map<String, String> _aiCorrectByQid = {};
@@ -49,7 +51,6 @@ class ExamReviewController extends GetxController {
   int unansweredCount = 0;
 
   ExamReviewController(this.exam) {
-
     // Eğer aynı exam ID'li aktif bir ExamController varsa, cevapları oradan al
     if (Get.isRegistered<ExamController>(tag: exam.id)) {
       final examController = Get.find<ExamController>(tag: exam.id);
@@ -128,6 +129,8 @@ class ExamReviewController extends GetxController {
 
   /// 🔹 Sorunun cevaplanıp cevaplanmadığını kontrol eder
   bool isAnswered(String questionId) => answers.containsKey(questionId);
+
+  bool isFlagged(String questionId) => flaggedQuestions.contains(questionId);
 
   /// 🔹 Sorunun cevabını döndürür (string olarak)
   String getAnswer(String questionId) {
@@ -335,22 +338,36 @@ class ExamReviewController extends GetxController {
   /// 1) Question.correctAnswer varsa öncelik o
   /// 2) Yoksa AI’dan gelen kayıttan (senin veri yapına göre) döner
   String? correctAnswerFor(String questionId) {
-    // 1) Önce exam içindeki question’dan oku
+    // 1️⃣ Önce exam içindeki question’dan oku
     try {
-      final q = exam.questions.firstWhereOrNull((e) => e.id == questionId);
-      if (q?.correctAnswer != null && q!.correctAnswer!.isNotEmpty) {
+      final qIndex =
+      exam.questions.indexWhere((e) => e.id == questionId);
+
+      if (qIndex == -1) return null;
+
+      final q = exam.questions[qIndex];
+      if (q.correctAnswer != null && q.correctAnswer!.isNotEmpty) {
         return q.correctAnswer;
       }
-    } catch (_) {}
 
-    // 2) AI değerlendirme sonuçlarından (senin map’ini kullan)
-    if (_aiCorrectByQid.containsKey(questionId)) {
-      return _aiCorrectByQid[questionId];
+      // 2️⃣ AI evaluation içinden resolve et
+      final aiResult = exam.aiResult;
+      if (aiResult == null) return null;
+
+      final aiEval = aiResult.questionEvaluations
+          .firstWhereOrNull((e) => e.questionIndex == qIndex);
+
+      if (aiEval == null || aiEval.correctAnswer.isEmpty) {
+        return null;
+      }
+
+      // 🔹 List<String> → String (UI dostu)
+      return aiEval.correctAnswer.join(', ');
+    } catch (e) {
+      return null;
     }
-
-    // TODO: Gerekirse exam.aiResult.questionEvaluations içinden resolve et
-    return null;
   }
+
 
   // ==========================================================
 // ✅ Short Answer Review Helpers
@@ -435,7 +452,7 @@ class ExamReviewController extends GetxController {
   /// Returns the AI-evaluated review status (Correct/Wrong/Unanswered)
   /// Fallbacks to simple text comparison if AI info missing.
   ReviewStatus reviewStatusFor(String questionId) {
-    final userAnswer = (answers[questionId] as String?)?.trim() ?? '';
+    final userAnswer = userAnswerTextFor(questionId);
     if (userAnswer.isEmpty) return ReviewStatus.unanswered;
 
     // Try to locate evaluation result (safely)
@@ -470,13 +487,16 @@ class ExamReviewController extends GetxController {
       final feedback = (exam as dynamic)?.aiFeedback;
 
       if (feedback is! Map || feedback.isEmpty) {
-        Get.log('[review] exam.aiFeedback boş veya yok – explanation yüklenmedi');
+        Get.log(
+            '[review] exam.aiFeedback boş veya yok – explanation yüklenmedi');
         return;
       }
 
       int loaded = 0;
       feedback.forEach((key, value) {
-        if (key != null && value != null && value.toString().trim().isNotEmpty) {
+        if (key != null &&
+            value != null &&
+            value.toString().trim().isNotEmpty) {
           _aiExplanationByQid[key.toString()] = value.toString().trim();
           loaded++;
         }
@@ -488,7 +508,8 @@ class ExamReviewController extends GetxController {
         Get.log('[review] exam.aiFeedback içinde geçerli açıklama bulunamadı');
       }
 
-      Get.log('[review] toplam explanation cache: ${_aiExplanationByQid.length}');
+      Get.log(
+          '[review] toplam explanation cache: ${_aiExplanationByQid.length}');
     } catch (err) {
       Get.log('[review] _primeAiExplanationsFromExam hata: $err');
     }
@@ -612,8 +633,6 @@ class ExamReviewController extends GetxController {
           final v = correctAnswerFor(questionId);
           return (v == null || v.trim().isNotEmpty == false) ? null : v.trim();
         }),
-
-        title: title ?? 'AI Explanation',
       ),
       barrierDismissible: true,
       barrierColor: Colors.black54,

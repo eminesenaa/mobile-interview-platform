@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../constants/colors.dart';
+
+import '../../../constants/constants.dart';
 import '../../../models/question.dart';
 import '../controllers/exam_review_controller.dart';
 
@@ -15,12 +16,10 @@ class ReviewMcqView extends StatelessWidget {
   });
 
   @override
-  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    // review controller'ı al (tag'li kullanım varsa önce onu dene)
+    // ---------------------------------------------------
+    // Controller (tag güvenli erişim)
+    // ---------------------------------------------------
     ExamReviewController c;
     try {
       c = Get.find<ExamReviewController>(tag: examId);
@@ -29,88 +28,123 @@ class ReviewMcqView extends StatelessWidget {
     }
 
     final String? selected = c.answers[question.id] as String?;
-    // Doğru cevabı öncelikle Question’dan oku; yoksa controller helper’ına bırak
-    final String? correct =
-        question.correctAnswer ?? c.correctAnswerFor(question.id);
+    final String? correct = c.correctAnswerFor(question.id);
+
+    final options = question.options ?? const <String>[];
 
     Widget buildOption(String label) {
-      // Durumu belirle
       final bool isSelected = selected == label;
       final bool isCorrect = correct == label;
-      final isUnanswered = selected == null || selected.isEmpty;
+      final bool isUnanswered = selected == null || selected.isEmpty;
 
-      // Görsel durumları hesapla
-      Color border;
-      Color? fill;
-      IconData? leadingIcon;
-      Color? leadingColor;
-      TextStyle textStyle = theme.textTheme.bodyMedium!;
+      Color borderColor = AppColors.border;
+      Color? background;
+      IconData icon = Icons.radio_button_off;
+      Color iconColor = AppColors.textMuted;
 
       if (isSelected && isCorrect) {
-        // ✅ Kullanıcı doğru cevabı seçti
-        border = Colors.green;
-        fill = Colors.green.withValues(alpha: 0.10);
+        // ✅ Doğru seçilmiş
+        borderColor = AppColors.success;
+        background = AppColors.success.withOpacity(0.08);
+        icon = Icons.check_circle;
+        iconColor = AppColors.success;
       } else if (isSelected && !isCorrect) {
-        // ❌ Kullanıcı yanlış seçti
-        border = Colors.red;
-        fill = Colors.red.withValues(alpha: 0.10);
-      } else if (!isSelected && isCorrect && isUnanswered) {
-        // ℹ️ Kullanıcı hiç seçmedi → doğru cevabı bilgi rengiyle göster
-        border = Colors.blueAccent;
-        fill = Colors.blueAccent.withValues(alpha: 0.10);
+        // ❌ Yanlış seçilmiş
+        borderColor = AppColors.error;
+        background = AppColors.error.withOpacity(0.08);
+        icon = Icons.cancel;
+        iconColor = AppColors.error;
       } else if (!isSelected && isCorrect && !isUnanswered) {
-        // ✅ Yanlış seçti ama bu doğru olan (doğruyu vurgula)
-        border = Colors.green;
-        fill = Colors.green.withValues(alpha: 0.08);
-      } else {
-        // 🔘 Normal nötr görünüm
-        border = Colors.grey.shade400;
-        fill = Colors.grey.withValues(alpha: 0.05);
+        // ℹ️ Kullanıcı yanlış seçti → doğru cevabı göster
+        borderColor = AppColors.success.withOpacity(0.6);
+        background = AppColors.success.withOpacity(0.05);
+        icon = Icons.check_circle_outline;
+        iconColor = AppColors.success;
       }
 
-
       return Container(
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: fill,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: border, width: 1.4),
+        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.md,
         ),
-        // read-only: hiçbir tepki yok
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(color: borderColor, width: 1.2),
+        ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(leadingIcon, color: leadingColor),
-            const SizedBox(width: 10),
-            Expanded(child: Text(label, style: textStyle)),
+            Icon(icon, color: iconColor, size: 20),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                label,
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
           ],
         ),
       );
     }
 
-    final options = question.options ?? const <String>[];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 8),
+        // ===================================================
+        // QUESTION DESCRIPTION
+        // ===================================================
+        if ((question.description ?? '').isNotEmpty) ...[
+          Text(
+            question.description!,
+            style: AppTextStyles.body.copyWith(
+              fontSize: 16,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+        ],
+
+        // ===================================================
+        // OPTIONS (READ-ONLY)
+        // ===================================================
         ...options.map(buildOption),
-        const SizedBox(height: 12),
-        Center(
-          child: TextButton(
+
+        // ===================================================
+        // AI EXPLANATION (Practice ile aynı UX)
+        // ===================================================
+        const SizedBox(height: AppSpacing.md),
+        Align(
+          alignment: Alignment.center,
+          child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: BorderSide(
+                color: AppColors.primary,
+                width: 1.2,
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xl,
+                vertical: AppSpacing.sm,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              textStyle: AppTextStyles.body.copyWith(
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+            ),
             onPressed: () {
               c.showAiExplanation(
                 questionId: question.id,
-                title: 'Explanation: ${question.title}',
+                title: 'Explanation',
               );
             },
-            child: const Text(
-              "See AI Explanation",
-              style: TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            child: const Text('View Explanation'),
           ),
         ),
       ],

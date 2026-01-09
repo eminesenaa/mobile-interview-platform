@@ -1,10 +1,12 @@
 // lib/services/ai/ai_service.dart
+import 'dart:async';
+import 'dart:collection';
+
 import '../../models/exam.dart';
 import '../../models/question.dart';
 import 'ai_config.dart';
 import 'gemini_service.dart';
 import 'openai_service.dart';
-//import 'gemini_service.dart';
 
 class AiService {
   /// Her tip soru için tek giriş noktası.
@@ -15,16 +17,21 @@ class AiService {
     required Question question,
     required dynamic userAnswer,
   }) async {
-
     final meta = _toMeta(question);
-    //print(meta);
-    final candidate = _candidateFromAnswer(question, userAnswer);
+
+    // ✅ boş cevaplar da LLM'e gitsin (sentinel ile)
+    final dynamic safeUserAnswer = (userAnswer == null ||
+            (userAnswer is String && userAnswer.trim().isEmpty))
+        ? "noAnswerProvided"
+        : userAnswer;
+
+    final candidate = _candidateFromAnswer(question, safeUserAnswer);
     final category = _mapTopicToCategory(question.topic);
 
     // burada karar verilecek: training mi interview mu
     var promptType = PromptType.training;
 
-    switch(question.type.name){
+    switch (question.type.name) {
       case 'mcq':
         promptType = PromptType.mcq;
         break;
@@ -39,36 +46,30 @@ class AiService {
         break;
     }
 
-    /*
-    if(question is Behavioral) {
-      promptType = PromptType.interview;
-    }
-    */
-
     print("Soru türü: ${question.type.name}");
     final provider = AiConfig.chooseModel(questionType: question.type.name);
     print("kullanılacak provider: $provider");
+
     final result = switch (provider) {
-
       AiProvider.openai => await OpenAIService.gradeWithTemplate(
-        promptType: promptType,
-        qMeta: meta,
-        candidateAnswer: candidate,
-      ),
-
+          promptType: promptType,
+          qMeta: meta,
+          candidateAnswer: candidate,
+        ),
       AiProvider.gemini => await GeminiService().gradeWithTemplate(
-        promptType: promptType,
-        category: category,
-        qMeta: meta,
-        candidateAnswer: candidate,
-      ),
-
-      AiProvider.anthropic => throw Exception("Anthropic provider not implemented yet."),
+          promptType: promptType,
+          category: category,
+          qMeta: meta,
+          candidateAnswer: candidate,
+        ),
+      AiProvider.anthropic =>
+        throw Exception("Anthropic provider not implemented yet."),
     };
 
     return AiEvaluateResult(
       finalAnswer: result.expected,
-      explanation: "${result.correct ? "Correct" : "Incorrect"}. ${result.reason}",
+      explanation:
+          "${result.correct ? "Correct" : "Incorrect"}. ${result.reason}",
       score: result.score,
       correct: result.correct,
     );
@@ -80,63 +81,79 @@ class AiService {
     required Map<String, dynamic> userAnswers,
   }) async {
     // Tüm çağrılar 5’li batch değerlendirmeye yönlensin
-    //print(userAnswers);
     return await evaluateExamBatched(exam: exam, userAnswers: userAnswers);
   }
 
+  /// ✅ Paralel chunk değerlendirme (controller/firebase değişmeden)
   Future<AiExamEvaluateResult> evaluateExamBatched({
     required Exam exam,
     required Map<String, dynamic> userAnswers,
   }) async {
+    // ✅ TOPLAM süre ölçümü (sadece exam evaluation için)
+    final totalSw = Stopwatch()..start();
+
     final questionEvaluations = <AiExamQuestionEvaluateResult>[];
     int correctCount = 0, falseCount = 0, emptyCount = 0;
     double totalScore = 0.0;
 
+    // ✅ 5'li chunk’lara böl
     final idxChunks = _chunkIndices(exam.questions.length, 5);
+    print(
+      "🧩 [EXAM] totalQuestions=${exam.questions.length} "
+      "chunks=${idxChunks.length} chunkSize=5",
+    );
 
-    for (final chunk in idxChunks) {
-      final items = <Map<String, dynamic>>[];
-      for (final i in chunk) {
-        final q = exam.questions[i];
-        final questionKey = q.id;
-        final rawAns = userAnswers[questionKey];
-        final userAns =
-            (rawAns == null || (rawAns is String && rawAns.trim().isEmpty))
-                ? ""
-                : rawAns;
+    // ✅ Aynı anda kaç chunk paralel gitsin?
+    // Çok yükseltirsen rate-limit riski artar.
+    final int maxConcurrentChunks = 3;
 
-        items.add({
-          "index": i,
-          "meta": _toMeta(q),
-          "user_answer": _candidateFromAnswer(q, userAns),
-          "topic": _mapTopicToCategory(q.topic),
-        });
-      }
+    final pool = _AsyncPool(maxConcurrentChunks);
 
-      const provider = AiConfig.provider;
+    // Her chunk için paralel görev oluştur
+    final futures = <Future<_ChunkRunResult>>[];
+    for (int chunkNo = 0; chunkNo < idxChunks.length; chunkNo++) {
+      final chunk = idxChunks[chunkNo];
 
-      final results = switch (provider) {
-        AiProvider.openai => await OpenAIService.gradeBatch(
-          batchId: "exam_${exam.id}_${DateTime.now().millisecondsSinceEpoch}",
-          items: items,
-        ),
-        AiProvider.gemini => await GeminiService().gradeBatch(
-          batchId: "exam_${exam.id}_${DateTime.now().millisecondsSinceEpoch}",
-          items: items,
-        ),
-        AiProvider.anthropic => throw Exception("Anthropic provider not implemented yet."),
-      };
+      futures.add(
+        pool.withResource(() async {
+          return await _runExamChunk(
+            chunkNo: chunkNo,
+            chunk: chunk,
+            exam: exam,
+            userAnswers: userAnswers,
+          );
+        }),
+      );
+    }
 
-      for (final r in results) {
+    // Tüm chunklar bitince topla
+    final chunkResults = await Future.wait(futures);
+
+    // Logları daha düzgün görmek için chunkNo sırasına dizelim
+    chunkResults.sort((a, b) => a.chunkNo.compareTo(b.chunkNo));
+
+    for (final cr in chunkResults) {
+      // chunk log
+      print(
+        "⏱️ [EXAM CHUNK] chunk=${cr.chunkNo} size=${cr.chunkSize} "
+        "provider=${cr.provider} api=${cr.apiMs}ms totalChunk=${cr.totalChunkMs}ms",
+      );
+
+      // sonuçları topla
+      for (final r in cr.results) {
         final i = (r['index'] as num).toInt();
         final isCorrect = (r['correct'] as bool?) ?? false;
         final expected = (r['expected'] as String?) ?? '';
         final reason = (r['reason'] as String?) ?? '';
         final score = (r['score'] as num?)?.toDouble() ?? 0.0;
+
         final q = exam.questions[i];
         final questionKey = q.id;
+
+        // ✅ doğru sayım mantığı değişmesin: gerçekten boş mu kontrolü
         final answered =
             userAnswers[questionKey]?.toString().trim().isNotEmpty ?? false;
+
         if (!answered) {
           emptyCount++;
         } else if (isCorrect) {
@@ -149,7 +166,7 @@ class AiService {
 
         questionEvaluations.add(
           AiExamQuestionEvaluateResult(
-            questionGeneralIndex: exam.questions[i].id,
+            questionGeneralIndex: q.id,
             questionIndex: i,
             correctness: !answered ? 0 : (isCorrect ? 1 : -1),
             correctAnswer: expected.isEmpty ? [] : [expected],
@@ -160,13 +177,20 @@ class AiService {
       }
     }
 
-    questionEvaluations.sort((a, b) => a.questionIndex.compareTo(b.questionIndex));
-    final avgScore = exam.questions.isNotEmpty ? (totalScore / exam.questions.length) : 0.0;
+    // Soru sırasına göre düzelt
+    questionEvaluations
+        .sort((a, b) => a.questionIndex.compareTo(b.questionIndex));
+
+    // Final Score
+    final avgScore =
+        exam.questions.isNotEmpty ? (totalScore / exam.questions.length) : 0.0;
     final totalScore100 = (avgScore * 20).clamp(0, 100).toInt();
 
+    // Topic Percentages
     final topicMap = <String, List<bool>>{};
     for (final qe in questionEvaluations) {
-      final t = (exam.questions[qe.questionIndex].topic ?? 'Unknown').toLowerCase();
+      final t =
+          (exam.questions[qe.questionIndex].topic ?? 'Unknown').toLowerCase();
       final ok = qe.correctness == 1;
       topicMap.putIfAbsent(t, () => []).add(ok);
     }
@@ -176,7 +200,7 @@ class AiService {
       topicPercentage[t] = p;
     });
 
-    AiExamEvaluateResult result = AiExamEvaluateResult(
+    final result = AiExamEvaluateResult(
       totalScore: totalScore100,
       correctCount: correctCount,
       falseCount: falseCount,
@@ -185,22 +209,120 @@ class AiService {
       topicPercentage: topicPercentage,
     );
 
-  /*
-  print(result.totalScore);
-  print(result.correctCount);
-  print(result.falseCount);
-  print(result.emptyCount);
-  print(result.questionEvaluations[0].explanation);
-  print(result.questionEvaluations[1].explanation);
-  print(result.questionEvaluations[2].explanation);
-  print(result.questionEvaluations[3].explanation);
-  print(result.questionEvaluations[4].explanation);
-  print(result.questionEvaluations[5].explanation);
-  print(result.questionEvaluations[6].explanation);
-  print(result.topicPercentage);
-  */
+    totalSw.stop();
+    print(
+      "✅ [EXAM DONE] totalQuestions=${exam.questions.length} "
+      "correct=$correctCount wrong=$falseCount empty=$emptyCount "
+      "totalScore=$totalScore100/100 totalTime=${totalSw.elapsedMilliseconds}ms",
+    );
 
     return result;
+  }
+
+  /// Tek bir chunk'ı çalıştırır (paralelde çağrılır).
+  ///
+  /// ✅ TOKEN verimliliği için: chunk içinde hangi tiplerin olduğunu çıkarır
+  /// ve OpenAIService.gradeBatch'e hasMCQ/hasFillBlanks/... flag'lerini geçirir.
+  Future<_ChunkRunResult> _runExamChunk({
+    required int chunkNo,
+    required List<int> chunk,
+    required Exam exam,
+    required Map<String, dynamic> userAnswers,
+  }) async {
+    final chunkSw = Stopwatch()..start();
+
+    var chunkHasMcq = false;
+    var chunkHasFillBlanks = false;
+    var chunkHasShortAnswer = false;
+    var chunkHasCodeWriting = false;
+    var chunkHasBehavioral = false;
+
+    final items = <Map<String, dynamic>>[];
+
+    for (final i in chunk) {
+      final q = exam.questions[i];
+
+      // ✅ chunk tiplerini topla -> prompt'u kısaltmak için
+      switch (q.type) {
+        case QuestionType.mcq:
+          chunkHasMcq = true;
+          break;
+        case QuestionType.shortAnswer:
+          chunkHasShortAnswer = true;
+          break;
+        case QuestionType.coding:
+          chunkHasCodeWriting = true;
+          break;
+        case QuestionType.fillBlank:
+          chunkHasFillBlanks = true;
+          break;
+        case QuestionType.debugging:
+          chunkHasCodeWriting = true;
+          break;
+      }
+
+      final questionKey = q.id;
+      final rawAns = userAnswers[questionKey];
+
+      // ✅ boş cevaplar da LLM'e gitsin (sentinel ile)
+      final userAns =
+          (rawAns == null || (rawAns is String && rawAns.trim().isEmpty))
+              ? "noAnswerProvided"
+              : rawAns;
+
+      items.add({
+        "index": i,
+        "meta": _toMeta(q),
+        "user_answer": _candidateFromAnswer(q, userAns),
+        "topic": _mapTopicToCategory(q.topic),
+      });
+    }
+
+    const provider = AiConfig.provider;
+
+    // ✅ provider çağrısı süre ölçümü
+    final callSw = Stopwatch()..start();
+    final batchId =
+        "exam_${exam.id}_${DateTime.now().millisecondsSinceEpoch}_$chunkNo";
+
+    List<Map<String, dynamic>> results;
+
+    // ✅ jsonDecode/prompt bozulursa app çökmesin
+    try {
+      results = switch (provider) {
+        AiProvider.openai => await OpenAIService.gradeBatch(
+            batchId: batchId,
+            items: items,
+            hasMCQ: chunkHasMcq,
+            hasFillBlanks: chunkHasFillBlanks,
+            hasShortAnswer: chunkHasShortAnswer,
+            hasCodeWriting: chunkHasCodeWriting,
+            hasBehavioral: chunkHasBehavioral,
+          ),
+        AiProvider.gemini => await GeminiService().gradeBatch(
+            batchId: batchId,
+            items: items,
+          ),
+        AiProvider.anthropic =>
+          throw Exception("Anthropic provider not implemented yet."),
+      };
+    } catch (e, st) {
+      print("! EXAM chunk failed chunk=$chunkNo error=$e");
+      print(st);
+      results = <Map<String, dynamic>>[];
+    }
+
+    callSw.stop();
+    chunkSw.stop();
+
+    return _ChunkRunResult(
+      chunkNo: chunkNo,
+      chunkSize: chunk.length,
+      provider: provider,
+      apiMs: callSw.elapsedMilliseconds,
+      totalChunkMs: chunkSw.elapsedMilliseconds,
+      results: results,
+    );
   }
 
   List<List<int>> _chunkIndices(int len, int size) {
@@ -215,7 +337,6 @@ class AiService {
   // ---------- helpers ----------
 
   Map<String, String> _toMeta(Question q) {
-
     final meta = <String, String>{
       "Question Text": q.description ?? '',
       "Question Format": (q.type?.name ?? '').toUpperCase(),
@@ -231,8 +352,6 @@ class AiService {
       if (opts.length > 2) meta["Option C"] = opts[2];
       if (opts.length > 3) meta["Option D"] = opts[3];
     }
-
-    //print(meta);
 
     return meta;
   }
@@ -252,23 +371,80 @@ class AiService {
     if (t.isEmpty) return 'algorithm';
 
     if (t.contains('behavior') || t.contains('hr') || t.contains('star')) {
-      return 'behavioral hr questions';
+      return 'Behavioral hr questions';
     }
-    if (t.contains('data science')) return 'data science';
-    if (t.contains('ml') || t.contains('machine learning')) return 'ml basics';
-    if (t.contains('network')) return 'network';
-    if (t.contains('java')) return 'java';
-    if (t.contains('c/c++') || t.contains('c++') || t == 'c') return 'c/c++';
-    if (t.contains('python')) return 'python';
-    if (t.contains('sql') || t.contains('database')) return 'sql';
-    if (t.contains('git') || t.contains('version control')) return 'git';
-    if (t.contains('oop') || t.contains('object oriented')) return 'oop';
-    if (t.contains('data structure')) return 'data structure';
-    if (t.contains('algorithm')) return 'algorithm';
+    if (t.contains('data science')) return 'Data science';
+    if (t.contains('ml') || t.contains('machine learning')) return 'Ml basics';
+    if (t.contains('network')) return 'Network';
+    if (t.contains('java')) return 'Java';
+    if (t.contains('c/c++') || t.contains('c++') || t == 'c') return 'C/C++';
+    if (t.contains('python')) return 'Python';
+    if (t.contains('sql') || t.contains('database')) return 'Sql';
+    if (t.contains('git') || t.contains('version control')) return 'Git';
+    if (t.contains('oop') || t.contains('object oriented')) return 'Oop';
+    if (t.contains('data structure')) return 'Data Structures';
+    if (t.contains('algorithm')) return 'Algorithms';
 
     // eşleşme yoksa güvenli varsayılan
-    return 'algorithm';
+    return 'Algorithms';
   }
+}
+
+/// ------------ Parallel helpers ------------
+
+/// Basit concurrency limiter (extra package yok)
+class _AsyncPool {
+  _AsyncPool(this._max) : _available = _max;
+
+  final int _max;
+  int _available;
+  final Queue<Completer<void>> _waiters = Queue<Completer<void>>();
+
+  Future<T> withResource<T>(Future<T> Function() action) async {
+    await _acquire();
+    try {
+      return await action();
+    } finally {
+      _release();
+    }
+  }
+
+  Future<void> _acquire() async {
+    if (_available > 0) {
+      _available--;
+      return;
+    }
+    final c = Completer<void>();
+    _waiters.addLast(c);
+    await c.future;
+  }
+
+  void _release() {
+    if (_waiters.isNotEmpty) {
+      _waiters.removeFirst().complete();
+      return;
+    }
+    _available++;
+    if (_available > _max) _available = _max;
+  }
+}
+
+class _ChunkRunResult {
+  final int chunkNo;
+  final int chunkSize;
+  final AiProvider provider;
+  final int apiMs;
+  final int totalChunkMs;
+  final List<Map<String, dynamic>> results;
+
+  _ChunkRunResult({
+    required this.chunkNo,
+    required this.chunkSize,
+    required this.provider,
+    required this.apiMs,
+    required this.totalChunkMs,
+    required this.results,
+  });
 }
 
 /// ------------ Templates ------------
@@ -289,11 +465,11 @@ class AiEvaluateResult {
 
 // Examler için tek soru değerlendirme çıktısı (UI satırı)
 class AiExamQuestionEvaluateResult {
-  final String questionGeneralIndex; //Q231 şeklinde
+  final String questionGeneralIndex; // Q231 şeklinde
   final int questionIndex; // Kaçıncı soru (0-based index)
   final int correctness; // -1: yanlış, 0: boş, 1: doğru
   final List<String>
-      correctAnswer; // Doğru Cevap, birden fazla olabilir fill in the blanks için
+      correctAnswer; // Doğru Cevap (fill blanks birden fazla olabilir)
   final String explanation; // Ai açıklama
   final double? score; // 0-5 arası
   AiExamQuestionEvaluateResult({
@@ -315,11 +491,12 @@ class AiExamEvaluateResult {
   final List<AiExamQuestionEvaluateResult>
       questionEvaluations; //Tüm Soruların Sıralanmış Hali
   final Map<String, int> topicPercentage; //Her topic'in doğruluk oranı
-  AiExamEvaluateResult(
-      {required this.totalScore,
-      required this.correctCount,
-      required this.falseCount,
-      required this.emptyCount,
-      required this.questionEvaluations,
-      required this.topicPercentage});
+  AiExamEvaluateResult({
+    required this.totalScore,
+    required this.correctCount,
+    required this.falseCount,
+    required this.emptyCount,
+    required this.questionEvaluations,
+    required this.topicPercentage,
+  });
 }

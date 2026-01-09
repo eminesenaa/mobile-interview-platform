@@ -1,5 +1,7 @@
 import 'package:interview_project/models/question.dart';
 
+import '../services/ai/ai_service.dart';
+
 class Exam {
   final String id;
   final String title;
@@ -13,6 +15,8 @@ class Exam {
   final Map<String, dynamic>? aiFeedback; // questionId -> AI explanation
   final Map<String, int>? stats; // correct, wrong, unanswered
 
+  final AiExamEvaluateResult? aiResult;
+
   const Exam({
     required this.id,
     required this.title,
@@ -23,6 +27,7 @@ class Exam {
     this.answers,
     this.aiFeedback,
     this.stats,
+    this.aiResult,
   });
 
   // ✅ copyWith — review aşamasında transient değişiklikler için
@@ -35,6 +40,7 @@ class Exam {
     Map<String, dynamic>? answers,
     Map<String, dynamic>? aiFeedback,
     Map<String, int>? stats,
+    AiExamEvaluateResult? aiResult,
   }) {
     return Exam(
       id: id ?? this.id,
@@ -45,6 +51,7 @@ class Exam {
       answers: answers ?? this.answers,
       aiFeedback: aiFeedback ?? this.aiFeedback,
       stats: stats ?? this.stats,
+      aiResult: aiResult ?? this.aiResult, // 🔥
     );
   }
 
