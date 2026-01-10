@@ -1,26 +1,33 @@
-// lib/services/ai/gemini_service.dart
+// lib/services/ai/llama_service.dart
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'ai_config.dart';
 import 'openai_service.dart' show PromptType, GradeResult, GradeResultMapper;
 
-class GeminiService {
-  final String _modelName;
+class LlamaService {
+  static const _endpoint = 'https://api.groq.com/openai/v1/chat/completions';
+  static const _defaultModel = 'llama-3.1-70b-versatile';
+
   final String _apiKey;
+  final String _model;
 
-  GeminiService._internal(this._modelName, this._apiKey);
+  LlamaService._internal(this._apiKey, this._model);
 
-  factory GeminiService({
-    String? model,
+  factory LlamaService({
     String? apiKey,
+    String? model,
   }) {
-    final resolvedModel = model ?? 'gemini-1.5-flash'; // Güncel stabil model
-    final resolvedKey = apiKey ?? dotenv.env['GEMINI_API_KEY'] ?? '';
-    return GeminiService._internal(resolvedModel, resolvedKey);
+    final resolvedKey = apiKey ?? dotenv.env['GROQ_API_KEY'];
+    final resolvedModel = model ?? _defaultModel;
+
+    if (resolvedKey == null || resolvedKey.isEmpty) {
+      throw Exception('GROQ_API_KEY is missing');
+    }
+
+    return LlamaService._internal(resolvedKey, resolvedModel);
   }
 
   // -------------------- Prompt Yükleme --------------------
@@ -58,9 +65,8 @@ class GeminiService {
   }) async {
     try {
       final template = await _loadPromptTemplate(promptType);
-      const systemRole = "You are an expert Computer Science Interviewer";
+      const systemRole = "You are an expert Computer Science Interviewer. Return ONLY a valid JSON object.";
 
-      // OpenAI'daki render mantığının aynısı
       var userContent = _renderTemplate(template, {
         "Question Text": qMeta["Question Text"] ?? "",
         "Question Format": qMeta["Question Format"] ?? "",
@@ -68,7 +74,7 @@ class GeminiService {
         "candidate_answer_or_choice": candidateAnswer,
       });
 
-      // MCQ için özel alanlar (OpenAI ile birebir eşleme)
+      // MCQ özel alanları
       if (promptType == PromptType.mcq) {
         userContent = _renderTemplate(template, {
           "Question Text": qMeta["Question Text"] ?? "",
@@ -84,27 +90,25 @@ class GeminiService {
         });
       }
 
-      final model = GenerativeModel(
-        model: _modelName,
-        apiKey: _apiKey,
-        systemInstruction: Content.system("$systemRole\nOutput ONLY JSON."),
-      );
+      final body = {
+        "model": _model,
+        "temperature": 0,
+        "response_format": {"type": "json_object"},
+        "messages": [
+          {"role": "system", "content": systemRole},
+          {"role": "user", "content": userContent},
+        ],
+      };
 
-      final resp = await model.generateContent(
-        [Content.text(userContent)],
-        generationConfig: GenerationConfig(
-          temperature: 0,
-          responseMimeType: 'application/json',
-        ),
-      ).timeout(timeout);
+      final res = await _post(body, timeout);
+      final decoded = jsonDecode(res.body);
+      final content = decoded['choices']?[0]?['message']?['content'];
 
-      final text = resp.text ?? '';
-      if (text.isEmpty) return GradeResult.fromSafeFallback("Empty response");
+      if (content == null) return GradeResult.fromSafeFallback("Empty response content");
 
-      final parsed = jsonDecode(text);
-      if (parsed is! Map<String, dynamic>) return GradeResult.fromSafeFallback(text);
+      final parsed = jsonDecode(content);
+      if (parsed is! Map<String, dynamic>) return GradeResult.fromSafeFallback(content);
 
-      // Mapper kullanımı
       switch (promptType) {
         case PromptType.interview:
           return GradeResultMapper.fromInterview(parsed);
@@ -114,7 +118,7 @@ class GeminiService {
           return GradeResultMapper.fromTraining(parsed);
       }
     } catch (e) {
-      _handleQuotaError(e);
+      _handleException(e);
       return GradeResult.fromSafeFallback(e.toString());
     }
   }
@@ -148,7 +152,7 @@ class GeminiService {
 
       var tmpl = await rootBundle.loadString('assets/prompts/ExamBatchEvaluation.txt');
 
-      // OpenAI'dan kopyalanan dinamik bölüm temizleme mantığı
+      // Dinamik Bölüm Temizleme
       if (!hasMCQ) tmpl = _removeSection(tmpl, 'MCQ EVALUATION');
       if (!hasFillBlanks) {
         tmpl = _removeSection(tmpl, 'FILL-IN-THE-BLANK (N = 1)');
@@ -160,34 +164,48 @@ class GeminiService {
 
       final userContent = tmpl.replaceFirst('{{BATCH_PAYLOAD_JSON}}', jsonEncode(payload));
 
-      final model = GenerativeModel(
-        model: _modelName,
-        apiKey: _apiKey,
-        systemInstruction: Content.system("Output ONLY a raw JSON array."),
-      );
+      final body = {
+        "model": _model,
+        "temperature": 0.2,
+        "messages": [
+          {"role": "system", "content": "Output ONLY a raw JSON array."},
+          {"role": "user", "content": userContent},
+        ],
+      };
 
-      final resp = await model.generateContent(
-        [Content.text(userContent)],
-        generationConfig: GenerationConfig(
-          temperature: 0.2,
-          responseMimeType: 'application/json',
-        ),
-      ).timeout(timeout);
+      final res = await _post(body, timeout);
+      final decoded = jsonDecode(res.body);
+      final content = decoded['choices']?[0]?['message']?['content'];
 
-      final text = resp.text ?? '';
-      final parsed = jsonDecode(text);
-      if (parsed is! List) throw Exception("Batch result is not a JSON array.");
+      final parsed = jsonDecode(content);
+      if (parsed is! List) throw Exception('Batch result is not a JSON array');
 
       return (parsed as List).cast<Map<String, dynamic>>();
     } catch (e) {
-      _handleQuotaError(e);
+      _handleException(e);
       rethrow;
     }
   }
 
   // -------------------- YARDIMCI METOTLAR --------------------
 
-  // OpenAI ile aynı Regex mantığı
+  Future<http.Response> _post(Map<String, dynamic> body, Duration timeout) async {
+    final res = await http.post(
+      Uri.parse(_endpoint),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $_apiKey",
+      },
+      body: jsonEncode(body),
+    ).timeout(timeout);
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      _handleHttpError(res);
+      throw Exception('Groq error ${res.statusCode}: ${res.body}');
+    }
+    return res;
+  }
+
   static String _removeSection(String prompt, String sectionTitle) {
     final pattern = RegExp(
       r'^---\s*' +
@@ -200,10 +218,22 @@ class GeminiService {
     return prompt.replaceAll(pattern, '');
   }
 
-  void _handleQuotaError(Object e) {
+  void _handleHttpError(http.Response res) {
+    try {
+      final decoded = jsonDecode(res.body);
+      final errorMsg = decoded['error']?['message']?.toString().toLowerCase() ?? '';
+      final errorType = decoded['error']?['type']?.toString().toLowerCase() ?? '';
+
+      if (errorMsg.contains('rate') || errorType.contains('rate') || res.statusCode == 429) {
+        AiConfig.LLAMAoutOfTokenFlag = true;
+      }
+    } catch (_) {}
+  }
+
+  void _handleException(Object e) {
     final msg = e.toString().toLowerCase();
-    if (msg.contains("resource_exhausted") || msg.contains("quota")) {
-      AiConfig.GEMINIoutOfTokenFlag = true;
+    if (msg.contains('rate') || msg.contains('quota') || msg.contains('429')) {
+      AiConfig.LLAMAoutOfTokenFlag = true;
     }
   }
 }

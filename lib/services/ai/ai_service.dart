@@ -7,6 +7,8 @@ import '../../models/question.dart';
 import 'ai_config.dart';
 import 'gemini_service.dart';
 import 'openai_service.dart';
+import 'anthropic_service.dart';
+import 'llama_service.dart';
 
 class AiService {
   /// Her tip soru için tek giriş noktası.
@@ -50,20 +52,27 @@ class AiService {
     final provider = AiConfig.chooseModel(questionType: question.type.name);
     print("kullanılacak provider: $provider");
 
-    final result = switch (provider) {
-      AiProvider.openai => await OpenAIService.gradeWithTemplate(
-          promptType: promptType,
-          qMeta: meta,
-          candidateAnswer: candidate,
-        ),
-      AiProvider.gemini => await GeminiService().gradeWithTemplate(
-          promptType: promptType,
-          category: category,
-          qMeta: meta,
-          candidateAnswer: candidate,
-        ),
-      AiProvider.anthropic =>
-        throw Exception("Anthropic provider not implemented yet."),
+    final result = await switch (provider) {
+      AiProvider.openai => OpenAIService.gradeWithTemplate(
+        promptType: promptType,
+        qMeta: meta,
+        candidateAnswer: candidate,
+      ),
+      AiProvider.gemini => GeminiService().gradeWithTemplate(
+        promptType: promptType,
+        qMeta: meta,
+        candidateAnswer: candidate,
+      ),
+      AiProvider.anthropic => AnthropicService().gradeWithTemplate(
+        promptType: promptType,
+        qMeta: meta,
+        candidateAnswer: candidate,
+      ),
+      AiProvider.llama => LlamaService().gradeWithTemplate(
+        promptType: promptType,
+        qMeta: meta,
+        candidateAnswer: candidate,
+      ),
     };
 
     return AiEvaluateResult(
@@ -289,23 +298,46 @@ class AiService {
 
     // ✅ jsonDecode/prompt bozulursa app çökmesin
     try {
-      results = switch (provider) {
-        AiProvider.openai => await OpenAIService.gradeBatch(
-            batchId: batchId,
-            items: items,
-            hasMCQ: chunkHasMcq,
-            hasFillBlanks: chunkHasFillBlanks,
-            hasShortAnswer: chunkHasShortAnswer,
-            hasCodeWriting: chunkHasCodeWriting,
-            hasBehavioral: chunkHasBehavioral,
-          ),
-        AiProvider.gemini => await GeminiService().gradeBatch(
-            batchId: batchId,
-            items: items,
-          ),
-        AiProvider.anthropic =>
-          throw Exception("Anthropic provider not implemented yet."),
+
+      results = await switch (provider) {
+        AiProvider.openai => OpenAIService.gradeBatch(
+          batchId: batchId,
+          items: items,
+          hasMCQ: chunkHasMcq,
+          hasFillBlanks: chunkHasFillBlanks,
+          hasShortAnswer: chunkHasShortAnswer,
+          hasCodeWriting: chunkHasCodeWriting,
+          hasBehavioral: chunkHasBehavioral,
+        ),
+        AiProvider.gemini => GeminiService().gradeBatch(
+          batchId: batchId,
+          items: items,
+          hasMCQ: chunkHasMcq,
+          hasFillBlanks: chunkHasFillBlanks,
+          hasShortAnswer: chunkHasShortAnswer,
+          hasCodeWriting: chunkHasCodeWriting,
+          hasBehavioral: chunkHasBehavioral,
+        ),
+        AiProvider.anthropic => AnthropicService().gradeBatch(
+          batchId: batchId,
+          items: items,
+          hasMCQ: chunkHasMcq,
+          hasFillBlanks: chunkHasFillBlanks,
+          hasShortAnswer: chunkHasShortAnswer,
+          hasCodeWriting: chunkHasCodeWriting,
+          hasBehavioral: chunkHasBehavioral,
+        ),
+        AiProvider.llama => LlamaService().gradeBatch(
+          batchId: batchId,
+          items: items,
+          hasMCQ: chunkHasMcq,
+          hasFillBlanks: chunkHasFillBlanks,
+          hasShortAnswer: chunkHasShortAnswer,
+          hasCodeWriting: chunkHasCodeWriting,
+          hasBehavioral: chunkHasBehavioral,
+        ),
       };
+
     } catch (e, st) {
       print("! EXAM chunk failed chunk=$chunkNo error=$e");
       print(st);

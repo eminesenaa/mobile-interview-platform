@@ -273,12 +273,12 @@ class OpenAIService {
     };
 
 
-    print("Exam olarak GPT'ye giden:");
+    //print("Exam olarak GPT'ye giden:");
     debugPrint(userContent, wrapWidth: 10000);
 
     final res = await _post(body, timeout: timeout);
 
-    print("Exam cevabı:");
+    //print("Exam cevabı:");
     debugPrint(res.body, wrapWidth: 10000);
 
     // 4) Parse: content bir JSON array olmalı
