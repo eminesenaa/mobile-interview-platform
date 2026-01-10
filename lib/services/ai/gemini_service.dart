@@ -1,11 +1,10 @@
 // lib/services/ai/gemini_service.dart
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
-
-// OpenAI tarafındaki tip ve mapper'ları kullanıyoruz → %100 alan uyumu
+import 'package:flutter/foundation.dart';
 import 'ai_config.dart';
 import 'openai_service.dart' show PromptType, GradeResult, GradeResultMapper;
 
@@ -19,35 +18,28 @@ class GeminiService {
     String? model,
     String? apiKey,
   }) {
-    final resolvedModel = model ?? 'gemini-2.5-flash';
-    final resolvedKey = dotenv.env['GEMINI_API_KEY'];
-    return GeminiService._internal(resolvedModel, resolvedKey!);
+    final resolvedModel = model ?? 'gemini-1.5-flash'; // Güncel stabil model
+    final resolvedKey = apiKey ?? dotenv.env['GEMINI_API_KEY'] ?? '';
+    return GeminiService._internal(resolvedModel, resolvedKey);
   }
 
-  // -------------------- Prompt yükleme (OpenAI ile aynı dosyalar) --------------------
+  // -------------------- Prompt Yükleme --------------------
   static Future<String> _loadPromptTemplate(PromptType type) async {
     switch (type) {
       case PromptType.training:
-        return await rootBundle
-            .loadString('assets/prompts/TrainingAnalysis.txt');
+        return await rootBundle.loadString('assets/prompts/TrainingAnalysis.txt');
       case PromptType.interview:
-        return await rootBundle
-            .loadString('assets/prompts/InterviewAnalysis.txt');
+        return await rootBundle.loadString('assets/prompts/InterviewAnalysis.txt');
       case PromptType.detailedTraining:
-        return await rootBundle
-            .loadString('assets/prompts/TrainingDetailedAnalysis.txt');
+        return await rootBundle.loadString('assets/prompts/TrainingDetailedAnalysis.txt');
       case PromptType.mcq:
-        return await rootBundle
-            .loadString('assets/prompts/MultipleChoiceQuestionTraining.txt');
+        return await rootBundle.loadString('assets/prompts/MultipleChoiceQuestionTraining.txt');
       case PromptType.fillBlanks:
-        return await rootBundle
-            .loadString('assets/prompts/FillInTheBlanksTraining.txt');
+        return await rootBundle.loadString('assets/prompts/FillInTheBlanksTraining.txt');
       case PromptType.shortAnswer:
-        return await rootBundle
-            .loadString('assets/prompts/ShortAnswerTraining.txt');
+        return await rootBundle.loadString('assets/prompts/ShortAnswerTraining.txt');
       case PromptType.codeWriting:
-        return await rootBundle
-            .loadString('assets/prompts/CodeWritingTraining.txt');
+        return await rootBundle.loadString('assets/prompts/CodeWritingTraining.txt');
     }
   }
 
@@ -57,9 +49,8 @@ class GeminiService {
     return out;
   }
 
-  // -------------------- TEK SORU: OpenAI ile %100 aynı JSON şeması --------------------
+  // -------------------- TEK SORU DEĞERLENDİRME --------------------
   Future<GradeResult> gradeWithTemplate({
-    required String category,
     required Map<String, String> qMeta,
     required String candidateAnswer,
     required PromptType promptType,
@@ -67,153 +58,152 @@ class GeminiService {
   }) async {
     try {
       final template = await _loadPromptTemplate(promptType);
-      final systemRole = _buildSystemRole(category);
+      const systemRole = "You are an expert Computer Science Interviewer";
 
-      // JSON NESNESİ zorla (OpenAI json_object’e denk)
-      final modelWithSystem = GenerativeModel(
-        model: _modelName,
-        apiKey: _apiKey,
-        systemInstruction: Content.text(
-          '$systemRole\n'
-          'Return ONLY JSON object. No extra text, no code fences.',
-        ),
-      );
-
-      final userContent = _renderTemplate(template, {
-        "Category": category,
-        "Question Content Type": qMeta["Question Content Type"] ?? "",
-        "Difficulty Level (1–5)": qMeta["Difficulty Level (1–5)"] ?? "",
-        "Source Reference": qMeta["Source Reference"] ?? "",
-        "Question Title": qMeta["Question Title"] ?? "",
+      // OpenAI'daki render mantığının aynısı
+      var userContent = _renderTemplate(template, {
         "Question Text": qMeta["Question Text"] ?? "",
         "Question Format": qMeta["Question Format"] ?? "",
-        "Option A": qMeta["Option A"] ?? "",
-        "Option B": qMeta["Option B"] ?? "",
-        "Option C": qMeta["Option C"] ?? "",
-        "Option D": qMeta["Option D"] ?? "",
-        "Correct Option": qMeta["Correct Option"] ?? "",
-        "Tags": qMeta["Tags"] ?? "",
         "AI Prompt Helper": qMeta["AI Prompt Helper"] ?? "",
         "candidate_answer_or_choice": candidateAnswer,
       });
 
-      final resp = await modelWithSystem
-          .generateContent(
-            [Content.text(userContent)],
-            safetySettings: const [],
-            generationConfig: GenerationConfig(
-              temperature: 0,
-              responseMimeType: 'application/json', // JSON obje bekliyoruz
-            ),
-          )
-          .timeout(timeout);
-
-      final text = (resp.text ?? '').trim();
-      final parsed = jsonDecode(text);
-      if (parsed is! Map) {
-        throw Exception('Gemini single-question result is not a JSON object.');
+      // MCQ için özel alanlar (OpenAI ile birebir eşleme)
+      if (promptType == PromptType.mcq) {
+        userContent = _renderTemplate(template, {
+          "Question Text": qMeta["Question Text"] ?? "",
+          "Question Format": qMeta["Question Format"] ?? "",
+          "Option A": qMeta["Option A"] ?? "",
+          "Option B": qMeta["Option B"] ?? "",
+          "Option C": qMeta["Option C"] ?? "",
+          "Option D": qMeta["Option D"] ?? "",
+          "Correct Option": qMeta["Correct Option"] ?? "",
+          "Tags": qMeta["Tags"] ?? "",
+          "AI Prompt Helper": qMeta["AI Prompt Helper"] ?? "",
+          "candidate_answer_or_choice": candidateAnswer,
+        });
       }
 
-      final obj = Map<String, dynamic>.from(parsed as Map);
+      final model = GenerativeModel(
+        model: _modelName,
+        apiKey: _apiKey,
+        systemInstruction: Content.system("$systemRole\nOutput ONLY JSON."),
+      );
 
-      // OpenAI ile aynı mapper → GradeResult alanları birebir
+      final resp = await model.generateContent(
+        [Content.text(userContent)],
+        generationConfig: GenerationConfig(
+          temperature: 0,
+          responseMimeType: 'application/json',
+        ),
+      ).timeout(timeout);
+
+      final text = resp.text ?? '';
+      if (text.isEmpty) return GradeResult.fromSafeFallback("Empty response");
+
+      final parsed = jsonDecode(text);
+      if (parsed is! Map<String, dynamic>) return GradeResult.fromSafeFallback(text);
+
+      // Mapper kullanımı
       switch (promptType) {
-        case PromptType.training:
-          return GradeResultMapper.fromTraining(obj);
         case PromptType.interview:
-          return GradeResultMapper.fromInterview(obj);
+          return GradeResultMapper.fromInterview(parsed);
         case PromptType.detailedTraining:
-          return GradeResultMapper.fromDetailedTraining(obj);
-        case PromptType.mcq:
-          return GradeResultMapper.fromTraining(obj);
-        case PromptType.fillBlanks:
-          return GradeResultMapper.fromTraining(obj);
-        case PromptType.shortAnswer:
-          return GradeResultMapper.fromTraining(obj);
-        case PromptType.codeWriting:
-          return GradeResultMapper.fromTraining(obj);
+          return GradeResultMapper.fromDetailedTraining(parsed);
+        default:
+          return GradeResultMapper.fromTraining(parsed);
       }
     } catch (e) {
-      // --- QUOTA/TOKEN BITTI MI? ---
-      final msg = e.toString().toLowerCase();
-
-      // Google: RESOURCE_EXHAUSTED = quota exceeded
-      if (msg.contains("resource_exhausted") ||
-          msg.contains("quota exceeded") ||
-          msg.contains("quota") && msg.contains("exceeded")) {
-        AiConfig.GEMINIoutOfTokenFlag = true;
-      }
-
-      return GradeResult(
-        correct: false,
-        expected: '',
-        reason: 'Gemini JSON error: $e',
-        score: 0.0,
-      );
+      _handleQuotaError(e);
+      return GradeResult.fromSafeFallback(e.toString());
     }
   }
 
-  // -------------------- 5’li BATCH: OpenAI ile %100 aynı JSON array şeması --------------------
+  // -------------------- BATCH (SINAV) DEĞERLENDİRME --------------------
   Future<List<Map<String, dynamic>>> gradeBatch({
     required String batchId,
-    required List<Map<String, dynamic>> items, // { index, meta, user_answer, topic }
+    required List<Map<String, dynamic>> items,
+    required bool hasMCQ,
+    required bool hasFillBlanks,
+    required bool hasShortAnswer,
+    required bool hasCodeWriting,
+    required bool hasBehavioral,
     Duration timeout = const Duration(seconds: 60),
   }) async {
-    // 1) Batch payload
-    final payload = {
-      "batch_id": batchId,
-      "questions": items,
-      "output_schema": {
-        "type": "array",
-        "items": {
-          "index": "int",
-          "correct": "boolean",
-          "expected": "string",
-          "reason": "string",
-          "score": "number"
+    try {
+      final payload = {
+        "batch_id": batchId,
+        "questions": items,
+        "output_schema": {
+          "type": "array",
+          "items": {
+            "index": "int",
+            "correct": "boolean",
+            "expected": "string",
+            "reason": "string",
+            "score": "number"
+          }
         }
+      };
+
+      var tmpl = await rootBundle.loadString('assets/prompts/ExamBatchEvaluation.txt');
+
+      // OpenAI'dan kopyalanan dinamik bölüm temizleme mantığı
+      if (!hasMCQ) tmpl = _removeSection(tmpl, 'MCQ EVALUATION');
+      if (!hasFillBlanks) {
+        tmpl = _removeSection(tmpl, 'FILL-IN-THE-BLANK (N = 1)');
+        tmpl = _removeSection(tmpl, 'FILL-IN-THE-BLANK (N > 1)');
       }
-    };
+      if (!hasShortAnswer) tmpl = _removeSection(tmpl, 'SHORT ANSWER EVALUATION');
+      if (!hasCodeWriting) tmpl = _removeSection(tmpl, 'CODING EVALUATION');
+      if (!hasBehavioral) tmpl = _removeSection(tmpl, 'BEHAVIORAL (STAR) EVALUATION');
 
-    // 2) Exam prompt’u + payload
-    final tmpl = await rootBundle.loadString('assets/prompts/ExamBatchEvaluation.txt');
-    final userContent = tmpl.replaceFirst('{{BATCH_PAYLOAD_JSON}}', jsonEncode(payload));
+      final userContent = tmpl.replaceFirst('{{BATCH_PAYLOAD_JSON}}', jsonEncode(payload));
 
-    // 3) JSON ARRAY’i zorla
-    final modelWithSystem = GenerativeModel(
-      model: _modelName,
-      apiKey: _apiKey,
-      systemInstruction: Content.text('Output ONLY a raw JSON array.'),
-    );
+      final model = GenerativeModel(
+        model: _modelName,
+        apiKey: _apiKey,
+        systemInstruction: Content.system("Output ONLY a raw JSON array."),
+      );
 
-    final resp = await modelWithSystem
-        .generateContent(
-          [Content.text(userContent)],
-          safetySettings: const [],
-          generationConfig: GenerationConfig(
-            temperature: 0.2,
-            responseMimeType: 'application/json',
-          ),
-        )
-        .timeout(timeout);
+      final resp = await model.generateContent(
+        [Content.text(userContent)],
+        generationConfig: GenerationConfig(
+          temperature: 0.2,
+          responseMimeType: 'application/json',
+        ),
+      ).timeout(timeout);
 
-    final text = (resp.text ?? '').trim();
-    if (text.isEmpty) {
-      throw Exception('Gemini returned empty content for batch.');
+      final text = resp.text ?? '';
+      final parsed = jsonDecode(text);
+      if (parsed is! List) throw Exception("Batch result is not a JSON array.");
+
+      return (parsed as List).cast<Map<String, dynamic>>();
+    } catch (e) {
+      _handleQuotaError(e);
+      rethrow;
     }
-
-    final parsed = jsonDecode(text);
-    if (parsed is! List) {
-      throw Exception('Batch result is not a JSON array.');
-    }
-
-    return (parsed as List)
-        .map((e) => Map<String, dynamic>.from(e as Map))
-        .toList();
   }
 
-  // -------------------- System rolü --------------------
-  String _buildSystemRole(String category) {
-    return "You are an expert Computer Science Interwiever";
+  // -------------------- YARDIMCI METOTLAR --------------------
+
+  // OpenAI ile aynı Regex mantığı
+  static String _removeSection(String prompt, String sectionTitle) {
+    final pattern = RegExp(
+      r'^---\s*' +
+          RegExp.escape(sectionTitle) +
+          r'\s*\n' +
+          r'([\s\S]*?)' +
+          r'(?=^---\s|\Z)',
+      multiLine: true,
+    );
+    return prompt.replaceAll(pattern, '');
+  }
+
+  void _handleQuotaError(Object e) {
+    final msg = e.toString().toLowerCase();
+    if (msg.contains("resource_exhausted") || msg.contains("quota")) {
+      AiConfig.GEMINIoutOfTokenFlag = true;
+    }
   }
 }

@@ -4,14 +4,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/services.dart' show rootBundle;
-
 import 'ai_config.dart';
 import 'openai_service.dart' show PromptType, GradeResult, GradeResultMapper;
 
 class LlamaService {
-  static const _endpoint =
-      'https://api.groq.com/openai/v1/chat/completions';
-
+  static const _endpoint = 'https://api.groq.com/openai/v1/chat/completions';
   static const _defaultModel = 'llama-3.1-70b-versatile';
 
   final String _apiKey;
@@ -33,7 +30,7 @@ class LlamaService {
     return LlamaService._internal(resolvedKey, resolvedModel);
   }
 
-  // -------------------- Prompt yükleme --------------------
+  // -------------------- Prompt Yükleme --------------------
   static Future<String> _loadPromptTemplate(PromptType type) async {
     switch (type) {
       case PromptType.training:
@@ -41,20 +38,15 @@ class LlamaService {
       case PromptType.interview:
         return await rootBundle.loadString('assets/prompts/InterviewAnalysis.txt');
       case PromptType.detailedTraining:
-        return await rootBundle
-            .loadString('assets/prompts/TrainingDetailedAnalysis.txt');
+        return await rootBundle.loadString('assets/prompts/TrainingDetailedAnalysis.txt');
       case PromptType.mcq:
-        return await rootBundle
-            .loadString('assets/prompts/MultipleChoiceQuestionTraining.txt');
+        return await rootBundle.loadString('assets/prompts/MultipleChoiceQuestionTraining.txt');
       case PromptType.fillBlanks:
-        return await rootBundle
-            .loadString('assets/prompts/FillInTheBlanksTraining.txt');
+        return await rootBundle.loadString('assets/prompts/FillInTheBlanksTraining.txt');
       case PromptType.shortAnswer:
-        return await rootBundle
-            .loadString('assets/prompts/ShortAnswerTraining.txt');
+        return await rootBundle.loadString('assets/prompts/ShortAnswerTraining.txt');
       case PromptType.codeWriting:
-        return await rootBundle
-            .loadString('assets/prompts/CodeWritingTraining.txt');
+        return await rootBundle.loadString('assets/prompts/CodeWritingTraining.txt');
     }
   }
 
@@ -64,9 +56,8 @@ class LlamaService {
     return out;
   }
 
-  // -------------------- TEK SORU --------------------
+  // -------------------- TEK SORU DEĞERLENDİRME --------------------
   Future<GradeResult> gradeWithTemplate({
-    required String category,
     required Map<String, String> qMeta,
     required String candidateAnswer,
     required PromptType promptType,
@@ -74,10 +65,7 @@ class LlamaService {
   }) async {
     try {
       final template = await _loadPromptTemplate(promptType);
-
-      const systemRole =
-          "You are an expert Computer Science Interwiever. "
-          "Return ONLY a valid JSON object. No extra text.";
+      const systemRole = "You are an expert Computer Science Interviewer. Return ONLY a valid JSON object.";
 
       var userContent = _renderTemplate(template, {
         "Question Text": qMeta["Question Text"] ?? "",
@@ -86,7 +74,8 @@ class LlamaService {
         "candidate_answer_or_choice": candidateAnswer,
       });
 
-      if(promptType == PromptType.mcq){
+      // MCQ özel alanları
+      if (promptType == PromptType.mcq) {
         userContent = _renderTemplate(template, {
           "Question Text": qMeta["Question Text"] ?? "",
           "Question Format": qMeta["Question Format"] ?? "",
@@ -111,142 +100,140 @@ class LlamaService {
         ],
       };
 
-      final res = await http
-          .post(
-        Uri.parse(_endpoint),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $_apiKey",
-        },
-        body: jsonEncode(body),
-      )
-          .timeout(timeout);
-
-      if (res.statusCode < 200 || res.statusCode >= 300) {
-        _handleGroqError(res);
-        throw Exception('Groq error ${res.statusCode}: ${res.body}');
-      }
-
+      final res = await _post(body, timeout);
       final decoded = jsonDecode(res.body);
-      final content =
-      decoded['choices']?[0]?['message']?['content'];
+      final content = decoded['choices']?[0]?['message']?['content'];
 
-      if (content == null) {
-        throw Exception('Groq returned empty content');
-      }
+      if (content == null) return GradeResult.fromSafeFallback("Empty response content");
 
       final parsed = jsonDecode(content);
-      if (parsed is! Map<String, dynamic>) {
-        throw Exception('LLaMA result is not a JSON object');
-      }
+      if (parsed is! Map<String, dynamic>) return GradeResult.fromSafeFallback(content);
 
       switch (promptType) {
-        case PromptType.training:
-          return GradeResultMapper.fromTraining(parsed);
         case PromptType.interview:
           return GradeResultMapper.fromInterview(parsed);
         case PromptType.detailedTraining:
           return GradeResultMapper.fromDetailedTraining(parsed);
-        case PromptType.mcq:
-        case PromptType.fillBlanks:
-        case PromptType.shortAnswer:
-        case PromptType.codeWriting:
+        default:
           return GradeResultMapper.fromTraining(parsed);
       }
     } catch (e) {
-      final msg = e.toString().toLowerCase();
-      if (msg.contains('rate') || msg.contains('quota')) {
-        AiConfig.LLAMAoutOfTokenFlag = true;
-      }
-
-      return GradeResult(
-        correct: false,
-        expected: '',
-        reason: 'LLaMA JSON error: $e',
-        score: 0.0,
-      );
+      _handleException(e);
+      return GradeResult.fromSafeFallback(e.toString());
     }
   }
 
-  // -------------------- BATCH --------------------
+  // -------------------- BATCH (SINAV) DEĞERLENDİRME --------------------
   Future<List<Map<String, dynamic>>> gradeBatch({
     required String batchId,
     required List<Map<String, dynamic>> items,
+    required bool hasMCQ,
+    required bool hasFillBlanks,
+    required bool hasShortAnswer,
+    required bool hasCodeWriting,
+    required bool hasBehavioral,
     Duration timeout = const Duration(seconds: 60),
   }) async {
-    final payload = {
-      "batch_id": batchId,
-      "questions": items,
-      "output_schema": {
-        "type": "array",
-        "items": {
-          "index": "int",
-          "correct": "boolean",
-          "expected": "string",
-          "reason": "string",
-          "score": "number"
+    try {
+      final payload = {
+        "batch_id": batchId,
+        "questions": items,
+        "output_schema": {
+          "type": "array",
+          "items": {
+            "index": "int",
+            "correct": "boolean",
+            "expected": "string",
+            "reason": "string",
+            "score": "number"
+          }
         }
+      };
+
+      var tmpl = await rootBundle.loadString('assets/prompts/ExamBatchEvaluation.txt');
+
+      // Dinamik Bölüm Temizleme
+      if (!hasMCQ) tmpl = _removeSection(tmpl, 'MCQ EVALUATION');
+      if (!hasFillBlanks) {
+        tmpl = _removeSection(tmpl, 'FILL-IN-THE-BLANK (N = 1)');
+        tmpl = _removeSection(tmpl, 'FILL-IN-THE-BLANK (N > 1)');
       }
-    };
+      if (!hasShortAnswer) tmpl = _removeSection(tmpl, 'SHORT ANSWER EVALUATION');
+      if (!hasCodeWriting) tmpl = _removeSection(tmpl, 'CODING EVALUATION');
+      if (!hasBehavioral) tmpl = _removeSection(tmpl, 'BEHAVIORAL (STAR) EVALUATION');
 
-    final tmpl =
-    await rootBundle.loadString('assets/prompts/ExamBatchEvaluation.txt');
-    final userContent =
-    tmpl.replaceFirst('{{BATCH_PAYLOAD_JSON}}', jsonEncode(payload));
+      final userContent = tmpl.replaceFirst('{{BATCH_PAYLOAD_JSON}}', jsonEncode(payload));
 
-    final body = {
-      "model": _model,
-      "temperature": 0.2,
-      "messages": [
-        {
-          "role": "system",
-          "content": "Output ONLY a raw JSON array."
-        },
-        {
-          "role": "user",
-          "content": userContent
-        }
-      ],
-    };
+      final body = {
+        "model": _model,
+        "temperature": 0.2,
+        "messages": [
+          {"role": "system", "content": "Output ONLY a raw JSON array."},
+          {"role": "user", "content": userContent},
+        ],
+      };
 
-    final res = await http
-        .post(
+      final res = await _post(body, timeout);
+      final decoded = jsonDecode(res.body);
+      final content = decoded['choices']?[0]?['message']?['content'];
+
+      final parsed = jsonDecode(content);
+      if (parsed is! List) throw Exception('Batch result is not a JSON array');
+
+      return (parsed as List).cast<Map<String, dynamic>>();
+    } catch (e) {
+      _handleException(e);
+      rethrow;
+    }
+  }
+
+  // -------------------- YARDIMCI METOTLAR --------------------
+
+  Future<http.Response> _post(Map<String, dynamic> body, Duration timeout) async {
+    final res = await http.post(
       Uri.parse(_endpoint),
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer $_apiKey",
       },
       body: jsonEncode(body),
-    )
-        .timeout(timeout);
+    ).timeout(timeout);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      _handleGroqError(res);
-      throw Exception('Groq batch error ${res.statusCode}');
+      _handleHttpError(res);
+      throw Exception('Groq error ${res.statusCode}: ${res.body}');
     }
-
-    final decoded = jsonDecode(res.body);
-    final content =
-    decoded['choices']?[0]?['message']?['content'];
-
-    final parsed = jsonDecode(content);
-    if (parsed is! List) {
-      throw Exception('Batch result is not a JSON array');
-    }
-
-    return (parsed as List)
-        .map((e) => Map<String, dynamic>.from(e as Map))
-        .toList();
+    return res;
   }
 
-  // -------------------- Error helper --------------------
-  void _handleGroqError(http.Response res) {
+  static String _removeSection(String prompt, String sectionTitle) {
+    final pattern = RegExp(
+      r'^---\s*' +
+          RegExp.escape(sectionTitle) +
+          r'\s*\n' +
+          r'([\s\S]*?)' +
+          r'(?=^---\s|\Z)',
+      multiLine: true,
+    );
+    return prompt.replaceAll(pattern, '');
+  }
+
+  void _handleHttpError(http.Response res) {
     try {
       final decoded = jsonDecode(res.body);
-      final error = decoded['error']?.toString().toLowerCase() ?? '';
-      if (error.contains('rate') || error.contains('quota')) {
+      final errorMsg = decoded['error']?['message']?.toString().toLowerCase() ?? '';
+      final errorType = decoded['error']?['type']?.toString().toLowerCase() ?? '';
+
+      if (errorMsg.contains('rate') || errorType.contains('rate') || res.statusCode == 429) {
         AiConfig.LLAMAoutOfTokenFlag = true;
       }
     } catch (_) {}
+  }
+
+  void _handleException(Object e) {
+    final msg = e.toString().toLowerCase();
+    if (msg.contains('rate') || msg.contains('quota') || msg.contains('429')) {
+      AiConfig.LLAMAoutOfTokenFlag = true;
+    }
   }
 }

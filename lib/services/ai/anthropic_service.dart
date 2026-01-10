@@ -31,7 +31,7 @@ class AnthropicService {
     return AnthropicService._internal(resolvedKey, resolvedModel);
   }
 
-  // -------------------- Prompt yükleme (diğerleriyle aynı) --------------------
+  // -------------------- Prompt Yükleme --------------------
   static Future<String> _loadPromptTemplate(PromptType type) async {
     switch (type) {
       case PromptType.training:
@@ -57,9 +57,8 @@ class AnthropicService {
     return out;
   }
 
-  // -------------------- TEK SORU --------------------
+  // -------------------- TEK SORU DEĞERLENDİRME --------------------
   Future<GradeResult> gradeWithTemplate({
-    required String category,
     required Map<String, String> qMeta,
     required String candidateAnswer,
     required PromptType promptType,
@@ -67,10 +66,7 @@ class AnthropicService {
   }) async {
     try {
       final template = await _loadPromptTemplate(promptType);
-
-      const systemPrompt =
-          "You are an expert Computer Science Interwiever.\n"
-          "Return ONLY a valid JSON object. No explanations, no markdown.";
+      const systemPrompt = "You are an expert Computer Science Interviewer.\nOutput ONLY JSON.";
 
       var userContent = _renderTemplate(template, {
         "Question Text": qMeta["Question Text"] ?? "",
@@ -79,7 +75,8 @@ class AnthropicService {
         "candidate_answer_or_choice": candidateAnswer,
       });
 
-      if(promptType == PromptType.mcq){
+      // MCQ özel alanları
+      if (promptType == PromptType.mcq) {
         userContent = _renderTemplate(template, {
           "Question Text": qMeta["Question Text"] ?? "",
           "Question Format": qMeta["Question Format"] ?? "",
@@ -96,123 +93,102 @@ class AnthropicService {
 
       final body = {
         "model": _model,
-        "max_tokens": 800,
+        "max_tokens": 1024,
         "temperature": 0,
         "system": systemPrompt,
         "messages": [
-          {
-            "role": "user",
-            "content": [
-              {"type": "text", "text": userContent}
-            ]
-          }
+          {"role": "user", "content": userContent}
         ]
       };
 
-      final res = await http
-          .post(
-        Uri.parse(_endpoint),
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": _apiKey,
-          "anthropic-version": "2023-06-01",
-        },
-        body: jsonEncode(body),
-      )
-          .timeout(timeout);
-
-      if (res.statusCode < 200 || res.statusCode >= 300) {
-        _handleAnthropicError(res);
-        throw Exception('Anthropic error ${res.statusCode}: ${res.body}');
-      }
-
-      final decoded = jsonDecode(res.body);
-      final contentList = decoded['content'] as List?;
-      final text = contentList?.firstWhere(
-            (e) => e['type'] == 'text',
-        orElse: () => null,
-      )?['text'];
-
-      if (text == null || text.toString().isEmpty) {
-        throw Exception('Anthropic returned empty content');
-      }
+      final res = await _post(body, timeout);
+      final text = _extractTextFromResponse(res);
 
       final parsed = jsonDecode(text);
-      if (parsed is! Map<String, dynamic>) {
-        throw Exception('Anthropic result is not a JSON object');
-      }
+      if (parsed is! Map<String, dynamic>) return GradeResult.fromSafeFallback(text);
 
       switch (promptType) {
-        case PromptType.training:
-          return GradeResultMapper.fromTraining(parsed);
         case PromptType.interview:
           return GradeResultMapper.fromInterview(parsed);
         case PromptType.detailedTraining:
           return GradeResultMapper.fromDetailedTraining(parsed);
-        case PromptType.mcq:
-        case PromptType.fillBlanks:
-        case PromptType.shortAnswer:
-        case PromptType.codeWriting:
+        default:
           return GradeResultMapper.fromTraining(parsed);
       }
     } catch (e) {
-      final msg = e.toString().toLowerCase();
-      if (msg.contains('quota') || msg.contains('rate')) {
-        AiConfig.ANTHROPICoutOfTokenFlag = true;
-      }
-
-      return GradeResult(
-        correct: false,
-        expected: '',
-        reason: 'Anthropic JSON error: $e',
-        score: 0.0,
-      );
+      _handleAnthropicError(e);
+      return GradeResult.fromSafeFallback(e.toString());
     }
   }
 
-  // -------------------- BATCH --------------------
+  // -------------------- BATCH (SINAV) DEĞERLENDİRME --------------------
   Future<List<Map<String, dynamic>>> gradeBatch({
     required String batchId,
     required List<Map<String, dynamic>> items,
-    Duration timeout = const Duration(seconds: 60),
+    required bool hasMCQ,
+    required bool hasFillBlanks,
+    required bool hasShortAnswer,
+    required bool hasCodeWriting,
+    required bool hasBehavioral,
+    Duration timeout = const Duration(seconds: 90),
   }) async {
-    final payload = {
-      "batch_id": batchId,
-      "questions": items,
-      "output_schema": {
-        "type": "array",
-        "items": {
-          "index": "int",
-          "correct": "boolean",
-          "expected": "string",
-          "reason": "string",
-          "score": "number"
+    try {
+      final payload = {
+        "batch_id": batchId,
+        "questions": items,
+        "output_schema": {
+          "type": "array",
+          "items": {
+            "index": "int",
+            "correct": "boolean",
+            "expected": "string",
+            "reason": "string",
+            "score": "number"
+          }
         }
+      };
+
+      var tmpl = await rootBundle.loadString('assets/prompts/ExamBatchEvaluation.txt');
+
+      // Dinamik Bölüm Temizleme
+      if (!hasMCQ) tmpl = _removeSection(tmpl, 'MCQ EVALUATION');
+      if (!hasFillBlanks) {
+        tmpl = _removeSection(tmpl, 'FILL-IN-THE-BLANK (N = 1)');
+        tmpl = _removeSection(tmpl, 'FILL-IN-THE-BLANK (N > 1)');
       }
-    };
+      if (!hasShortAnswer) tmpl = _removeSection(tmpl, 'SHORT ANSWER EVALUATION');
+      if (!hasCodeWriting) tmpl = _removeSection(tmpl, 'CODING EVALUATION');
+      if (!hasBehavioral) tmpl = _removeSection(tmpl, 'BEHAVIORAL (STAR) EVALUATION');
 
-    final tmpl =
-    await rootBundle.loadString('assets/prompts/ExamBatchEvaluation.txt');
-    final userContent =
-    tmpl.replaceFirst('{{BATCH_PAYLOAD_JSON}}', jsonEncode(payload));
+      final userContent = tmpl.replaceFirst('{{BATCH_PAYLOAD_JSON}}', jsonEncode(payload));
 
-    final body = {
-      "model": _model,
-      "max_tokens": 1200,
-      "temperature": 0.2,
-      "system": "Output ONLY a raw JSON array.",
-      "messages": [
-        {
-          "role": "user",
-          "content": [
-            {"type": "text", "text": userContent}
-          ]
-        }
-      ]
-    };
+      final body = {
+        "model": _model,
+        "max_tokens": 4096, // Batch için daha yüksek token limiti
+        "temperature": 0.2,
+        "system": "Output ONLY a raw JSON array. No preamble.",
+        "messages": [
+          {"role": "user", "content": userContent}
+        ]
+      };
 
-    final res = await http
-        .post(
+      final res = await _post(body, timeout);
+      final text = _extractTextFromResponse(res);
+
+      final parsed = jsonDecode(text);
+      if (parsed is! List) throw Exception('Batch result is not a JSON array');
+
+      return (parsed as List).cast<Map<String, dynamic>>();
+    } catch (e) {
+      _handleAnthropicError(e);
+      rethrow;
+    }
+  }
+
+  // -------------------- YARDIMCI METOTLAR --------------------
+
+  Future<http.Response> _post(Map<String, dynamic> body, Duration timeout) async {
+    final res = await http.post(
       Uri.parse(_endpoint),
       headers: {
         "Content-Type": "application/json",
@@ -220,35 +196,55 @@ class AnthropicService {
         "anthropic-version": "2023-06-01",
       },
       body: jsonEncode(body),
-    )
-        .timeout(timeout);
+    ).timeout(timeout);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      _handleAnthropicError(res);
-      throw Exception('Anthropic batch error ${res.statusCode}');
+      _handleStatusError(res);
+      throw Exception('Anthropic error ${res.statusCode}: ${res.body}');
     }
-
-    final decoded = jsonDecode(res.body);
-    final text = decoded['content']?[0]?['text'];
-
-    final parsed = jsonDecode(text);
-    if (parsed is! List) {
-      throw Exception('Anthropic batch result is not a JSON array');
-    }
-
-    return (parsed as List)
-        .map((e) => Map<String, dynamic>.from(e as Map))
-        .toList();
+    return res;
   }
 
-  // -------------------- Error helper --------------------
-  void _handleAnthropicError(http.Response res) {
+  String _extractTextFromResponse(http.Response res) {
+    final decoded = jsonDecode(res.body);
+    final contentList = decoded['content'] as List?;
+    final text = contentList?.firstWhere(
+          (e) => e['type'] == 'text',
+      orElse: () => null,
+    )?['text'];
+
+    if (text == null || text.toString().isEmpty) {
+      throw Exception('Anthropic returned empty content');
+    }
+    return text.toString().trim();
+  }
+
+  static String _removeSection(String prompt, String sectionTitle) {
+    final pattern = RegExp(
+      r'^---\s*' +
+          RegExp.escape(sectionTitle) +
+          r'\s*\n' +
+          r'([\s\S]*?)' +
+          r'(?=^---\s|\Z)',
+      multiLine: true,
+    );
+    return prompt.replaceAll(pattern, '');
+  }
+
+  void _handleStatusError(http.Response res) {
     try {
       final decoded = jsonDecode(res.body);
-      final error = decoded['error']?.toString().toLowerCase() ?? '';
-      if (error.contains('rate') || error.contains('quota')) {
+      final errorType = decoded['error']?['type']?.toString().toLowerCase() ?? '';
+      if (errorType.contains('rate_limit') || errorType.contains('overloaded')) {
         AiConfig.ANTHROPICoutOfTokenFlag = true;
       }
     } catch (_) {}
+  }
+
+  void _handleAnthropicError(Object e) {
+    final msg = e.toString().toLowerCase();
+    if (msg.contains('quota') || msg.contains('rate_limit') || msg.contains('429')) {
+      AiConfig.ANTHROPICoutOfTokenFlag = true;
+    }
   }
 }

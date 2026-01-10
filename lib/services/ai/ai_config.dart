@@ -5,7 +5,8 @@ import 'openai_service.dart' show PromptType;
 enum AiProvider {
   openai,
   gemini,
-  anthropic
+  anthropic,
+  llama
 }
 
 class AiConfig {
