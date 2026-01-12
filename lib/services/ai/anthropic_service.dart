@@ -35,19 +35,26 @@ class AnthropicService {
   static Future<String> _loadPromptTemplate(PromptType type) async {
     switch (type) {
       case PromptType.training:
-        return await rootBundle.loadString('assets/prompts/TrainingAnalysis.txt');
+        return await rootBundle
+            .loadString('assets/prompts/TrainingAnalysis.txt');
       case PromptType.interview:
-        return await rootBundle.loadString('assets/prompts/InterviewAnalysis.txt');
+        return await rootBundle
+            .loadString('assets/prompts/InterviewAnalysis.txt');
       case PromptType.detailedTraining:
-        return await rootBundle.loadString('assets/prompts/TrainingDetailedAnalysis.txt');
+        return await rootBundle
+            .loadString('assets/prompts/TrainingDetailedAnalysis.txt');
       case PromptType.mcq:
-        return await rootBundle.loadString('assets/prompts/MultipleChoiceQuestionTraining.txt');
+        return await rootBundle
+            .loadString('assets/prompts/MultipleChoiceQuestionTraining.yml');
       case PromptType.fillBlanks:
-        return await rootBundle.loadString('assets/prompts/FillInTheBlanksTraining.txt');
+        return await rootBundle
+            .loadString('assets/prompts/FillInTheBlanksTraining.yml');
       case PromptType.shortAnswer:
-        return await rootBundle.loadString('assets/prompts/ShortAnswerTraining.txt');
+        return await rootBundle
+            .loadString('assets/prompts/ShortAnswerTraining.yml');
       case PromptType.codeWriting:
-        return await rootBundle.loadString('assets/prompts/CodeWritingTraining.txt');
+        return await rootBundle
+            .loadString('assets/prompts/CodeWritingTraining.yml');
     }
   }
 
@@ -66,7 +73,8 @@ class AnthropicService {
   }) async {
     try {
       final template = await _loadPromptTemplate(promptType);
-      const systemPrompt = "You are an expert Computer Science Interviewer.\nOutput ONLY JSON.";
+      const systemPrompt =
+          "You are an expert Computer Science Interviewer.\nOutput ONLY JSON.";
 
       var userContent = _renderTemplate(template, {
         "Question Text": qMeta["Question Text"] ?? "",
@@ -105,7 +113,8 @@ class AnthropicService {
       final text = _extractTextFromResponse(res);
 
       final parsed = jsonDecode(text);
-      if (parsed is! Map<String, dynamic>) return GradeResult.fromSafeFallback(text);
+      if (parsed is! Map<String, dynamic>)
+        return GradeResult.fromSafeFallback(text);
 
       switch (promptType) {
         case PromptType.interview:
@@ -148,7 +157,8 @@ class AnthropicService {
         }
       };
 
-      var tmpl = await rootBundle.loadString('assets/prompts/ExamBatchEvaluation.txt');
+      var tmpl =
+          await rootBundle.loadString('assets/prompts/ExamBatchEvaluation.yml');
 
       // Dinamik Bölüm Temizleme
       if (!hasMCQ) tmpl = _removeSection(tmpl, 'MCQ EVALUATION');
@@ -156,11 +166,14 @@ class AnthropicService {
         tmpl = _removeSection(tmpl, 'FILL-IN-THE-BLANK (N = 1)');
         tmpl = _removeSection(tmpl, 'FILL-IN-THE-BLANK (N > 1)');
       }
-      if (!hasShortAnswer) tmpl = _removeSection(tmpl, 'SHORT ANSWER EVALUATION');
+      if (!hasShortAnswer)
+        tmpl = _removeSection(tmpl, 'SHORT ANSWER EVALUATION');
       if (!hasCodeWriting) tmpl = _removeSection(tmpl, 'CODING EVALUATION');
-      if (!hasBehavioral) tmpl = _removeSection(tmpl, 'BEHAVIORAL (STAR) EVALUATION');
+      if (!hasBehavioral)
+        tmpl = _removeSection(tmpl, 'BEHAVIORAL (STAR) EVALUATION');
 
-      final userContent = tmpl.replaceFirst('{{BATCH_PAYLOAD_JSON}}', jsonEncode(payload));
+      final userContent =
+          tmpl.replaceFirst('{{BATCH_PAYLOAD_JSON}}', jsonEncode(payload));
 
       final body = {
         "model": _model,
@@ -187,16 +200,19 @@ class AnthropicService {
 
   // -------------------- YARDIMCI METOTLAR --------------------
 
-  Future<http.Response> _post(Map<String, dynamic> body, Duration timeout) async {
-    final res = await http.post(
-      Uri.parse(_endpoint),
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": _apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: jsonEncode(body),
-    ).timeout(timeout);
+  Future<http.Response> _post(
+      Map<String, dynamic> body, Duration timeout) async {
+    final res = await http
+        .post(
+          Uri.parse(_endpoint),
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": _apiKey,
+            "anthropic-version": "2023-06-01",
+          },
+          body: jsonEncode(body),
+        )
+        .timeout(timeout);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
       _handleStatusError(res);
@@ -209,7 +225,7 @@ class AnthropicService {
     final decoded = jsonDecode(res.body);
     final contentList = decoded['content'] as List?;
     final text = contentList?.firstWhere(
-          (e) => e['type'] == 'text',
+      (e) => e['type'] == 'text',
       orElse: () => null,
     )?['text'];
 
@@ -234,8 +250,10 @@ class AnthropicService {
   void _handleStatusError(http.Response res) {
     try {
       final decoded = jsonDecode(res.body);
-      final errorType = decoded['error']?['type']?.toString().toLowerCase() ?? '';
-      if (errorType.contains('rate_limit') || errorType.contains('overloaded')) {
+      final errorType =
+          decoded['error']?['type']?.toString().toLowerCase() ?? '';
+      if (errorType.contains('rate_limit') ||
+          errorType.contains('overloaded')) {
         AiConfig.ANTHROPICoutOfTokenFlag = true;
       }
     } catch (_) {}
@@ -243,7 +261,9 @@ class AnthropicService {
 
   void _handleAnthropicError(Object e) {
     final msg = e.toString().toLowerCase();
-    if (msg.contains('quota') || msg.contains('rate_limit') || msg.contains('429')) {
+    if (msg.contains('quota') ||
+        msg.contains('rate_limit') ||
+        msg.contains('429')) {
       AiConfig.ANTHROPICoutOfTokenFlag = true;
     }
   }
