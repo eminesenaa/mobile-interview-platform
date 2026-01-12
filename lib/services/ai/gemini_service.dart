@@ -27,19 +27,26 @@ class GeminiService {
   static Future<String> _loadPromptTemplate(PromptType type) async {
     switch (type) {
       case PromptType.training:
-        return await rootBundle.loadString('assets/prompts/TrainingAnalysis.txt');
+        return await rootBundle
+            .loadString('assets/prompts/TrainingAnalysis.txt');
       case PromptType.interview:
-        return await rootBundle.loadString('assets/prompts/InterviewAnalysis.txt');
+        return await rootBundle
+            .loadString('assets/prompts/InterviewAnalysis.txt');
       case PromptType.detailedTraining:
-        return await rootBundle.loadString('assets/prompts/TrainingDetailedAnalysis.txt');
+        return await rootBundle
+            .loadString('assets/prompts/TrainingDetailedAnalysis.txt');
       case PromptType.mcq:
-        return await rootBundle.loadString('assets/prompts/MultipleChoiceQuestionTraining.txt');
+        return await rootBundle
+            .loadString('assets/prompts/MultipleChoiceQuestionTraining.yml');
       case PromptType.fillBlanks:
-        return await rootBundle.loadString('assets/prompts/FillInTheBlanksTraining.txt');
+        return await rootBundle
+            .loadString('assets/prompts/FillInTheBlanksTraining.yml');
       case PromptType.shortAnswer:
-        return await rootBundle.loadString('assets/prompts/ShortAnswerTraining.txt');
+        return await rootBundle
+            .loadString('assets/prompts/ShortAnswerTraining.yml');
       case PromptType.codeWriting:
-        return await rootBundle.loadString('assets/prompts/CodeWritingTraining.txt');
+        return await rootBundle
+            .loadString('assets/prompts/CodeWritingTraining.yml');
     }
   }
 
@@ -102,7 +109,8 @@ class GeminiService {
       if (text.isEmpty) return GradeResult.fromSafeFallback("Empty response");
 
       final parsed = jsonDecode(text);
-      if (parsed is! Map<String, dynamic>) return GradeResult.fromSafeFallback(text);
+      if (parsed is! Map<String, dynamic>)
+        return GradeResult.fromSafeFallback(text);
 
       // Mapper kullanımı
       switch (promptType) {
@@ -146,7 +154,8 @@ class GeminiService {
         }
       };
 
-      var tmpl = await rootBundle.loadString('assets/prompts/ExamBatchEvaluation.txt');
+      var tmpl =
+          await rootBundle.loadString('assets/prompts/ExamBatchEvaluation.yml');
 
       // OpenAI'dan kopyalanan dinamik bölüm temizleme mantığı
       if (!hasMCQ) tmpl = _removeSection(tmpl, 'MCQ EVALUATION');
@@ -154,11 +163,14 @@ class GeminiService {
         tmpl = _removeSection(tmpl, 'FILL-IN-THE-BLANK (N = 1)');
         tmpl = _removeSection(tmpl, 'FILL-IN-THE-BLANK (N > 1)');
       }
-      if (!hasShortAnswer) tmpl = _removeSection(tmpl, 'SHORT ANSWER EVALUATION');
+      if (!hasShortAnswer)
+        tmpl = _removeSection(tmpl, 'SHORT ANSWER EVALUATION');
       if (!hasCodeWriting) tmpl = _removeSection(tmpl, 'CODING EVALUATION');
-      if (!hasBehavioral) tmpl = _removeSection(tmpl, 'BEHAVIORAL (STAR) EVALUATION');
+      if (!hasBehavioral)
+        tmpl = _removeSection(tmpl, 'BEHAVIORAL (STAR) EVALUATION');
 
-      final userContent = tmpl.replaceFirst('{{BATCH_PAYLOAD_JSON}}', jsonEncode(payload));
+      final userContent =
+          tmpl.replaceFirst('{{BATCH_PAYLOAD_JSON}}', jsonEncode(payload));
 
       final model = GenerativeModel(
         model: _modelName,

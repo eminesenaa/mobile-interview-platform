@@ -34,19 +34,26 @@ class LlamaService {
   static Future<String> _loadPromptTemplate(PromptType type) async {
     switch (type) {
       case PromptType.training:
-        return await rootBundle.loadString('assets/prompts/TrainingAnalysis.txt');
+        return await rootBundle
+            .loadString('assets/prompts/TrainingAnalysis.txt');
       case PromptType.interview:
-        return await rootBundle.loadString('assets/prompts/InterviewAnalysis.txt');
+        return await rootBundle
+            .loadString('assets/prompts/InterviewAnalysis.txt');
       case PromptType.detailedTraining:
-        return await rootBundle.loadString('assets/prompts/TrainingDetailedAnalysis.txt');
+        return await rootBundle
+            .loadString('assets/prompts/TrainingDetailedAnalysis.txt');
       case PromptType.mcq:
-        return await rootBundle.loadString('assets/prompts/MultipleChoiceQuestionTraining.txt');
+        return await rootBundle
+            .loadString('assets/prompts/MultipleChoiceQuestionTraining.yml');
       case PromptType.fillBlanks:
-        return await rootBundle.loadString('assets/prompts/FillInTheBlanksTraining.txt');
+        return await rootBundle
+            .loadString('assets/prompts/FillInTheBlanksTraining.yml');
       case PromptType.shortAnswer:
-        return await rootBundle.loadString('assets/prompts/ShortAnswerTraining.txt');
+        return await rootBundle
+            .loadString('assets/prompts/ShortAnswerTraining.yml');
       case PromptType.codeWriting:
-        return await rootBundle.loadString('assets/prompts/CodeWritingTraining.txt');
+        return await rootBundle
+            .loadString('assets/prompts/CodeWritingTraining.yml');
     }
   }
 
@@ -65,7 +72,8 @@ class LlamaService {
   }) async {
     try {
       final template = await _loadPromptTemplate(promptType);
-      const systemRole = "You are an expert Computer Science Interviewer. Return ONLY a valid JSON object.";
+      const systemRole =
+          "You are an expert Computer Science Interviewer. Return ONLY a valid JSON object.";
 
       var userContent = _renderTemplate(template, {
         "Question Text": qMeta["Question Text"] ?? "",
@@ -104,10 +112,12 @@ class LlamaService {
       final decoded = jsonDecode(res.body);
       final content = decoded['choices']?[0]?['message']?['content'];
 
-      if (content == null) return GradeResult.fromSafeFallback("Empty response content");
+      if (content == null)
+        return GradeResult.fromSafeFallback("Empty response content");
 
       final parsed = jsonDecode(content);
-      if (parsed is! Map<String, dynamic>) return GradeResult.fromSafeFallback(content);
+      if (parsed is! Map<String, dynamic>)
+        return GradeResult.fromSafeFallback(content);
 
       switch (promptType) {
         case PromptType.interview:
@@ -150,7 +160,8 @@ class LlamaService {
         }
       };
 
-      var tmpl = await rootBundle.loadString('assets/prompts/ExamBatchEvaluation.txt');
+      var tmpl =
+          await rootBundle.loadString('assets/prompts/ExamBatchEvaluation.yml');
 
       // Dinamik Bölüm Temizleme
       if (!hasMCQ) tmpl = _removeSection(tmpl, 'MCQ EVALUATION');
@@ -158,11 +169,14 @@ class LlamaService {
         tmpl = _removeSection(tmpl, 'FILL-IN-THE-BLANK (N = 1)');
         tmpl = _removeSection(tmpl, 'FILL-IN-THE-BLANK (N > 1)');
       }
-      if (!hasShortAnswer) tmpl = _removeSection(tmpl, 'SHORT ANSWER EVALUATION');
+      if (!hasShortAnswer)
+        tmpl = _removeSection(tmpl, 'SHORT ANSWER EVALUATION');
       if (!hasCodeWriting) tmpl = _removeSection(tmpl, 'CODING EVALUATION');
-      if (!hasBehavioral) tmpl = _removeSection(tmpl, 'BEHAVIORAL (STAR) EVALUATION');
+      if (!hasBehavioral)
+        tmpl = _removeSection(tmpl, 'BEHAVIORAL (STAR) EVALUATION');
 
-      final userContent = tmpl.replaceFirst('{{BATCH_PAYLOAD_JSON}}', jsonEncode(payload));
+      final userContent =
+          tmpl.replaceFirst('{{BATCH_PAYLOAD_JSON}}', jsonEncode(payload));
 
       final body = {
         "model": _model,
@@ -189,15 +203,18 @@ class LlamaService {
 
   // -------------------- YARDIMCI METOTLAR --------------------
 
-  Future<http.Response> _post(Map<String, dynamic> body, Duration timeout) async {
-    final res = await http.post(
-      Uri.parse(_endpoint),
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $_apiKey",
-      },
-      body: jsonEncode(body),
-    ).timeout(timeout);
+  Future<http.Response> _post(
+      Map<String, dynamic> body, Duration timeout) async {
+    final res = await http
+        .post(
+          Uri.parse(_endpoint),
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer $_apiKey",
+          },
+          body: jsonEncode(body),
+        )
+        .timeout(timeout);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
       _handleHttpError(res);
@@ -221,10 +238,14 @@ class LlamaService {
   void _handleHttpError(http.Response res) {
     try {
       final decoded = jsonDecode(res.body);
-      final errorMsg = decoded['error']?['message']?.toString().toLowerCase() ?? '';
-      final errorType = decoded['error']?['type']?.toString().toLowerCase() ?? '';
+      final errorMsg =
+          decoded['error']?['message']?.toString().toLowerCase() ?? '';
+      final errorType =
+          decoded['error']?['type']?.toString().toLowerCase() ?? '';
 
-      if (errorMsg.contains('rate') || errorType.contains('rate') || res.statusCode == 429) {
+      if (errorMsg.contains('rate') ||
+          errorType.contains('rate') ||
+          res.statusCode == 429) {
         AiConfig.LLAMAoutOfTokenFlag = true;
       }
     } catch (_) {}
