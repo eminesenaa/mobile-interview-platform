@@ -1,34 +1,33 @@
-// lib/services/ai/anthropic_service.dart
+// lib/services/ai/llama_service.dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/services.dart' show rootBundle;
-
 import 'ai_config.dart';
 import 'openai_service.dart' show PromptType, GradeResult, GradeResultMapper;
 
-class AnthropicService {
-  static const _endpoint = 'https://api.anthropic.com/v1/messages';
-  static const _defaultModel = 'claude-3-5-sonnet-20240620';
+class LlamaService {
+  static const _endpoint = 'https://api.groq.com/openai/v1/chat/completions';
+  static const _defaultModel = 'llama-3.1-70b-versatile';
 
   final String _apiKey;
   final String _model;
 
-  AnthropicService._internal(this._apiKey, this._model);
+  LlamaService._internal(this._apiKey, this._model);
 
-  factory AnthropicService({
+  factory LlamaService({
     String? apiKey,
     String? model,
   }) {
-    final resolvedKey = apiKey ?? dotenv.env['ANTHROPIC_API_KEY'];
+    final resolvedKey = apiKey ?? dotenv.env['GROQ_API_KEY'];
     final resolvedModel = model ?? _defaultModel;
 
     if (resolvedKey == null || resolvedKey.isEmpty) {
-      throw Exception('ANTHROPIC_API_KEY is missing');
+      throw Exception('GROQ_API_KEY is missing');
     }
 
-    return AnthropicService._internal(resolvedKey, resolvedModel);
+    return LlamaService._internal(resolvedKey, resolvedModel);
   }
 
   // -------------------- Prompt Yükleme --------------------
@@ -73,8 +72,8 @@ class AnthropicService {
   }) async {
     try {
       final template = await _loadPromptTemplate(promptType);
-      const systemPrompt =
-          "You are an expert Computer Science Interviewer.\nOutput ONLY JSON.";
+      const systemRole =
+          "You are an expert Computer Science Interviewer. Return ONLY a valid JSON object.";
 
       var userContent = _renderTemplate(template, {
         "Question Text": qMeta["Question Text"] ?? "",
@@ -101,20 +100,24 @@ class AnthropicService {
 
       final body = {
         "model": _model,
-        "max_tokens": 1024,
         "temperature": 0,
-        "system": systemPrompt,
+        "response_format": {"type": "json_object"},
         "messages": [
-          {"role": "user", "content": userContent}
-        ]
+          {"role": "system", "content": systemRole},
+          {"role": "user", "content": userContent},
+        ],
       };
 
       final res = await _post(body, timeout);
-      final text = _extractTextFromResponse(res);
+      final decoded = jsonDecode(res.body);
+      final content = decoded['choices']?[0]?['message']?['content'];
 
-      final parsed = jsonDecode(text);
+      if (content == null)
+        return GradeResult.fromSafeFallback("Empty response content");
+
+      final parsed = jsonDecode(content);
       if (parsed is! Map<String, dynamic>)
-        return GradeResult.fromSafeFallback(text);
+        return GradeResult.fromSafeFallback(content);
 
       switch (promptType) {
         case PromptType.interview:
@@ -125,7 +128,7 @@ class AnthropicService {
           return GradeResultMapper.fromTraining(parsed);
       }
     } catch (e) {
-      _handleAnthropicError(e);
+      _handleException(e);
       return GradeResult.fromSafeFallback(e.toString());
     }
   }
@@ -139,7 +142,7 @@ class AnthropicService {
     required bool hasShortAnswer,
     required bool hasCodeWriting,
     required bool hasBehavioral,
-    Duration timeout = const Duration(seconds: 90),
+    Duration timeout = const Duration(seconds: 60),
   }) async {
     try {
       final payload = {
@@ -177,23 +180,23 @@ class AnthropicService {
 
       final body = {
         "model": _model,
-        "max_tokens": 4096, // Batch için daha yüksek token limiti
         "temperature": 0.2,
-        "system": "Output ONLY a raw JSON array. No preamble.",
         "messages": [
-          {"role": "user", "content": userContent}
-        ]
+          {"role": "system", "content": "Output ONLY a raw JSON array."},
+          {"role": "user", "content": userContent},
+        ],
       };
 
       final res = await _post(body, timeout);
-      final text = _extractTextFromResponse(res);
+      final decoded = jsonDecode(res.body);
+      final content = decoded['choices']?[0]?['message']?['content'];
 
-      final parsed = jsonDecode(text);
+      final parsed = jsonDecode(content);
       if (parsed is! List) throw Exception('Batch result is not a JSON array');
 
       return (parsed as List).cast<Map<String, dynamic>>();
     } catch (e) {
-      _handleAnthropicError(e);
+      _handleException(e);
       rethrow;
     }
   }
@@ -207,32 +210,17 @@ class AnthropicService {
           Uri.parse(_endpoint),
           headers: {
             "Content-Type": "application/json",
-            "x-api-key": _apiKey,
-            "anthropic-version": "2023-06-01",
+            "Authorization": "Bearer $_apiKey",
           },
           body: jsonEncode(body),
         )
         .timeout(timeout);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      _handleStatusError(res);
-      throw Exception('Anthropic error ${res.statusCode}: ${res.body}');
+      _handleHttpError(res);
+      throw Exception('Groq error ${res.statusCode}: ${res.body}');
     }
     return res;
-  }
-
-  String _extractTextFromResponse(http.Response res) {
-    final decoded = jsonDecode(res.body);
-    final contentList = decoded['content'] as List?;
-    final text = contentList?.firstWhere(
-      (e) => e['type'] == 'text',
-      orElse: () => null,
-    )?['text'];
-
-    if (text == null || text.toString().isEmpty) {
-      throw Exception('Anthropic returned empty content');
-    }
-    return text.toString().trim();
   }
 
   static String _removeSection(String prompt, String sectionTitle) {
@@ -247,24 +235,26 @@ class AnthropicService {
     return prompt.replaceAll(pattern, '');
   }
 
-  void _handleStatusError(http.Response res) {
+  void _handleHttpError(http.Response res) {
     try {
       final decoded = jsonDecode(res.body);
+      final errorMsg =
+          decoded['error']?['message']?.toString().toLowerCase() ?? '';
       final errorType =
           decoded['error']?['type']?.toString().toLowerCase() ?? '';
-      if (errorType.contains('rate_limit') ||
-          errorType.contains('overloaded')) {
-        AiConfig.ANTHROPICoutOfTokenFlag = true;
+
+      if (errorMsg.contains('rate') ||
+          errorType.contains('rate') ||
+          res.statusCode == 429) {
+        AiConfig.LLAMAoutOfTokenFlag = true;
       }
     } catch (_) {}
   }
 
-  void _handleAnthropicError(Object e) {
+  void _handleException(Object e) {
     final msg = e.toString().toLowerCase();
-    if (msg.contains('quota') ||
-        msg.contains('rate_limit') ||
-        msg.contains('429')) {
-      AiConfig.ANTHROPICoutOfTokenFlag = true;
+    if (msg.contains('rate') || msg.contains('quota') || msg.contains('429')) {
+      AiConfig.LLAMAoutOfTokenFlag = true;
     }
   }
 }

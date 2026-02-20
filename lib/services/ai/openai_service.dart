@@ -47,7 +47,6 @@ class GradeResult {
 }
 
 class GradeResultMapper {
-
   static GradeResult fromTraining(Map<String, dynamic> json) {
     print(json['explaination']);
     return GradeResult(
@@ -56,12 +55,9 @@ class GradeResultMapper {
       reason: json['explanation']?.toString() ?? "",
       score: (json['score'] is num) ? (json['score'] as num).toDouble() : 0.0,
     );
-
-
   }
 
   static GradeResult fromInterview(Map<String, dynamic> json) {
-
     final subscores = json['subscores'] ?? {};
     final correctness = (subscores['correctness'] ?? 0) as num;
     final decision = json['decision']?.toString() ?? '';
@@ -76,11 +72,9 @@ class GradeResultMapper {
           ? (json['overall_score'] as num).toDouble()
           : 0.0,
     );
-
   }
 
   static GradeResult fromDetailedTraining(Map<String, dynamic> json) {
-
     final subscores = json['subscores'] ?? {};
     final correctness = (subscores['correctness'] ?? 0) as num;
     final decision = json['decision']?.toString() ?? '';
@@ -96,12 +90,10 @@ class GradeResultMapper {
           ? (json['overall_score'] as num).toDouble()
           : 0.0,
     );
-
   }
 }
 
 class OpenAIService {
-
   static final _apiKey = dotenv.env['OPENAI_API_KEY'];
   static const _endpoint = 'https://api.openai.com/v1/chat/completions';
   static const _model = 'gpt-4.1';
@@ -121,19 +113,19 @@ class OpenAIService {
       case PromptType.mcq:
         print("MCQ Promptu Kullanılacak");
         return await rootBundle
-            .loadString('assets/prompts/MultipleChoiceQuestionTraining.txt');
+            .loadString('assets/prompts/MultipleChoiceQuestionTraining.yml');
       case PromptType.fillBlanks:
         print("Fill in the blanks Promptu Kullanılacak");
         return await rootBundle
-            .loadString('assets/prompts/FillInTheBlanksTraining.txt');
+            .loadString('assets/prompts/FillInTheBlanksTraining.yml');
       case PromptType.shortAnswer:
         print("Short Answer Promptu Kullanılacak");
         return await rootBundle
-            .loadString('assets/prompts/ShortAnswerTraining.txt');
+            .loadString('assets/prompts/ShortAnswerTraining.yml');
       case PromptType.codeWriting:
         print("Code Writing Promptu Kullanılacak");
         return await rootBundle
-            .loadString('assets/prompts/CodeWritingTraining.txt');
+            .loadString('assets/prompts/CodeWritingTraining.yml');
     }
   }
 
@@ -148,15 +140,10 @@ class OpenAIService {
   }
 
   static Future<GradeResult> gradeWithTemplate(
-
-      {
-      required Map<String, String> qMeta,
+      {required Map<String, String> qMeta,
       required String candidateAnswer,
       Duration timeout = const Duration(seconds: 60),
-      required PromptType promptType}
-
-    ) async {
-
+      required PromptType promptType}) async {
     final template = await _loadPromptTemplate(promptType);
     const systemRole = "You are an expert Computer Science Interwiever";
 
@@ -167,7 +154,7 @@ class OpenAIService {
       "candidate_answer_or_choice": candidateAnswer,
     });
 
-    if(promptType == PromptType.mcq){
+    if (promptType == PromptType.mcq) {
       userContent = _renderTemplate(template, {
         "Question Text": qMeta["Question Text"] ?? "",
         "Question Format": qMeta["Question Format"] ?? "",
@@ -205,6 +192,11 @@ class OpenAIService {
     required String batchId,
     required List<Map<String, dynamic>>
         items, // { index, meta, user_answer, topic }
+    required bool hasMCQ,
+    required bool hasFillBlanks,
+    required bool hasShortAnswer,
+    required bool hasCodeWriting,
+    required bool hasBehavioral,
     Duration timeout = const Duration(seconds: 60),
   }) async {
     // 1) Batch payload
@@ -224,8 +216,36 @@ class OpenAIService {
     };
 
     // 2) Prompt dosyasını oku ve payload'ı göm
-    final tmpl =
-        await rootBundle.loadString('assets/prompts/ExamBatchEvaluation.txt');
+    var tmpl =
+        await rootBundle.loadString('assets/prompts/ExamBatchEvaluation.yml');
+
+    print("hasMCQ: $hasMCQ");
+    print("hasFillBlanks: $hasFillBlanks");
+    print("hasShortAnswer: $hasShortAnswer");
+    print("hasCodeWriting: $hasCodeWriting");
+    print("hasBehavioral: $hasBehavioral");
+
+    if (!hasMCQ) {
+      tmpl = _removeSection(tmpl, 'MCQ EVALUATION');
+    }
+
+    if (!hasFillBlanks) {
+      tmpl = _removeSection(tmpl, 'FILL-IN-THE-BLANK (N = 1)');
+      tmpl = _removeSection(tmpl, 'FILL-IN-THE-BLANK (N > 1)');
+    }
+
+    if (!hasShortAnswer) {
+      tmpl = _removeSection(tmpl, 'SHORT ANSWER EVALUATION');
+    }
+
+    if (!hasCodeWriting) {
+      tmpl = _removeSection(tmpl, 'CODING EVALUATION');
+    }
+
+    if (!hasBehavioral) {
+      tmpl = _removeSection(tmpl, 'BEHAVIORAL (STAR) EVALUATION');
+    }
+
     final userContent =
         tmpl.replaceFirst('{{BATCH_PAYLOAD_JSON}}', jsonEncode(payload));
 
@@ -239,13 +259,20 @@ class OpenAIService {
       ],
     };
 
+    //print("Exam olarak GPT'ye giden:");
+    debugPrint(userContent, wrapWidth: 10000);
+
     final res = await _post(body, timeout: timeout);
+
+    //print("Exam cevabı:");
+    debugPrint(res.body, wrapWidth: 10000);
 
     // 4) Parse: content bir JSON array olmalı
     final outer = jsonDecode(res.body);
     final content = outer['choices']?[0]?['message']?['content'];
-    if (content == null)
+    if (content == null) {
       throw Exception("OpenAI returned empty content for batch.");
+    }
 
     final parsed = jsonDecode(content);
     if (parsed is! List) throw Exception("Batch result is not a JSON array.");
@@ -301,7 +328,7 @@ class OpenAIService {
       if (content == null) return GradeResult.fromSafeFallback(raw);
 
       final parsed = jsonDecode(content);
-      if (parsed is! Map<String, dynamic>){
+      if (parsed is! Map<String, dynamic>) {
         return GradeResult.fromSafeFallback(content);
       }
 
@@ -324,5 +351,18 @@ class OpenAIService {
     } catch (_) {
       return GradeResult.fromSafeFallback(raw);
     }
+  }
+
+  static String _removeSection(String prompt, String sectionTitle) {
+    final pattern = RegExp(
+      r'^---\s*' +
+          RegExp.escape(sectionTitle) +
+          r'\s*\n' + // section header
+          r'([\s\S]*?)' + // section body (non-greedy)
+          r'(?=^---\s|\Z)', // next section or EOF
+      multiLine: true,
+    );
+
+    return prompt.replaceAll(pattern, '');
   }
 }

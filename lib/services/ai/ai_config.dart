@@ -5,7 +5,8 @@ import 'openai_service.dart' show PromptType;
 enum AiProvider {
   openai,
   gemini,
-  anthropic
+  anthropic,
+  llama
 }
 
 class AiConfig {
@@ -14,13 +15,14 @@ class AiConfig {
   static bool OPENAIoutOfTokenFlag = false;
   static bool GEMINIoutOfTokenFlag = false;
   static bool ANTHROPICoutOfTokenFlag = false;
+  static bool LLAMAoutOfTokenFlag = false;
 
   /// Varsayılan prompt tipi
   static const PromptType defaultPromptType = PromptType.training;
 
   static AiProvider chooseModel({String? questionType}) {
 
-    if(OPENAIoutOfTokenFlag || GEMINIoutOfTokenFlag || ANTHROPICoutOfTokenFlag){
+    if(OPENAIoutOfTokenFlag || GEMINIoutOfTokenFlag || ANTHROPICoutOfTokenFlag || LLAMAoutOfTokenFlag){
       // !!! BİRİNİN TOKENI BİTTİ !!!
 
       if(OPENAIoutOfTokenFlag == false) {
