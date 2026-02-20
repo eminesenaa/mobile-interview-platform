@@ -280,26 +280,26 @@ class PracticeController extends GetxController {
     if (userId == null) return;
 
     try {
+      // Firebase'den tüm modül ilerlemelerini çekiyoruz
       final progressList = await _progressService.getAllProgressForUser(userId);
 
-      // Map'leri doldur
       for (var p in progressList) {
+        // 1. Modül özetini (Progress Bar için) kaydet
         userProgressMap[p.moduleId] = p;
         
-        // Eğer detaylı soru listesini de çekiyorsak buraya ekleyebiliriz
-        // Şimdilik sadece modül bazlı genel ilerlemeyi alıyoruz
-        // Soru bazlı tikler için 'completedQuestionIdsByModule' zaten UI tarafında
-        // detay sayfasına girince dolacak veya ayrıca bir servis çağrısı yapılabilir.
-        // Ancak TrainingProgressService şu an sadece summary dönüyor olabilir.
-        // Detaylar için o servisin içindeki 'questions' array'ini de parse etmek gerekebilir.
-        // Şimdilik basit tutuyoruz.
+        // 2. 🔥 TİK İŞARETLERİ İÇİN: 
+        // Modelin içindeki 'solvedQuestionIds' listesini Set olarak aktar
+        if (p.solvedQuestionIds.isNotEmpty) {
+          completedQuestionIdsByModule[p.moduleId] = p.solvedQuestionIds.toSet();
+        }
       }
-      update(); // GetX update
+      
+      update(); // GetX arayüzü yenile
+      debugPrint('[Progress] Tik işaretleri ve ilerleme başarıyla yüklendi.');
     } catch (e) {
-      debugPrint("Error loading user progress: $e");
+      debugPrint("Progress yükleme hatası: $e");
     }
   }
-
   /// Bir soru çözüldüğünde çağrılır (Training Mode)
   Future<void> markModuleQuestionCompleted(String moduleId, String questionId) async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
