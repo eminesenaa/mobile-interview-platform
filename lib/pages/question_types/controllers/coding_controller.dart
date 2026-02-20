@@ -10,6 +10,7 @@ import '../services/solve_service.dart';
 import '../../runner/controller/question_runner_controller.dart';
 import 'package:interview_project/utils/code_template_sanitizer.dart';
 import 'package:interview_project/utils/language_mapper.dart';
+import 'package:interview_project/services/sfx/sound_service.dart';
 
 class CodingController extends GetxController {
   final Question question;
@@ -106,6 +107,13 @@ class CodingController extends GetxController {
       );
 
       aiMeta.value = res;
+
+      // 🔊 Play sound based on result
+      if (res.correct) {
+        SoundService.play(SoundEffect.correctAnswer);
+      } else {
+        SoundService.play(SoundEffect.wrongAnswer);
+      }
 
       // XP hesaplama
       final score = (res.score ?? 0).toInt();

@@ -64,6 +64,7 @@ dependencies:
   flutter_dotenv: ^5.1.0
   loading_animation_widget: ^1.3.0
   step_progress_indicator: ^1.0.2
+  audioplayers: ^6.1.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -106,6 +107,7 @@ flutter:
   assets:
     - assets/images/
     - assets/prompts/
+    - assets/sfx/
     - .env
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

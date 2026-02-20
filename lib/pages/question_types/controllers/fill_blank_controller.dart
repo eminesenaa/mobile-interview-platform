@@ -6,6 +6,7 @@ import 'package:interview_project/services/ai/ai_service.dart';
 import '../services/xp_service.dart';
 import '../services/solve_service.dart';
 import '../../runner/controller/question_runner_controller.dart';
+import 'package:interview_project/services/sfx/sound_service.dart';
 
 /// =======================================================
 ///  FILL IN BLANK CONTROLLER
@@ -151,6 +152,13 @@ class FillBlankController extends GetxController {
       );
 
       aiMeta.value = res;
+
+      // 🔊 Play sound based on result
+      if (res.correct) {
+        SoundService.play(SoundEffect.correctAnswer);
+      } else {
+        SoundService.play(SoundEffect.wrongAnswer);
+      }
 
       // XP calculation (MCQ ile birebir aynı)
       final score = (res.score ?? 0).toInt();
