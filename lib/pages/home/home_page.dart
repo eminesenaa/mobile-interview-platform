@@ -10,6 +10,7 @@ import 'package:interview_project/controllers/progress_controller.dart';
 import 'package:interview_project/pages/home/widgets/duel_entry_card.dart';
 import 'package:interview_project/pages/home/widgets/leaderboard_card.dart';
 import 'package:interview_project/pages/home/widgets/progress_summary_card.dart';
+import '../duello/duel_type_page.dart';
 import 'controllers/home_controller.dart';
 import 'leaderboard_page.dart';
 import 'widgets/streak_card.dart';
@@ -78,7 +79,11 @@ class HomePage extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: AppSpacing.lg),
                     child: DuelEntryCard(
                       onTap: () {
-                        // TODO: Navigate to Duel Type Selection Page
+                        Get.to(
+                          () => const DuelTypePage(),
+                          transition: Transition.rightToLeft,
+                          duration: const Duration(milliseconds: 300),
+                        );
                       },
                     ),
                   ),
