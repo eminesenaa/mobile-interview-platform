@@ -5,6 +5,7 @@
 
 import 'package:interview_project/models/progress.dart';
 import 'package:interview_project/models/user_library.dart';
+import '../utils/level_calculator.dart';
 import 'streak.dart';
 
 class User {
@@ -33,7 +34,8 @@ class User {
 
   /// 🔹 Yeni eklenen alanlar
   final int totalXp;
-  final int level;
+
+  // final int level;
   final List<String> savedQuestions;
   final Map<String, dynamic> progress; // soru türü bazlı ilerleme
 
@@ -56,7 +58,7 @@ class User {
     this.cvUrl,
     this.phoneNumber,
     this.totalXp = 0,
-    this.level = 1,
+    // this.level = 1,
     this.savedQuestions = const [],
     this.progress = const {},
   });
@@ -81,7 +83,7 @@ class User {
         //Streak.empty(timezone: timezone)
         librarySummary: UserLibrary.empty(),
         totalXp: 0,
-        level: 1,
+        // level: 1,
         savedQuestions: const [],
         progress: const {},
       );
@@ -114,7 +116,7 @@ class User {
 
         /// 🔹 yeni alanlar
         totalXp: json['totalXp'] ?? 0,
-        level: json['level'] ?? 1,
+        // level: json['level'] ?? 1,
         savedQuestions: List<String>.from(json['savedQuestions'] ?? []),
         progress: json['progress'] ?? {},
       );
@@ -140,7 +142,7 @@ class User {
 
         /// 🔹 yeni alanlar
         'totalXp': totalXp,
-        'level': level,
+        // 'level': level,
         'savedQuestions': savedQuestions,
         'progress': progress,
       };
@@ -181,7 +183,7 @@ class User {
         streak: streak ?? this.streak,
         librarySummary: librarySummary ?? this.librarySummary,
         totalXp: totalXp ?? this.totalXp,
-        level: level ?? this.level,
+        // level: level ?? this.level,
         savedQuestions: savedQuestions ?? this.savedQuestions,
         progress: progress ?? this.progress,
         role: role ?? this.role,
@@ -191,4 +193,7 @@ class User {
         githubUrl: githubUrl ?? this.githubUrl,
         cvUrl: cvUrl ?? this.cvUrl,
       );
+
+  /// 🔹 Level artık XP üzerinden hesaplanır (stored değil computed)
+  int get level => LevelCalculator.calculate(totalXp);
 }

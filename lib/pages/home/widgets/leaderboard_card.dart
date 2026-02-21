@@ -25,11 +25,8 @@ class LeaderboardCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.md,
-        0,
+      margin: const EdgeInsets.only(
+        top: AppSpacing.md,
       ),
       decoration: BoxDecoration(
         color: AppColors.surface,
