@@ -36,6 +36,25 @@
 //  Release resources on app exit:
 //    SoundService.dispose();
 //
+//  Reinitialize after dispose (e.g. after login/logout cycle):
+//    SoundService.reinitialize();
+//
+//  Persist user preferences to disk:
+//    await SoundService.persistPreferences();
+//
+//  Load saved preferences on startup:
+//    await SoundService.loadPreferences();
+//
+//  Pre-cache all sound assets to avoid first-play stutter:
+//    await SoundService.warmUp();
+//
+//  Play a looping sound (e.g. ambient, heartbeat):
+//    await SoundService.playLooping(SoundEffect.timerWarning);
+//    await SoundService.stopLoop();
+//
+//  Mute / unmute an entire sound category:
+//    SoundService.setCategoryEnabled(SoundCategory.feedback, false);
+//
 // -------------- IMPORTANT NOTES ---------------
 //
 //  - Sound files MUST be in .mp3 format for cross-platform compatibility.
@@ -46,9 +65,8 @@
 //
 //  - File names must NOT contain Turkish characters or spaces. Use underscores.
 //
-//  - The service uses a single shared AudioPlayer instance. Rapid successive
-//    calls will stop the previous sound before starting the next one.
-//    If you need overlapping sounds, create a separate AudioPlayer per effect.
+//  - The service uses an audio pool (default: 4 players) to support overlapping
+//    sounds. Rapid successive calls no longer cut off previous audio.
 //
 //  - Cooldown is enforced per SoundEffect to prevent event-spam (e.g. a timer
 //    tick firing every 100 ms). Default cooldown is 80 ms.
@@ -60,13 +78,43 @@
 //    at the moment they are dequeued, not when they were originally enqueued.
 //
 //  - Haptic feedback is best-effort. Unsupported platforms silently ignore it.
+//
+//  - User preferences (enabled, volume, haptic) are persisted via
+//    SharedPreferences. Call [loadPreferences] once at app startup and
+//    [persistPreferences] whenever you change a setting.
 
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-// Haptic Pattern
+// ──────────────────────────────────────────────
+//  Sound Category
+// ──────────────────────────────────────────────
+
+/// Logical grouping for sound effects.
+/// Use [SoundService.setCategoryEnabled] to mute / unmute an entire category
+/// without touching individual effect configs.
+enum SoundCategory {
+  /// Short UI interaction sounds (button taps, swipes, toggles).
+  ui,
+
+  /// Result-oriented feedback (correct / wrong answer, achievement).
+  feedback,
+
+  /// Ambient or atmospheric loops (heartbeat countdown, background hum).
+  ambient,
+
+  /// Alerts and notifications (timer warning, error tone).
+  notification,
+}
+
+// ──────────────────────────────────────────────
+//  Haptic Pattern
+// ──────────────────────────────────────────────
 
 /// Vibration intensity played alongside a sound effect.
 enum HapticPattern {
@@ -79,7 +127,9 @@ enum HapticPattern {
   tripleAscending,
 }
 
-// Fade Curve
+// ──────────────────────────────────────────────
+//  Fade Curve
+// ──────────────────────────────────────────────
 
 /// Volume ramp shape applied during fade-in / fade-out operations.
 enum FadeCurve {
@@ -89,20 +139,26 @@ enum FadeCurve {
   easeInOut,
 }
 
-// Configuration
+// ──────────────────────────────────────────────
+//  Configuration
+// ──────────────────────────────────────────────
 
-/// Pass an instance of [SoundConfig] to [SoundService.configure] to override per-effect settings, or set the master volume via [SoundService.setVolume].\
+/// Pass an instance of [SoundConfig] to [SoundService.configure] to override
+/// per-effect settings, or set the master volume via [SoundService.setVolume].
 
 class SoundConfig {
 
   /// Audio playback volume for this particular effect (0.0 – 1.0).
   final double volume;
 
-  /// Minimum milliseconds that must elapse between two consecutive plays of the same [SoundEffect]. Calls arriving sooner than this threshold are silently dropped. Useful for rapid-fire events like button taps.
+  /// Minimum milliseconds that must elapse between two consecutive plays of
+  /// the same [SoundEffect]. Calls arriving sooner than this threshold are
+  /// silently dropped. Useful for rapid-fire events like button taps.
   final int cooldownMs;
 
   /// Whether this specific effect is enabled, regardless of the global toggle.
   /// Set to [false] to permanently silence a single effect without touching
+  /// any other configuration.
   final bool effectEnabled;
 
   /// Duration of the fade-in ramp used by [SoundService.playWithFade].
@@ -117,6 +173,15 @@ class SoundConfig {
   /// When true, effect is queued instead of interrupting the current sound.
   final bool queueIfBusy;
 
+  /// The logical category this effect belongs to. Category-level mute/unmute
+  /// is checked at play time alongside the global and per-effect toggles.
+  final SoundCategory category;
+
+  /// Whether this effect should use a dedicated pool player (concurrent) or
+  /// the primary shared player. When [true] the effect will never interrupt
+  /// other currently-playing sounds.
+  final bool concurrent;
+
   const SoundConfig({
     this.volume = 1.0,
     this.cooldownMs = 80,
@@ -125,6 +190,8 @@ class SoundConfig {
     this.fadeOutDuration = const Duration(milliseconds: 200),
     this.hapticPattern = HapticPattern.medium,
     this.queueIfBusy = false,
+    this.category = SoundCategory.feedback,
+    this.concurrent = false,
   });
 
   /// Returns a copy of this config with the given fields overridden.
@@ -136,6 +203,8 @@ class SoundConfig {
     Duration? fadeOutDuration,
     HapticPattern? hapticPattern,
     bool? queueIfBusy,
+    SoundCategory? category,
+    bool? concurrent,
   }) {
     return SoundConfig(
       volume: volume ?? this.volume,
@@ -145,25 +214,33 @@ class SoundConfig {
       fadeOutDuration: fadeOutDuration ?? this.fadeOutDuration,
       hapticPattern: hapticPattern ?? this.hapticPattern,
       queueIfBusy: queueIfBusy ?? this.queueIfBusy,
+      category: category ?? this.category,
+      concurrent: concurrent ?? this.concurrent,
     );
   }
 
   @override
   String toString() =>
-      'SoundConfig(volume: $volume, cooldownMs: $cooldownMs, effectEnabled: $effectEnabled, '
-      'fadeIn: ${fadeInDuration.inMilliseconds}ms, fadeOut: ${fadeOutDuration.inMilliseconds}ms, '
-      'haptic: ${hapticPattern.name}, queueIfBusy: $queueIfBusy)';
+      'SoundConfig(volume: $volume, cooldownMs: $cooldownMs, '
+      'effectEnabled: $effectEnabled, category: ${category.name}, '
+      'fadeIn: ${fadeInDuration.inMilliseconds}ms, '
+      'fadeOut: ${fadeOutDuration.inMilliseconds}ms, '
+      'haptic: ${hapticPattern.name}, queueIfBusy: $queueIfBusy, '
+      'concurrent: $concurrent)';
 }
 
-// Internal Debugging Helpers
+// ──────────────────────────────────────────────
+//  Internal – Structured Logger
+// ──────────────────────────────────────────────
 
 /// Lightweight structured-logging helper used only inside [SoundService].
-/// In debug builds, messages are printed to the console.
+/// In debug builds, messages are printed via [debugPrint] (throttled).
+/// In release builds, all output is suppressed automatically.
 
 class _SoundLogger {
   const _SoundLogger._();
 
-  // Change to false to suppress all SoundService logs in debug builds.
+  // Change to false to suppress all SoundService logs even in debug builds.
   static const bool _loggingEnabled = true;
 
   static void info(String message) =>
@@ -177,19 +254,25 @@ class _SoundLogger {
   }
 
   static void _write(String prefix, String message) {
-    // ignore: avoid_print
-    if (_loggingEnabled) print('$prefix $message');
+    if (kDebugMode && _loggingEnabled) {
+      debugPrint('$prefix $message');
+    }
   }
 }
 
-/// Tracks the last-played timestamp for each [SoundEffect] to enforce per-effect cooldowns. Stored as epoch-milliseconds for minimal overhead.
+// ──────────────────────────────────────────────
+//  Internal – Cooldown Tracker
+// ──────────────────────────────────────────────
+
+/// Tracks the last-played timestamp for each [SoundEffect] to enforce
+/// per-effect cooldowns. Stored as epoch-milliseconds for minimal overhead.
 class _SoundCooldown {
 
   _SoundCooldown._();
 
   static final Map<SoundEffect, int> _lastPlayed = {};
 
-  /// Returns [true] if [effect] may be played right now (cooldown has elapsed and its allowed right now).
+  /// Returns [true] if [effect] may be played right now (cooldown elapsed).
   static bool canPlay(SoundEffect effect, int cooldownMs) {
     final now = DateTime.now().millisecondsSinceEpoch;
     final last = _lastPlayed[effect] ?? 0;
@@ -201,7 +284,8 @@ class _SoundCooldown {
     _lastPlayed[effect] = DateTime.now().millisecondsSinceEpoch;
   }
 
-  /// Clears the cooldown state for a specific [effect], allowing it to play immediately on the next call regardless of elapsed time.
+  /// Clears the cooldown state for a specific [effect], allowing it to play
+  /// immediately on the next call regardless of elapsed time.
   static void reset(SoundEffect effect) {
     _lastPlayed.remove(effect);
   }
@@ -221,7 +305,94 @@ class _SoundCooldown {
 
 }
 
-// Fade Engine
+// ──────────────────────────────────────────────
+//  Internal – Audio Pool (Concurrent Playback)
+// ──────────────────────────────────────────────
+
+/// A round-robin pool of [AudioPlayer] instances that enables overlapping
+/// sound effects. When a caller requests a player, the pool returns the next
+/// idle one. If all players are busy, the oldest one is recycled (its current
+/// audio is stopped first).
+///
+/// The pool size is configurable but defaults to [_defaultPoolSize].
+
+class _AudioPool {
+
+  _AudioPool._();
+
+  static const int _defaultPoolSize = 4;
+
+  static final List<AudioPlayer> _players = [];
+  static int _nextIndex = 0;
+  static bool _initialized = false;
+
+  /// Creates the underlying player instances. Safe to call multiple times;
+  /// subsequent calls are no-ops if the pool is already live.
+  static void initialize({int size = _defaultPoolSize}) {
+    if (_initialized) return;
+    for (int i = 0; i < size; i++) {
+      _players.add(AudioPlayer());
+    }
+    _initialized = true;
+    _SoundLogger.info('Audio pool initialized with $size players.');
+  }
+
+  /// Returns the next [AudioPlayer] in round-robin order.
+  /// Callers should [stop] it before playing if needed.
+  static AudioPlayer acquire() {
+    if (!_initialized) initialize();
+    final player = _players[_nextIndex % _players.length];
+    _nextIndex++;
+    return player;
+  }
+
+  /// Returns all pool players for warm-up purposes.
+  static List<AudioPlayer> get allPlayers {
+    if (!_initialized) initialize();
+    return List.unmodifiable(_players);
+  }
+
+  /// Returns the number of players currently in the [PlayerState.playing] state.
+  static int get activePlayers {
+    int count = 0;
+    for (final p in _players) {
+      if (p.state == PlayerState.playing) count++;
+    }
+    return count;
+  }
+
+  /// Stops all pool players.
+  static Future<void> stopAll() async {
+    for (final p in _players) {
+      try {
+        await p.stop();
+      } catch (_) {}
+    }
+  }
+
+  /// Releases every player in the pool.
+  static void dispose() {
+    for (final p in _players) {
+      try {
+        p.dispose();
+      } catch (_) {}
+    }
+    _players.clear();
+    _nextIndex = 0;
+    _initialized = false;
+  }
+
+  /// Recreates the pool after a [dispose] call.
+  static void reinitialize({int size = _defaultPoolSize}) {
+    dispose();
+    _initialized = false;
+    initialize(size: size);
+  }
+}
+
+// ──────────────────────────────────────────────
+//  Internal – Fade Engine
+// ──────────────────────────────────────────────
 
 /// Performs smooth volume ramps on a dedicated [AudioPlayer].
 /// Volume is stepped at [_stepIntervalMs]-ms intervals using a [Timer.periodic].
@@ -229,14 +400,15 @@ class _FadeEngine {
 
   _FadeEngine._();
 
-  static final AudioPlayer _fadePlayer = AudioPlayer();
+  static AudioPlayer _fadePlayer = AudioPlayer();
 
   // 16 ms ≈ 60 fps. Smaller = smoother but more timer overhead.
   static const int _stepIntervalMs = 16;
 
   static Timer? _activeTimer;
 
-  /// Starts [effect] on the fade player at volume 0, ramps up to [targetVolume] over [duration].
+  /// Starts [effect] on the fade player at volume 0, ramps up to
+  /// [targetVolume] over [duration].
   static Future<void> fadeIn({
     required SoundEffect effect,
     required double targetVolume,
@@ -266,7 +438,8 @@ class _FadeEngine {
     );
   }
 
-  /// Ramps the fade player's volume down to 0 over [duration], then stops playback.
+  /// Ramps the fade player's volume down to 0 over [duration], then stops
+  /// playback.
   static Future<void> fadeOut({
     required Duration duration,
     double fromVolume = 1.0,
@@ -319,9 +492,16 @@ class _FadeEngine {
     _cancelActive();
     _fadePlayer.dispose();
   }
+
+  /// Recreates the fade player after a [dispose] call.
+  static void reinitialize() {
+    _fadePlayer = AudioPlayer();
+  }
 }
 
-// Play Queue
+// ──────────────────────────────────────────────
+//  Internal – Play Queue
+// ──────────────────────────────────────────────
 
 /// FIFO queue for sequential sound playback.
 /// Items are played one after the other using [AudioPlayer.onPlayerComplete].
@@ -339,7 +519,8 @@ class _SoundQueue {
     _maybeStartProcessing();
   }
 
-  /// Removes all pending items from the queue without affecting what is currently playing.
+  /// Removes all pending items from the queue without affecting what is
+  /// currently playing.
   static void clear() {
     _items.clear();
   }
@@ -368,8 +549,12 @@ class _SoundQueue {
 
     final item = _items.removeAt(0);
 
-    // Delegate to the main service so all guards (enabled, cooldown, etc.) apply.
-    await SoundService._playInternal(item.effect, configOverride: item.configOverride);
+    // Delegate to the main service so all guards (enabled, cooldown, etc.)
+    // apply.
+    await SoundService._playInternal(
+      item.effect,
+      configOverride: item.configOverride,
+    );
 
     _completionSub?.cancel();
     _completionSub = SoundService._player.onPlayerComplete.listen((_) {
@@ -391,10 +576,13 @@ class _QueueItem {
   final SoundConfig? configOverride;
 }
 
-// Haptic Engine
+// ──────────────────────────────────────────────
+//  Internal – Haptic Engine
+// ──────────────────────────────────────────────
 
 /// Fires the appropriate [HapticFeedback] call for a given [HapticPattern].
-/// All calls are wrapped in a try-catch so platforms lacking vibration support never throw.
+/// All calls are wrapped in a try-catch so platforms lacking vibration support
+/// never throw.
 class _HapticEngine {
 
   _HapticEngine._();
@@ -429,7 +617,159 @@ class _HapticEngine {
   }
 }
 
-// SoundService (API)
+// ──────────────────────────────────────────────
+//  Internal – Looping Engine
+// ──────────────────────────────────────────────
+
+/// Manages a dedicated [AudioPlayer] for looping playback. Only one loop can
+/// be active at a time — calling [start] while a loop is running replaces it.
+class _LoopEngine {
+
+  _LoopEngine._();
+
+  static AudioPlayer _loopPlayer = AudioPlayer();
+  static SoundEffect? _currentEffect;
+  static StreamSubscription<void>? _completeSub;
+
+  /// Starts [effect] in a continuous loop at [volume].
+  static Future<void> start(SoundEffect effect, double volume) async {
+    await stop();
+    _currentEffect = effect;
+
+    await _loopPlayer.setVolume(volume.clamp(0.0, 1.0));
+    await _loopPlayer.setReleaseMode(ReleaseMode.loop);
+    await _loopPlayer.play(AssetSource(effect.path));
+
+    _SoundLogger.info('Loop started: ${effect.name}');
+  }
+
+  /// Stops the current loop, if any.
+  static Future<void> stop() async {
+    _completeSub?.cancel();
+    _completeSub = null;
+    if (_currentEffect != null) {
+      try {
+        await _loopPlayer.stop();
+        await _loopPlayer.setReleaseMode(ReleaseMode.release);
+      } catch (e) {
+        _SoundLogger.error('Failed to stop loop.', e);
+      }
+      _SoundLogger.info('Loop stopped: ${_currentEffect!.name}');
+      _currentEffect = null;
+    }
+  }
+
+  /// Adjusts the loop volume on-the-fly without restarting the loop.
+  static Future<void> setVolume(double volume) async {
+    await _loopPlayer.setVolume(volume.clamp(0.0, 1.0));
+  }
+
+  /// Returns the currently-looping effect, or null if nothing is looping.
+  static SoundEffect? get currentEffect => _currentEffect;
+
+  /// Returns true if a loop is currently active.
+  static bool get isLooping => _currentEffect != null;
+
+  /// Releases the loop player. Called from [SoundService.dispose].
+  static void dispose() {
+    _completeSub?.cancel();
+    _completeSub = null;
+    _currentEffect = null;
+    _loopPlayer.dispose();
+  }
+
+  /// Recreates the loop player after a [dispose] call.
+  static void reinitialize() {
+    _loopPlayer = AudioPlayer();
+    _currentEffect = null;
+  }
+}
+
+// ──────────────────────────────────────────────
+//  Internal – Preferences Persistence
+// ──────────────────────────────────────────────
+
+/// Handles reading and writing user sound preferences to
+/// [SharedPreferences]. Keys are prefixed with `sound_` to avoid collisions.
+class _SoundPrefs {
+
+  _SoundPrefs._();
+
+  static const String _keyEnabled = 'sound_enabled';
+  static const String _keyVolume = 'sound_master_volume';
+  static const String _keyHaptic = 'sound_haptic_enabled';
+  static const String _keyCategoryPrefix = 'sound_category_';
+
+  /// Saves the current user preferences to disk.
+  static Future<void> save({
+    required bool enabled,
+    required double masterVolume,
+    required bool hapticEnabled,
+    required Map<SoundCategory, bool> categoryStates,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyEnabled, enabled);
+      await prefs.setDouble(_keyVolume, masterVolume);
+      await prefs.setBool(_keyHaptic, hapticEnabled);
+
+      for (final entry in categoryStates.entries) {
+        await prefs.setBool(
+          '$_keyCategoryPrefix${entry.key.name}',
+          entry.value,
+        );
+      }
+
+      _SoundLogger.info('Preferences saved to disk.');
+    } catch (e) {
+      _SoundLogger.error('Failed to save preferences.', e);
+    }
+  }
+
+  /// Loads previously saved preferences and returns them as a map.
+  /// Returns null for each field that has no stored value (first launch).
+  static Future<_LoadedPrefs> load() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      final categoryStates = <SoundCategory, bool>{};
+      for (final cat in SoundCategory.values) {
+        final val = prefs.getBool('$_keyCategoryPrefix${cat.name}');
+        if (val != null) categoryStates[cat] = val;
+      }
+
+      return _LoadedPrefs(
+        enabled: prefs.getBool(_keyEnabled),
+        masterVolume: prefs.getDouble(_keyVolume),
+        hapticEnabled: prefs.getBool(_keyHaptic),
+        categoryStates: categoryStates,
+      );
+    } catch (e) {
+      _SoundLogger.error('Failed to load preferences.', e);
+      return const _LoadedPrefs();
+    }
+  }
+}
+
+/// Container for values read from [SharedPreferences].
+/// Fields are nullable to distinguish "not yet set" from an explicit value.
+class _LoadedPrefs {
+  final bool? enabled;
+  final double? masterVolume;
+  final bool? hapticEnabled;
+  final Map<SoundCategory, bool> categoryStates;
+
+  const _LoadedPrefs({
+    this.enabled,
+    this.masterVolume,
+    this.hapticEnabled,
+    this.categoryStates = const {},
+  });
+}
+
+// ══════════════════════════════════════════════
+//  SoundService  (Public API)
+// ══════════════════════════════════════════════
 
 /// Centralized, singleton-style service for playing UI sound effects.
 /// All methods are static so no instantiation or injection is required.
@@ -461,26 +801,43 @@ class _HapticEngine {
 /// Enqueue multiple sounds to play back-to-back
 /// SoundService.enqueue([SoundEffect.timerWarning, SoundEffect.correctAnswer]);
 
+/// Play a looping ambient sound
+/// await SoundService.playLooping(SoundEffect.timerWarning);
+
 /// Trigger haptic independently of any sound
 /// await SoundService.triggerHaptic(HapticPattern.heavy);
+
+/// Persist user preferences to disk
+/// await SoundService.persistPreferences();
+
+/// Load user preferences from disk (call once on startup)
+/// await SoundService.loadPreferences();
+
+/// Pre-cache all sound assets to eliminate first-play latency
+/// await SoundService.warmUp();
 
 /// Clean up when the app closes
 /// SoundService.dispose();
 
 class SoundService {
 
-  /// The single shared [AudioPlayer] instance.
-  /// All effects pass through this player; a new call stops any in-progress audio automatically via [stop] before starting playback.
-  // ignore: library_private_types_in_public_api
-  static final AudioPlayer _player = AudioPlayer();
+  // ─── State ──────────────────────────────────
 
-  /// Master enabled flag. When [false] no audio is routed to [_player].
+  /// The primary shared [AudioPlayer] instance.
+  /// Effects that do NOT have [SoundConfig.concurrent] set to true pass
+  /// through this player. A new call stops any in-progress audio before
+  /// starting playback.
+  // ignore: library_private_types_in_public_api
+  static AudioPlayer _player = AudioPlayer();
+
+  /// Master enabled flag. When [false] no audio is routed to any player.
   static bool _enabled = true;
 
   /// Master volume level applied to every effect (0.0 – 1.0).
   static double _masterVolume = 1.0;
 
-  /// Per-effect configuration overrides. Effects not present in this map use [_defaultConfig] instead.
+  /// Per-effect configuration overrides. Effects not present in this map use
+  /// [_defaultConfig] instead.
   static final Map<SoundEffect, SoundConfig> _effectConfigs = {};
 
   /// Fallback config used for any effect that has not been explicitly configured.
@@ -492,22 +849,49 @@ class SoundService {
   /// Master haptic toggle. When [false] no haptic is fired alongside [play].
   static bool _hapticEnabled = true;
 
-  // Configuration API
+  /// Per-category enabled state. Categories not in this map default to [true].
+  static final Map<SoundCategory, bool> _categoryEnabled = {};
+
+  /// Whether [warmUp] has been called and completed at least once.
+  static bool _warmedUp = false;
+
+  /// Broadcast controller for playback state changes. External code can listen
+  /// via [SoundService.onPlaybackStateChanged].
+  static final StreamController<SoundPlaybackEvent> _playbackController =
+      StreamController<SoundPlaybackEvent>.broadcast();
+
+  // ─── Configuration API ─────────────────────
 
   /// Enable or disable all sound effects globally.
   static void setEnabled(bool enabled) {
     _enabled = enabled;
     _SoundLogger.info('Sound ${enabled ? 'enabled' : 'disabled'}.');
+
+    // If disabling, stop all active playback.
+    if (!enabled) {
+      stop();
+      _LoopEngine.stop();
+    }
   }
 
   /// Returns [true] if the service is currently set to play sounds.
   static bool get isEnabled => _enabled;
 
   /// Sets the master playback volume applied to every sound effect.
-  /// Note: This does NOT affect already-playing audio. The new volume takes effect on the next [play] call.
+  /// Note: This does NOT affect already-playing audio on the primary player.
+  /// It DOES adjust the loop player in real time.
   static void setVolume(double volume) {
     _masterVolume = volume.clamp(0.0, 1.0);
     _SoundLogger.info('Master volume set to $_masterVolume.');
+
+    // Update loop volume in real time so ambient sounds react immediately.
+    if (_LoopEngine.isLooping) {
+      final loopEffect = _LoopEngine.currentEffect;
+      if (loopEffect != null) {
+        final cfg = configFor(loopEffect);
+        _LoopEngine.setVolume((_masterVolume * cfg.volume).clamp(0.0, 1.0));
+      }
+    }
   }
 
   /// Returns the current master volume (0.0 – 1.0).
@@ -522,8 +906,32 @@ class SoundService {
   /// Returns [true] if haptic feedback is globally active.
   static bool get isHapticEnabled => _hapticEnabled;
 
+  /// Enable or disable an entire [SoundCategory].
+  /// All effects belonging to a disabled category are silently skipped at
+  /// play time.
+  static void setCategoryEnabled(SoundCategory category, bool enabled) {
+    _categoryEnabled[category] = enabled;
+    _SoundLogger.info(
+      'Category ${category.name} ${enabled ? 'enabled' : 'disabled'}.',
+    );
+
+    // If disabling the ambient category, stop any active loop in that category.
+    if (!enabled && category == SoundCategory.ambient && _LoopEngine.isLooping) {
+      final current = _LoopEngine.currentEffect;
+      if (current != null && configFor(current).category == category) {
+        _LoopEngine.stop();
+      }
+    }
+  }
+
+  /// Returns whether [category] is currently enabled. Defaults to [true].
+  static bool isCategoryEnabled(SoundCategory category) {
+    return _categoryEnabled[category] ?? true;
+  }
+
   /// Registers a custom [SoundConfig] for a specific [effect].
-  /// Call this during app initialization (e.g. in `main.dart`) to set per-effect volume or cooldown overrides once, then forget about them.
+  /// Call this during app initialization (e.g. in `main.dart`) to set
+  /// per-effect volume or cooldown overrides once, then forget about them.
 
   static void configure({
     required SoundEffect effect,
@@ -533,31 +941,120 @@ class SoundService {
     _SoundLogger.info('Configured ${effect.name} → $config');
   }
 
+  /// Registers configs for multiple effects at once. Convenience wrapper
+  /// around [configure] for bulk initialization in `main.dart`.
+  static void configureAll(Map<SoundEffect, SoundConfig> configs) {
+    for (final entry in configs.entries) {
+      _effectConfigs[entry.key] = entry.value;
+    }
+    _SoundLogger.info('Batch-configured ${configs.length} effects.');
+  }
+
   /// Returns the resolved [SoundConfig] for [effect], falling back to
   /// [_defaultConfig] if no override has been registered.
   static SoundConfig configFor(SoundEffect effect) {
     return _effectConfigs[effect] ?? _defaultConfig;
   }
 
-  // Playback API
+  // ─── Persistence API ───────────────────────
+
+  /// Saves the current [enabled], [masterVolume], [hapticEnabled], and
+  /// category states to [SharedPreferences].
+  /// Call this whenever the user changes a sound setting so it survives
+  /// app restarts.
+  static Future<void> persistPreferences() async {
+    await _SoundPrefs.save(
+      enabled: _enabled,
+      masterVolume: _masterVolume,
+      hapticEnabled: _hapticEnabled,
+      categoryStates: Map<SoundCategory, bool>.from(_categoryEnabled),
+    );
+  }
+
+  /// Loads previously saved preferences from [SharedPreferences] and applies
+  /// them. Call once during app startup (e.g. in `main()` before `runApp`).
+  /// Values that were never saved are left at their current (default) state.
+  static Future<void> loadPreferences() async {
+    final prefs = await _SoundPrefs.load();
+
+    if (prefs.enabled != null) _enabled = prefs.enabled!;
+    if (prefs.masterVolume != null) {
+      _masterVolume = prefs.masterVolume!.clamp(0.0, 1.0);
+    }
+    if (prefs.hapticEnabled != null) _hapticEnabled = prefs.hapticEnabled!;
+
+    for (final entry in prefs.categoryStates.entries) {
+      _categoryEnabled[entry.key] = entry.value;
+    }
+
+    _SoundLogger.info(
+      'Preferences loaded → enabled=$_enabled, '
+      'vol=$_masterVolume, haptic=$_hapticEnabled, '
+      'categories=${_categoryEnabled.entries.map((e) => '${e.key.name}:${e.value}').join(', ')}',
+    );
+  }
+
+  // ─── Warm-Up / Preload API ─────────────────
+
+  /// Pre-caches audio data for the specified [effects] (or all effects if
+  /// omitted) to eliminate cold-start latency on the first [play] call.
+  ///
+  /// Internally, each effect is played at volume 0 for ~1 ms then stopped.
+  /// This forces the platform's audio decoder to load the asset into memory.
+  ///
+  /// Safe to call multiple times; subsequent calls are fast no-ops.
+  static Future<void> warmUp([List<SoundEffect>? effects]) async {
+    if (_disposed) return;
+    if (_warmedUp && effects == null) return;
+
+    final targets = effects ?? SoundEffect.values;
+    _SoundLogger.info('Warming up ${targets.length} effect(s)…');
+
+    for (final effect in targets) {
+      try {
+        final tempPlayer = AudioPlayer();
+        await tempPlayer.setVolume(0.0);
+        await tempPlayer.play(AssetSource(effect.path));
+        // Give the decoder a moment to initialize, then stop and discard.
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await tempPlayer.stop();
+        tempPlayer.dispose();
+      } catch (e) {
+        _SoundLogger.warn('Warm-up failed for ${effect.name}: $e');
+      }
+    }
+
+    _warmedUp = true;
+    _SoundLogger.info('Warm-up complete.');
+  }
+
+  /// Returns [true] if [warmUp] has been called and completed at least once.
+  static bool get isWarmedUp => _warmedUp;
+
+  // ─── Playback API ──────────────────────────
 
   /// Plays [effect] asynchronously.
   ///
   /// The call is a no-op if:
   ///  - the service is globally disabled ([setEnabled(false)]),
   ///  - the effect's own config has [SoundConfig.effectEnabled] set to [false],
+  ///  - the effect's [SoundCategory] has been disabled,
   ///  - the cooldown for this effect has not yet elapsed,
   ///  - [dispose] has already been called.
   ///
-  /// Any currently-playing sound is stopped before starting the new one.
-  /// Errors (missing file, codec failure, etc.) are caught and logged; the caller will never receive an unhandled exception from this method.
+  /// If [SoundConfig.concurrent] is true, the effect is played on a pool
+  /// player and will never interrupt other active sounds. Otherwise, any
+  /// currently-playing sound on the primary player is stopped first.
+  ///
+  /// Errors (missing file, codec failure, etc.) are caught and logged; the
+  /// caller will never receive an unhandled exception from this method.
 
   static Future<void> play(SoundEffect effect) async {
     final config = configFor(effect);
 
     // If this effect prefers to queue when the player is busy, do so.
     if (config.queueIfBusy) {
-      final state = await _player.state;
+      final state = _player.state;
       if (state == PlayerState.playing) {
         _SoundQueue.enqueue(effect, configOverride: config);
         return;
@@ -568,7 +1065,8 @@ class SoundService {
   }
 
   /// Plays [effect] without awaiting completion.
-  /// Identical to [play] but returns immediately. Prefer this when calling from synchronous code where you don't care about await semantics.
+  /// Identical to [play] but returns immediately. Prefer this when calling
+  /// from synchronous code where you don't care about await semantics.
   static void playSync(SoundEffect effect) {
     play(effect).ignore();
   }
@@ -578,7 +1076,7 @@ class SoundService {
     SoundEffect effect, {
     SoundConfig? configOverride,
   }) async {
-    // Early-exit guards
+    // ── Early-exit guards ──
     if (_disposed) {
       _SoundLogger.warn('play() called after dispose(). Ignoring.');
       return;
@@ -592,9 +1090,19 @@ class SoundService {
       return;
     }
 
+    // Category-level guard.
+    if (!isCategoryEnabled(config.category)) {
+      _SoundLogger.info(
+        'Effect ${effect.name} skipped – category '
+        '${config.category.name} is disabled.',
+      );
+      return;
+    }
+
     if (!_SoundCooldown.canPlay(effect, config.cooldownMs)) {
       _SoundLogger.info(
-        'Effect ${effect.name} skipped – cooldown (${config.cooldownMs} ms) not elapsed.',
+        'Effect ${effect.name} skipped – cooldown '
+        '(${config.cooldownMs} ms) not elapsed.',
       );
       return;
     }
@@ -604,38 +1112,126 @@ class SoundService {
       _HapticEngine.trigger(config.hapticPattern).ignore();
     }
 
-    // Compute effective volume
+    // Compute effective volume.
     final effectiveVolume = (_masterVolume * config.volume).clamp(0.0, 1.0);
 
     try {
-      await _player.stop();
-      await _player.setVolume(effectiveVolume);
-      await _player.play(AssetSource(effect.path));
+      if (config.concurrent) {
+        // ── Concurrent path: use pool player ──
+        final poolPlayer = _AudioPool.acquire();
+        await poolPlayer.stop();
+        await poolPlayer.setVolume(effectiveVolume);
+        await poolPlayer.play(AssetSource(effect.path));
+        _SoundLogger.info(
+          'Playing ${effect.name} (pool) at volume $effectiveVolume.',
+        );
+      } else {
+        // ── Primary path: use shared player ──
+        await _player.stop();
+        await _player.setVolume(effectiveVolume);
+        await _player.play(AssetSource(effect.path));
+        _SoundLogger.info(
+          'Playing ${effect.name} at volume $effectiveVolume.',
+        );
+      }
+
       _SoundCooldown.record(effect);
-      _SoundLogger.info('Playing ${effect.name} at volume $effectiveVolume.');
+
+      // Broadcast playback event.
+      _playbackController.add(SoundPlaybackEvent(
+        effect: effect,
+        state: SoundPlaybackState.started,
+        volume: effectiveVolume,
+      ));
     } catch (e) {
 
       // Never let audio errors bubble up to the UI layer!!
       _SoundLogger.error('Failed to play ${effect.name}.', e);
 
+      _playbackController.add(SoundPlaybackEvent(
+        effect: effect,
+        state: SoundPlaybackState.error,
+        volume: effectiveVolume,
+      ));
     }
   }
 
-  /// Stops any currently-playing sound effect immediately.
+  /// Stops any currently-playing sound effect immediately on the primary
+  /// player, the pool, and the loop engine.
   static Future<void> stop() async {
     if (_disposed) return;
     try {
       await _player.stop();
+      await _AudioPool.stopAll();
       _SoundLogger.info('Playback stopped.');
     } catch (e) {
       _SoundLogger.error('Failed to stop playback.', e);
     }
   }
 
-  // Fade API
+  /// Stops only the primary player without touching pool or loop players.
+  static Future<void> stopPrimary() async {
+    if (_disposed) return;
+    try {
+      await _player.stop();
+    } catch (e) {
+      _SoundLogger.error('Failed to stop primary player.', e);
+    }
+  }
+
+  // ─── Loop API ──────────────────────────────
+
+  /// Starts [effect] in a continuous loop.
+  ///
+  /// Only one loop can be active at a time. Calling this while a loop is
+  /// already running replaces it with the new effect.
+  ///
+  /// Respects global enabled state and category toggle. Does NOT respect
+  /// cooldown (loops are long-running by nature).
+  static Future<void> playLooping(SoundEffect effect) async {
+    if (_disposed || !_enabled) return;
+
+    final config = configFor(effect);
+    if (!config.effectEnabled) return;
+    if (!isCategoryEnabled(config.category)) return;
+
+    final vol = (_masterVolume * config.volume).clamp(0.0, 1.0);
+    await _LoopEngine.start(effect, vol);
+
+    _playbackController.add(SoundPlaybackEvent(
+      effect: effect,
+      state: SoundPlaybackState.loopStarted,
+      volume: vol,
+    ));
+  }
+
+  /// Stops the currently-looping sound, if any.
+  static Future<void> stopLoop() async {
+    if (_disposed) return;
+
+    final wasLooping = _LoopEngine.currentEffect;
+    await _LoopEngine.stop();
+
+    if (wasLooping != null) {
+      _playbackController.add(SoundPlaybackEvent(
+        effect: wasLooping,
+        state: SoundPlaybackState.loopStopped,
+        volume: 0,
+      ));
+    }
+  }
+
+  /// Returns the currently-looping [SoundEffect], or null.
+  static SoundEffect? get currentLoop => _LoopEngine.currentEffect;
+
+  /// Returns [true] if a sound is currently looping.
+  static bool get isLooping => _LoopEngine.isLooping;
+
+  // ─── Fade API ──────────────────────────────
 
   /// Plays [effect] with a smooth fade-in ramp.
-  /// The fade duration and curve are taken from the effect's [SoundConfig] unless explicitly overridden here.
+  /// The fade duration and curve are taken from the effect's [SoundConfig]
+  /// unless explicitly overridden here.
   static Future<void> playWithFade(
     SoundEffect effect, {
     Duration? fadeInDuration,
@@ -645,6 +1241,7 @@ class SoundService {
 
     final config = configFor(effect);
     if (!config.effectEnabled) return;
+    if (!isCategoryEnabled(config.category)) return;
     if (!_SoundCooldown.canPlay(effect, config.cooldownMs)) return;
 
     final targetVolume = (_masterVolume * config.volume).clamp(0.0, 1.0);
@@ -673,8 +1270,8 @@ class SoundService {
     await _FadeEngine.fadeOut(duration: duration, curve: curve);
   }
 
-  /// Performs a sequential cross-fade: fades out current sound, then fades in [to].
-  /// Both legs use [duration] as their ramp length.
+  /// Performs a sequential cross-fade: fades out current sound, then fades
+  /// in [to]. Both legs use [duration] as their ramp length.
   static Future<void> crossFade({
     required SoundEffect to,
     Duration duration = const Duration(milliseconds: 300),
@@ -686,7 +1283,7 @@ class SoundService {
     await playWithFade(to, fadeInDuration: duration, curve: inCurve);
   }
 
-  // Queue API
+  // ─── Queue API ─────────────────────────────
 
   /// Adds [effects] to the back of the FIFO play queue.
   /// Items are played sequentially, each waiting for the previous to complete.
@@ -696,7 +1293,8 @@ class SoundService {
     }
   }
 
-  /// Removes all pending items from the queue without interrupting the currently-playing sound.
+  /// Removes all pending items from the queue without interrupting the
+  /// currently-playing sound.
   static void clearQueue() => _SoundQueue.clear();
 
   /// Stops the currently-playing sound AND removes all queued items.
@@ -711,7 +1309,7 @@ class SoundService {
   /// Returns an unmodifiable snapshot of the queue's current contents.
   static List<SoundEffect> get queueSnapshot => _SoundQueue.snapshot;
 
-  // Haptic API
+  // ─── Haptic API ────────────────────────────
 
   /// Triggers [pattern] immediately, independent of any sound effect.
   /// Respects the global [_hapticEnabled] toggle.
@@ -720,9 +1318,25 @@ class SoundService {
     await _HapticEngine.trigger(pattern);
   }
 
-  // Cooldown utilities
+  // ─── Playback State Stream ─────────────────
 
-  /// Manually resets the cooldown timer for [effect], allowing it to play immediately on the next [play] call even if the normal cooldown has not yet elapsed. Useful in test code or after a scene transition.
+  /// A broadcast stream of [SoundPlaybackEvent]s.
+  /// Subscribe to this to react to sound state changes in the UI (e.g. show
+  /// a volume indicator, animate a speaker icon, etc.).
+  static Stream<SoundPlaybackEvent> get onPlaybackStateChanged =>
+      _playbackController.stream;
+
+  /// Returns the current state of the primary player.
+  static PlayerState get primaryPlayerState => _player.state;
+
+  /// Returns the number of pool players currently playing audio.
+  static int get activePoolPlayers => _AudioPool.activePlayers;
+
+  // ─── Cooldown Utilities ────────────────────
+
+  /// Manually resets the cooldown timer for [effect], allowing it to play
+  /// immediately on the next [play] call even if the normal cooldown has not
+  /// yet elapsed. Useful in test code or after a scene transition.
   static void resetCooldown(SoundEffect effect) {
     _SoundCooldown.reset(effect);
   }
@@ -739,10 +1353,14 @@ class SoundService {
     return _SoundCooldown.remainingMs(effect, config.cooldownMs);
   }
 
-  // Lifecycle
+  // ─── Lifecycle ─────────────────────────────
 
   /// Releases the underlying [AudioPlayer] resources.
-  /// Should be called once when the application is shutting down. After this call, [play] and [stop] become no-ops and log a warning.
+  /// Should be called once when the application is shutting down.
+  /// After this call, [play] and [stop] become no-ops and log a warning.
+  ///
+  /// To use the service again (e.g. after a logout/login cycle), call
+  /// [reinitialize].
   static void dispose() {
     if (_disposed) {
       _SoundLogger.warn('dispose() called more than once. Skipping.');
@@ -750,13 +1368,59 @@ class SoundService {
     }
     _SoundQueue.dispose();
     _FadeEngine.dispose();
+    _LoopEngine.dispose();
+    _AudioPool.dispose();
     _player.dispose();
     _disposed = true;
     _SoundLogger.info('SoundService disposed.');
   }
 
+  /// Recreates all internal players after a prior [dispose] call.
+  /// Call this when the service needs to come back to life (e.g. user re-opens
+  /// the app or logs back in).
+  ///
+  /// No-op if the service was never disposed.
+  static void reinitialize() {
+    if (!_disposed) {
+      _SoundLogger.warn('reinitialize() called but service is still alive.');
+      return;
+    }
 
-  // Diagnostics / debug helpers
+    _player = AudioPlayer();
+    _FadeEngine.reinitialize();
+    _LoopEngine.reinitialize();
+    _AudioPool.reinitialize();
+    _disposed = false;
+    _warmedUp = false;
+
+    _SoundLogger.info('SoundService reinitialized.');
+  }
+
+  /// Call from a [WidgetsBindingObserver.didChangeAppLifecycleState] handler
+  /// to automatically pause / resume audio when the app goes to background.
+  static bool _wasEnabledBeforePause = true;
+
+  static void handleAppLifecycle(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+        _wasEnabledBeforePause = _enabled;
+        if (_enabled) {
+          _enabled = false;
+          _LoopEngine.stop();
+          _SoundLogger.info('App backgrounded – audio paused.');
+        }
+      case AppLifecycleState.resumed:
+        if (_wasEnabledBeforePause) {
+          _enabled = true;
+          _SoundLogger.info('App resumed – audio restored.');
+        }
+      default:
+        break;
+    }
+  }
+
+  // ─── Diagnostics / Debug Helpers ───────────
 
   /// Returns a human-readable snapshot of the current service state.
   /// Useful for logging or displaying in a debug panel.
@@ -767,8 +1431,15 @@ class SoundService {
     buffer.writeln('  masterVolume  : $_masterVolume');
     buffer.writeln('  hapticEnabled : $_hapticEnabled');
     buffer.writeln('  disposed      : $_disposed');
+    buffer.writeln('  warmedUp      : $_warmedUp');
+    buffer.writeln('  looping       : ${_LoopEngine.isLooping ? _LoopEngine.currentEffect?.name ?? '?' : 'none'}');
+    buffer.writeln('  poolActive    : ${_AudioPool.activePlayers}');
     buffer.writeln('  queueLength   : ${_SoundQueue.length}');
     buffer.writeln('  queue         : ${_SoundQueue.snapshot.map((e) => e.name).join(', ')}');
+    buffer.writeln('  categories:');
+    for (final cat in SoundCategory.values) {
+      buffer.writeln('    ${cat.name} : ${isCategoryEnabled(cat) ? 'enabled' : 'DISABLED'}');
+    }
     buffer.writeln('  effect configs:');
     if (_effectConfigs.isEmpty) {
       buffer.writeln('    (none – all effects use default config)');
@@ -788,7 +1459,50 @@ class SoundService {
   }
 }
 
-// ---- SoundEffect enum -----
+// ──────────────────────────────────────────────
+//  Playback State Events
+// ──────────────────────────────────────────────
+
+/// Represents a discrete playback state change broadcast by [SoundService].
+class SoundPlaybackEvent {
+  /// The effect that triggered this event.
+  final SoundEffect effect;
+
+  /// The new playback state.
+  final SoundPlaybackState state;
+
+  /// The effective volume at the time of the event.
+  final double volume;
+
+  const SoundPlaybackEvent({
+    required this.effect,
+    required this.state,
+    required this.volume,
+  });
+
+  @override
+  String toString() =>
+      'SoundPlaybackEvent(${effect.name}, ${state.name}, vol=$volume)';
+}
+
+/// Possible states broadcast via [SoundService.onPlaybackStateChanged].
+enum SoundPlaybackState {
+  /// A one-shot effect has started playing.
+  started,
+
+  /// A looping effect has started playing.
+  loopStarted,
+
+  /// A looping effect has been stopped.
+  loopStopped,
+
+  /// Playback failed due to an error.
+  error,
+}
+
+// ──────────────────────────────────────────────
+//  SoundEffect Enum
+// ──────────────────────────────────────────────
 
 enum SoundEffect {
 
