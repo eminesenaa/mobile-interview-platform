@@ -16,6 +16,7 @@ import '../../../services/ai/ai_service.dart';
 import 'create_exam_controller.dart'; // ✅ düzeltildi
 import '../result/exam_result_page.dart'; // ✅ bir üst klasörde
 import '../services/exam_xp_service.dart';
+import '../../../services/sfx/sound_service.dart';
 
 class ExamController extends GetxController {
   final Exam exam;
@@ -27,6 +28,7 @@ class ExamController extends GetxController {
   late Rx<ExamStateModel> state;
   Timer? _ticker;
   bool _paused = false;
+  bool _warningPlayed = false; // Track if warning sound has been played
 
   Question get currentQuestion => exam.questions[state.value.currentIndex];
 
@@ -94,6 +96,14 @@ class ExamController extends GetxController {
       if (state.value.submitted) return;
       if (_paused) return; // ⬅️ paused ise zaman akmasın
       final left = state.value.secondsLeft - 1;
+      
+      // 🔊 Play warning sound when 10 seconds left (only once)
+      if (left == 10  && !_warningPlayed) {
+        print("Warning sound played!");
+        SoundService.play(SoundEffect.timerWarning);
+        _warningPlayed = true;
+      }
+      
       if (left <= 0) {
         submit(auto: true);
       } else {

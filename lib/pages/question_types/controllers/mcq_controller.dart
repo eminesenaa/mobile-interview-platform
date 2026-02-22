@@ -8,6 +8,8 @@ import '../services/solve_service.dart';
 
 import '../../runner/controller/question_runner_controller.dart';
 
+import 'package:interview_project/services/sfx/sound_service.dart';
+
 class McqController extends GetxController {
   McqController(this.question, {this.shuffleOptions = false});
 
@@ -110,6 +112,13 @@ class McqController extends GetxController {
       );
       aiResult.value = res;
 
+      // 🔊 Play sound based on result
+      if (res.correct) {
+        SoundService.play(SoundEffect.correctAnswer);
+      } else {
+        SoundService.play(SoundEffect.wrongAnswer);
+      }
+
       final score = (res.score ?? 0).toInt();
       final xp = XpService.computeXp(
         baseXp: question.xp,
@@ -132,7 +141,7 @@ class McqController extends GetxController {
       solveState.value =
           isCorrect.value ? SolveState.solvedCorrect : SolveState.solvedWrong;
     } catch (e, st) {
-      print("AI error (mcq): $e\n$st");
+        print("AI error (mcq): $e\n$st");
       aiFeedback.value =
           "AI evaluation failed. Please try again.\n${question.aiPromptHelper ?? ''}";
       solveState.value = SolveState.solvedWrong;

@@ -8,6 +8,7 @@ import '../services/xp_service.dart';
 import '../services/solve_service.dart';
 
 import '../../runner/controller/question_runner_controller.dart';
+import 'package:interview_project/services/sfx/sound_service.dart';
 
 enum SolveState {
   idle,
@@ -83,6 +84,13 @@ class ShortAnswerController extends GetxController {
         userAnswer: userText,
       );
       aiMeta.value = res;
+
+      // 🔊 Play sound based on result
+      if (res.correct) {
+        SoundService.play(SoundEffect.correctAnswer);
+      } else {
+        SoundService.play(SoundEffect.wrongAnswer);
+      }
 
       final score = (res.score ?? 0).toInt();
       final xp = XpService.computeXp(
