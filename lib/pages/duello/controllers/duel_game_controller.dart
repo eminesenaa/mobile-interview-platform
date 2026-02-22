@@ -4,6 +4,7 @@ import '../../../models/duel_match.dart';
 import '../../../models/duel_enums.dart';
 import '../../../models/duel_result.dart';
 import '../../../models/question.dart';
+import '../duel_result_page.dart';
 
 class DuelGameController extends GetxController {
   final DuelMatch initialMatch;
@@ -128,7 +129,10 @@ class DuelGameController extends GetxController {
 
       final DuelResult result = currentMatch.buildResult();
 
-      Get.offNamed('/duelResult', arguments: result);
+      Get.off(
+        () => const DuelResultPage(),
+        arguments: result,
+      );
     } else {
       currentMatch.moveToNextQuestion();
       match.refresh();
