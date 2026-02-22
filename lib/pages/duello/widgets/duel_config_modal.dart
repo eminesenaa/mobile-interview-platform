@@ -5,7 +5,12 @@ import 'package:interview_project/constants/constants.dart';
 import 'package:interview_project/constants/colors.dart';
 import 'package:interview_project/constants/text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../../models/duel_config.dart';
+import '../../../models/duel_enums.dart';
+import '../../../utils/duel_category_style.dart';
+import 'duel_category_card.dart';
 import '../controllers/duel_config_controller.dart';
+import '../matchmaking_page.dart';
 
 class DuelConfigModal extends StatefulWidget {
   final String modeTitle;
@@ -43,15 +48,6 @@ class _DuelConfigModalState extends State<DuelConfigModal>
     final pageController = PageController(
       viewportFraction: 0.48,
     );
-
-    final categoryColors = [
-      AppColors.cinnabar,
-      AppColors.accentWinePlum,
-      AppColors.stormyTeal,
-      AppColors.accentCeladon,
-      AppColors.accentSpicyOrange,
-      AppColors.honeyBronze,
-    ];
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -97,14 +93,14 @@ class _DuelConfigModalState extends State<DuelConfigModal>
                       itemCount: controller.macroCategories.length,
                       onPageChanged: controller.selectCategory,
                       itemBuilder: (context, index) {
-                        final color =
-                            categoryColors[index % categoryColors.length];
+                        final title = controller.macroCategories[index];
+                        final color = DuelCategoryStyle.getColor(title);
 
                         return Obx(() {
                           final isSelected =
                               controller.selectedIndex.value == index;
 
-                          final title = controller.macroCategories[index];
+                          // final title = controller.macroCategories[index];
 
                           return Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -128,7 +124,7 @@ class _DuelConfigModalState extends State<DuelConfigModal>
                               AnimatedScale(
                                 duration: const Duration(milliseconds: 250),
                                 scale: isSelected ? 1.0 : 0.85,
-                                child: _CategoryCard(
+                                child: DuelCategoryCard(
                                   title: title,
                                   color: color,
                                   isSelected: isSelected,
@@ -151,10 +147,24 @@ class _DuelConfigModalState extends State<DuelConfigModal>
                       builder: (context, child) {
                         return GestureDetector(
                           onTap: () {
-                            final macro = controller.selectedMacro;
-                            final topics = controller.getMappedTopics();
+                            final selectedCategory = controller.selectedMacro;
 
-                            Get.back();
+                            final duelType = widget.modeTitle == "1v1"
+                                ? DuelType.oneVsOne
+                                : DuelType.multi;
+
+                            final config = DuelConfig(
+                              duelType: duelType,
+                              category: selectedCategory,
+                              totalQuestions: 10,
+                              questionTimeLimitSeconds: 30,
+                            );
+
+                            Get.back(); // modal close
+
+                            Get.to(
+                              () => MatchmakingPage(config: config),
+                            );
                           },
                           child: Container(
                             height: 52,
@@ -214,57 +224,6 @@ class _DuelConfigModalState extends State<DuelConfigModal>
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _CategoryCard extends StatelessWidget {
-  final String title;
-  final Color color;
-  final bool isSelected;
-
-  const _CategoryCard({
-    required this.title,
-    required this.color,
-    required this.isSelected,
-  });
-
-  IconData _getIcon() {
-    switch (title) {
-      case "Mixed":
-        return PhosphorIcons.shuffle();
-      case "Programming":
-        return PhosphorIcons.code();
-      case "Algorithms":
-        return PhosphorIcons.treeStructure();
-      case "Data & AI":
-        return PhosphorIcons.brain();
-      case "Systems":
-        return PhosphorIcons.network();
-      case "Soft Skills":
-        return PhosphorIcons.users();
-      default:
-        return PhosphorIcons.question();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final backgroundColor = isSelected ? color : color.withOpacity(0.18);
-
-    return Container(
-      width: 120,
-      height: 120,
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(28),
-      ),
-      alignment: Alignment.center,
-      child: Icon(
-        _getIcon(),
-        size: 40,
-        color: isSelected ? Colors.white : color,
       ),
     );
   }

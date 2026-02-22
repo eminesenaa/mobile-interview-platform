@@ -17,6 +17,7 @@ class User {
   final String email;
   final String? password; // üretimde hash/token ile değişecek
   final String? photoUrl;
+  final String? duelAvatar; // assets/avatars/avatar1.jpg
   final Streak streak;
 
   /// Kullanıcının Library özet bilgileri (savedCount, collectionsCount vb.)
@@ -48,6 +49,7 @@ class User {
     required this.email,
     this.password,
     this.photoUrl,
+    this.duelAvatar,
     required this.streak,
     required this.librarySummary,
     this.role,
@@ -98,6 +100,7 @@ class User {
         email: (json['email'] ?? '') as String,
         password: json['password'] as String?,
         photoUrl: json['photoUrl'] as String?,
+        duelAvatar: json['duelAvatar'] as String?,
         // streak: Streak.empty(),
         streak: json['streak'] == null
             ? Streak.empty()
@@ -130,6 +133,7 @@ class User {
         'username': username,
         'email': email,
         'photoUrl': photoUrl,
+        'duelAvatar': duelAvatar,
         'streak': streak.toJson(),
         'library': librarySummary.toJson(),
         'role': role,
@@ -157,6 +161,7 @@ class User {
     String? phoneNumber,
     String? password,
     String? photoUrl,
+    String? duelAvatar,
     Streak? streak,
     UserLibrary? librarySummary,
     int? totalXp,
@@ -180,6 +185,7 @@ class User {
         phoneNumber: phoneNumber ?? this.phoneNumber,
         password: password ?? this.password,
         photoUrl: photoUrl ?? this.photoUrl,
+        duelAvatar: duelAvatar ?? this.duelAvatar,
         streak: streak ?? this.streak,
         librarySummary: librarySummary ?? this.librarySummary,
         totalXp: totalXp ?? this.totalXp,
