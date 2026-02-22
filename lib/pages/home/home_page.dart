@@ -7,8 +7,10 @@ import 'package:interview_project/constants/constants.dart';
 import 'package:interview_project/constants/text_styles.dart';
 import 'package:interview_project/pages/home/progress_page.dart';
 import 'package:interview_project/controllers/progress_controller.dart';
+import 'package:interview_project/pages/home/widgets/duel_entry_card.dart';
 import 'package:interview_project/pages/home/widgets/leaderboard_card.dart';
 import 'package:interview_project/pages/home/widgets/progress_summary_card.dart';
+import '../duello/duel_type_page.dart';
 import 'controllers/home_controller.dart';
 import 'leaderboard_page.dart';
 import 'widgets/streak_card.dart';
@@ -51,107 +53,93 @@ class HomePage extends StatelessWidget {
           key: const PageStorageKey('home_scroll'),
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            // ---- GREETING & STREAK ----
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md,
-                  AppSpacing.lg,
-                  AppSpacing.md,
-                  AppSpacing.lg,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Obx(() {
+            // 🔥 TÜM SAYFAYA ORTAK HORIZONTAL PADDING
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  // ---- GREETING & STREAK ----
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+                    child: Obx(() {
                       final s = hc.streak.value;
-                      if (s == null) {
-                        return const SizedBox.shrink();
-                      }
+                      if (s == null) return const SizedBox.shrink();
+
                       return StreakCard(
                         currentStreak: s.streakCount,
                         longestStreak: s.longestStreak,
                         history: s.streakHistory,
                       );
                     }),
-                  ],
-                ),
-              ),
-            ),
+                  ),
 
-            // ---- SECTION HEADER: TODAY’S POPULAR QUESTIONS ----
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md,
-                  0,
-                  AppSpacing.md,
-                  AppSpacing.sm,
-                ),
-                child: Text(
-                  "Today’s Popular Questions",
-                  style: AppTextStyles.headline,
-                ),
-              ),
-            ),
+                  // ---- DUEL ENTRY ----
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                    child: DuelEntryCard(
+                      onTap: () {
+                        Get.to(
+                          () => const DuelTypePage(),
+                          transition: Transition.rightToLeft,
+                          duration: const Duration(milliseconds: 300),
+                        );
+                      },
+                    ),
+                  ),
 
-            // ---- HORIZONTAL POPULAR QUESTIONS ----
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.only(
-                  bottom: AppSpacing.lg,
-                ),
-                child: Obx(() {
-                  final items = hc.popularQuestions;
-                  if (items.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
+                  // ---- SECTION HEADER ----
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                    child: Text(
+                      "Today’s Popular Questions",
+                      style: AppTextStyles.headline,
+                    ),
+                  ),
 
-                  return SizedBox(
-                    height: 180,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      shrinkWrap: true,
-                      primary: false,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                      ),
-                      itemCount: items.length,
-                      separatorBuilder: (_, __) =>
-                          const SizedBox(width: 12),
-                      itemBuilder: (_, i) => PopularQuestionCard.horizontal(
-                        question: items[i],
-                        width: MediaQuery.of(context).size.width * 0.8,
+                  // ---- POPULAR QUESTIONS ----
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                    child: Obx(() {
+                      final items = hc.popularQuestions;
+                      if (items.isEmpty) return const SizedBox.shrink();
+
+                      return SizedBox(
+                        height: 180,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          padding: EdgeInsets.zero,
+                          // 🔥 önemli
+                          itemCount: items.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 12),
+                          itemBuilder: (_, i) => PopularQuestionCard.horizontal(
+                            question: items[i],
+                            width: MediaQuery.of(context).size.width * 0.8,
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+
+                  // ---- LEADERBOARD ----
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                    child: Obx(
+                      () => LeaderboardCard(
+                        top3: hc.top3,
+                        me: hc.me.value,
+                        loading: hc.lbLoading.value,
+                        onTap: () {
+                          Get.to(() => const LeaderboardPage());
+                        },
                       ),
                     ),
-                  );
-                }),
-              ),
-            ),
-
-            // ---- LEADERBOARD CARD ----
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md,
-                  0,
-                  AppSpacing.md,
-                  0,
-                ),
-                child: Obx(
-                  () => LeaderboardCard(
-                    top3: hc.top3,
-                    me: hc.me.value,
-                    loading: hc.lbLoading.value,
-                    onTap: () {
-                      Get.to(() => const LeaderboardPage());
-                    },
                   ),
-                ),
+
+                  const SizedBox(height: AppSpacing.lg),
+                ]),
               ),
-            ),
-            const SliverToBoxAdapter(
-              child: SizedBox(height: AppSpacing.lg),
             ),
           ],
         ),

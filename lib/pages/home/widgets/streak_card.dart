@@ -87,8 +87,7 @@ class StreakCard extends StatelessWidget {
     }
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md)
-          .copyWith(bottom: AppSpacing.sm),
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       decoration: BoxDecoration(
         color: AppColors.primarySoftBackground,
         borderRadius: BorderRadius.circular(AppRadius.lg),
