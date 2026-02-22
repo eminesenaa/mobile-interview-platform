@@ -29,7 +29,7 @@ class CreateExamController extends GetxController {
   Future<void> _loadAvailableFilters() async {
     try {
       final col = FirebaseFirestore.instance.collection('questions');
-      final snap = await col.limit(500).get();
+      final snap = await col.limit(1000).get();
 
       final topicSet = <String>{};
       final tagSet = <String>{};
@@ -62,6 +62,8 @@ class CreateExamController extends GetxController {
     } catch (e) {
       error.value = 'Filter loading failed: $e';
     }
+
+    debugPrint("AVAILABLE TOPICS: $availableTopics");
   }
 
   /// 🔸 Ana metod — filtrelere göre Firestore’dan soru çeker

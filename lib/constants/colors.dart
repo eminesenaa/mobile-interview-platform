@@ -120,4 +120,35 @@ class AppColors {
   /// Light Cyan – background / minimal contribution topics
   static const Color topicLightCyan = Color(0xFFCAF0F8);
 
+  // =========
+  // Extended Accent Palette (UI Cards, Charts, Gamification)
+  // =========
+  // Bu renkler:
+  // - Duel kategori kartları
+  // - Skor chart'ları
+  // - Gamification badge'leri
+  // - Topic görselleştirmeleri
+  // için kullanılabilir.
+  // Ama brand primary'nin önüne geçmemeli.
+
+  /// Baltic Blue – güçlü ama sakin mavi
+  static const Color cinnabar = Color(0xFFf0544f);
+
+  /// Wine Plum – koyu mor/bordo ton (rekabet hissi için ideal)
+  static const Color accentWinePlum = Color(0xFF5B2333);
+
+  /// White Smoke – açık nötr arka plan
+  static const Color stormyTeal = Color(0xFF0d5d56);
+
+  /// Celadon – soft yeşil (denge, başarı, growth)
+  static const Color accentCeladon = Color(0xFFA6D49F);
+
+  /// Spicy Orange – enerjik vurgu rengi
+  static const Color accentSpicyOrange = Color(0xFFD34E24);
+
+  static const Color honeyBronze = Color(0xFFf6ae2d);
+
+  /// Evergreen – derin koyu yeşil (advanced / system temaları için)
+  static const Color accentEvergreen = Color(0xFF14342B);
+
 }

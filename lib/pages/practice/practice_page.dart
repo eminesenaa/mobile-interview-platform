@@ -49,74 +49,74 @@ class PracticePage extends StatelessWidget {
           return CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
-              // (1) TRAINING MODULES
-              SliverToBoxAdapter(
-                child: Obx(() {
-                  final modules = controller.trainingModules.toList();
+              // (1) TRAINING MODULES → GLOBAL HORIZONTAL PADDING VAR
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                sliver: SliverToBoxAdapter(
+                  child: Obx(() {
+                    final modules = controller.trainingModules.toList();
 
-                  if (modules.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  }
+                    if (modules.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
 
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md,
-                      AppSpacing.md,
-                      AppSpacing.md,
-                      0,
-                    ),
-                    child: SizedBox(
-                      height: 170,
-                      child: PageView.builder(
-                        controller: trainingPageController,
-                        padEnds: false,
-                        itemCount: modules.length,
-                        itemBuilder: (context, index) {
-                          final module = modules[index];
-                          
-                          final userProgress = controller.userProgressMap[module.id];
-                          final progressValue = userProgress?.progress ?? 0.0;
-
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.xs,
-                              vertical: AppSpacing.sm,
-                            ),
-                            child: TrainingModuleCard(
-                              module: module,
-                              progress: progressValue, 
-                              onTap: () {
-                                final sections =
-                                    controller.sectionsByModule[module.id] ??
-                                        [];
-                                final refs =
-                                    controller.refsByModule[module.id] ?? [];
-
-                                Get.to(
-                                  () => TrainingModuleDetailPage(
-                                    module: module,
-                                    sections: sections,
-                                    questionRefs: refs,
-                                  ),
-                                );
-                              },
-                            ),
-                          );
-                        },
+                    return Padding(
+                      padding: const EdgeInsets.only(
+                        top: AppSpacing.md,
                       ),
-                    ),
-                  );
-                }),
+                      child: SizedBox(
+                        height: 170,
+                        child: PageView.builder(
+                          controller: trainingPageController,
+                          padEnds: false,
+                          itemCount: modules.length,
+                          itemBuilder: (context, index) {
+                            final module = modules[index];
+
+                            final userProgress =
+                                controller.userProgressMap[module.id];
+                            final progressValue = userProgress?.progress ?? 0.0;
+
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.xs,
+                                vertical: AppSpacing.sm,
+                              ),
+                              child: TrainingModuleCard(
+                                module: module,
+                                progress: progressValue,
+                                onTap: () {
+                                  final sections =
+                                      controller.sectionsByModule[module.id] ??
+                                          [];
+                                  final refs =
+                                      controller.refsByModule[module.id] ?? [];
+
+                                  Get.to(
+                                    () => TrainingModuleDetailPage(
+                                      module: module,
+                                      sections: sections,
+                                      questionRefs: refs,
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    );
+                  }),
+                ),
               ),
 
-              // (2) FILTER BAR
+              // (2) FILTER BAR → FULL WIDTH (ESKİ GİBİ)
               SliverPinnedHeader(
-                child: Material(
-                  elevation: 3,
-                  color: AppColors.surface,
+                child: Container(
+                  color: AppColors.background,
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(
                       AppSpacing.md,
@@ -194,7 +194,7 @@ class PracticePage extends StatelessWidget {
                 ),
               ),
 
-              // (4) QUESTION LIST
+              // (3) QUESTION LIST → GLOBAL HORIZONTAL PADDING VAR
               if (questions.isEmpty && controller.allQuestions.isEmpty)
                 const SliverFillRemaining(
                   hasScrollBody: false,
@@ -213,7 +213,6 @@ class PracticePage extends StatelessWidget {
                     AppSpacing.md,
                     bottomInset,
                   ),
-                  // DÜZELTME BURADA: slivers -> sliver
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {

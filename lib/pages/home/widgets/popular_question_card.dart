@@ -8,22 +8,20 @@ import '../../question_types/question_navigator.dart';
 class PopularQuestionCard extends StatelessWidget {
   final Question question;
   final double? width;
-  final EdgeInsets padding;
 
   /// Dikey listelerde varsayılan kullanım
   const PopularQuestionCard({
     super.key,
     required this.question,
     this.width,
-    this.padding = const EdgeInsets.all(16),
   });
 
-  /// Yatay (horizontal) listeye uygun kısa yol
+  /// Yatay listelerde varsayılan kullanım
   const PopularQuestionCard.horizontal({
     super.key,
     required this.question,
-    required double this.width,
-  }) : padding = const EdgeInsets.fromLTRB(16, 14, 16, 14);
+    required this.width,
+  });
 
   void _openQuestion() => QuestionNavigator.open(question);
 
@@ -56,7 +54,10 @@ class PopularQuestionCard extends StatelessWidget {
               minHeight: 160,   // 🔥 overflow'u çözen ek yükseklik
             ),
             child: Padding(
-              padding: padding,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
