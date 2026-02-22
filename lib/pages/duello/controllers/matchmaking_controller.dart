@@ -27,8 +27,8 @@ class MatchmakingController extends GetxController {
       status.value = event.status;
 
       if (event.status == DuelStatus.inProgress) {
-        Get.offNamed(
-          '/duelGame',
+        Get.off(
+          () => const DuelGamePage(),
           arguments: event,
         );
       }
