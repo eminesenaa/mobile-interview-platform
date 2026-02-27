@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // UID kontrolü için eklendi
 import 'package:interview_project/constants/constants.dart';
 import 'package:interview_project/models/question.dart';
 import 'package:interview_project/models/duel_enums.dart';
@@ -21,7 +22,7 @@ class MCQQuestionWidget extends StatelessWidget {
     return Column(
       children: [
         // =========================
-        // QUESTION CARD
+        // QUESTION CARD (Beyaz Kutu)
         // =========================
         Container(
           width: double.infinity,
@@ -35,19 +36,22 @@ class MCQQuestionWidget extends StatelessWidget {
             boxShadow: AppShadows.medium,
           ),
           child: Text(
-            question.title,
+            // 🔥 DÜZELTME: 'title' yerine veritabanındaki 'text' alanını (description) gösteriyoruz
+            question.description ?? question.title,
             textAlign: TextAlign.center,
-            style: AppTextStyles.displayLarge,
+            style: AppTextStyles.title
+                .copyWith(fontSize: 18), // Soru metni için daha uygun stil
           ),
         ),
 
         const SizedBox(height: AppSpacing.xl),
 
         // =========================
-        // OPTIONS
+        // OPTIONS (Şıklar)
         // =========================
         Expanded(
           child: ListView.builder(
+            // Soru şıkları boşsa çökmemesi için koruma
             itemCount: question.options?.length ?? 0,
             itemBuilder: (context, index) {
               return _buildOption(context, index);
@@ -60,14 +64,20 @@ class MCQQuestionWidget extends StatelessWidget {
 
   Widget _buildOption(BuildContext context, int index) {
     final match = controller.match.value!;
-    final localPlayer =
-        match.players.firstWhere((p) => p.userId == 'local_user');
+
+    // 🔥 DÜZELTME: 'local_user' statik ID'si yerine gerçek Auth UID kullanılarak "No element" hatası önlenir
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final localPlayer = match.players.firstWhere(
+      (p) => p.userId == currentUserId,
+      orElse: () =>
+          match.players.first, // Fallback: Hata yerine ilk oyuncuyu baz al
+    );
 
     final selected = localPlayer.selectedOptionIndex == index;
 
-    final int? correctAnswerIndex = question.correctAnswer != null
-        ? int.tryParse(question.correctAnswer!)
-        : null;
+    // Veritabanındaki correctAnswer hem "0" (index) hem de metin ("SYN") olabilir
+    final int? correctAnswerIndex =
+        _parseCorrectAnswer(question.correctAnswer, question.options);
 
     Color background = AppColors.surface;
     Color borderColor = AppColors.border;
@@ -96,10 +106,7 @@ class MCQQuestionWidget extends StatelessWidget {
       child: AnimatedContainer(
         duration: AppDurations.normal,
         margin: const EdgeInsets.only(bottom: AppSpacing.md),
-        padding: const EdgeInsets.symmetric(
-          vertical: AppSpacing.lg,
-          horizontal: AppSpacing.lg,
-        ),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         decoration: BoxDecoration(
           color: background,
           borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -112,12 +119,28 @@ class MCQQuestionWidget extends StatelessWidget {
           child: Text(
             question.options![index],
             textAlign: TextAlign.center,
-            style: AppTextStyles.title.copyWith(
+            style: AppTextStyles.bodyStrong.copyWith(
               color: textColor,
             ),
           ),
         ),
       ),
     );
+  }
+
+  // Doğru cevabı hem index hem metin olarak kontrol eden yardımcı metod
+  int? _parseCorrectAnswer(String? correct, List<String>? options) {
+    if (correct == null || options == null) return null;
+
+    // 1. Önce index mi diye bak (Örn: "0", "1")
+    final idx = int.tryParse(correct);
+    if (idx != null && idx < options.length) return idx;
+
+    // 2. Metin eşleşmesi mi diye bak (Örn: "Always prints 2000")
+    final cleanCorrect = correct.trim().toLowerCase();
+    for (int i = 0; i < options.length; i++) {
+      if (options[i].trim().toLowerCase() == cleanCorrect) return i;
+    }
+    return null;
   }
 }

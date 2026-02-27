@@ -45,7 +45,9 @@ class PlayerAvatarWidget extends StatelessWidget {
                 avatarAsset != null ? AssetImage(avatarAsset!) : null,
             child: avatarAsset == null
                 ? Text(
-                    username.substring(0, 1).toUpperCase(),
+                    username.isNotEmpty
+                        ? username.substring(0, 1).toUpperCase()
+                        : '?',
                     style: AppTextStyles.title.copyWith(
                       color: AppColors.primary,
                     ),

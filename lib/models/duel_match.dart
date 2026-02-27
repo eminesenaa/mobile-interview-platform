@@ -6,11 +6,11 @@ import 'question.dart';
 import 'duel_player.dart';
 import 'duel_enums.dart';
 
-/// Bir düellonun tamamını temsil eden ana model
 class DuelMatch {
   final String matchId;
   final List<DuelPlayer> players;
   final List<Question> questions;
+  final String? category;
 
   int currentQuestionIndex;
   DuelStatus status;
@@ -24,6 +24,7 @@ class DuelMatch {
     required this.matchId,
     required this.players,
     required this.questions,
+    this.category,
     this.currentQuestionIndex = 0,
     this.status = DuelStatus.idle,
     this.questionPhase = DuelQuestionPhase.active,
@@ -32,47 +33,50 @@ class DuelMatch {
     this.finishedAt,
   });
 
-  /// Şu anki aktif soru
-  Question get currentQuestion => questions[currentQuestionIndex];
+  // --- GETTERS ---
 
-  /// Son soru mu kontrolü
-  bool get isLastQuestion => currentQuestionIndex == questions.length - 1;
+  Question? get currentQuestion =>
+      questions.isNotEmpty && currentQuestionIndex < questions.length
+          ? questions[currentQuestionIndex]
+          : null;
 
-  /// Tüm oyuncular cevapladı mı kontrolü
+  bool get isLastQuestion =>
+      questions.isEmpty ? true : currentQuestionIndex == questions.length - 1;
+
   bool get allPlayersAnswered =>
       players.every((player) => player.answeredCurrentQuestion);
 
-  /// Bir sonraki soruya geçmek için index artırır
+  // --- METHODS ---
+
   void moveToNextQuestion() {
     if (!isLastQuestion) {
       currentQuestionIndex++;
       questionPhase = DuelQuestionPhase.active;
-
-      // Yeni soru başladığında oyuncu state resetlenir
       for (final player in players) {
         player.resetForNextQuestion();
       }
     } else {
-      status = DuelStatus.finished;
-      finishedAt = DateTime.now();
+      finalizeMatch();
     }
   }
 
-  /// Oyuncunun bir soruya verdiği cevabı değerlendirir
-  /// - Cevabı kilitler
-  /// - Doğruluğu kontrol eder (MCQ için)
-  /// - Puan ve XP hesaplar
-  /// - Eğer herkes cevapladıysa reveal fazına geçer
   void submitAnswer({
     required String userId,
     required int selectedOptionIndex,
     required int answerTimeSeconds,
   }) {
+    // Sadece oyun devam ederken cevap kabul et
     if (status != DuelStatus.inProgress) return;
 
-    final player = players.firstWhere((p) => p.userId == userId);
+    // 🔥 KRİTİK GÜNCELLEME: "Bad state: No element" hatasını önlemek için orElse eklendi
+    final player = players.firstWhere(
+      (p) => p.userId == userId,
+      orElse: () {
+        print('⚠️ [Match] Player not found: $userId');
+        return players.first;
+      },
+    );
 
-    // Eğer zaten cevap verdiyse tekrar işleme alma
     if (player.answeredCurrentQuestion) return;
 
     player.answeredCurrentQuestion = true;
@@ -80,12 +84,20 @@ class DuelMatch {
     player.answerTimeSeconds = answerTimeSeconds;
 
     final question = currentQuestion;
+    if (question == null) return;
 
     bool isCorrect = false;
 
-    // Şu an sadece MCQ destekliyoruz
+    // 🔥 KRİTİK GÜNCELLEME: Karşılaştırma mantığı agresif trim ve null check ile güçlendirildi
     if (question.correctAnswer != null) {
-      isCorrect = selectedOptionIndex == question.correctAnswer;
+      final String correctStr = question.correctAnswer.toString().trim();
+      final String selectedStr = selectedOptionIndex.toString();
+
+      // Hem index (0,1,2..) hem de metin bazlı kontrolü destekle
+      isCorrect = (selectedStr == correctStr) ||
+          (question.options != null &&
+              selectedOptionIndex < question.options!.length &&
+              question.options![selectedOptionIndex].trim() == correctStr);
     }
 
     final scoreResult = DuelScoringEngine.evaluateAnswer(
@@ -93,7 +105,6 @@ class DuelMatch {
       answerTimeSeconds: answerTimeSeconds,
     );
 
-    // Player skor güncelleme
     player.score += scoreResult.scoreGained;
     player.totalXpGained += scoreResult.xpGained;
 
@@ -101,7 +112,7 @@ class DuelMatch {
       player.correctCount += 1;
     }
 
-    // Eğer herkes cevapladıysa reveal fazına geç
+    // Tüm oyuncular cevap verdiyse sonuçları göster
     if (allPlayersAnswered) {
       questionPhase = DuelQuestionPhase.reveal;
     } else {
@@ -109,43 +120,20 @@ class DuelMatch {
     }
   }
 
-  /// Reveal fazı tamamlandığında çağrılır
-  /// - Eğer son soru değilse bir sonraki soruya geçer
-  /// - Eğer son soruysa match'i bitirir
-  void revealComplete() {
-    if (questionPhase != DuelQuestionPhase.reveal) return;
-
-    if (!isLastQuestion) {
-      moveToNextQuestion();
-    } else {
-      finalizeMatch();
-    }
-  }
-
-  /// Match'i sonlandırır
-  /// - Winner belirler
-  /// - Win bonus XP ekler
-  /// - Beraberlikte yarım bonus verir
-  /// - Status'u finished yapar
   void finalizeMatch() {
-    if (status == DuelStatus.finished) return;
+    if (status == DuelStatus.finished || players.isEmpty) return;
 
     status = DuelStatus.finished;
     finishedAt = DateTime.now();
 
-    // En yüksek skoru bul
     final maxScore =
         players.map((p) => p.score).reduce((a, b) => a > b ? a : b);
-
     final winners = players.where((p) => p.score == maxScore).toList();
-
     final fullBonus = DuelScoringEngine.calculateWinBonusXp(true);
 
     if (winners.length == 1) {
-      // Tek kazanan → tam bonus
       winners.first.totalXpGained += fullBonus;
     } else {
-      // Beraberlik → yarım bonus
       final halfBonus = fullBonus ~/ 2;
       for (final player in winners) {
         player.totalXpGained += halfBonus;
@@ -153,10 +141,9 @@ class DuelMatch {
     }
   }
 
-  /// Match sonucunu üretir (Result ekranında kullanılacak)
   DuelResult buildResult() {
     if (status != DuelStatus.finished) {
-      throw Exception('Match henüz bitmedi.');
+      finalizeMatch();
     }
 
     final scoreMap = <String, int>{};
@@ -166,28 +153,20 @@ class DuelMatch {
     for (final player in players) {
       scoreMap[player.userId] = player.score;
       xpMap[player.userId] = player.totalXpGained;
-
-      final totalQuestionsCount = questions.length;
-      final accuracy = totalQuestionsCount == 0
-          ? 0.0
-          : player.correctCount / totalQuestionsCount;
-
-      accuracyMap[player.userId] = accuracy;
+      accuracyMap[player.userId] =
+          questions.isEmpty ? 0.0 : player.correctCount / questions.length;
     }
 
-    // Winner belirleme (ilk max olan)
-    final winner = players.reduce(
-      (a, b) => a.score >= b.score ? a : b,
-    );
-
-    final duration = finishedAt!.difference(startedAt ?? createdAt);
+    // Kazananı belirle
+    final winner = players.reduce((a, b) => a.score >= b.score ? a : b);
 
     return DuelResult(
       winnerId: winner.userId,
       scoreMap: scoreMap,
       xpGainedMap: xpMap,
       accuracyMap: accuracyMap,
-      totalDuration: duration,
+      totalDuration:
+          (finishedAt ?? DateTime.now()).difference(startedAt ?? createdAt),
     );
   }
 }
