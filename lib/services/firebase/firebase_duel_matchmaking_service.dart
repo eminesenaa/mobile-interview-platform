@@ -261,13 +261,15 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
 
   List<String> _getMappedTopics(String macroCategory) {
     switch (macroCategory) {
-      case 'Programming Languages':
+      case 'Programming':
         return ['C / C++', 'Java', 'Python'];
-      case 'Algorithms & Data Structures':
+      case 'Algorithms':
         return ['Algorithms', 'Data Structures'];
       case 'Data & AI':
-        return ['Data Science', 'Machine Learning', 'SQL'];
-      case 'Systems & Networking':
+        return ['Data Science', 'Machine Learning'];
+      case 'Databases':
+        return ['SQL'];
+      case 'Systems':
         return ['Network', 'Git'];
       case 'Soft Skills':
         return ['Soft Skills'];

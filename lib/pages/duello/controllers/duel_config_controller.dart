@@ -16,6 +16,7 @@ class DuelConfigController extends GetxController {
     "Programming",
     "Algorithms",
     "Data & AI",
+    "Databases",
     "Systems",
     "Soft Skills",
   ];
@@ -77,11 +78,11 @@ class DuelConfigController extends GetxController {
 
       case "Data & AI":
         return rawTopics
-            .where((t) =>
-                t.contains("Data") ||
-                t.contains("Machine") ||
-                t.contains("SQL"))
+            .where((t) => t.contains("Data Science") || t.contains("Machine"))
             .toList();
+
+      case "Databases":
+        return rawTopics.where((t) => t.contains("SQL")).toList();
 
       case "Systems":
         return rawTopics

@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import '../../../models/duel_match.dart';
 import '../../../models/duel_enums.dart';
-import '../../../models/duel_result.dart';
 import '../../../models/question.dart';
 import '../duel_result_page.dart';
 
@@ -70,7 +69,6 @@ class DuelGameController extends GetxController {
       } catch (e) {
         print('❌ [GAME] Firestore fallback failed: $e');
         currentMatch.questions.clear();
-        currentMatch.questions.addAll(_fallbackQuestions());
       } finally {
         isLoadingQuestions.value = false;
         match.refresh();
@@ -209,22 +207,5 @@ class DuelGameController extends GetxController {
       match.refresh();
       _startQuestion();
     }
-  }
-
-  List<Question> _fallbackQuestions() {
-    return [
-      Question(
-        id: 'fallback_q1',
-        title: 'Binary Search Time Complexity',
-        description: 'What is the average time complexity of Binary Search?',
-        topic: 'Algorithms',
-        difficulty: Difficulty.easy,
-        status: Status.todo,
-        tags: const ['binary search'],
-        type: QuestionType.mcq,
-        options: const ['O(n)', 'O(log n)', 'O(n log n)', 'O(1)'],
-        correctAnswer: '1',
-      ),
-    ];
   }
 }
