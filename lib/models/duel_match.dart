@@ -88,16 +88,21 @@ class DuelMatch {
 
     bool isCorrect = false;
 
-    // 🔥 KRİTİK GÜNCELLEME: Karşılaştırma mantığı agresif trim ve null check ile güçlendirildi
-    if (question.correctAnswer != null) {
-      final String correctStr = question.correctAnswer.toString().trim();
-      final String selectedStr = selectedOptionIndex.toString();
+    // correctAnswer "1" (index) veya "Java" (metin) olabilir — ikisini de destekle
+    if (question.correctAnswer != null && question.options != null) {
+      final String correctStr = question.correctAnswer!.trim();
+      final opts = question.options!;
 
-      // Hem index (0,1,2..) hem de metin bazlı kontrolü destekle
-      isCorrect = (selectedStr == correctStr) ||
-          (question.options != null &&
-              selectedOptionIndex < question.options!.length &&
-              question.options![selectedOptionIndex].trim() == correctStr);
+      // Önce index bazlı karşılaştır (örn. correctAnswer == "1")
+      final int? correctIndex = int.tryParse(correctStr);
+      if (correctIndex != null) {
+        isCorrect = selectedOptionIndex == correctIndex;
+      } else {
+        // Metin bazlı karşılaştır (örn. correctAnswer == "O(log n)")
+        if (selectedOptionIndex < opts.length) {
+          isCorrect = opts[selectedOptionIndex].trim() == correctStr;
+        }
+      }
     }
 
     final scoreResult = DuelScoringEngine.evaluateAnswer(

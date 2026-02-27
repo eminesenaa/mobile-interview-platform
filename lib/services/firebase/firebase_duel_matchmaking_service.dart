@@ -204,9 +204,7 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
   Future<List<Question>> _fetchQuestions(DuelConfig config) async {
     print('🔎 [FETCH] MCQ Filtreleme başlatıldı...');
 
-    // 1. ADIM: Firestore'dan tipi MCQ olanları iste.
-    // Eğer burada bir hata oluyorsa (örneğin indeks eksikliği),
-    // sorgu tüm soruları çekiyor olabilir.
+    // ADIM 1: Firestore'dan sadece type == 'MCQ' olanları iste
     Query query =
         _firestore.collection('questions').where('type', isEqualTo: 'MCQ');
 
@@ -219,32 +217,49 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
 
     final snapshot = await query.get();
 
-    // 2. ADIM: MANUEL TİP KONTROLÜ (En önemli kısım)
-    // Firestore sorgusu bazen yanlış sonuç verse bile (cache vs. kaynaklı),
-    // bu 'where' filtresi coding sorularını kapıdan içeri sokmaz.
+    // ADIM 2: SERT MANUEL FİLTRE
+    // Firestore cache veya indeks hatası nedeniyle yanlış tip gelse bile
+    // burada kesinlikle sadece geçerli MCQ'lar geçer.
     final cleanQuestions = snapshot.docs.map((doc) {
       final data = doc.data() as Map<String, dynamic>;
+
+      // Firestore'daki 'text' alanını description'a map ediyoruz
       return Question.fromFirestore(data, doc.id).copyWith(
-        description: data['text'] ?? data['description'] ?? '',
+        description:
+            (data['text'] ?? data['description'] ?? '').toString().trim(),
+        options: data['options'] != null
+            ? List<String>.from(
+                (data['options'] as List).map((o) => o.toString().trim()))
+            : [],
+        correctAnswer: data['correctAnswer']?.toString().trim(),
       );
     }).where((q) {
-      // 🔥 BURASI KRİTİK: Sadece tipi MCQ olan VE şıkları olanları al!
-      // Senin paylaştığın 'coding' tipi sorular burada elenecek.
-      return q.type == QuestionType.mcq &&
-          q.options != null &&
-          q.options!.isNotEmpty;
+      // 🔥 SERT KONTROL: type MCQ + en az 2 şık + correctAnswer dolu olmalı
+      final bool isMcq = q.type == QuestionType.mcq;
+      final bool hasOptions = q.options != null && q.options!.length >= 2;
+      final bool hasAnswer =
+          q.correctAnswer != null && q.correctAnswer!.isNotEmpty;
+      if (!isMcq)
+        print('⛔ [FETCH] Elendi (type != MCQ): ${q.id} | type=${q.type}');
+      if (isMcq && !hasOptions)
+        print('⛔ [FETCH] Elendi (options boş): ${q.id}');
+      if (isMcq && hasOptions && !hasAnswer)
+        print('⛔ [FETCH] Elendi (correctAnswer yok): ${q.id}');
+      return isMcq && hasOptions && hasAnswer;
     }).toList();
 
-    // 3. ADIM: Karıştır ve tam 10 tane al
+    // ADIM 3: Karıştır, tam 10 al
     cleanQuestions.shuffle();
-
     final result = cleanQuestions.take(10).toList();
-    print('✅ [FETCH] ${result.length} adet gerçek MCQ hazırlandı.');
+
+    print('✅ [FETCH] ${result.length} adet saf MCQ hazırlandı.');
+    if (result.length < 10) {
+      print('⚠️ [FETCH] Yeterli MCQ bulunamadı! Bulunan: ${result.length}');
+    }
     return result;
   }
 
   List<String> _getMappedTopics(String macroCategory) {
-    // PDF Sayfa 4 ve TXT dokümanına göre mapping [cite: 96-110, 141]
     switch (macroCategory) {
       case 'Programming Languages':
         return ['C / C++', 'Java', 'Python'];
@@ -257,7 +272,7 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
       case 'Soft Skills':
         return ['Soft Skills'];
       default:
-        return [];
+        return []; // Mixed veya bilinmeyen → filtre yok, tüm topicler
     }
   }
 
@@ -266,24 +281,34 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
         .map((p) => DuelPlayer(
               userId: p['userId'] ?? '',
               username: p['username'] ?? 'Player',
-              avatarUrl: p[
-                  'avatarUrl'], // Network image hatası için URL formatında kalmalı
+              avatarUrl: p['avatarUrl'],
               score: p['score'] ?? 0,
               correctCount: p['correctCount'] ?? 0,
               totalXpGained: p['totalXpGained'] ?? 0,
             ))
         .toList();
 
+    // 🔥 SERT FİLTRE: matches dokümanından okurken de sadece geçerli MCQ'lar alınır
     final questions = (data['questions'] as List? ?? []).map((q) {
       final qMap = q as Map<String, dynamic>;
-
-      // matches dokümanından geri okurken veriyi garantiliyoruz
       return Question.fromFirestore(qMap, qMap['id'] ?? '').copyWith(
-        description: qMap['text'] ?? qMap['description'] ?? '',
-        options:
-            qMap['options'] != null ? List<String>.from(qMap['options']) : [],
-        type: QuestionType.mcq,
+        description:
+            (qMap['text'] ?? qMap['description'] ?? '').toString().trim(),
+        options: qMap['options'] != null
+            ? List<String>.from(
+                (qMap['options'] as List).map((o) => o.toString().trim()))
+            : [],
+        correctAnswer: qMap['correctAnswer']?.toString().trim(),
+        type: QuestionType.mcq, // matches koleksiyonuna sadece MCQ yazıyoruz
       );
+    }).where((q) {
+      // Yine de options ve correctAnswer kontrolü — savunmacı programlama
+      final valid = q.options != null &&
+          q.options!.length >= 2 &&
+          q.correctAnswer != null &&
+          q.correctAnswer!.isNotEmpty;
+      if (!valid) print('⛔ [MAP] Geçersiz soru atlandı: ${q.id}');
+      return valid;
     }).toList();
 
     return DuelMatch(

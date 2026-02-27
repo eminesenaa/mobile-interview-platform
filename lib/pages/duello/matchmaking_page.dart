@@ -98,8 +98,8 @@ class MatchmakingPage extends StatelessWidget {
                         LoadingAnimationWidget.discreteCircle(
                           color: Colors.white,
                           size: 56,
-                          secondRingColor: Colors.white.withOpacity(0.6),
-                          thirdRingColor: Colors.white.withOpacity(0.3),
+                          secondRingColor: Colors.white.withValues(alpha: 0.6),
+                          thirdRingColor: Colors.white.withValues(alpha: 0.3),
                         ),
                     ],
                   ),

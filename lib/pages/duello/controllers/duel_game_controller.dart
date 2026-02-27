@@ -85,7 +85,6 @@ class DuelGameController extends GetxController {
     required String category,
     required int count,
   }) async {
-    // Sadece "MCQ" tipindeki soruları çekmek için filtre ekledik
     Query query =
         _firestore.collection('questions').where('type', isEqualTo: 'MCQ');
 
@@ -102,14 +101,25 @@ class DuelGameController extends GetxController {
       throw Exception('Uygun MCQ sorusu bulunamadı.');
     }
 
-    final allQuestions = snapshot.docs
-        .map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          // Question.fromFirestore zaten data['text'] -> description dönüşümünü yapar
-          return Question.fromFirestore(data, doc.id);
-        })
-        .where((q) => q.type == QuestionType.mcq)
-        .toList(); // Double-check filtreleme
+    // 🔥 SERT FİLTRE: type, options ve correctAnswer üçü de zorunlu
+    final allQuestions = snapshot.docs.map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      return Question.fromFirestore(data, doc.id).copyWith(
+        description:
+            (data['text'] ?? data['description'] ?? '').toString().trim(),
+        options: data['options'] != null
+            ? List<String>.from(
+                (data['options'] as List).map((o) => o.toString().trim()))
+            : [],
+        correctAnswer: data['correctAnswer']?.toString().trim(),
+      );
+    }).where((q) {
+      return q.type == QuestionType.mcq &&
+          q.options != null &&
+          q.options!.length >= 2 &&
+          q.correctAnswer != null &&
+          q.correctAnswer!.isNotEmpty;
+    }).toList();
 
     allQuestions.shuffle();
     return allQuestions.take(count).toList();
@@ -117,21 +127,18 @@ class DuelGameController extends GetxController {
 
   List<String> _getMappedTopics(String macroCategory) {
     switch (macroCategory) {
-      case 'Programming':
       case 'Programming Languages':
         return ['C / C++', 'Java', 'Python'];
-      case 'Algorithms':
       case 'Algorithms & Data Structures':
         return ['Algorithms', 'Data Structures'];
       case 'Data & AI':
         return ['Data Science', 'Machine Learning', 'SQL'];
-      case 'Systems':
       case 'Systems & Networking':
         return ['Network', 'Git'];
       case 'Soft Skills':
         return ['Soft Skills'];
       default:
-        return [];
+        return []; // Mixed veya bilinmeyen → tüm topicler (filtre yok)
     }
   }
 
