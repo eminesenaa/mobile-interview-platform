@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:math';
+import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -50,7 +53,7 @@ class AuthService {
           "surname": surname,
           "username": username,
           "photoUrl": null,
-          
+
           "role": "user",
           "totalXp": 0,
           "level": 1,
@@ -63,7 +66,7 @@ class AuthService {
           "streak": Streak.empty().toJson(),
 
           "createdAt": FieldValue.serverTimestamp(),
-          
+
           // Boş profil alanları
           "age": null,
           "location": null,
@@ -99,10 +102,10 @@ class AuthService {
       return credential.user;
     } on FirebaseAuthException catch (e) {
       print("❌ SignIn error: ${e.code} - ${e.message}");
-      return null;
+      rethrow; // ✅ login_controller'a iletilsin
     } catch (e) {
       print("❌ Unexpected error: $e");
-      return null;
+      rethrow;
     }
   }
 
@@ -112,14 +115,16 @@ class AuthService {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
       if (googleUser == null) return null;
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       final OAuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      final UserCredential userCredential =
+          await _auth.signInWithCredential(credential);
       final User? user = userCredential.user;
 
       if (user != null) {
@@ -131,53 +136,99 @@ class AuthService {
       return user;
     } catch (e) {
       print("❌ Google Sign In Error: $e");
-      return null;
+      rethrow; // ✅ controller'a iletilsin
     }
   }
 
-  /// 🔹 Apple ile Giriş
+  /// 🔹 Apple ile Giriş (Nonce güvenliği ile)
   Future<User?> signInWithApple() async {
     try {
+      // ✅ Güvenlik için rastgele nonce üret
+      final rawNonce = _generateNonce();
+      final nonce = _sha256ofString(rawNonce);
+
       final appleCredential = await SignInWithApple.getAppleIDCredential(
         scopes: [
           AppleIDAuthorizationScopes.email,
           AppleIDAuthorizationScopes.fullName,
         ],
+        nonce: nonce, // ✅ Apple'a SHA256 hash gönder
       );
 
       final OAuthProvider oAuthProvider = OAuthProvider("apple.com");
       final AuthCredential credential = oAuthProvider.credential(
         idToken: appleCredential.identityToken,
         accessToken: appleCredential.authorizationCode,
+        rawNonce: rawNonce, // ✅ Firebase'e raw nonce gönder
       );
 
-      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      final UserCredential userCredential =
+          await _auth.signInWithCredential(credential);
       final User? user = userCredential.user;
 
       if (user != null) {
+        // ✅ Apple ilk girişte ad/soyad verir, sonraki girişlerde vermez
+        // Bu yüzden Firestore'a yazarken appleCredential'dan al
         final userDoc = await _db.collection("users").doc(user.uid).get();
         if (!userDoc.exists) {
-          await _createSocialUserInFirestore(user);
+          await _createSocialUserInFirestore(
+            user,
+            overrideName: appleCredential.givenName,
+            overrideSurname: appleCredential.familyName,
+          );
         }
       }
       return user;
+    } on SignInWithAppleAuthorizationException catch (e) {
+      // Kullanıcı iptal ettiyse sessizce geç
+      if (e.code == AuthorizationErrorCode.canceled) return null;
+      print("❌ Apple Sign In Error: ${e.code} - ${e.message}");
+      rethrow;
     } catch (e) {
       print("❌ Apple Sign In Error: $e");
-      return null;
+      rethrow;
     }
   }
 
+  /// 🔹 Rastgele nonce üretici
+  String _generateNonce([int length = 32]) {
+    const charset =
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+    final random = Random.secure();
+    return List.generate(length, (_) => charset[random.nextInt(charset.length)])
+        .join();
+  }
+
+  /// 🔹 SHA256 hash
+  String _sha256ofString(String input) {
+    final bytes = utf8.encode(input);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
+
   /// 🔹 Sosyal medya yardımcısı (Veritabanı oluşturucu)
-  Future<void> _createSocialUserInFirestore(User user) async {
+  Future<void> _createSocialUserInFirestore(
+    User user, {
+    String? overrideName,
+    String? overrideSurname,
+  }) async {
     String name = "User";
     String surname = "";
-    if (user.displayName != null) {
+
+    // ✅ Apple'dan gelen ad/soyad öncelikli (sadece ilk girişte gelir)
+    if (overrideName != null && overrideName.isNotEmpty) {
+      name = overrideName;
+      surname = overrideSurname ?? "";
+    } else if (user.displayName != null) {
       var names = user.displayName!.split(" ");
       name = names.first;
       if (names.length > 1) surname = names.sublist(1).join(" ");
     }
-    
-    String username = "${user.email!.split("@")[0]}_${user.uid.substring(0, 4)}";
+
+    // ✅ Email null olabilir (Apple bazen email vermez)
+    final email = user.email ?? "";
+    final emailPrefix = email.isNotEmpty ? email.split("@")[0] : "user";
+    final username = "${emailPrefix}_${user.uid.substring(0, 4)}";
 
     await _db.collection("users").doc(user.uid).set({
       "id": user.uid,
@@ -187,18 +238,15 @@ class AuthService {
       "username": username,
       "photoUrl": user.photoURL,
       "role": "user",
-      
       "totalXp": 0,
       "level": 1,
       "currentRank": 0,
       "previousRank": 0,
-      
       "savedQuestions": [],
       "library": UserLibrary.empty().toJson(),
       "progress": {},
       "streak": Streak.empty().toJson(),
       "createdAt": FieldValue.serverTimestamp(),
-      
       "age": null,
       "location": null,
       "school": null,

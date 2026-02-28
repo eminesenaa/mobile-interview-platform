@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../services/firebase/auth_service.dart';
 import '../../main_view.dart';
@@ -29,7 +30,7 @@ class LoginController extends GetxController {
 
     try {
       String email;
-      
+
       // Email mi Username mi kontrolü
       if (input.contains("@")) {
         email = input;
@@ -60,9 +61,34 @@ class LoginController extends GetxController {
       }
 
       Get.offAll(() => const MainView());
-
+    } on FirebaseAuthException catch (e) {
+      String message;
+      switch (e.code) {
+        case 'user-not-found':
+          message = "No account found with this email.";
+          break;
+        case 'wrong-password':
+          message = "Incorrect password.";
+          break;
+        case 'invalid-credential':
+          message = "Invalid email or password.";
+          break;
+        case 'user-disabled':
+          message = "This account has been disabled.";
+          break;
+        case 'too-many-requests':
+          message = "Too many attempts. Please try again later.";
+          break;
+        case 'network-request-failed':
+          message = "Network error. Check your connection.";
+          break;
+        default:
+          message = e.message ?? "Authentication failed.";
+      }
+      Get.snackbar("Login Failed", message);
     } catch (e) {
-      Get.snackbar("Login failed", e.toString().replaceAll("Exception:", "").trim());
+      Get.snackbar(
+          "Login failed", e.toString().replaceAll("Exception:", "").trim());
     } finally {
       isLoading.value = false;
     }
@@ -77,8 +103,13 @@ class LoginController extends GetxController {
       if (user != null) {
         Get.offAll(() => const MainView());
       }
+    } on FirebaseAuthException catch (e) {
+      Get.snackbar(
+          "Google Login Failed", e.message ?? "Authentication failed.");
     } catch (e) {
-      Get.snackbar("Error", "Google sign in failed");
+      if (e.toString().contains('canceled') || e.toString().contains('cancel'))
+        return;
+      Get.snackbar("Error", "Google sign in failed. Please try again.");
     } finally {
       isLoading.value = false;
     }
@@ -93,8 +124,12 @@ class LoginController extends GetxController {
       if (user != null) {
         Get.offAll(() => const MainView());
       }
+    } on FirebaseAuthException catch (e) {
+      Get.snackbar("Apple Login Failed", e.message ?? "Authentication failed.");
     } catch (e) {
-      Get.snackbar("Error", "Apple sign in failed");
+      if (e.toString().contains('canceled') || e.toString().contains('cancel'))
+        return;
+      Get.snackbar("Error", "Apple sign in failed. Please try again.");
     } finally {
       isLoading.value = false;
     }
@@ -155,7 +190,8 @@ class LoginController extends GetxController {
         // veya bu akışı 'Giriş Başarılı -> Dialog -> Çıkış' şeklinde yönetmelisin.
         // Basitlik adına kullanıcıya mail kutusunu kontrol etmesini söylüyoruz.
         Get.back();
-        Get.snackbar("Check Inbox", "If you didn't receive it, try logging in again to trigger a new email.");
+        Get.snackbar("Check Inbox",
+            "If you didn't receive it, try logging in again to trigger a new email.");
       },
     );
   }
