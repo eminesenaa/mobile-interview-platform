@@ -9,7 +9,6 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../constants/colors.dart';
 import '../auth/login_page.dart';
-import '../auth/controllers/login_controller.dart';
 import '../../constants/text_styles.dart';
 import '../../constants/constants.dart';
 
@@ -249,7 +248,6 @@ class ProfileSettingsPage extends StatelessWidget {
                   ),
                   onPressed: () async {
                     await FirebaseAuth.instance.signOut();
-                    Get.delete<LoginController>(force: true);
                     Get.offAll(() => const LoginPage());
                   },
                   child: const Text("Log out"),
