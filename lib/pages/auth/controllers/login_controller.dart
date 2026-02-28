@@ -175,6 +175,7 @@ class LoginController extends GetxController {
   /// 🔹 Şifremi Unuttum
   void showForgotPasswordDialog() {
     final resetEmailCtrl = TextEditingController();
+
     Get.defaultDialog(
       title: "Reset Password",
       content: Padding(
@@ -209,8 +210,12 @@ class LoginController extends GetxController {
           Get.snackbar("Success", "Password reset link sent to $email");
         } catch (e) {
           Get.snackbar("Error", e.toString());
+        } finally {
+          resetEmailCtrl.dispose(); // 🔥 Her durumda dispose et
         }
       },
+      // 🔥 Cancel'da da dispose et
+      onCancel: () => resetEmailCtrl.dispose(),
     );
   }
 

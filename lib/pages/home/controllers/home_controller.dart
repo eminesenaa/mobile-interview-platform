@@ -47,17 +47,17 @@ class HomeController extends GetxController {
 
     final qc = Get.find<QuestionController>();
 
-    loadDailyPopularQuestions();
+    if (qc.allQuestions.isNotEmpty) {
+      loadDailyPopularQuestions();
+    } else {
+      ever(qc.allQuestions, (_) {
+        if (!_popularLoadedOnce && qc.allQuestions.isNotEmpty) {
+          loadDailyPopularQuestions();
+        }
+      });
+    }
 
-    ever(qc.allQuestions, (_) {
-      if (!_popularLoadedOnce && qc.allQuestions.isNotEmpty) {
-        loadDailyPopularQuestions();
-      }
-    });
-
-    // 🔥 ÖNCE STREAK RESET
     _checkStreakOnAppStart().then((_) {
-      // 🔥 RESETTEN SONRA DİNLE
       listenToUserStreak();
     });
 
