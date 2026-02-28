@@ -23,7 +23,6 @@ class LoginPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(LoginController());
-    final rememberMe = false.obs;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -69,15 +68,14 @@ class LoginPage extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: AppColors.surface,
                                 borderRadius:
-                                BorderRadius.circular(AppRadius.lg),
+                                    BorderRadius.circular(AppRadius.lg),
                                 boxShadow: AppShadows.medium,
                               ),
                               child: Column(
                                 children: [
                                   // Email / Username
                                   AuthTextField(
-                                    controller:
-                                    controller.emailOrUsernameCtrl,
+                                    controller: controller.emailOrUsernameCtrl,
                                     hint: "Email or username",
                                     icon: PhosphorIcons.user(),
                                   ),
@@ -98,10 +96,10 @@ class LoginPage extends StatelessWidget {
                                   Row(
                                     children: [
                                       Obx(
-                                            () => Checkbox(
-                                          value: rememberMe.value,
-                                          onChanged: (v) =>
-                                          rememberMe.value = v ?? false,
+                                        () => Checkbox(
+                                          value: controller.rememberMe.value,
+                                          onChanged: (v) => controller
+                                              .toggleRememberMe(v ?? false),
                                           activeColor: AppColors.primary,
                                           side: const BorderSide(
                                             color: AppColors.borderStrong,
@@ -131,10 +129,9 @@ class LoginPage extends StatelessWidget {
 
                                   // Login button
                                   Obx(
-                                        () => AuthPrimaryButton(
+                                    () => AuthPrimaryButton(
                                       label: "Login",
-                                      isLoading:
-                                      controller.isLoading.value,
+                                      isLoading: controller.isLoading.value,
                                       onPressed: controller.login,
                                     ),
                                   ),
@@ -147,10 +144,8 @@ class LoginPage extends StatelessWidget {
 
                                   // Social login
                                   AuthSocialButtons(
-                                    onGoogle:
-                                    controller.loginWithGoogle,
-                                    onApple:
-                                    controller.loginWithApple,
+                                    onGoogle: controller.loginWithGoogle,
+                                    onApple: controller.loginWithApple,
                                   ),
 
                                   const SizedBox(height: AppSpacing.lg),
@@ -159,22 +154,19 @@ class LoginPage extends StatelessWidget {
                                   // Signup redirect (INSIDE CARD)
                                   // =========================
                                   Row(
-                                    mainAxisAlignment:
-                                    MainAxisAlignment.center,
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Text(
                                         "Don’t have an account? ",
-                                        style:
-                                        AppTextStyles.bodySmall,
+                                        style: AppTextStyles.bodySmall,
                                       ),
                                       GestureDetector(
                                         onTap: () => Get.to(
-                                              () => const SignUpPage(),
+                                          () => const SignUpPage(),
                                         ),
                                         child: Text(
                                           "Sign up",
-                                          style:
-                                          AppTextStyles.textButton,
+                                          style: AppTextStyles.textButton,
                                         ),
                                       ),
                                     ],

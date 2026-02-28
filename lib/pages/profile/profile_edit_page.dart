@@ -8,6 +8,8 @@ import 'package:interview_project/pages/profile/widgets/profile_text_input_field
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../constants/colors.dart';
+import '../auth/login_page.dart';
+import '../auth/controllers/login_controller.dart';
 import '../../constants/text_styles.dart';
 import '../../constants/constants.dart';
 
@@ -247,14 +249,8 @@ class ProfileSettingsPage extends StatelessWidget {
                   ),
                   onPressed: () async {
                     await FirebaseAuth.instance.signOut();
-
-                    // GetX state temizle
-                    Get.reset();
-
-                    // Login sayfasına yönlendir
-                    Get.offAllNamed('/login');
-                    // Eğer named route yoksa:
-                    // Get.offAll(() => const LoginPage());
+                    Get.delete<LoginController>(force: true);
+                    Get.offAll(() => const LoginPage());
                   },
                   child: const Text("Log out"),
                 ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../services/firebase/auth_service.dart';
 import '../../main_view.dart';
@@ -13,8 +14,44 @@ class LoginController extends GetxController {
   final passwordCtrl = TextEditingController();
 
   final isLoading = false.obs;
+  final rememberMe = false.obs;
 
-  /// 🔹 Login İşlemi
+  static const _kRememberMe = 'remember_me';
+  static const _kSavedInput = 'saved_input';
+
+  @override
+  void onInit() {
+    super.onInit();
+    _loadRememberMe();
+  }
+
+  // ===================== REMEMBER ME =====================
+  Future<void> _loadRememberMe() async {
+    final prefs = await SharedPreferences.getInstance();
+    final remembered = prefs.getBool(_kRememberMe) ?? false;
+    rememberMe.value = remembered;
+    if (remembered) {
+      emailOrUsernameCtrl.text = prefs.getString(_kSavedInput) ?? '';
+    }
+  }
+
+  Future<void> toggleRememberMe(bool value) async {
+    rememberMe.value = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kRememberMe, value);
+    if (!value) {
+      await prefs.remove(_kSavedInput);
+    }
+  }
+
+  Future<void> _saveInputIfRemembered() async {
+    if (rememberMe.value) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kSavedInput, emailOrUsernameCtrl.text.trim());
+    }
+  }
+
+  // ===================== LOGIN =====================
   Future<void> login() async {
     if (isLoading.value) return;
 
@@ -31,7 +68,6 @@ class LoginController extends GetxController {
     try {
       String email;
 
-      // Email mi Username mi kontrolü
       if (input.contains("@")) {
         email = input;
       } else {
@@ -53,12 +89,13 @@ class LoginController extends GetxController {
         throw Exception("Invalid credentials");
       }
 
-      // 🔹 Email Doğrulama Kontrolü
       if (!user.emailVerified) {
-        await _authService.signOut(); // Güvenlik için çıkış yap
+        await _authService.signOut();
         _showVerificationDialog();
         return;
       }
+
+      await _saveInputIfRemembered();
 
       Get.offAll(() => const MainView());
     } on FirebaseAuthException catch (e) {
@@ -135,7 +172,7 @@ class LoginController extends GetxController {
     }
   }
 
-  /// 🔹 Şifremi Unuttum Dialogu
+  /// 🔹 Şifremi Unuttum
   void showForgotPasswordDialog() {
     final resetEmailCtrl = TextEditingController();
     Get.defaultDialog(
@@ -186,9 +223,6 @@ class LoginController extends GetxController {
       confirmTextColor: Colors.white,
       buttonColor: Colors.blueAccent,
       onConfirm: () async {
-        // Not: Kullanıcı signOut olduğu için burada tekrar login gerekebilir
-        // veya bu akışı 'Giriş Başarılı -> Dialog -> Çıkış' şeklinde yönetmelisin.
-        // Basitlik adına kullanıcıya mail kutusunu kontrol etmesini söylüyoruz.
         Get.back();
         Get.snackbar("Check Inbox",
             "If you didn't receive it, try logging in again to trigger a new email.");
