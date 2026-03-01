@@ -15,7 +15,6 @@ class DuelGamePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Argümanı güvenli bir şekilde alıyoruz
     final DuelMatch? initialMatch = Get.arguments as DuelMatch?;
 
     if (initialMatch == null) {
@@ -29,13 +28,13 @@ class DuelGamePage extends StatelessWidget {
       permanent: false,
     );
 
+    final String localUserId =
+        FirebaseAuth.instance.currentUser?.uid ?? 'local_user';
+
     return Scaffold(
       backgroundColor: AppColors.primary,
       body: SafeArea(
         child: Obx(() {
-          // =============================
-          // LOADING STATE
-          // =============================
           if (controller.isLoadingQuestions.value) {
             return const Center(
               child: Column(
@@ -45,10 +44,7 @@ class DuelGamePage extends StatelessWidget {
                   SizedBox(height: 16),
                   Text(
                     'Sorular yükleniyor...',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
                 ],
               ),
@@ -56,8 +52,6 @@ class DuelGamePage extends StatelessWidget {
           }
 
           final currentMatch = controller.match.value;
-
-          // Match veya Question null ise koruma sağlıyoruz
           final Question? question = currentMatch?.currentQuestion;
 
           if (currentMatch == null || question == null) {
@@ -73,28 +67,25 @@ class DuelGamePage extends StatelessWidget {
 
           return Column(
             children: [
-              // =============================
-              // SCORE PROGRESS BAR
-              // =============================
-              DuelScoreProgressBar(
-                players: currentMatch.players,
-                // controller içindeki metodu kullanmak daha güvenli
-                localUserId:
-                    FirebaseAuth.instance.currentUser?.uid ?? 'local_user',
-                totalQuestions: currentMatch.questions.length,
-              ),
+              // ── PROGRESS BAR — forceUpdate ile kesin reaktif ──
+              Obx(() {
+                controller.forceUpdate.value; // dinle → rebuild tetikler
+                return DuelScoreProgressBar(
+                  players: controller.players.toList(),
+                  localUserId: localUserId,
+                  totalQuestions: currentMatch.questions.length,
+                );
+              }),
 
-              // =============================
-              // GAME LAYOUT
-              // =============================
+              // ── GAME LAYOUT ──
               Expanded(
                 child: DuelGameLayout(
                   currentQuestionIndex: currentMatch.currentQuestionIndex,
                   totalQuestions: currentMatch.questions.length,
-                  category: question.topic, // Artık question null değil
+                  category: question.topic,
                   remainingSeconds: controller.remainingSeconds.value,
                   child: QuestionRenderer(
-                    question: question, // Artık Question? değil Question
+                    question: question,
                     controller: controller,
                     phase: phase,
                   ),

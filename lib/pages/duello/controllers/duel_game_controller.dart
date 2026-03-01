@@ -1,84 +1,253 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import '../../../models/duel_match.dart';
 import '../../../models/duel_enums.dart';
+import '../../../models/duel_player.dart';
 import '../../../models/question.dart';
 import '../duel_result_page.dart';
 
 class DuelGameController extends GetxController {
   final DuelMatch initialMatch;
-
   DuelGameController(this.initialMatch);
 
   final match = Rx<DuelMatch?>(null);
   final remainingSeconds = 0.obs;
   final isLoadingQuestions = true.obs;
+  final comboCount = 0.obs;
+
+  // Reaktif player listesi — bot cevap verince UI güncellenir
+  final players = <DuelPlayer>[].obs;
+  final forceUpdate = 0.obs; // sadece rebuild tetiklemek için
 
   Timer? _questionTimer;
-
+  final List<Timer> _botTimers = [];
+  final _random = Random();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void onInit() {
     super.onInit();
-    print('🎮 [GAME] DuelGameController onInit');
-
     match.value = initialMatch;
+    players.assignAll(initialMatch.players);
     _initializeGame();
   }
 
   @override
   void onClose() {
     _questionTimer?.cancel();
+    for (final t in _botTimers) t.cancel();
+    _botTimers.clear();
     super.onClose();
   }
 
+  // ─────────────────────────────────────────
+  // INIT
+  // ─────────────────────────────────────────
   Future<void> _initializeGame() async {
     final currentMatch = match.value;
     if (currentMatch == null) return;
 
-    print('🎮 [GAME] _initializeGame tetiklendi');
-
-    // 1. ADIM: Matchmaking servisinden gelen soruları kontrol et
     if (currentMatch.questions.isNotEmpty) {
-      print(
-          '✅ [GAME] Match dokümanından ${currentMatch.questions.length} soru başarıyla alındı');
-
-      // Veritabanındaki 'text' alanının 'description'a doğru geçtiğinden emin olalım
       isLoadingQuestions.value = false;
-    }
-    // 2. ADIM: Eğer sorular boş geldiyse (Matchmaking'de hata olduysa)
-    else {
-      print(
-          '⚠️ [GAME] Match dokümanında soru bulunamadı! Yedek çekim deneniyor...');
+    } else {
       isLoadingQuestions.value = true;
       try {
-        final category = initialMatch.category ?? 'Mixed';
-
-        // Sadece MCQ tipindeki yedek soruları çek
         final questions = await _fetchQuestionsFromFirestore(
-          category: category,
+          category: initialMatch.category ?? 'Mixed',
           count: 10,
         );
-
         currentMatch.questions.clear();
         currentMatch.questions.addAll(questions);
-        print('✅ [GAME] Yedek MCQ soruları yüklendi: ${questions.length} adet');
       } catch (e) {
-        print('❌ [GAME] Firestore fallback failed: $e');
-        currentMatch.questions.clear();
+        print('❌ [GAME] Fallback failed: $e');
       } finally {
         isLoadingQuestions.value = false;
-        match.refresh();
+        _syncPlayers();
       }
     }
 
-    print('🚀 [GAME] Soru fazına geçiliyor...');
     _startQuestion();
   }
 
+  // ─────────────────────────────────────────
+  // Player listesini reaktif obs ile senkronize et
+  // ─────────────────────────────────────────
+  void _syncPlayers() {
+    final current = match.value?.players ?? [];
+    players.value = current.map((p) => p.snapshot()).toList();
+    forceUpdate.value++; // Obx'i kesin tetikler
+  }
+
+  // ─────────────────────────────────────────
+  // SORU BAŞLAT
+  // ─────────────────────────────────────────
+  void _startQuestion() {
+    final currentMatch = match.value!;
+    if (currentMatch.questions.isEmpty) return;
+
+    remainingSeconds.value = 10;
+    currentMatch.questionPhase = DuelQuestionPhase.active;
+
+    for (final p in currentMatch.players) {
+      p.resetForNextQuestion();
+    }
+
+    _syncPlayers();
+    match.refresh();
+    _startTimer();
+    _scheduleBotAnswers();
+  }
+
+  // ─────────────────────────────────────────
+  // TIMER
+  // ─────────────────────────────────────────
+  void _startTimer() {
+    _questionTimer?.cancel();
+    _questionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (remainingSeconds.value > 0) {
+        remainingSeconds.value--;
+      } else {
+        timer.cancel();
+        _forceReveal();
+      }
+    });
+  }
+
+  // ─────────────────────────────────────────
+  // BOT SİMÜLASYONU
+  // ─────────────────────────────────────────
+  void _scheduleBotAnswers() {
+    for (final t in _botTimers) t.cancel();
+    _botTimers.clear();
+
+    final currentMatch = match.value!;
+    final localId = _localUserId();
+    final bots =
+        currentMatch.players.where((p) => p.userId != localId).toList();
+
+    for (final bot in bots) {
+      // Her bot 2-15 sn arası cevap verir
+      final delay = Duration(seconds: 2 + _random.nextInt(14));
+      final t = Timer(delay, () {
+        if (isClosed) return;
+        if (currentMatch.questionPhase != DuelQuestionPhase.active) return;
+        if (bot.answeredCurrentQuestion) return;
+
+        final optionCount = currentMatch.currentQuestion?.options?.length ?? 4;
+        final botOptionIndex = _random.nextInt(optionCount);
+
+        // %60 doğru yapma şansı
+        final isCorrect = _random.nextDouble() < 0.6;
+
+        bot.answeredCurrentQuestion = true;
+        bot.selectedOptionIndex = botOptionIndex;
+
+        if (isCorrect) {
+          bot.correctCount += 1;
+          bot.score += 3;
+        }
+
+        // Reaktif güncelleme — UI anında görür
+        _syncPlayers();
+        match.refresh();
+
+        if (currentMatch.allPlayersAnswered) {
+          _questionTimer?.cancel();
+          _forceReveal();
+        }
+      });
+      _botTimers.add(t);
+    }
+  }
+
+  // ─────────────────────────────────────────
+  // KULLANICI CEVAP
+  // ─────────────────────────────────────────
+  void selectOption(int optionIndex) {
+    final currentMatch = match.value!;
+    if (currentMatch.questionPhase != DuelQuestionPhase.active) return;
+
+    final localId = _localUserId();
+
+    // Combo hesapla
+    final question = currentMatch.currentQuestion;
+    bool isCorrect = false;
+    if (question?.correctAnswer != null && question?.options != null) {
+      final correctStr = question!.correctAnswer!.trim();
+      final correctIndex = int.tryParse(correctStr);
+      if (correctIndex != null) {
+        isCorrect = optionIndex == correctIndex;
+      } else if (optionIndex < question.options!.length) {
+        isCorrect = question.options![optionIndex].trim() == correctStr;
+      }
+    }
+
+    if (isCorrect) {
+      comboCount.value++;
+    } else {
+      comboCount.value = 0;
+    }
+
+    // Max combo kaydet
+    final localPlayer = currentMatch.players.firstWhere(
+      (p) => p.userId == localId,
+      orElse: () => currentMatch.players.first,
+    );
+    if (comboCount.value > localPlayer.comboCount) {
+      localPlayer.comboCount = comboCount.value;
+    }
+
+    currentMatch.submitAnswer(
+      userId: localId,
+      selectedOptionIndex: optionIndex,
+      answerTimeSeconds: 30 - remainingSeconds.value,
+    );
+
+    _syncPlayers();
+    match.refresh();
+
+    if (currentMatch.allPlayersAnswered) {
+      _questionTimer?.cancel();
+      for (final t in _botTimers) t.cancel();
+      _forceReveal();
+    }
+  }
+
+  // ─────────────────────────────────────────
+  // REVEAL
+  // ─────────────────────────────────────────
+  void _forceReveal() {
+    final currentMatch = match.value!;
+    currentMatch.questionPhase = DuelQuestionPhase.reveal;
+    _syncPlayers();
+    match.refresh();
+
+    Future.delayed(const Duration(seconds: 2), _afterReveal);
+  }
+
+  void _afterReveal() {
+    final currentMatch = match.value!;
+    if (currentMatch.isLastQuestion) {
+      currentMatch.finalizeMatch();
+      final result = currentMatch.buildResult();
+      Get.off(() => const DuelResultPage(), arguments: result);
+    } else {
+      currentMatch.moveToNextQuestion();
+      _syncPlayers();
+      match.refresh();
+      _startQuestion();
+    }
+  }
+
+  String _localUserId() =>
+      FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+
+  // ─────────────────────────────────────────
+  // FIRESTORE FALLBACK
+  // ─────────────────────────────────────────
   Future<List<Question>> _fetchQuestionsFromFirestore({
     required String category,
     required int count,
@@ -87,20 +256,16 @@ class DuelGameController extends GetxController {
         _firestore.collection('questions').where('type', isEqualTo: 'MCQ');
 
     if (category != 'Mixed') {
-      final mappedTopics = _getMappedTopics(category);
-      if (mappedTopics.isNotEmpty) {
-        query = query.where('topic', whereIn: mappedTopics.take(30).toList());
+      final topics = _getMappedTopics(category);
+      if (topics.isNotEmpty) {
+        query = query.where('topic', whereIn: topics.take(30).toList());
       }
     }
 
     final snapshot = await query.limit(count * 3).get();
+    if (snapshot.docs.isEmpty) throw Exception('Soru bulunamadı.');
 
-    if (snapshot.docs.isEmpty) {
-      throw Exception('Uygun MCQ sorusu bulunamadı.');
-    }
-
-    // 🔥 SERT FİLTRE: type, options ve correctAnswer üçü de zorunlu
-    final allQuestions = snapshot.docs.map((doc) {
+    final all = snapshot.docs.map((doc) {
       final data = doc.data() as Map<String, dynamic>;
       return Question.fromFirestore(data, doc.id).copyWith(
         description:
@@ -119,12 +284,12 @@ class DuelGameController extends GetxController {
           q.correctAnswer!.isNotEmpty;
     }).toList();
 
-    allQuestions.shuffle();
-    return allQuestions.take(count).toList();
+    all.shuffle();
+    return all.take(count).toList();
   }
 
-  List<String> _getMappedTopics(String macroCategory) {
-    switch (macroCategory) {
+  List<String> _getMappedTopics(String cat) {
+    switch (cat) {
       case 'Programming Languages':
         return ['C / C++', 'Java', 'Python'];
       case 'Algorithms & Data Structures':
@@ -136,76 +301,7 @@ class DuelGameController extends GetxController {
       case 'Soft Skills':
         return ['Soft Skills'];
       default:
-        return []; // Mixed veya bilinmeyen → tüm topicler (filtre yok)
-    }
-  }
-
-  void _startQuestion() {
-    final currentMatch = match.value!;
-    if (currentMatch.questions.isEmpty) return;
-
-    remainingSeconds.value = 10;
-    currentMatch.questionPhase = DuelQuestionPhase.active;
-    match.refresh();
-
-    _startTimer();
-  }
-
-  void _startTimer() {
-    _questionTimer?.cancel();
-    _questionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (remainingSeconds.value > 0) {
-        remainingSeconds.value--;
-      } else {
-        timer.cancel();
-        _forceReveal();
-      }
-    });
-  }
-
-  void selectOption(int optionIndex) {
-    final currentMatch = match.value!;
-    if (currentMatch.questionPhase != DuelQuestionPhase.active) return;
-
-    currentMatch.submitAnswer(
-      userId: _localUserId(),
-      selectedOptionIndex: optionIndex,
-      answerTimeSeconds: 10 - remainingSeconds.value,
-    );
-
-    match.refresh();
-
-    if (currentMatch.allPlayersAnswered) {
-      _questionTimer?.cancel();
-      _forceReveal();
-    }
-  }
-
-  String _localUserId() {
-    return FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
-  }
-
-  void _forceReveal() {
-    final currentMatch = match.value!;
-    currentMatch.questionPhase = DuelQuestionPhase.reveal;
-    match.refresh();
-
-    Future.delayed(const Duration(seconds: 2), () {
-      _afterReveal();
-    });
-  }
-
-  void _afterReveal() {
-    final currentMatch = match.value!;
-
-    if (currentMatch.isLastQuestion) {
-      currentMatch.finalizeMatch();
-      final result = currentMatch.buildResult();
-      Get.off(() => const DuelResultPage(), arguments: result);
-    } else {
-      currentMatch.moveToNextQuestion();
-      match.refresh();
-      _startQuestion();
+        return [];
     }
   }
 }

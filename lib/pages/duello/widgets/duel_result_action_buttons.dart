@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:interview_project/constants/constants.dart';
-import 'package:interview_project/models/duel_result.dart';
 
-import '../../home/home_page.dart';
 import '../duel_type_page.dart';
 
 class DuelResultActionButtons extends StatelessWidget {
@@ -13,10 +11,13 @@ class DuelResultActionButtons extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Play Again
+        // ── PLAY AGAIN ──
         ElevatedButton(
           onPressed: () {
-            Get.offAll(() => const DuelTypePage());
+            // Duel stack'ini temizle, DuelTypePage'e git
+            // offAll yerine until + to kullanıyoruz — navbar korunur
+            Get.until((route) => route.isFirst);
+            Get.to(() => const DuelTypePage());
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primaryAccent,
@@ -33,10 +34,11 @@ class DuelResultActionButtons extends StatelessWidget {
 
         const SizedBox(height: AppSpacing.md),
 
-        // Home
+        // ── HOME ──
         OutlinedButton(
           onPressed: () {
-            Get.offAll(() => const HomePage());
+            // Root'a kadar geri dön — shell ve navbar sağlam kalır
+            Get.until((route) => route.isFirst);
           },
           style: OutlinedButton.styleFrom(
             minimumSize: const Size(double.infinity, 50),

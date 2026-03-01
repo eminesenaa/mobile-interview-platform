@@ -33,8 +33,6 @@ class DuelMatch {
     this.finishedAt,
   });
 
-  // --- GETTERS ---
-
   Question? get currentQuestion =>
       questions.isNotEmpty && currentQuestionIndex < questions.length
           ? questions[currentQuestionIndex]
@@ -45,8 +43,6 @@ class DuelMatch {
 
   bool get allPlayersAnswered =>
       players.every((player) => player.answeredCurrentQuestion);
-
-  // --- METHODS ---
 
   void moveToNextQuestion() {
     if (!isLastQuestion) {
@@ -65,10 +61,8 @@ class DuelMatch {
     required int selectedOptionIndex,
     required int answerTimeSeconds,
   }) {
-    // Sadece oyun devam ederken cevap kabul et
     if (status != DuelStatus.inProgress) return;
 
-    // 🔥 KRİTİK GÜNCELLEME: "Bad state: No element" hatasını önlemek için orElse eklendi
     final player = players.firstWhere(
       (p) => p.userId == userId,
       orElse: () {
@@ -88,17 +82,13 @@ class DuelMatch {
 
     bool isCorrect = false;
 
-    // correctAnswer "1" (index) veya "Java" (metin) olabilir — ikisini de destekle
     if (question.correctAnswer != null && question.options != null) {
       final String correctStr = question.correctAnswer!.trim();
       final opts = question.options!;
-
-      // Önce index bazlı karşılaştır (örn. correctAnswer == "1")
       final int? correctIndex = int.tryParse(correctStr);
       if (correctIndex != null) {
         isCorrect = selectedOptionIndex == correctIndex;
       } else {
-        // Metin bazlı karşılaştır (örn. correctAnswer == "O(log n)")
         if (selectedOptionIndex < opts.length) {
           isCorrect = opts[selectedOptionIndex].trim() == correctStr;
         }
@@ -117,7 +107,6 @@ class DuelMatch {
       player.correctCount += 1;
     }
 
-    // Tüm oyuncular cevap verdiyse sonuçları göster
     if (allPlayersAnswered) {
       questionPhase = DuelQuestionPhase.reveal;
     } else {
@@ -147,22 +136,21 @@ class DuelMatch {
   }
 
   DuelResult buildResult() {
-    if (status != DuelStatus.finished) {
-      finalizeMatch();
-    }
+    if (status != DuelStatus.finished) finalizeMatch();
 
     final scoreMap = <String, int>{};
     final xpMap = <String, int>{};
     final accuracyMap = <String, double>{};
+    final comboMap = <String, int>{};
 
     for (final player in players) {
       scoreMap[player.userId] = player.score;
       xpMap[player.userId] = player.totalXpGained;
       accuracyMap[player.userId] =
           questions.isEmpty ? 0.0 : player.correctCount / questions.length;
+      comboMap[player.userId] = player.comboCount;
     }
 
-    // Kazananı belirle
     final winner = players.reduce((a, b) => a.score >= b.score ? a : b);
 
     return DuelResult(
@@ -170,6 +158,7 @@ class DuelMatch {
       scoreMap: scoreMap,
       xpGainedMap: xpMap,
       accuracyMap: accuracyMap,
+      comboMap: comboMap,
       totalDuration:
           (finishedAt ?? DateTime.now()).difference(startedAt ?? createdAt),
     );
