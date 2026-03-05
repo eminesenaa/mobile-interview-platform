@@ -1506,14 +1506,74 @@ enum SoundPlaybackState {
 
 enum SoundEffect {
 
+  // ── Existing ───────────────────────────────
+
   /// PLAYED WHEN: Played during the final 10 seconds of an exam timer countdown.
-  /// PLAYED WHERE: [exam_controller.dart]
+  /// PLAYED WHERE: [exam_controller.dart], [duel_game_controller.dart]
   timerWarning('sfx/timer_warning.mp3'),
 
   /// PLAYED WHEN: Plays when the AI evaluator grades a user's answer as correct / incorrect.
-  /// PLAYED WHERE: [mcq_controller.dart] , [short_answer_controller.dart], etc.]
+  /// PLAYED WHERE: [mcq_controller.dart], [short_answer_controller.dart],
+  ///              [fill_blank_controller.dart], [coding_controller.dart],
+  ///              [duel_game_controller.dart]
   correctAnswer('sfx/correct.mp3'),
-  wrongAnswer('sfx/wrong.mp3');
+  wrongAnswer('sfx/wrong.mp3'),
+
+  // ── Exam ───────────────────────────────────
+
+  /// PLAYED WHEN: After AI evaluation completes and exam is submitted.
+  /// PLAYED WHERE: [exam_controller.dart → submit()]
+  examComplete('sfx/exam_complete.mp3'),
+
+  /// PLAYED WHEN: User flags / un-flags a question during an exam.
+  /// PLAYED WHERE: [exam_controller.dart → toggleFlag()]
+  flagToggle('sfx/flag_toggle.mp3'),
+
+  /// PLAYED WHEN: User navigates to the next or previous question.
+  /// PLAYED WHERE: [exam_controller.dart → next(), prev()]
+  swipe('sfx/swipe.mp3'),
+
+  // ── Duel ───────────────────────────────────
+
+  /// PLAYED WHEN: Matchmaking finds an opponent.
+  /// PLAYED WHERE: [matchmaking_controller.dart]
+  //matchFound('sfx/match_found.mp3'),
+
+  /// PLAYED WHEN: Duel ends and local player wins / loses.
+  /// PLAYED WHERE: [duel_game_controller.dart → _afterReveal()]
+  //duelWin('sfx/duel_win.mp3'),
+  //duelLose('sfx/duel_lose.mp3'),
+
+  /// PLAYED WHEN: Player taps an option in a duel round (before reveal).
+  /// PLAYED WHERE: [duel_game_controller.dart → selectOption()]
+  //buttonTap('sfx/button_tap.mp3'),
+
+  // ── UI ─────────────────────────────────────
+
+  /// PLAYED WHEN: User switches tabs on the bottom navigation bar.
+  /// PLAYED WHERE: [app_bottom_nav_bar.dart]
+  tabSwitch('sfx/tab_switch.mp3'),
+
+  /// PLAYED WHEN: User bookmarks or un-bookmarks a question.
+  /// PLAYED WHERE: [bookmark_controller.dart → toggleBookmark()]
+  bookmarkAdd('sfx/bookmark_add.mp3'),
+  bookmarkRemove('sfx/bookmark_remove.mp3'),
+
+  // ── Progress ───────────────────────────────
+
+  /// PLAYED WHEN: User reaches a new level (XP milestone).
+  /// PLAYED WHERE: [progress_controller.dart → _listenUserProgress()]
+  levelUp('sfx/level_up.mp3'),
+
+  // ── Auth ───────────────────────────────────
+
+  /// PLAYED WHEN: Successful login / sign-in.
+  /// PLAYED WHERE: [login_controller.dart → login(), loginWithGoogle(), loginWithApple()]
+  loginSuccess('sfx/login_success.mp3'),
+
+  /// PLAYED WHEN: Login attempt fails or an error occurs.
+  /// PLAYED WHERE: [login_controller.dart → catch blocks]
+  error('sfx/error.mp3');
 
   const SoundEffect(this.path);
   final String path;

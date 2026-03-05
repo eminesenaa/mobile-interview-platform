@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/sfx/sound_service.dart';
 
 class BookmarkController extends GetxController {
   final bookmarks = <String>{}.obs;
@@ -36,9 +37,13 @@ class BookmarkController extends GetxController {
     if (bookmarks.contains(questionId)) {
       await ref.delete();
       bookmarks.remove(questionId);
+      // 🔊 Bookmark removed
+      SoundService.playSync(SoundEffect.bookmarkRemove);
     } else {
       await ref.set({'timestamp': FieldValue.serverTimestamp()});
       bookmarks.add(questionId);
+      // 🔊 Bookmark added
+      SoundService.playSync(SoundEffect.bookmarkAdd);
     }
   }
 

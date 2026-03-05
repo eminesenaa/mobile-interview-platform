@@ -10,6 +10,7 @@ import 'package:get/get.dart' hide Progress;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/progress.dart';
+import '../services/sfx/sound_service.dart';
 
 class ProgressController extends GetxController {
   final Rx<Progress> progress = Progress.initial().obs;
@@ -44,7 +45,14 @@ class ProgressController extends GetxController {
 
       // Firestore’daki değerleri güncelle
       totalXp.value = (data['totalXp'] ?? data['xp'] ?? 0) as int;
+
+      // 🔊 Level up detection
+      final oldLevel = level.value;
       level.value = (data['level'] ?? 1) as int;
+      if (level.value > oldLevel && oldLevel > 0) {
+        SoundService.play(SoundEffect.levelUp);
+      }
+
       todayXp.value = (data['todayXp'] ?? 0) as int;
       weeklyXp.value = (data['weeklyXp'] ?? 0) as int;
       streakDays.value = (data['streakDays'] ?? 0) as int;

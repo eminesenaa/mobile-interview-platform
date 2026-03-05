@@ -205,6 +205,8 @@ class ExamController extends GetxController {
       flaggedQuestions.add(questionId);
     }
     state.refresh();
+    // 🔊 Flag toggle sound
+    SoundService.playSync(SoundEffect.flagToggle);
   }
 
   void goToQuestion(int index) {
@@ -263,6 +265,8 @@ class ExamController extends GetxController {
       state.value =
           state.value.copyWith(currentIndex: state.value.currentIndex + 1);
       state.refresh();
+      // 🔊 Page swipe sound
+      SoundService.playSync(SoundEffect.swipe);
     }
   }
 
@@ -271,6 +275,8 @@ class ExamController extends GetxController {
       state.value =
           state.value.copyWith(currentIndex: state.value.currentIndex - 1);
       state.refresh();
+      // 🔊 Page swipe sound
+      SoundService.playSync(SoundEffect.swipe);
     }
   }
 
@@ -322,6 +328,9 @@ class ExamController extends GetxController {
         exam: updatedExam,
         aiResult: aiResult,
       );
+
+      // 🔊 Exam completed celebration sound
+      SoundService.play(SoundEffect.examComplete);
 
       // 5️⃣ Sonuç sayfasına yönlendir
       Get.offAll(
