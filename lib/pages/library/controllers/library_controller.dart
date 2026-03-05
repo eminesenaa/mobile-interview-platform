@@ -1,5 +1,6 @@
 // ===================== File: lib/pages/library/controllers/library_controller.dart =====================
 
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -20,10 +21,8 @@ import '../../runner/question_runner_page.dart';
 import '../services/library_service.dart';
 import '../widgets/save_question_to_collection_sheet.dart';
 
-/// Library sayfasındaki 3 ana tab
 enum LibraryTab { all, collections, modules }
 
-///  COLLECTION SORT MODES
 enum CollectionSortMode {
   nameAsc,
   createdDesc,
@@ -31,69 +30,97 @@ enum CollectionSortMode {
 
 class LibraryController extends GetxController
     with GetSingleTickerProviderStateMixin {
-  
-  // ============================================================
-  // SERVICES
-  // ============================================================
   final TrainingProgressService _progressService = TrainingProgressService();
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // ============================================================
-  // 🧩 TAB CONTROLLER & REACTIVE STATE
-  // ============================================================
   late TabController tabController;
   final currentTab = LibraryTab.all.obs;
+  StreamSubscription? _savedQuestionsSubscription;
 
-  // ============================================================
-  // 🔍 SEARCH STATE
-  // ============================================================
   final TextEditingController searchCtrl = TextEditingController();
   final RxString searchQuery = ''.obs;
-
-  // Save Sheet için ayrı search alanı
   final RxString search = ''.obs;
 
-  // Son gelen koleksiyon listesi (gerekirse caching için)
   List<CollectionData> lastRawCollections = [];
-
-  // Yeni koleksiyon oluşturulunca otomatik seçilmesi için ID
   final RxnString autoSelectCollectionId = RxnString();
 
-  // =======================
-  // FILTER STATE (ALL TAB)
-  // =======================
-
-  // Çoklu seçim: allowed
   final RxList<String> selectedTopics = <String>[].obs;
   final RxList<Difficulty> selectedDifficulties = <Difficulty>[].obs;
   final RxList<QuestionType> selectedQuestionTypes = <QuestionType>[].obs;
-
-  // Tek seçim: status
   final Rx<Status?> selectedStatus = Rx<Status?>(null);
 
-  // =============================
-  // MULTI-SELECT STATE (ALL TAB)
-  // =============================
-  final RxBool isSelecting = false.obs; // seçim modu açık mı?
-  final RxList<String> selectedQuestionIds = <String>[].obs; // seçilenler
-
-  /// Aktif sıralama modu (varsayılan: EN SON EKLENEN ÜSTTE)
+  final RxBool isSelecting = false.obs;
+  final RxList<String> selectedQuestionIds = <String>[].obs;
   final Rx<CollectionSortMode> sortMode = CollectionSortMode.createdDesc.obs;
 
-  // ============================================================
-  // 🗂️ MULTI-SELECT (COLLECTIONS TAB)
-  // ============================================================
-  /// Collections tab'da seçim modu açık mı?
   final RxBool isSelectingCollections = false.obs;
-
-  /// Seçilen collection ID'leri
   final RxSet<String> selectedCollectionIds = <String>{}.obs;
 
-  // ============================================================
-  // 🗑️ COLLECTIONS — MULTI SELECT MODE
-  // ============================================================
+  final RxList<Question> savedQuestions = <Question>[].obs;
 
-  /// UI'da üç nokta menüsünden tetiklenir
+  final RxList<TrainingModule> modules = <TrainingModule>[].obs;
+  final RxMap<String, UserTrainingModuleProgress> modulesProgressMap =
+      <String, UserTrainingModuleProgress>{}.obs;
+  final RxBool isLoadingModules = false.obs;
+
+  Stream<List<TrainingModule>> get modulesStream => modules.stream;
+
+  // ============================================================
+  // 🔄 LIFECYCLE
+  // ============================================================
+  @override
+  void onInit() {
+    super.onInit();
+
+    // ✅ tabController her zaman initialize ediliyor — user olsa da olmasa da
+    tabController = TabController(length: 3, vsync: this);
+
+    tabController.addListener(() {
+      if (!tabController.indexIsChanging) {
+        isSelecting.value = false;
+        selectedQuestionIds.clear();
+        isSelectingCollections.value = false;
+        selectedCollectionIds.clear();
+        searchCtrl.clear();
+        searchQuery.value = '';
+        search.value = '';
+
+        if (tabController.index == 2) {
+          fetchStartedModules();
+        }
+      }
+    });
+
+    searchCtrl.addListener(() {
+      searchQuery.value = searchCtrl.text;
+    });
+
+    // User yoksa data fetch'i atla
+    final user = AuthService.instance.currentUser;
+    if (user == null) {
+      debugPrint(
+          "⚠️ LibraryController: no signed-in user, skipping data fetch.");
+      return;
+    }
+
+    _savedQuestionsSubscription = savedQuestionsStream.listen((list) {
+      savedQuestions.assignAll(list);
+    });
+
+    fetchStartedModules();
+  }
+
+  @override
+  void onClose() {
+    _savedQuestionsSubscription?.cancel();
+    tabController.dispose();
+    searchCtrl.dispose();
+    super.onClose();
+  }
+
+  // ============================================================
+  // COLLECTIONS
+  // ============================================================
   void startCollectionSelecting() {
     isSelectingCollections.value = true;
     selectedCollectionIds.clear();
@@ -117,33 +144,8 @@ class LibraryController extends GetxController
         .assignAll(lastRawCollections.map((c) => c.id).toList());
   }
 
-  // =============================
-  // SAVED QUESTIONS (local cache)
-  // =============================
-  final RxList<Question> savedQuestions = <Question>[].obs;
-
-  // ============================================================
-  // 📚 MODULES (REAL DATA)
-  // ============================================================
-  /// Kullanıcının başladığı gerçek modüller
-  final RxList<TrainingModule> modules = <TrainingModule>[].obs;
-  
-  /// Modül ID -> İlerleme verisi (Progress bar için)
-  final RxMap<String, UserTrainingModuleProgress> modulesProgressMap = 
-      <String, UserTrainingModuleProgress>{}.obs;
-
-  /// Yükleniyor durumu
-  final RxBool isLoadingModules = false.obs;
-
-  // UI'da StreamBuilder ile kullanılacak
-  Stream<List<TrainingModule>> get modulesStream => modules.stream;
-
-  // ============================================================
-  // 🔎 COLLECTION FILTERING
-  // ============================================================
   List<CollectionData> filteredCollections(List<CollectionData> all) {
     final q = searchQuery.value.trim().toLowerCase();
-
     List<CollectionData> filtered = q.isEmpty
         ? List.from(all)
         : all.where((c) => c.name.toLowerCase().contains(q)).toList();
@@ -152,37 +154,23 @@ class LibraryController extends GetxController
       case CollectionSortMode.nameAsc:
         filtered.sort((a, b) => a.name.compareTo(b.name));
         break;
-
       case CollectionSortMode.createdDesc:
-        // ⭐ Yeni sırala: createdAt varsa ona göre, yoksa id fallback
         filtered.sort((a, b) {
           final aTime = a.createdAt;
           final bTime = b.createdAt;
-
-          // İkisi de null → fallback doc id
-          if (aTime == null && bTime == null) {
-            return b.id.compareTo(a.id);
-          }
-
-          // Sadece a null → b üstte
+          if (aTime == null && bTime == null) return b.id.compareTo(a.id);
           if (aTime == null) return 1;
-
-          // Sadece b null → a üstte
           if (bTime == null) return -1;
-
-          // İkisi de tarihli → büyük olan (yeni) üstte
           return bTime.compareTo(aTime);
         });
-
         break;
     }
-
     return filtered;
   }
 
-  // ================================
-  // DYNAMIC FILTER OPTIONS (READ-ONLY)
-  // ================================
+  // ============================================================
+  // FILTER
+  // ============================================================
   List<String> get dynamicTopics {
     return savedQuestions
         .map((q) => q.topic)
@@ -192,33 +180,20 @@ class LibraryController extends GetxController
       ..sort();
   }
 
-  List<Difficulty> get dynamicDifficulties {
-    return savedQuestions
-        .map((q) => q.difficulty)
-        .toSet()
-        .toList();
-  }
+  List<Difficulty> get dynamicDifficulties =>
+      savedQuestions.map((q) => q.difficulty).toSet().toList();
 
-  List<QuestionType> get dynamicQuestionTypes {
-    return savedQuestions
-        .map((q) => q.type)
-        .toSet()
-        .toList();
-  }
+  List<QuestionType> get dynamicQuestionTypes =>
+      savedQuestions.map((q) => q.type).toSet().toList();
 
-  List<Status> get dynamicStatuses {
-    return savedQuestions
-        .map((q) => q.status)
-        .toSet()
-        .toList();
-  }
+  List<Status> get dynamicStatuses =>
+      savedQuestions.map((q) => q.status).toSet().toList();
 
-  bool get hasActiveFilters {
-    return selectedTopics.isNotEmpty ||
-        selectedDifficulties.isNotEmpty ||
-        selectedQuestionTypes.isNotEmpty ||
-        selectedStatus.value != null;
-  }
+  bool get hasActiveFilters =>
+      selectedTopics.isNotEmpty ||
+      selectedDifficulties.isNotEmpty ||
+      selectedQuestionTypes.isNotEmpty ||
+      selectedStatus.value != null;
 
   void clearFilters() {
     selectedTopics.clear();
@@ -227,29 +202,24 @@ class LibraryController extends GetxController
     selectedStatus.value = null;
   }
 
-  // ====================== FILTER CHIP LABELS ======================
   List<String> get activeFilterLabels {
     final List<String> out = [];
-    for (final t in selectedTopics) {
-      out.add(t);
-    }
-    for (final d in selectedDifficulties) {
-      out.add(formatDifficultyLabel(d));
-    }
-    for (final qt in selectedQuestionTypes) {
+    for (final t in selectedTopics) out.add(t);
+    for (final d in selectedDifficulties) out.add(formatDifficultyLabel(d));
+    for (final qt in selectedQuestionTypes)
       out.add(formatQuestionTypeLabel(qt));
-    }
-    if (selectedStatus.value != null) {
+    if (selectedStatus.value != null)
       out.add(formatStatusLabel(selectedStatus.value!));
-    }
     return out;
   }
 
   void removeSingleFilter(String label) {
     selectedTopics.remove(label);
     selectedDifficulties.removeWhere((d) => formatDifficultyLabel(d) == label);
-    selectedQuestionTypes.removeWhere((qt) => formatQuestionTypeLabel(qt) == label);
-    if (selectedStatus.value != null && formatStatusLabel(selectedStatus.value!) == label) {
+    selectedQuestionTypes
+        .removeWhere((qt) => formatQuestionTypeLabel(qt) == label);
+    if (selectedStatus.value != null &&
+        formatStatusLabel(selectedStatus.value!) == label) {
       selectedStatus.value = null;
     }
   }
@@ -261,85 +231,32 @@ class LibraryController extends GetxController
     selectedStatus.value = null;
   }
 
-  String formatDifficultyLabel(Difficulty d) => d.name.toUpperCase().replaceAll('_', ' ');
-  String formatQuestionTypeLabel(QuestionType qt) => qt.name.toUpperCase().replaceAll('_', ' ');
-  String formatStatusLabel(Status s) => s.name.toUpperCase().replaceAll('_', ' ');
+  String formatDifficultyLabel(Difficulty d) =>
+      d.name.toUpperCase().replaceAll('_', ' ');
+  String formatQuestionTypeLabel(QuestionType qt) =>
+      qt.name.toUpperCase().replaceAll('_', ' ');
+  String formatStatusLabel(Status s) =>
+      s.name.toUpperCase().replaceAll('_', ' ');
 
   // ============================================================
-  // 🔄 LIFECYCLE
-  // ============================================================
-  @override
-  void onInit() {
-    super.onInit();
-    final user = AuthService.instance.currentUser;
-    if (user == null) {
-      debugPrint("⚠️ LibraryController skipped — no signed-in user.");
-      return;
-    }
-
-    // Listen to saved questions stream and keep local list updated
-    savedQuestionsStream.listen((list) {
-      savedQuestions.assignAll(list);
-    });
-
-    // Tab bar
-    tabController = TabController(length: 3, vsync: this);
-    
-    // ⭐ TAB DEĞİŞİKLİĞİ DİNLEYİCİSİ
-    tabController.addListener(() {
-      if (!tabController.indexIsChanging) {
-        // Genel resetler
-        isSelecting.value = false;
-        selectedQuestionIds.clear();
-        isSelectingCollections.value = false;
-        selectedCollectionIds.clear();
-        searchCtrl.clear();
-        searchQuery.value = '';
-        search.value = '';
-
-        // 🔥 Eğer Modules sekmesine geçildiyse veriyi tazele
-        if (tabController.index == 2) {
-           fetchStartedModules();
-        }
-      }
-    });
-
-    // Initial fetch for modules
-    fetchStartedModules();
-
-    // SearchController listener
-    searchCtrl.addListener(() {
-      searchQuery.value = searchCtrl.text;
-    });
-  }
-
-  @override
-  void onClose() {
-    tabController.dispose();
-    searchCtrl.dispose();
-    super.onClose();
-  }
-
-  // ============================================================
-  // 🔥 FETCH STARTED MODULES (BACKEND INTEGRATION)
+  // 🔥 FETCH STARTED MODULES
   // ============================================================
   Future<void> fetchStartedModules() async {
     final user = AuthService.instance.currentUser;
     if (user == null) return;
-    
+
     try {
       isLoadingModules.value = true;
-      
-      // 1. Kullanıcının progress kayıtlarını çek
-      final progressList = await _progressService.getAllProgressForUser(user.uid);
-      
+
+      final progressList =
+          await _progressService.getAllProgressForUser(user.uid);
+
       if (progressList.isEmpty) {
         modules.clear();
         modulesProgressMap.clear();
         return;
       }
 
-      // 2. Progress map'ini ve ID listesini hazırla
       modulesProgressMap.clear();
       final startedIds = <String>{};
       for (var p in progressList) {
@@ -347,19 +264,13 @@ class LibraryController extends GetxController
         startedIds.add(p.moduleId);
       }
 
-      // 3. Modülleri 'modules' koleksiyonundan çek
       final snap = await _db.collection('modules').get();
       final allModules = snap.docs
           .map((d) => TrainingModule.fromFirestore(d.data(), d.id))
           .toList();
 
-      // Sadece başlanmış olanları filtrele
-      final startedModules = allModules
-          .where((m) => startedIds.contains(m.id))
-          .toList();
-
-      modules.assignAll(startedModules);
-
+      modules.assignAll(
+          allModules.where((m) => startedIds.contains(m.id)).toList());
     } catch (e) {
       debugPrint("Error fetching started modules: $e");
     } finally {
@@ -368,9 +279,8 @@ class LibraryController extends GetxController
   }
 
   // ============================================================
-  // 🟦 MULTI-SELECT MODE FUNCTIONS
+  // MULTI-SELECT
   // ============================================================
-
   void startSelecting() {
     isSelecting.value = true;
     selectedQuestionIds.clear();
@@ -448,8 +358,10 @@ class LibraryController extends GetxController
     await reloadSavedQuestions();
   }
 
-  Future<void> removeFromCollection(String collectionId, String questionId) async {
-    await LibraryService.instance.removeFromCollection(collectionId, questionId);
+  Future<void> removeFromCollection(
+      String collectionId, String questionId) async {
+    await LibraryService.instance
+        .removeFromCollection(collectionId, questionId);
     await updateBookmarkState(questionId);
     await reloadSavedQuestions();
   }
@@ -473,10 +385,9 @@ class LibraryController extends GetxController
   }
 
   // ============================================================
-  // 🧩 UI ACTION HANDLERS
+  // UI ACTIONS
   // ============================================================
   void onSearchChanged(String v) => searchQuery.value = v;
-
   void onSortPressed() => Get.snackbar('Sort', 'Sort & filter coming soon');
 
   Future<void> onCreateCollectionPressed() async {
@@ -545,7 +456,7 @@ class LibraryController extends GetxController
   }
 
   // ============================================================
-  // 🔗 STREAMS
+  // STREAMS
   // ============================================================
   Stream<List<Question>> get savedQuestionsStream =>
       LibraryService.instance.savedQuestionsStream();
@@ -553,17 +464,18 @@ class LibraryController extends GetxController
   Stream<List<CollectionData>> get collectionsStream =>
       LibraryService.instance.collectionsStream();
 
-  // ============================================================
-  // 🔎 FILTER FUNCTIONS
-  // ============================================================
   List<Question> filterQuestions(List<Question> raw) {
     final q = searchQuery.value.trim().toLowerCase();
     return raw.where((item) {
       if (q.isNotEmpty && !item.title.toLowerCase().contains(q)) return false;
-      if (selectedTopics.isNotEmpty && !selectedTopics.contains(item.topic)) return false;
-      if (selectedDifficulties.isNotEmpty && !selectedDifficulties.contains(item.difficulty)) return false;
-      if (selectedQuestionTypes.isNotEmpty && !selectedQuestionTypes.contains(item.type)) return false;
-      if (selectedStatus.value != null && item.status != selectedStatus.value) return false;
+      if (selectedTopics.isNotEmpty && !selectedTopics.contains(item.topic))
+        return false;
+      if (selectedDifficulties.isNotEmpty &&
+          !selectedDifficulties.contains(item.difficulty)) return false;
+      if (selectedQuestionTypes.isNotEmpty &&
+          !selectedQuestionTypes.contains(item.type)) return false;
+      if (selectedStatus.value != null && item.status != selectedStatus.value)
+        return false;
       return true;
     }).toList();
   }
@@ -571,14 +483,15 @@ class LibraryController extends GetxController
   List<TrainingModule> filterModules(List<TrainingModule> all) {
     final q = searchQuery.value.trim().toLowerCase();
     if (q.isEmpty) return all;
-    return all.where((m) {
-      return m.title.toLowerCase().contains(q) ||
-          m.subtitle.toLowerCase().contains(q);
-    }).toList();
+    return all
+        .where((m) =>
+            m.title.toLowerCase().contains(q) ||
+            m.subtitle.toLowerCase().contains(q))
+        .toList();
   }
 
   // ============================================================
-  // 🚀 RUNNER HELPERS (All Tab)
+  // RUNNER
   // ============================================================
   void openRunnerAllTab(List<Question> questions, int startIndex) {
     final feed = QuestionFeed(
@@ -593,9 +506,6 @@ class LibraryController extends GetxController
     Get.to(() => QuestionRunnerPage(feed: feed));
   }
 
-  // ============================================================
-  // ⭐ QUESTION SAVE / MOVEMENT OPTIONS
-  // ============================================================
   Future<void> openQuestionOptions(Question q) async {
     final qId = q.id;
     final isSaved = await LibraryService.instance.isSavedOnce(qId);
@@ -621,8 +531,7 @@ class LibraryController extends GetxController
                   Get.back();
                   await Get.bottomSheet(
                     SafeArea(
-                      child: SaveQuestionToCollectionSheet(questionId: qId),
-                    ),
+                        child: SaveQuestionToCollectionSheet(questionId: qId)),
                     isScrollControlled: true,
                   );
                 },
@@ -633,17 +542,12 @@ class LibraryController extends GetxController
       );
     } else {
       await Get.bottomSheet(
-        SafeArea(
-          child: SaveQuestionToCollectionSheet(questionId: qId),
-        ),
+        SafeArea(child: SaveQuestionToCollectionSheet(questionId: qId)),
         isScrollControlled: true,
       );
     }
   }
 
-  // ============================================================
-  // 🚀 RUNNER HELPERS (Collections Tab)
-  // ============================================================
   void openRunnerFromCollection(
     List<Question> questions,
     int startIndex, {
@@ -656,43 +560,36 @@ class LibraryController extends GetxController
       startIndex: startIndex,
       source: QuestionSourceContext(
         kind: QuestionSourceKind.collection,
-        label: collectionName != null ? 'Collection: $collectionName' : 'Collection',
+        label: collectionName != null
+            ? 'Collection: $collectionName'
+            : 'Collection',
         refId: collectionId,
       ),
     );
     Get.to(() => QuestionRunnerPage(feed: feed));
   }
 
-  // ============================================================
-  // 🔥 NAVIGATE TO MODULE DETAIL (PracticeController Logic)
-  // ============================================================
   void navigateToModuleDetail(TrainingModule module) async {
-    // 1. PracticeController'a eriş (Yoksa yarat)
     PracticeController practiceController;
-    
+
     if (Get.isRegistered<PracticeController>()) {
       practiceController = Get.find<PracticeController>();
     } else {
       practiceController = Get.put(PracticeController());
     }
 
-    // 2. Eğer PracticeController'ın verisi henüz yüklenmediyse bekle
-    // (Practice sayfası hiç açılmadıysa boş olabilir)
     if (practiceController.sectionsByModule.isEmpty) {
-      // Veriyi yükle
       await practiceController.loadTrainingModulesFromFirestore();
       await practiceController.loadQuestionsFromFirebase();
     }
 
-    // 3. Modüle ait section ve referansları PracticeController hafızasından çek
     final sections = practiceController.sectionsByModule[module.id] ?? [];
     final refs = practiceController.refsByModule[module.id] ?? [];
 
-    // 4. Detay sayfasına dolu paketle git
     Get.to(() => TrainingModuleDetailPage(
-      module: module,
-      sections: sections,      // 🔥 ARTIK DOLU GİDECEK
-      questionRefs: refs,      // 🔥 ARTIK DOLU GİDECEK
-    ));
+          module: module,
+          sections: sections,
+          questionRefs: refs,
+        ));
   }
 }

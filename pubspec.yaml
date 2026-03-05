@@ -78,10 +78,11 @@ dependencies:
   firebase_auth: ^5.3.1       # Kimlik doğrulama (Email, Google, Apple vs.)
   cloud_firestore: ^5.4.4     # Veritabanı işlemleri
 
-  # --- Sosyal Girişler (Yeni Eklenenler) ---
+  # --- Sosyal Girişler ---
   google_sign_in: ^6.2.1      # Google ile giriş için gerekli
   sign_in_with_apple: ^6.1.0  # Apple ile giriş için gerekli
-  
+  crypto: ^3.0.3 # Hash üretmek için gerekli
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

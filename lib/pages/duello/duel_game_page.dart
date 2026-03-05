@@ -1,51 +1,83 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:interview_project/constants/colors.dart';
-import 'package:interview_project/constants/text_styles.dart';
 import 'package:interview_project/pages/duello/controllers/duel_game_controller.dart';
-import 'package:interview_project/pages/duello/widgets/duel_category_card.dart';
 import 'package:interview_project/pages/duello/widgets/duel_game_layout.dart';
 import 'package:interview_project/pages/duello/widgets/duel_score_progress_bar.dart';
 import 'package:interview_project/pages/duello/widgets/question_renderer.dart';
-import 'package:interview_project/utils/duel_category_style.dart';
 
 import '../../models/duel_match.dart';
-import '../../models/duel_enums.dart';
+import '../../models/question.dart';
 
 class DuelGamePage extends StatelessWidget {
   const DuelGamePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final DuelMatch match = Get.arguments as DuelMatch;
+    final DuelMatch? initialMatch = Get.arguments as DuelMatch?;
+
+    if (initialMatch == null) {
+      return const Scaffold(
+        body: Center(child: Text("Maç verisi bulunamadı.")),
+      );
+    }
 
     final controller = Get.put(
-      DuelGameController(match),
+      DuelGameController(initialMatch),
       permanent: false,
     );
+
+    final String localUserId =
+        FirebaseAuth.instance.currentUser?.uid ?? 'local_user';
 
     return Scaffold(
       backgroundColor: AppColors.primary,
       body: SafeArea(
         child: Obx(() {
-          final currentMatch = controller.match.value!;
-          final question = currentMatch.currentQuestion;
+          if (controller.isLoadingQuestions.value) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: Colors.white),
+                  SizedBox(height: 16),
+                  Text(
+                    'Sorular yükleniyor...',
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final currentMatch = controller.match.value;
+          final Question? question = currentMatch?.currentQuestion;
+
+          if (currentMatch == null || question == null) {
+            return const Center(
+              child: Text(
+                'Sorular yüklenemedi.',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            );
+          }
+
           final phase = currentMatch.questionPhase;
 
           return Column(
             children: [
-              // =============================
-              // SCORE PROGRESS BAR
-              // =============================
-              DuelScoreProgressBar(
-                players: currentMatch.players,
-                localUserId: 'local_user',
-                totalQuestions: currentMatch.questions.length,
-              ),
+              // ── PROGRESS BAR — forceUpdate ile kesin reaktif ──
+              Obx(() {
+                controller.forceUpdate.value; // dinle → rebuild tetikler
+                return DuelScoreProgressBar(
+                  players: controller.players.toList(),
+                  localUserId: localUserId,
+                  totalQuestions: currentMatch.questions.length,
+                );
+              }),
 
-              // =============================
-              // GAME LAYOUT
-              // =============================
+              // ── GAME LAYOUT ──
               Expanded(
                 child: DuelGameLayout(
                   currentQuestionIndex: currentMatch.currentQuestionIndex,
@@ -62,52 +94,6 @@ class DuelGamePage extends StatelessWidget {
             ],
           );
         }),
-      ),
-    );
-  }
-
-  Widget _buildOption({
-    required DuelGameController controller,
-    required DuelMatch match,
-    required String optionText,
-    required int index,
-    required DuelQuestionPhase phase,
-    required int? correctAnswer,
-  }) {
-    final localPlayer =
-        match.players.firstWhere((p) => p.userId == 'local_user');
-
-    final selected = localPlayer.selectedOptionIndex == index;
-
-    Color background = Colors.white;
-
-    if (phase == DuelQuestionPhase.reveal) {
-      if (index == correctAnswer) {
-        background = Colors.green;
-      } else if (selected) {
-        background = Colors.red;
-      }
-    } else if (selected) {
-      background = Colors.blueAccent;
-    }
-
-    return GestureDetector(
-      onTap: phase == DuelQuestionPhase.active
-          ? () => controller.selectOption(index)
-          : null,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Center(
-          child: Text(
-            optionText,
-            style: AppTextStyles.title,
-          ),
-        ),
       ),
     );
   }

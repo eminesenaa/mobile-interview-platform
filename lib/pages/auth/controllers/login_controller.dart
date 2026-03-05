@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../services/firebase/auth_service.dart';
 import '../../../services/sfx/sound_service.dart';
@@ -13,8 +15,44 @@ class LoginController extends GetxController {
   final passwordCtrl = TextEditingController();
 
   final isLoading = false.obs;
+  final rememberMe = false.obs;
 
-  /// 🔹 Login İşlemi
+  static const _kRememberMe = 'remember_me';
+  static const _kSavedInput = 'saved_input';
+
+  @override
+  void onInit() {
+    super.onInit();
+    _loadRememberMe();
+  }
+
+  // ===================== REMEMBER ME =====================
+  Future<void> _loadRememberMe() async {
+    final prefs = await SharedPreferences.getInstance();
+    final remembered = prefs.getBool(_kRememberMe) ?? false;
+    rememberMe.value = remembered;
+    if (remembered) {
+      emailOrUsernameCtrl.text = prefs.getString(_kSavedInput) ?? '';
+    }
+  }
+
+  Future<void> toggleRememberMe(bool value) async {
+    rememberMe.value = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kRememberMe, value);
+    if (!value) {
+      await prefs.remove(_kSavedInput);
+    }
+  }
+
+  Future<void> _saveInputIfRemembered() async {
+    if (rememberMe.value) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kSavedInput, emailOrUsernameCtrl.text.trim());
+    }
+  }
+
+  // ===================== LOGIN =====================
   Future<void> login() async {
     if (isLoading.value) return;
 
@@ -30,8 +68,7 @@ class LoginController extends GetxController {
 
     try {
       String email;
-      
-      // Email mi Username mi kontrolü
+
       if (input.contains("@")) {
         email = input;
       } else {
@@ -53,21 +90,43 @@ class LoginController extends GetxController {
         throw Exception("Invalid credentials");
       }
 
-      // 🔹 Email Doğrulama Kontrolü
       if (!user.emailVerified) {
-        await _authService.signOut(); // Güvenlik için çıkış yap
+        await _authService.signOut();
         _showVerificationDialog();
         return;
       }
 
-      // 🔊 Login success sound
-      SoundService.play(SoundEffect.loginSuccess);
-      Get.offAll(() => const MainView());
+      await _saveInputIfRemembered();
 
+      Get.offAll(() => const MainView());
+    } on FirebaseAuthException catch (e) {
+      String message;
+      switch (e.code) {
+        case 'user-not-found':
+          message = "No account found with this email.";
+          break;
+        case 'wrong-password':
+          message = "Incorrect password.";
+          break;
+        case 'invalid-credential':
+          message = "Invalid email or password.";
+          break;
+        case 'user-disabled':
+          message = "This account has been disabled.";
+          break;
+        case 'too-many-requests':
+          message = "Too many attempts. Please try again later.";
+          break;
+        case 'network-request-failed':
+          message = "Network error. Check your connection.";
+          break;
+        default:
+          message = e.message ?? "Authentication failed.";
+      }
+      Get.snackbar("Login Failed", message);
     } catch (e) {
-      // 🔊 Login error sound
-      SoundService.playSync(SoundEffect.error);
-      Get.snackbar("Login failed", e.toString().replaceAll("Exception:", "").trim());
+      Get.snackbar(
+          "Login failed", e.toString().replaceAll("Exception:", "").trim());
     } finally {
       isLoading.value = false;
     }
@@ -84,10 +143,13 @@ class LoginController extends GetxController {
         SoundService.play(SoundEffect.loginSuccess);
         Get.offAll(() => const MainView());
       }
+    } on FirebaseAuthException catch (e) {
+      Get.snackbar(
+          "Google Login Failed", e.message ?? "Authentication failed.");
     } catch (e) {
-      // 🔊 Login error sound
-      SoundService.playSync(SoundEffect.error);
-      Get.snackbar("Error", "Google sign in failed");
+      if (e.toString().contains('canceled') || e.toString().contains('cancel'))
+        return;
+      Get.snackbar("Error", "Google sign in failed. Please try again.");
     } finally {
       isLoading.value = false;
     }
@@ -104,18 +166,21 @@ class LoginController extends GetxController {
         SoundService.play(SoundEffect.loginSuccess);
         Get.offAll(() => const MainView());
       }
+    } on FirebaseAuthException catch (e) {
+      Get.snackbar("Apple Login Failed", e.message ?? "Authentication failed.");
     } catch (e) {
-      // 🔊 Login error sound
-      SoundService.playSync(SoundEffect.error);
-      Get.snackbar("Error", "Apple sign in failed");
+      if (e.toString().contains('canceled') || e.toString().contains('cancel'))
+        return;
+      Get.snackbar("Error", "Apple sign in failed. Please try again.");
     } finally {
       isLoading.value = false;
     }
   }
 
-  /// 🔹 Şifremi Unuttum Dialogu
+  /// 🔹 Şifremi Unuttum
   void showForgotPasswordDialog() {
     final resetEmailCtrl = TextEditingController();
+
     Get.defaultDialog(
       title: "Reset Password",
       content: Padding(
@@ -150,8 +215,12 @@ class LoginController extends GetxController {
           Get.snackbar("Success", "Password reset link sent to $email");
         } catch (e) {
           Get.snackbar("Error", e.toString());
+        } finally {
+          resetEmailCtrl.dispose(); // 🔥 Her durumda dispose et
         }
       },
+      // 🔥 Cancel'da da dispose et
+      onCancel: () => resetEmailCtrl.dispose(),
     );
   }
 
@@ -164,11 +233,9 @@ class LoginController extends GetxController {
       confirmTextColor: Colors.white,
       buttonColor: Colors.blueAccent,
       onConfirm: () async {
-        // Not: Kullanıcı signOut olduğu için burada tekrar login gerekebilir
-        // veya bu akışı 'Giriş Başarılı -> Dialog -> Çıkış' şeklinde yönetmelisin.
-        // Basitlik adına kullanıcıya mail kutusunu kontrol etmesini söylüyoruz.
         Get.back();
-        Get.snackbar("Check Inbox", "If you didn't receive it, try logging in again to trigger a new email.");
+        Get.snackbar("Check Inbox",
+            "If you didn't receive it, try logging in again to trigger a new email.");
       },
     );
   }
