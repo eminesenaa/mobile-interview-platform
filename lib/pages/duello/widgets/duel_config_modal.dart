@@ -74,12 +74,32 @@ class _DuelConfigModalState extends State<DuelConfigModal>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  /// TITLE
-                  Text(
-                    "Select Category",
-                    style: AppTextStyles.displayLarge.copyWith(
-                      fontSize: 20,
-                    ),
+                  /// BACK ARROW + TITLE
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => Get.back(),
+                        child: const Padding(
+                          padding: EdgeInsets.all(4),
+                          child: Icon(
+                            Icons.arrow_back_ios_new,
+                            color: AppColors.textPrimary,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            "Select Category",
+                            style: AppTextStyles.displayLarge.copyWith(
+                              fontSize: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 28), // back ok ile dengelemek için
+                    ],
                   ),
 
                   const SizedBox(height: AppSpacing.lg),
