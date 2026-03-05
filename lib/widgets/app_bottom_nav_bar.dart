@@ -5,6 +5,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../constants/colors.dart';
 import '../constants/constants.dart';
 import '../constants/text_styles.dart';
+import '../services/sfx/sound_service.dart';
 
 class AppBottomNavBar extends StatelessWidget {
   const AppBottomNavBar({
@@ -110,7 +111,11 @@ class _FlatNavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.zero,
-      onTap: onTap,
+      onTap: () {
+        // 🔊 Tab switch sound
+        SoundService.playSync(SoundEffect.tabSwitch);
+        onTap();
+      },
       child: Padding(
         padding: const EdgeInsets.symmetric(
           vertical: AppSpacing.xs,

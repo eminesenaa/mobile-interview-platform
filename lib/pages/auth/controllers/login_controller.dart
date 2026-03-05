@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../services/firebase/auth_service.dart';
+import '../../../services/sfx/sound_service.dart';
 import '../../main_view.dart';
 
 class LoginController extends GetxController {
@@ -59,9 +60,13 @@ class LoginController extends GetxController {
         return;
       }
 
+      // 🔊 Login success sound
+      SoundService.play(SoundEffect.loginSuccess);
       Get.offAll(() => const MainView());
 
     } catch (e) {
+      // 🔊 Login error sound
+      SoundService.playSync(SoundEffect.error);
       Get.snackbar("Login failed", e.toString().replaceAll("Exception:", "").trim());
     } finally {
       isLoading.value = false;
@@ -75,9 +80,13 @@ class LoginController extends GetxController {
     try {
       final user = await _authService.signInWithGoogle();
       if (user != null) {
+        // 🔊 Login success sound
+        SoundService.play(SoundEffect.loginSuccess);
         Get.offAll(() => const MainView());
       }
     } catch (e) {
+      // 🔊 Login error sound
+      SoundService.playSync(SoundEffect.error);
       Get.snackbar("Error", "Google sign in failed");
     } finally {
       isLoading.value = false;
@@ -91,9 +100,13 @@ class LoginController extends GetxController {
     try {
       final user = await _authService.signInWithApple();
       if (user != null) {
+        // 🔊 Login success sound
+        SoundService.play(SoundEffect.loginSuccess);
         Get.offAll(() => const MainView());
       }
     } catch (e) {
+      // 🔊 Login error sound
+      SoundService.playSync(SoundEffect.error);
       Get.snackbar("Error", "Apple sign in failed");
     } finally {
       isLoading.value = false;
