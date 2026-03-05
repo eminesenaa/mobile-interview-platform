@@ -45,19 +45,16 @@ class SignUpPage extends StatelessWidget {
                         ),
                         child: Center(
                           child: ConstrainedBox(
-                            constraints:
-                            const BoxConstraints(maxWidth: 420),
+                            constraints: const BoxConstraints(maxWidth: 420),
                             child: Column(
-                              crossAxisAlignment:
-                              CrossAxisAlignment.stretch,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 // =========================
                                 // Header
                                 // =========================
                                 const AuthHeader(
                                   title: "Create an account",
-                                  subtitle:
-                                  "Join MIPP and start practicing",
+                                  subtitle: "Join MIPP and start practicing",
                                   size: AuthHeaderSize.tiny,
                                 ),
 
@@ -69,92 +66,69 @@ class SignUpPage extends StatelessWidget {
                                 // Signup Card
                                 // =========================
                                 Container(
-                                  padding: const EdgeInsets.all(
-                                      AppSpacing.lg),
+                                  padding: const EdgeInsets.all(AppSpacing.lg),
                                   decoration: BoxDecoration(
                                     color: AppColors.surface,
                                     borderRadius:
-                                    BorderRadius.circular(
-                                        AppRadius.lg),
+                                        BorderRadius.circular(AppRadius.lg),
                                     boxShadow: AppShadows.medium,
                                   ),
                                   child: Column(
                                     children: [
                                       AuthTextField(
-                                        controller:
-                                        controller.nameCtrl,
+                                        controller: controller.nameCtrl,
                                         hint: "First name",
-                                        icon:
-                                        PhosphorIcons.user(),
+                                        icon: PhosphorIcons.user(),
                                       ),
-                                      const SizedBox(
-                                          height: AppSpacing.md),
+                                      const SizedBox(height: AppSpacing.md),
 
                                       AuthTextField(
-                                        controller:
-                                        controller.surnameCtrl,
+                                        controller: controller.surnameCtrl,
                                         hint: "Last name",
-                                        icon:
-                                        PhosphorIcons.user(),
+                                        icon: PhosphorIcons.user(),
                                       ),
-                                      const SizedBox(
-                                          height: AppSpacing.md),
+                                      const SizedBox(height: AppSpacing.md),
 
                                       AuthTextField(
-                                        controller:
-                                        controller.usernameCtrl,
+                                        controller: controller.usernameCtrl,
                                         hint: "Username",
-                                        icon:
-                                        PhosphorIcons.at(),
+                                        icon: PhosphorIcons.at(),
                                       ),
-                                      const SizedBox(
-                                          height: AppSpacing.md),
+                                      const SizedBox(height: AppSpacing.md),
 
                                       AuthTextField(
-                                        controller:
-                                        controller.emailCtrl,
+                                        controller: controller.emailCtrl,
                                         hint: "Email",
-                                        icon:
-                                        PhosphorIcons.envelope(),
+                                        icon: PhosphorIcons.envelope(),
                                       ),
-                                      const SizedBox(
-                                          height: AppSpacing.md),
+                                      const SizedBox(height: AppSpacing.md),
 
                                       AuthTextField(
-                                        controller:
-                                        controller.passwordCtrl,
+                                        controller: controller.passwordCtrl,
                                         hint: "Password",
-                                        icon:
-                                        PhosphorIcons.lock(),
+                                        icon: PhosphorIcons.lock(),
                                         isPassword: true,
                                       ),
 
-                                      const SizedBox(
-                                          height: AppSpacing.sm),
+                                      const SizedBox(height: AppSpacing.sm),
 
                                       // =========================
                                       // Terms of Service
                                       // =========================
                                       Row(
                                         crossAxisAlignment:
-                                        CrossAxisAlignment.center,
+                                            CrossAxisAlignment.center,
                                         children: [
                                           Obx(
-                                                () => Checkbox(
+                                            () => Checkbox(
                                               value: controller
+                                                  .acceptedTerms.value,
+                                              onChanged: (v) => controller
                                                   .acceptedTerms
-                                                  .value,
-                                              onChanged: (v) =>
-                                              controller
-                                                  .acceptedTerms
-                                                  .value =
-                                                  v ?? false,
-                                              activeColor:
-                                              AppColors.primary,
-                                              side:
-                                              const BorderSide(
-                                                color: AppColors
-                                                    .borderStrong,
+                                                  .value = v ?? false,
+                                              activeColor: AppColors.primary,
+                                              side: const BorderSide(
+                                                color: AppColors.borderStrong,
                                                 width: 1.5,
                                               ),
                                             ),
@@ -162,51 +136,37 @@ class SignUpPage extends StatelessWidget {
                                           Expanded(
                                             child: Text(
                                               "I agree to the Terms of Service",
-                                              style: AppTextStyles
-                                                  .bodySmall,
+                                              style: AppTextStyles.bodySmall,
                                             ),
                                           ),
                                         ],
                                       ),
 
-                                      const SizedBox(
-                                          height: AppSpacing.md),
+                                      const SizedBox(height: AppSpacing.md),
 
                                       // =========================
                                       // Create account button
                                       // =========================
                                       Obx(
-                                            () => AuthPrimaryButton(
+                                        () => AuthPrimaryButton(
                                           label: "Create account",
-                                          isLoading: controller
-                                              .isLoading.value,
-                                          onPressed:
-                                          controller.signUp,
+                                          isLoading: controller.isLoading.value,
+                                          onPressed: controller.signUp,
                                         ),
                                       ),
 
-                                      const SizedBox(
-                                          height: AppSpacing.lg),
+                                      const SizedBox(height: AppSpacing.lg),
 
                                       const AuthDivider(),
 
-                                      const SizedBox(
-                                          height: AppSpacing.lg),
+                                      const SizedBox(height: AppSpacing.lg),
 
                                       // =========================
                                       // Social signup
                                       // =========================
                                       AuthSocialButtons(
-                                        onGoogle: () =>
-                                            Get.snackbar(
-                                              "Coming soon",
-                                              "Google signup will be added",
-                                            ),
-                                        onApple: () =>
-                                            Get.snackbar(
-                                              "Coming soon",
-                                              "Apple signup will be added",
-                                            ),
+                                        onGoogle: controller.signUpWithGoogle,
+                                        onApple: controller.signUpWithApple,
                                       ),
                                     ],
                                   ),
@@ -234,7 +194,7 @@ class SignUpPage extends StatelessWidget {
                 child: Container(
                   width: 38,
                   height: 38,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AppColors.surface,
                     shape: BoxShape.circle,
                     boxShadow: AppShadows.low,

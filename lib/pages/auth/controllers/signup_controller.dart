@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../services/firebase/auth_service.dart';
+import '../../main_view.dart';
 import '../login_page.dart';
 
 class SignupController extends GetxController {
@@ -26,7 +27,11 @@ class SignupController extends GetxController {
     final email = emailCtrl.text.trim();
     final password = passwordCtrl.text.trim();
 
-    if (name.isEmpty || surname.isEmpty || username.isEmpty || email.isEmpty || password.isEmpty) {
+    if (name.isEmpty ||
+        surname.isEmpty ||
+        username.isEmpty ||
+        email.isEmpty ||
+        password.isEmpty) {
       Get.snackbar("Error", "Please fill all fields");
       return;
     }
@@ -56,7 +61,8 @@ class SignupController extends GetxController {
       // 3. Bilgilendirme ve Yönlendirme
       Get.defaultDialog(
         title: "Verify Your Email",
-        middleText: "We have sent a verification link to $email.\nPlease verify your account before logging in.",
+        middleText:
+            "We have sent a verification link to $email.\nPlease verify your account before logging in.",
         textConfirm: "OK",
         confirmTextColor: Colors.white,
         buttonColor: Colors.blueAccent,
@@ -84,6 +90,48 @@ class SignupController extends GetxController {
       Get.snackbar("Sign Up Error", message);
     } catch (e) {
       Get.snackbar("Error", e.toString().replaceAll("Exception:", "").trim());
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /// 🔹 Google ile Kayıt / Giriş
+  Future<void> signUpWithGoogle() async {
+    if (isLoading.value) return;
+    isLoading.value = true;
+    try {
+      final user = await _authService.signInWithGoogle();
+      if (user != null) {
+        Get.offAll(() => const MainView());
+      }
+    } on FirebaseAuthException catch (e) {
+      Get.snackbar(
+          "Google Sign Up Failed", e.message ?? "Authentication failed.");
+    } catch (e) {
+      if (e.toString().contains('canceled') || e.toString().contains('cancel'))
+        return;
+      Get.snackbar("Error", "Google sign up failed. Please try again.");
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /// 🔹 Apple ile Kayıt / Giriş
+  Future<void> signUpWithApple() async {
+    if (isLoading.value) return;
+    isLoading.value = true;
+    try {
+      final user = await _authService.signInWithApple();
+      if (user != null) {
+        Get.offAll(() => const MainView());
+      }
+    } on FirebaseAuthException catch (e) {
+      Get.snackbar(
+          "Apple Sign Up Failed", e.message ?? "Authentication failed.");
+    } catch (e) {
+      if (e.toString().contains('canceled') || e.toString().contains('cancel'))
+        return;
+      Get.snackbar("Error", "Apple sign up failed. Please try again.");
     } finally {
       isLoading.value = false;
     }

@@ -18,22 +18,20 @@ class QuestionRenderer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    switch (question.type) {
-      case QuestionType.mcq:
-        return MCQQuestionWidget(
-          question: question,
-          controller: controller,
-          phase: phase,
-        );
-
-      // 🔮 Future question types
-      // case QuestionType.textInput:
-      //   return TextInputQuestionWidget(...);
-
-      default:
-        return const Center(
-          child: Text("Unsupported question type"),
-        );
+    // Düelloda sadece MCQ desteklediğimiz için tipi zorla kontrol ediyoruz
+    if (question.type == QuestionType.mcq || question.options != null) {
+      return MCQQuestionWidget(
+        question: question,
+        controller: controller,
+        phase: phase,
+      );
     }
+
+    return const Center(
+      child: Text(
+        "Unsupported question type or missing options",
+        style: TextStyle(color: Colors.white),
+      ),
+    );
   }
 }
