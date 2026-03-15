@@ -84,4 +84,26 @@ class DuelPlayer {
         answerTimeSeconds: answerTimeSeconds,
         avatarColor: avatarColor,
       );
+
+  /// Firestore'a yazarken kullanılır
+  Map<String, dynamic> toFirestore() => {
+        'userId': userId,
+        'username': username,
+        'avatarUrl': avatarUrl,
+        'score': score,
+        'correctCount': correctCount,
+        'totalXpGained': totalXpGained,
+        'comboCount': comboCount,
+      };
+
+  /// Firestore'dan okurken kullanılır
+  factory DuelPlayer.fromFirestore(Map<String, dynamic> data) => DuelPlayer(
+        userId: data['userId'] ?? '',
+        username: data['username'] ?? 'Player',
+        avatarUrl: data['avatarUrl'],
+        score: data['score'] ?? 0,
+        correctCount: data['correctCount'] ?? 0,
+        totalXpGained: data['totalXpGained'] ?? 0,
+        comboCount: data['comboCount'] ?? 0,
+      );
 }

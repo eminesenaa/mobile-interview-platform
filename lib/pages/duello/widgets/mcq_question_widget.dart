@@ -9,12 +9,14 @@ class MCQQuestionWidget extends StatefulWidget {
   final Question question;
   final DuelGameController controller;
   final DuelQuestionPhase phase;
+  final List<DuelPlayer> players;
 
   const MCQQuestionWidget({
     super.key,
     required this.question,
     required this.controller,
     required this.phase,
+    required this.players,
   });
 
   @override
@@ -152,6 +154,13 @@ class _MCQQuestionWidgetState extends State<MCQQuestionWidget>
                   textColor = AppColors.textPrimary;
                 }
 
+                // Reveal'da bu şıkkı seçen oyuncuları bul
+                final playersOnThisOption = isReveal
+                    ? widget.players
+                        .where((p) => p.selectedOptionIndex == index)
+                        .toList()
+                    : <DuelPlayer>[];
+
                 return Padding(
                   padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                   child: Stack(
@@ -227,6 +236,24 @@ class _MCQQuestionWidgetState extends State<MCQQuestionWidget>
                           ),
                         ),
                       ),
+
+                      // ── AVATAR OVERLAY — reveal fazında seçilen şıkkın üstünde ──
+                      if (isReveal && playersOnThisOption.isNotEmpty)
+                        Positioned(
+                          top: -10,
+                          right: -6,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: playersOnThisOption
+                                .asMap()
+                                .entries
+                                .map((entry) => Transform.translate(
+                                      offset: Offset(-entry.key * 8.0, 0),
+                                      child: _MiniAvatar(player: entry.value),
+                                    ))
+                                .toList(),
+                          ),
+                        ),
                     ],
                   ),
                 );
