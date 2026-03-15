@@ -241,17 +241,26 @@ class _MCQQuestionWidgetState extends State<MCQQuestionWidget>
                       if (isReveal && playersOnThisOption.isNotEmpty)
                         Positioned(
                           top: -10,
-                          right: -6,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: playersOnThisOption
-                                .asMap()
-                                .entries
-                                .map((entry) => Transform.translate(
-                                      offset: Offset(-entry.key * 8.0, 0),
-                                      child: _MiniAvatar(player: entry.value),
-                                    ))
-                                .toList(),
+                          right: -4,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 2, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                            ),
+                            child: Wrap(
+                              spacing: -6,
+                              children: playersOnThisOption
+                                  .map((p) => _MiniAvatar(player: p))
+                                  .toList(),
+                            ),
                           ),
                         ),
                     ],

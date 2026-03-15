@@ -1,5 +1,5 @@
 // ===================== File: lib/services/firebase/firebase_duel_game_service.dart =====================
-// Purpose: Gerçek zamanlı 1v1 düello oyun servisi.
+// Purpose: Gerçek zamanlı düello oyun servisi (1v1 ve multi).
 //          Firestore üzerinden answer/submit, round ilerletme, disconnect yönetimi.
 //          Matchmaking değil — oyun başladıktan sonraki lifecycle'ı yönetir.
 // ================================================================================================
@@ -224,11 +224,24 @@ class FirebaseDuelGameService {
           q.correctAnswer!.isNotEmpty;
     }).toList();
 
+    // Parse duelType
+    final duelTypeStr = data['duelType'] as String? ?? 'oneVsOne';
+    final duelType = DuelType.values.firstWhere(
+      (e) => e.name == duelTypeStr,
+      orElse: () => DuelType.oneVsOne,
+    );
+
+    // Parse lobbyCountdownEndAt
+    final lobbyTimestamp = data['lobbyCountdownEndAt'] as Timestamp?;
+    final lobbyCountdownEndAt = lobbyTimestamp?.toDate();
+
     return DuelMatch(
       matchId: matchId,
       players: players,
       questions: questions,
       currentQuestionIndex: data['currentQuestionIndex'] ?? 0,
+      duelType: duelType,
+      lobbyCountdownEndAt: lobbyCountdownEndAt,
       status: DuelStatus.values.firstWhere(
           (e) => e.name == (data['status'] ?? 'idle'),
           orElse: () => DuelStatus.idle),

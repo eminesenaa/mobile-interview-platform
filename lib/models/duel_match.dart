@@ -11,6 +11,8 @@ class DuelMatch {
   final List<DuelPlayer> players;
   final List<Question> questions;
   final String? category;
+  final DuelType duelType;
+  final DateTime? lobbyCountdownEndAt;
 
   int currentQuestionIndex;
   DuelStatus status;
@@ -25,6 +27,8 @@ class DuelMatch {
     required this.players,
     required this.questions,
     this.category,
+    this.duelType = DuelType.oneVsOne,
+    this.lobbyCountdownEndAt,
     this.currentQuestionIndex = 0,
     this.status = DuelStatus.idle,
     this.questionPhase = DuelQuestionPhase.active,

@@ -9,11 +9,12 @@ enum DuelType {
 
 /// Düellonun genel durumu (match lifecycle)
 enum DuelStatus {
-  idle,         // Henüz başlamadı
-  searching,    // Rakip aranıyor
-  matched,      // Rakip bulundu
-  countdown,    // 3-2-1 geri sayım
-  inProgress,   // Oyun devam ediyor
+  idle,             // Henüz başlamadı
+  searching,        // Rakip aranıyor
+  matched,          // Rakip bulundu
+  countdown,        // 3-2-1 geri sayım
+  lobbyCountdown,   // Multi: 3+ oyuncu, 18s bekleme
+  inProgress,       // Oyun devam ediyor
   revealing,    // Cevaplar gösteriliyor
   finished,     // Oyun bitti
   cancelled,    // İptal edildi
