@@ -33,11 +33,12 @@ class FirebaseDuelGameService {
   }
 
   // ─────────────────────────────────────────
-  // SUBMIT ANSWER — atomik Firestore yazımı
+  // SUBMIT ANSWER — sadece currentRoundAnswers'a yaz
   // ─────────────────────────────────────────
 
   /// Oyuncunun cevabını `currentRoundAnswers/{userId}` altına yazar.
-  /// Score ve correctCount alanlarını FieldValue.increment ile atomik günceller.
+  /// Skor artışı burada YAPILMAZ — reveal sonrası `applyRoundScores` ile yapılır.
+  /// Böylece progress bar sadece reveal'dan sonra ilerler.
   Future<void> submitAnswer({
     required String matchId,
     required String userId,
@@ -49,25 +50,16 @@ class FirebaseDuelGameService {
   }) async {
     final matchRef = _firestore.collection('matches').doc(matchId);
 
-    final answerData = {
+    // Sadece cevap verisini yaz — skor/xp bilgisi de sakla (reveal sonrası uygulanacak)
+    await matchRef.update({
       'currentRoundAnswers.$userId': {
         'selectedOptionIndex': selectedOptionIndex,
         'answerTimeSeconds': answerTimeSeconds,
         'isCorrect': isCorrect,
+        'scoreGained': scoreGained,
+        'xpGained': xpGained,
       },
-    };
-
-    // Oyuncunun players array'indeki score/correctCount atomik güncelleme
-    // NOT: Firestore arrayUnion ile nested field güncelleyemez.
-    // Bu nedenle per-player top-level alanlar kullanıyoruz.
-    final Map<String, dynamic> updates = {
-      ...answerData,
-      'playerScores.$userId': FieldValue.increment(scoreGained),
-      'playerCorrectCounts.$userId': FieldValue.increment(isCorrect ? 1 : 0),
-      'playerXp.$userId': FieldValue.increment(xpGained),
-    };
-
-    await matchRef.update(updates);
+    });
   }
 
   // ─────────────────────────────────────────
@@ -93,7 +85,7 @@ class FirebaseDuelGameService {
     }
   }
 
-  /// Reveal bittikten sonra bir sonraki soruya ilerletir.
+  /// Reveal bittikten sonra skorları uygula ve bir sonraki soruya ilerlet.
   /// Son soruysa match'i sonlandırır.
   Future<void> advanceToNextQuestion({
     required String matchId,
@@ -101,6 +93,9 @@ class FirebaseDuelGameService {
     required int totalQuestions,
   }) async {
     final matchRef = _firestore.collection('matches').doc(matchId);
+
+    // 🔥 Önce bu rounddaki skorları uygula (reveal sonrası)
+    await _applyRoundScores(matchRef);
 
     if (currentIndex >= totalQuestions - 1) {
       // Son soru — match bitti
@@ -116,6 +111,42 @@ class FirebaseDuelGameService {
         'questionPhase': 'active',
         'currentRoundAnswers': {}, // Temizle
       });
+    }
+  }
+
+  /// currentRoundAnswers içindeki skor verilerini playerScores/playerCorrectCounts/playerXp'ye uygular.
+  /// Bu sayede progress bar sadece reveal fazından SONRA ilerler.
+  Future<void> _applyRoundScores(DocumentReference matchRef) async {
+    final snapshot = await matchRef.get();
+    if (!snapshot.exists) return;
+
+    final data = snapshot.data() as Map<String, dynamic>? ?? {};
+    final answers = data['currentRoundAnswers'] as Map<String, dynamic>? ?? {};
+
+    final Map<String, dynamic> scoreUpdates = {};
+
+    for (final entry in answers.entries) {
+      final userId = entry.key;
+      final answer = entry.value as Map<String, dynamic>? ?? {};
+
+      final scoreGained = answer['scoreGained'] as int? ?? 0;
+      final xpGained = answer['xpGained'] as int? ?? 0;
+      final isCorrect = answer['isCorrect'] as bool? ?? false;
+
+      if (scoreGained > 0) {
+        scoreUpdates['playerScores.$userId'] =
+            FieldValue.increment(scoreGained);
+      }
+      if (isCorrect) {
+        scoreUpdates['playerCorrectCounts.$userId'] = FieldValue.increment(1);
+      }
+      if (xpGained > 0) {
+        scoreUpdates['playerXp.$userId'] = FieldValue.increment(xpGained);
+      }
+    }
+
+    if (scoreUpdates.isNotEmpty) {
+      await matchRef.update(scoreUpdates);
     }
   }
 
