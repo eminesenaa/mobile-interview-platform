@@ -13,6 +13,8 @@ class DuelMatch {
   final String? category;
   final DuelType duelType;
   final DateTime? lobbyCountdownEndAt;
+  final bool isPrivate;
+  final String? password;
 
   int currentQuestionIndex;
   DuelStatus status;
@@ -29,6 +31,8 @@ class DuelMatch {
     this.category,
     this.duelType = DuelType.oneVsOne,
     this.lobbyCountdownEndAt,
+    this.isPrivate = false,
+    this.password,
     this.currentQuestionIndex = 0,
     this.status = DuelStatus.idle,
     this.questionPhase = DuelQuestionPhase.active,

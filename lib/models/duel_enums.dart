@@ -14,10 +14,11 @@ enum DuelStatus {
   matched,          // Rakip bulundu
   countdown,        // 3-2-1 geri sayım
   lobbyCountdown,   // Multi: 3+ oyuncu, 18s bekleme
+  waiting,          // Private room: waiting for players
   inProgress,       // Oyun devam ediyor
-  revealing,    // Cevaplar gösteriliyor
-  finished,     // Oyun bitti
-  cancelled,    // İptal edildi
+  revealing,        // Cevaplar gösteriliyor
+  finished,         // Oyun bitti
+  cancelled,        // İptal edildi
 }
 
 /// Soru içindeki anlık faz

@@ -242,6 +242,8 @@ class FirebaseDuelGameService {
       currentQuestionIndex: data['currentQuestionIndex'] ?? 0,
       duelType: duelType,
       lobbyCountdownEndAt: lobbyCountdownEndAt,
+      isPrivate: data['isPrivate'] ?? false,
+      password: data['password'],
       status: DuelStatus.values.firstWhere(
           (e) => e.name == (data['status'] ?? 'idle'),
           orElse: () => DuelStatus.idle),
@@ -252,6 +254,192 @@ class FirebaseDuelGameService {
       startedAt: (data['startedAt'] as Timestamp?)?.toDate(),
       finishedAt: (data['finishedAt'] as Timestamp?)?.toDate(),
     );
+  }
+
+  // ─────────────────────────────────────────
+  // PRIVATE ROOM METHODS
+  // ─────────────────────────────────────────
+
+  /// Creates a private room, generates questions, returns the matchId and 6-digit password.
+  Future<Map<String, String>> createPrivateRoom({
+    required String category,
+    required String userId,
+    required String username,
+    required String? avatarUrl,
+  }) async {
+    // 1. Generate 6-digit random code
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    // For more true randomness, use math.Random
+    final rnd = DateTime.now().microsecondsSinceEpoch;
+    final password = List.generate(6, (index) => chars[(rnd + index) % chars.length]).join('');
+
+    // 2. Fetch questions
+    final questions = await _fetchQuestionsForPrivateRoom(category);
+
+    final matchRef = _firestore.collection('matches').doc();
+    final matchId = matchRef.id;
+
+    final questionsData = questions.map((q) {
+      return {
+        'id': q.id,
+        'title': q.title.trim(),
+        'text': q.description?.trim() ?? '',
+        'topic': q.topic,
+        'type': 'MCQ',
+        'options': (q.options ?? []).map((opt) => opt.toString().trim()).toList(),
+        'correctAnswer': q.correctAnswer?.toString().trim(),
+        'difficulty': q.difficulty.name,
+      };
+    }).toList();
+
+    await matchRef.set({
+      'matchId': matchId,
+      'isPrivate': true,
+      'password': password,
+      'players': [
+        {
+          'userId': userId,
+          'username': username,
+          'avatarUrl': avatarUrl,
+          'score': 0,
+          'correctCount': 0,
+          'totalXpGained': 0,
+        }
+      ],
+      'questions': questionsData,
+      'currentQuestionIndex': 0,
+      'status': 'waiting',
+      'questionPhase': 'active',
+      'duelType': DuelType.privateRoom.name,
+      'category': category,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    return {'matchId': matchId, 'password': password};
+  }
+
+  /// Joins a private room. Returns the matchId if successful, or throws an exception.
+  Future<String> joinPrivateRoom({
+    required String password,
+    required String userId,
+    required String username,
+    required String? avatarUrl,
+  }) async {
+    final query = await _firestore
+        .collection('matches')
+        .where('isPrivate', isEqualTo: true)
+        .where('password', isEqualTo: password)
+        .where('status', isEqualTo: 'waiting')
+        .limit(1)
+        .get();
+
+    if (query.docs.isEmpty) {
+      throw Exception('Oda bulunamadı veya oyun çoktan başladı.');
+    }
+
+    final doc = query.docs.first;
+    final matchId = doc.id;
+    final data = doc.data();
+
+    final players = data['players'] as List? ?? [];
+
+    if (players.length >= 5) {
+      throw Exception('Oda şu an dolu (Maksimum 5 kişi).');
+    }
+
+    // Oyuncu zaten odada mı?
+    final alreadyJoined = players.any((p) => p['userId'] == userId);
+    if (!alreadyJoined) {
+      await doc.reference.update({
+        'players': FieldValue.arrayUnion([
+          {
+            'userId': userId,
+            'username': username,
+            'avatarUrl': avatarUrl,
+            'score': 0,
+            'correctCount': 0,
+            'totalXpGained': 0,
+          }
+        ]),
+      });
+    }
+
+    return matchId;
+  }
+
+  /// Starts the private room game state (changes status to inProgress).
+  Future<void> startPrivateRoom(String matchId) async {
+    final matchRef = _firestore.collection('matches').doc(matchId);
+    await matchRef.update({
+      'status': 'inProgress',
+      'startedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<List<Question>> _fetchQuestionsForPrivateRoom(String category) async {
+    // Matchmaking logic den copy-paste
+    Query query = _firestore.collection('questions').where('type', isEqualTo: 'MCQ');
+
+    if (category != 'Mixed') {
+      List<String> topics = [];
+      switch (category) {
+        case 'Programming':
+          topics = ['C / C++', 'Java', 'Python'];
+          break;
+        case 'Algorithms':
+          topics = ['Algorithms', 'Data Structures'];
+          break;
+        case 'Data & AI':
+          topics = ['Data Science', 'Machine Learning'];
+          break;
+        case 'Databases':
+          topics = ['SQL'];
+          break;
+        case 'Systems':
+          topics = ['Network', 'Git'];
+          break;
+        case 'Soft Skills':
+          topics = ['Soft Skills'];
+          break;
+        case 'Programming Languages': // Diğer eşleşmeler için fallback
+          topics = ['C / C++', 'Java', 'Python'];
+          break;
+        case 'Algorithms & Data Structures':
+          topics = ['Algorithms', 'Data Structures'];
+          break;
+        case 'Systems & Networking':
+          topics = ['Network', 'Git'];
+          break;
+      }
+      if (topics.isNotEmpty) {
+        query = query.where('topic', whereIn: topics.take(30).toList());
+      }
+    }
+
+    final snapshot = await query.get();
+
+    final cleanQuestions = snapshot.docs.map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      return Question.fromFirestore(data, doc.id).copyWith(
+        description: (data['text'] ?? data['description'] ?? '').toString().trim(),
+        options: data['options'] != null
+            ? List<String>.from((data['options'] as List).map((o) => o.toString().trim()))
+            : [],
+        correctAnswer: data['correctAnswer']?.toString().trim(),
+      );
+    }).where((q) {
+      final bool isMcq = q.type == QuestionType.mcq;
+      final bool hasOptions = q.options != null && q.options!.length >= 2;
+      final bool hasAnswer = q.correctAnswer != null && q.correctAnswer!.isNotEmpty;
+      return isMcq && hasOptions && hasAnswer;
+    }).toList();
+
+    cleanQuestions.shuffle();
+    final result = cleanQuestions.take(10).toList();
+    if (result.isEmpty) {
+      throw Exception('Yeterli soru bulunamadı.');
+    }
+    return result;
   }
 
   // ─────────────────────────────────────────

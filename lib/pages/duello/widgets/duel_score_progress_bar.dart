@@ -28,9 +28,12 @@ class DuelScoreProgressBar extends StatelessWidget {
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.sm,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: players.map((player) {
+      child: ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: players.length,
+        itemBuilder: (context, index) {
+          final player = players[index];
           final bool isLocal = player.userId == localUserId;
           final bool isLeader =
               maxCorrect > 0 && player.correctCount == maxCorrect;
@@ -48,7 +51,7 @@ class DuelScoreProgressBar extends StatelessWidget {
               totalQuestions: totalQuestions,
             ),
           );
-        }).toList(),
+        },
       ),
     );
   }

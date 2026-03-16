@@ -20,8 +20,8 @@ Color avatarColorFromId(String userId) {
 
 /// İsmin baş harfini döner (avatar için)
 String avatarInitial(String username) {
-  if (username.isEmpty) return '?';
-  return username[0].toUpperCase();
+  if (username.trim().isEmpty) return '?';
+  return username.trim()[0].toUpperCase();
 }
 
 /// Bir düello içerisindeki oyuncu state modeli
