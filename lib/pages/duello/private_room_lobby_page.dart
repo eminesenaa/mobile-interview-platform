@@ -20,13 +20,13 @@ class PrivateRoomLobbyPage extends StatelessWidget {
     final controller = Get.put(PrivateRoomController());
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      extendBodyBehindAppBar: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        iconTheme: const IconThemeData(color: AppColors.textPrimary),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_ios_new),
           onPressed: () {
             controller.onClose(); // Cleanup streams
             Get.back();
@@ -34,24 +34,14 @@ class PrivateRoomLobbyPage extends StatelessWidget {
         ),
         title: Text(
           'Private Room',
-          style: AppTextStyles.displayLarge.copyWith(color: Colors.white, fontSize: 24),
+          style: AppTextStyles.displayLarge.copyWith(color: AppColors.textPrimary, fontSize: 24),
         ),
         centerTitle: true,
       ),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppColors.primary,
-              AppColors.primaryAccent,
-            ],
-          ),
-        ),
-        child: SafeArea(
+      body: SafeArea(
+        child: SizedBox(
+          width: double.infinity,
+          height: double.infinity,
           child: Obx(() {
             final match = controller.match.value;
             // If already inside the lobby...
@@ -78,9 +68,9 @@ class PrivateRoomLobbyPage extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
           // Tab bar substitute
           Container(
-            padding: const EdgeInsets.all(4),
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
+              color: Colors.grey[200],
               borderRadius: BorderRadius.circular(AppRadius.pill),
             ),
             child: Row(
@@ -95,6 +85,9 @@ class PrivateRoomLobbyPage extends StatelessWidget {
                             ? Colors.white
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(AppRadius.pill),
+                        border: controller.currentTab.value == 0
+                            ? const Border(bottom: BorderSide(color: AppColors.primary, width: 3))
+                            : const Border(bottom: BorderSide(color: Colors.transparent, width: 3)),
                         boxShadow: controller.currentTab.value == 0
                             ? AppShadows.low
                             : null,
@@ -105,7 +98,8 @@ class PrivateRoomLobbyPage extends StatelessWidget {
                         style: AppTextStyles.button.copyWith(
                           color: controller.currentTab.value == 0
                               ? AppColors.primary
-                              : Colors.white,
+                              : AppColors.textSecondary,
+                          fontWeight: controller.currentTab.value == 0 ? FontWeight.bold : FontWeight.normal,
                         ),
                       ),
                     ),
@@ -121,6 +115,9 @@ class PrivateRoomLobbyPage extends StatelessWidget {
                             ? Colors.white
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(AppRadius.pill),
+                        border: controller.currentTab.value == 1
+                            ? const Border(bottom: BorderSide(color: AppColors.primary, width: 3))
+                            : const Border(bottom: BorderSide(color: Colors.transparent, width: 3)),
                         boxShadow: controller.currentTab.value == 1
                             ? AppShadows.low
                             : null,
@@ -131,7 +128,8 @@ class PrivateRoomLobbyPage extends StatelessWidget {
                         style: AppTextStyles.button.copyWith(
                           color: controller.currentTab.value == 1
                               ? AppColors.primary
-                              : Colors.white,
+                              : AppColors.textSecondary,
+                          fontWeight: controller.currentTab.value == 1 ? FontWeight.bold : FontWeight.normal,
                         ),
                       ),
                     ),
@@ -166,7 +164,7 @@ class PrivateRoomLobbyPage extends StatelessWidget {
       children: [
         Text(
           'Select Category',
-          style: AppTextStyles.bodyStrong.copyWith(color: Colors.white, fontSize: 20),
+          style: AppTextStyles.bodyStrong.copyWith(color: AppColors.textPrimary, fontSize: 20),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -196,7 +194,7 @@ class PrivateRoomLobbyPage extends StatelessWidget {
                           title,
                           style: AppTextStyles.bodyStrong.copyWith(
                             fontSize: 16,
-                            color: Colors.white,
+                            color: AppColors.textPrimary,
                           ),
                         ),
                       ),
@@ -209,10 +207,15 @@ class PrivateRoomLobbyPage extends StatelessWidget {
                         scale: isSelected ? 1.0 : 0.85,
                         child: GestureDetector(
                           onTap: () => controller.selectCategory(index),
-                          child: DuelCategoryCard(
-                            title: title,
-                            color: color,
-                            isSelected: isSelected,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              boxShadow: isSelected ? [BoxShadow(color: color.withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 4))] : null,
+                            ),
+                            child: DuelCategoryCard(
+                              title: title,
+                              color: color,
+                              isSelected: isSelected,
+                            ),
                           ),
                         ),
                       ),
@@ -226,8 +229,8 @@ class PrivateRoomLobbyPage extends StatelessWidget {
         ElevatedButton(
           onPressed: controller.isCreating.value ? null : () => controller.createRoom(),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: AppColors.primary,
+            backgroundColor: AppColors.topicBrightTeal, // Primary brand color
+            foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 18),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -237,9 +240,9 @@ class PrivateRoomLobbyPage extends StatelessWidget {
               ? const SizedBox(
                   width: 24,
                   height: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                 )
-              : Text('Create Room', style: AppTextStyles.button),
+              : Text('Create Room', style: AppTextStyles.button.copyWith(color: Colors.white)),
         ),
         const SizedBox(height: AppSpacing.xxl),
       ],
@@ -255,26 +258,36 @@ class PrivateRoomLobbyPage extends StatelessWidget {
       children: [
         Text(
           'Enter Room Code',
-          style: AppTextStyles.bodyStrong.copyWith(color: Colors.white, fontSize: 20),
+          style: AppTextStyles.bodyStrong.copyWith(color: AppColors.textPrimary, fontSize: 20),
         ),
         const SizedBox(height: AppSpacing.xl),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-          ),
           child: TextField(
             onChanged: (val) => controller.joinPassword.value = val,
-            style: AppTextStyles.displayLarge.copyWith(color: Colors.white, fontSize: 32, letterSpacing: 6),
+            style: AppTextStyles.displayLarge.copyWith(color: AppColors.textPrimary, fontSize: 32, letterSpacing: 6),
             textAlign: TextAlign.center,
             textCapitalization: TextCapitalization.characters,
             inputFormatters: [LengthLimitingTextInputFormatter(6)],
             decoration: InputDecoration(
-              border: InputBorder.none,
+              filled: true,
+              fillColor: Colors.grey[100],
+              contentPadding: const EdgeInsets.symmetric(vertical: 16),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                borderSide: const BorderSide(color: AppColors.primary, width: 2),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                borderSide: const BorderSide(color: AppColors.borderStrong, width: 2),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                borderSide: const BorderSide(color: AppColors.primary, width: 2),
+              ),
               hintText: 'XXXXXX',
               hintStyle: AppTextStyles.displayLarge.copyWith(
-                color: Colors.white.withValues(alpha: 0.5),
+                color: AppColors.textMuted,
                 fontSize: 32,
                 letterSpacing: 6,
               ),
@@ -287,8 +300,8 @@ class PrivateRoomLobbyPage extends StatelessWidget {
           child: ElevatedButton(
             onPressed: controller.isJoining.value ? null : () => controller.joinRoom(),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: AppColors.primary,
+              backgroundColor: AppColors.topicBrightTeal,
+              foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 18),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -298,9 +311,9 @@ class PrivateRoomLobbyPage extends StatelessWidget {
                 ? const SizedBox(
                     width: 24,
                     height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
-                : Text('Join Room', style: AppTextStyles.button),
+                : Text('Join Room', style: AppTextStyles.button.copyWith(color: Colors.white)),
           ),
         ),
       ],
@@ -320,39 +333,43 @@ class PrivateRoomLobbyPage extends StatelessWidget {
       children: [
         const SizedBox(height: AppSpacing.xxl),
         // Access code card
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-          ),
-          child: Column(
-            children: [
-              Text('ROOM CODE', style: AppTextStyles.caption.copyWith(color: Colors.white70, fontSize: 12)),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    password,
-                    style: AppTextStyles.displayLarge.copyWith(
-                      color: Colors.white,
-                      fontSize: 36,
-                      letterSpacing: 6,
+        Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
+          color: Colors.white,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.xl),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 2),
+            ),
+            child: Column(
+              children: [
+                Text('ROOM CODE', style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      password,
+                      style: AppTextStyles.displayLarge.copyWith(
+                        color: AppColors.textPrimary,
+                        fontSize: 36,
+                        letterSpacing: 6,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  IconButton(
-                    icon: const Icon(Icons.copy, color: Colors.white, size: 20),
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: password));
-                      Get.snackbar('Kopyalandı', 'Oda şifresi kopyalandı.', snackPosition: SnackPosition.BOTTOM);
-                    },
-                  )
-                ],
-              ),
-            ],
+                    const SizedBox(width: AppSpacing.md),
+                    IconButton(
+                      icon: const Icon(Icons.copy, color: AppColors.primary, size: 20),
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: password));
+                        Get.snackbar('Copied', 'Oda şifresi kopyalandı.', snackPosition: SnackPosition.BOTTOM);
+                      },
+                    )
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
 
@@ -368,13 +385,17 @@ class PrivateRoomLobbyPage extends StatelessWidget {
         
         const SizedBox(height: 40),
         
-        DuelPlayersLayout(match: match),
+        DuelPlayersLayout(
+          match: match,
+          hostUserId: match.players.isNotEmpty ? match.players.first.userId : null,
+          textColor: AppColors.textPrimary,
+        ),
 
         const Spacer(),
         
         Text(
           '$playerCount/5 Players Joined',
-          style: AppTextStyles.bodyStrong.copyWith(color: Colors.white, fontSize: 20),
+          style: AppTextStyles.bodyStrong.copyWith(color: AppColors.textPrimary, fontSize: 20),
         ),
 
         const SizedBox(height: AppSpacing.xl),
@@ -387,16 +408,17 @@ class PrivateRoomLobbyPage extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: playerCount >= 2 ? () => controller.startGame() : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: AppColors.primary,
-                  disabledBackgroundColor: Colors.white54,
-                  disabledForegroundColor: AppColors.primary.withValues(alpha: 0.5),
-                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  backgroundColor: AppColors.success,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey[300],
+                  disabledForegroundColor: Colors.grey[600],
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  elevation: 6,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppRadius.lg),
                   ),
                 ),
-                child: Text('Start Game', style: AppTextStyles.button),
+                child: Text('Start Game', style: AppTextStyles.button.copyWith(color: Colors.white, fontSize: 18)),
               ),
             ),
           )
@@ -405,7 +427,7 @@ class PrivateRoomLobbyPage extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
             child: Text(
               'Waiting for host to start...',
-              style: AppTextStyles.body.copyWith(color: Colors.white70),
+              style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
             ),
           ),
       ],

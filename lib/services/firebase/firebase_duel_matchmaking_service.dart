@@ -68,13 +68,18 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
           .where('status', whereIn: statusFilters)
           .where('duelType', isEqualTo: config.duelType.name)
           .where('category', isEqualTo: config.category)
-          .where('userId', isNotEqualTo: user.uid)
-          .limit(1)
+          .limit(5)
           .get();
 
-      if (waitingQuery.docs.isNotEmpty) {
-        final existingDoc = waitingQuery.docs.first;
-        final existingMatchId = existingDoc.data()['matchId'] as String?;
+      final validDocs = waitingQuery.docs.where((doc) {
+        final data = doc.data() as Map<String, dynamic>?;
+        return data?['userId'] != user.uid;
+      }).toList();
+
+      if (validDocs.isNotEmpty) {
+        final existingDoc = validDocs.first;
+        final data = existingDoc.data() as Map<String, dynamic>?;
+        final existingMatchId = data?['matchId'] as String?;
 
         if (existingMatchId != null && existingMatchId.isNotEmpty) {
           await _joinExistingMatch(

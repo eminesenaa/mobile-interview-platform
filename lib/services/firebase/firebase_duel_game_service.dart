@@ -242,6 +242,7 @@ class FirebaseDuelGameService {
       questions: questions,
       currentQuestionIndex: data['currentQuestionIndex'] ?? 0,
       duelType: duelType,
+      category: data['category'],
       lobbyCountdownEndAt: lobbyCountdownEndAt,
       isPrivate: data['isPrivate'] ?? false,
       password: data['password'],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../models/duel_match.dart';
+import '../../../models/duel_enums.dart';
 import 'player_avatar_widget.dart';
 import 'package:interview_project/constants/constants.dart';
 
@@ -12,10 +13,14 @@ import 'package:interview_project/constants/constants.dart';
 /// ===============================================================
 class DuelPlayersLayout extends StatelessWidget {
   final DuelMatch match;
+  final String? hostUserId;
+  final Color textColor;
 
   const DuelPlayersLayout({
     super.key,
     required this.match,
+    this.hostUserId,
+    this.textColor = Colors.white,
   });
 
   @override
@@ -23,7 +28,7 @@ class DuelPlayersLayout extends StatelessWidget {
     final players = match.players;
 
     // 1v1 Layout
-    if (players.length == 2) {
+    if (players.length == 2 && match.duelType == DuelType.oneVsOne) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
@@ -31,17 +36,21 @@ class DuelPlayersLayout extends StatelessWidget {
             username: players[0].username,
             avatarAsset: players[0].avatarUrl,
             highlight: true,
+            isHost: hostUserId != null && players[0].userId == hostUserId,
+            textColor: textColor,
           ),
           Text(
             "VS",
             style: AppTextStyles.displayLarge.copyWith(
-              color: Colors.white.withOpacity(0.8),
+              color: textColor.withOpacity(0.8),
             ),
           ),
           PlayerAvatarWidget(
             username: players[1].username,
             avatarAsset: players[1].avatarUrl,
             highlight: true,
+            isHost: hostUserId != null && players[1].userId == hostUserId,
+            textColor: textColor,
           ),
         ],
       );
@@ -52,15 +61,16 @@ class DuelPlayersLayout extends StatelessWidget {
       spacing: AppSpacing.xl,
       runSpacing: AppSpacing.lg,
       alignment: WrapAlignment.center,
-      children: players
-          .map(
-            (p) => PlayerAvatarWidget(
-              username: p.username,
-              avatarAsset: p.avatarUrl,
-              highlight: true,
-            ),
-          )
-          .toList(),
+      children: List.generate(
+        players.length,
+        (index) => PlayerAvatarWidget(
+          username: players[index].username,
+          avatarAsset: players[index].avatarUrl,
+          highlight: true,
+          isHost: hostUserId != null && players[index].userId == hostUserId,
+          textColor: textColor,
+        ),
+      ),
     );
   }
 }

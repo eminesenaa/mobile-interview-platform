@@ -12,18 +12,25 @@ class PlayerAvatarWidget extends StatelessWidget {
   final String username;
   final String? avatarAsset;
   final bool highlight;
+  final bool isHost;
+  final Color textColor;
 
   const PlayerAvatarWidget({
     super.key,
     required this.username,
     this.avatarAsset,
     this.highlight = false,
+    this.isHost = false,
+    this.textColor = Colors.white,
   });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
         AnimatedContainer(
           duration: AppDurations.normal,
           padding: const EdgeInsets.all(3),
@@ -42,11 +49,26 @@ class PlayerAvatarWidget extends StatelessWidget {
             child: _buildAvatarImage(),
           ),
         ),
+        if (isHost)
+          Positioned(
+            top: -5,
+            right: -5,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: const BoxDecoration(
+                color: Colors.amber,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.star, color: Colors.white, size: 16),
+            ),
+          ),
+        ],
+        ),
         const SizedBox(height: AppSpacing.sm),
         Text(
           username.trim().isNotEmpty ? username : 'Player',
           style: AppTextStyles.bodyStrong.copyWith(
-            color: Colors.white,
+            color: textColor,
           ),
         ),
       ],
