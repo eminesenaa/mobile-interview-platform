@@ -254,34 +254,45 @@ class ExamReviewController extends GetxController {
 
 // ---- Field readers (Map / object-like) ----
   String? _readId(dynamic e) {
-    if (e is Map) return (e['questionId'] ?? e['id'] ?? e['qid'])?.toString();
-    try {
-      return ((e as dynamic).questionId ?? e.id ?? e.qid)?.toString();
-    } catch (_) {}
+    if (e is Map) {
+      return (e['questionId'] ?? e['id'] ?? e['qid'] ?? e['questionGeneralIndex'] ?? e['generalIndex'])?.toString();
+    }
+    try { final v = (e as dynamic).questionId; if (v != null) return v.toString(); } catch(_) {}
+    try { final v = (e as dynamic).id; if (v != null) return v.toString(); } catch(_) {}
+    try { final v = (e as dynamic).qid; if (v != null) return v.toString(); } catch(_) {}
+    try { final v = (e as dynamic).questionGeneralIndex; if (v != null) return v.toString(); } catch(_) {}
+    try { final v = (e as dynamic).generalIndex; if (v != null) return v.toString(); } catch(_) {}
     return null;
   }
 
   bool? _readIsCorrect(dynamic e) {
     if (e is Map) {
       final v = e['isCorrect'] ?? e['correct'];
-      return v is bool ? v : null;
+      if (v is bool) return v;
+      final verdict = e['verdict'];
+      if (verdict == 'correct') return true;
+      if (verdict == 'wrong') return false;
+      final correctness = e['correctness'];
+      if (correctness == 1) return true;
+      if (correctness == -1) return false;
+      return null;
     }
-    try {
-      final v = ((e as dynamic).isCorrect ?? e.correct);
-      return v is bool ? v : null;
-    } catch (_) {}
+    try { final v = (e as dynamic).isCorrect; if (v is bool) return v; } catch(_) {}
+    try { final v = (e as dynamic).correct; if (v is bool) return v; } catch(_) {}
+    try { final v = (e as dynamic).verdict; if (v == 'correct') return true; if (v == 'wrong') return false; } catch(_) {}
+    try { final v = (e as dynamic).correctness; if (v == 1) return true; if (v == -1) return false; } catch(_) {}
     return null;
   }
 
   String? _readCorrectAnswer(dynamic e) {
     if (e is Map) {
-      return (e['correctAnswer'] ?? e['answer'] ?? e['modelAnswer'])
-          ?.toString();
+      final a = (e['correctAnswer'] ?? e['answer'] ?? e['modelAnswer']);
+      if (a is Iterable) return a.join(', ');
+      return a?.toString();
     }
-    try {
-      return ((e as dynamic).correctAnswer ?? e.answer ?? e.modelAnswer)
-          ?.toString();
-    } catch (_) {}
+    try { final v = (e as dynamic).correctAnswer; if (v != null) return v is Iterable ? v.join(', ') : v.toString(); } catch(_) {}
+    try { final v = (e as dynamic).answer; if (v != null) return v is Iterable ? v.join(', ') : v.toString(); } catch(_) {}
+    try { final v = (e as dynamic).modelAnswer; if (v != null) return v is Iterable ? v.join(', ') : v.toString(); } catch(_) {}
     return null;
   }
 
@@ -290,9 +301,9 @@ class ExamReviewController extends GetxController {
     if (e is Map) {
       v = e['acceptedAnswers'] ?? e['variants'];
     } else {
-      try {
-        v = (e as dynamic).acceptedAnswers ?? e.variants;
-      } catch (_) {}
+      try { v = (e as dynamic).acceptedAnswers; } catch (_) {
+        try { v = (e as dynamic).variants; } catch(_) {}
+      }
     }
     if (v is Iterable) return v.map((x) => x.toString()).toList();
     return const [];
@@ -323,14 +334,11 @@ class ExamReviewController extends GetxController {
       }
       return exp;
     }
-    try {
-      exp = ((e as dynamic).explanation ??
-              e.aiExplanation ??
-              e.rationale ??
-              e.feedback ??
-              e.message)
-          ?.toString();
-    } catch (_) {}
+    try { exp = (e as dynamic).explanation?.toString(); } catch(_) {}
+    if (exp == null) try { exp = (e as dynamic).aiExplanation?.toString(); } catch(_) {}
+    if (exp == null) try { exp = (e as dynamic).rationale?.toString(); } catch(_) {}
+    if (exp == null) try { exp = (e as dynamic).feedback?.toString(); } catch(_) {}
+    if (exp == null) try { exp = (e as dynamic).message?.toString(); } catch(_) {}
     return exp;
   }
 
