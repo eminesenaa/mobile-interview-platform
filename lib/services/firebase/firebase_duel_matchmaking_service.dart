@@ -22,7 +22,7 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
   Timer? _lobbyTimer;
 
   String _getUsername(User user) {
-    if (user.displayName != null && user.displayName!.isNotEmpty) {
+    if (user.displayName != null && user.displayName!.trim().isNotEmpty) {
       return user.displayName!;
     }
     return user.email?.split('@').first ?? 'Player';
@@ -380,8 +380,8 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
     final players = (data['players'] as List? ?? [])
         .map((p) => DuelPlayer(
               userId: p['userId'] ?? '',
-              username: p['username'] ?? 'Player',
-              avatarUrl: p['avatarUrl'],
+              username: p['username'] ?? p['displayName'] ?? 'Player',
+              avatarUrl: p['avatarUrl'] ?? p['photoUrl'] ?? p['photoURL'],
               score: p['score'] ?? 0,
               correctCount: p['correctCount'] ?? 0,
               totalXpGained: p['totalXpGained'] ?? 0,

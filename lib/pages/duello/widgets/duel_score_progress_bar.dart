@@ -133,14 +133,18 @@ class _PlayerProgressRow extends StatelessWidget {
                   ],
                 ),
                 alignment: Alignment.center,
-                child: Text(
-                  initial,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: isLocal ? 13 : 11,
-                    color: Colors.white,
-                  ),
-                ),
+                child: (player.avatarUrl != null && player.avatarUrl!.isNotEmpty)
+                    ? ClipOval(
+                        child: Image.network(
+                          player.avatarUrl!,
+                          width: avatarSize,
+                          height: avatarSize,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              _buildInitialAvatar(initial, color, isLocal),
+                        ),
+                      )
+                    : _buildInitialAvatar(initial, color, isLocal),
               ),
 
               // Leader icon
@@ -236,6 +240,16 @@ class _PlayerProgressRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+  Widget _buildInitialAvatar(String initial, Color color, bool isLocal) {
+    return Text(
+      initial,
+      style: TextStyle(
+        fontWeight: FontWeight.w800,
+        fontSize: isLocal ? 13 : 11,
+        color: Colors.white,
+      ),
     );
   }
 }

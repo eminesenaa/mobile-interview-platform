@@ -38,31 +38,63 @@ class PlayerAvatarWidget extends StatelessWidget {
                   )
                 : null,
           ),
-          child: CircleAvatar(
-            radius: 38,
-            backgroundColor: Colors.white.withOpacity(0.9),
-            backgroundImage:
-                avatarAsset != null ? AssetImage(avatarAsset!) : null,
-            child: avatarAsset == null
-                ? Text(
-                    username.isNotEmpty
-                        ? username.substring(0, 1).toUpperCase()
-                        : '?',
-                    style: AppTextStyles.title.copyWith(
-                      color: AppColors.primary,
-                    ),
-                  )
-                : null,
+          child: ClipOval(
+            child: _buildAvatarImage(),
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          username,
+          username.trim().isNotEmpty ? username : 'Player',
           style: AppTextStyles.bodyStrong.copyWith(
             color: Colors.white,
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildAvatarImage() {
+    final bool hasAvatar = avatarAsset != null && avatarAsset!.trim().isNotEmpty;
+    if (!hasAvatar) {
+      return _buildFallback();
+    }
+
+    final isNetwork = avatarAsset!.startsWith('http');
+    if (isNetwork) {
+      return Image.network(
+        avatarAsset!,
+        width: 76,
+        height: 76,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildFallback(),
+      );
+    } else {
+      return Image.asset(
+        avatarAsset!,
+        width: 76,
+        height: 76,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildFallback(),
+      );
+    }
+  }
+
+  Widget _buildFallback() {
+    final String initial = (username.trim().isNotEmpty)
+        ? username.trim().substring(0, 1).toUpperCase()
+        : '?';
+
+    return Container(
+      width: 76,
+      height: 76,
+      color: Colors.white.withOpacity(0.9),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: AppTextStyles.title.copyWith(
+          color: AppColors.primary,
+        ),
+      ),
     );
   }
 }

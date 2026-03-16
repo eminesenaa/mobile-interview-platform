@@ -12,7 +12,17 @@ class PrivateRoomController extends GetxController {
   final currentTab = 0.obs; // 0: Create, 1: Join
   
   // Create Room variables
-  final selectedCategory = 'Mixed'.obs;
+  final macroCategories = <String>[
+    'Mixed',
+    'Programming',
+    'Algorithms',
+    'Data & AI',
+    'Systems',
+    'Soft Skills',
+  ];
+  final selectedIndex = 0.obs;
+  String get selectedCategory => macroCategories[selectedIndex.value];
+
   final generatedPassword = ''.obs;
   final isCreating = false.obs;
 
@@ -42,8 +52,8 @@ class PrivateRoomController extends GetxController {
     isHost.value = false;
   }
 
-  void setCategory(String category) {
-    selectedCategory.value = category;
+  void selectCategory(int index) {
+    selectedIndex.value = index;
   }
 
   Future<void> createRoom() async {
@@ -54,10 +64,14 @@ class PrivateRoomController extends GetxController {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception("User not logged in");
 
+      final String finalUsername = (user.displayName != null && user.displayName!.trim().isNotEmpty)
+          ? user.displayName!
+          : (user.email?.split('@').first ?? 'Host');
+
       final result = await _service.createPrivateRoom(
-        category: selectedCategory.value,
+        category: selectedCategory,
         userId: user.uid,
-        username: user.displayName ?? user.email?.split('@').first ?? 'Host',
+        username: finalUsername,
         avatarUrl: user.photoURL,
       );
 
@@ -89,10 +103,14 @@ class PrivateRoomController extends GetxController {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception("User not logged in");
 
+      final String finalUsername = (user.displayName != null && user.displayName!.trim().isNotEmpty)
+          ? user.displayName!
+          : (user.email?.split('@').first ?? 'Player');
+
       final matchId = await _service.joinPrivateRoom(
         password: joinPassword.value.toUpperCase().trim(),
         userId: user.uid,
-        username: user.displayName ?? user.email?.split('@').first ?? 'Player',
+        username: finalUsername,
         avatarUrl: user.photoURL,
       );
 

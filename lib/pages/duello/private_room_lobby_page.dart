@@ -157,14 +157,9 @@ class PrivateRoomLobbyPage extends StatelessWidget {
   // 2. CREATE TAB
   // ──────────────────────────────────────────────────────────
   Widget _buildCreateTab(PrivateRoomController controller) {
-    final categories = [
-      'Mixed',
-      'Programming',
-      'Algorithms',
-      'Data & AI',
-      'Systems',
-      'Soft Skills'
-    ];
+    final pageController = PageController(
+      viewportFraction: 0.48,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -176,27 +171,56 @@ class PrivateRoomLobbyPage extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.lg),
         Expanded(
-          child: GridView.builder(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 1.1,
+          child: SizedBox(
+            height: 170, // same as DuelConfigModal
+            child: PageView.builder(
+              controller: pageController,
+              physics: const BouncingScrollPhysics(),
+              itemCount: controller.macroCategories.length,
+              onPageChanged: controller.selectCategory,
+              itemBuilder: (context, index) {
+                final title = controller.macroCategories[index];
+                final color = DuelCategoryStyle.getColor(title);
+
+                return Obx(() {
+                  final isSelected = controller.selectedIndex.value == index;
+
+                  return Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      /// TITLE
+                      AnimatedOpacity(
+                        duration: const Duration(milliseconds: 250),
+                        opacity: isSelected ? 1 : 0.4,
+                        child: Text(
+                          title,
+                          style: AppTextStyles.bodyStrong.copyWith(
+                            fontSize: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      /// CARD
+                      AnimatedScale(
+                        duration: const Duration(milliseconds: 250),
+                        scale: isSelected ? 1.0 : 0.85,
+                        child: GestureDetector(
+                          onTap: () => controller.selectCategory(index),
+                          child: DuelCategoryCard(
+                            title: title,
+                            color: color,
+                            isSelected: isSelected,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                });
+              },
             ),
-            itemCount: categories.length,
-            itemBuilder: (context, index) {
-              final cat = categories[index];
-              final isSel = controller.selectedCategory.value == cat;
-              return GestureDetector(
-                onTap: () => controller.setCategory(cat),
-                child: DuelCategoryCard(
-                  title: cat,
-                  color: DuelCategoryStyle.getColor(cat),
-                  isSelected: isSel,
-                  size: 60,
-                ),
-              );
-            },
           ),
         ),
         ElevatedButton(

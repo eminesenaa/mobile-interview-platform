@@ -309,13 +309,28 @@ class _MiniAvatar extends StatelessWidget {
         ],
       ),
       alignment: Alignment.center,
-      child: Text(
-        avatarInitial(player.username),
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-        ),
+      child: (player.avatarUrl != null && player.avatarUrl!.isNotEmpty)
+          ? ClipOval(
+              child: Image.network(
+                player.avatarUrl!,
+                width: 28,
+                height: 28,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) =>
+                    _buildInitialAvatar(),
+              ),
+            )
+          : _buildInitialAvatar(),
+    );
+  }
+
+  Widget _buildInitialAvatar() {
+    return Text(
+      avatarInitial(player.username),
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
       ),
     );
   }

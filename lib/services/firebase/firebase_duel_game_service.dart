@@ -5,6 +5,7 @@
 // ================================================================================================
 
 import 'dart:async';
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../models/duel_match.dart';
@@ -182,8 +183,8 @@ class FirebaseDuelGameService {
       final uid = p['userId'] ?? '';
       return DuelPlayer(
         userId: uid,
-        username: p['username'] ?? 'Player',
-        avatarUrl: p['avatarUrl'],
+        username: p['username'] ?? p['displayName'] ?? 'Player',
+        avatarUrl: p['avatarUrl'] ?? p['photoUrl'] ?? p['photoURL'],
         score: playerScores[uid] as int? ?? p['score'] ?? 0,
         correctCount:
             playerCorrectCounts[uid] as int? ?? p['correctCount'] ?? 0,
@@ -267,11 +268,10 @@ class FirebaseDuelGameService {
     required String username,
     required String? avatarUrl,
   }) async {
-    // 1. Generate 6-digit random code
+    // 1. Generate 6-digit random alphanumeric code
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    // For more true randomness, use math.Random
-    final rnd = DateTime.now().microsecondsSinceEpoch;
-    final password = List.generate(6, (index) => chars[(rnd + index) % chars.length]).join('');
+    final random = Random.secure();
+    final password = List.generate(6, (index) => chars[random.nextInt(chars.length)]).join('');
 
     // 2. Fetch questions
     final questions = await _fetchQuestionsForPrivateRoom(category);
