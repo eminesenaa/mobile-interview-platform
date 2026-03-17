@@ -1,10 +1,12 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
+
 import 'package:interview_project/constants/constants.dart';
 import 'package:interview_project/constants/colors.dart';
 import 'package:interview_project/constants/text_styles.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+
 import '../../../models/duel_config.dart';
 import '../../../models/duel_enums.dart';
 import '../../../utils/duel_category_style.dart';
@@ -12,6 +14,21 @@ import 'duel_category_card.dart';
 import '../controllers/duel_config_controller.dart';
 import '../matchmaking_page.dart';
 
+/// ===============================================================
+/// DuelConfigModal
+/// ---------------------------------------------------------------
+/// Category selection modal for starting a duel.
+///
+/// Responsibilities:
+/// - Allows user to pick a category
+/// - Creates duel configuration
+/// - Navigates to matchmaking
+///
+/// Notes:
+/// - Uses blur background + centered modal
+/// - Gradient animated CTA button
+/// - Fully aligned with design system (spacing, colors, typography)
+/// ===============================================================
 class DuelConfigModal extends StatefulWidget {
   final String modeTitle;
 
@@ -29,9 +46,10 @@ class _DuelConfigModalState extends State<DuelConfigModal>
   void initState() {
     super.initState();
 
+    /// Controls animated gradient movement
     _gradientController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 6), // subtle flow
+      duration: const Duration(seconds: 6),
     )..repeat();
   }
 
@@ -53,7 +71,9 @@ class _DuelConfigModalState extends State<DuelConfigModal>
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          /// Blur background
+          /// =======================
+          /// Blur Background Layer
+          /// =======================
           BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
             child: Container(
@@ -61,10 +81,12 @@ class _DuelConfigModalState extends State<DuelConfigModal>
             ),
           ),
 
-          /// Center modal
+          /// =======================
+          /// Center Modal
+          /// =======================
           Center(
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
+              margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               padding: const EdgeInsets.all(AppSpacing.lg),
               decoration: BoxDecoration(
                 color: AppColors.surface,
@@ -74,20 +96,14 @@ class _DuelConfigModalState extends State<DuelConfigModal>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  /// BACK ARROW + TITLE
+                  /// =======================
+                  /// HEADER (TITLE + CLOSE)
+                  /// =======================
                   Row(
                     children: [
-                      GestureDetector(
-                        onTap: () => Get.back(),
-                        child: const Padding(
-                          padding: EdgeInsets.all(4),
-                          child: Icon(
-                            Icons.arrow_back_ios_new,
-                            color: AppColors.textPrimary,
-                            size: 20,
-                          ),
-                        ),
-                      ),
+                      const SizedBox(width: AppSpacing.xl),
+
+                      /// Title (centered)
                       Expanded(
                         child: Center(
                           child: Text(
@@ -98,13 +114,27 @@ class _DuelConfigModalState extends State<DuelConfigModal>
                           ),
                         ),
                       ),
-                      const SizedBox(width: 28), // back ok ile dengelemek için
+
+                      /// Close Button (X)
+                      GestureDetector(
+                        onTap: () => Get.back(),
+                        child: Padding(
+                          padding: const EdgeInsets.all(AppSpacing.xs),
+                          child: Icon(
+                            PhosphorIcons.x(PhosphorIconsStyle.bold),
+                            color: AppColors.textPrimary,
+                            size: AppIconSizes.md,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
 
                   const SizedBox(height: AppSpacing.lg),
 
+                  /// =======================
                   /// CATEGORY SLIDER
+                  /// =======================
                   SizedBox(
                     height: 170,
                     child: PageView.builder(
@@ -120,29 +150,28 @@ class _DuelConfigModalState extends State<DuelConfigModal>
                           final isSelected =
                               controller.selectedIndex.value == index;
 
-                          // final title = controller.macroCategories[index];
-
                           return Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              /// TITLE
-                              AnimatedOpacity(
-                                duration: const Duration(milliseconds: 250),
-                                opacity: isSelected ? 1 : 0.4,
-                                child: Text(
-                                  title,
-                                  style: AppTextStyles.bodyStrong.copyWith(
-                                    fontSize: 16,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
+                              /// Category Title
+                              Text(
+                                title,
+                                style: isSelected
+                                    ? AppTextStyles.bodyStrong.copyWith(
+                                        fontSize: 16,
+                                        color: AppColors.textPrimary,
+                                      )
+                                    : AppTextStyles.body.copyWith(
+                                        fontSize: 16,
+                                        color: AppColors.textMuted,
+                                      ),
                               ),
 
-                              const SizedBox(height: 12),
+                              const SizedBox(height: AppSpacing.sm),
 
-                              /// CARD
+                              /// Category Card
                               AnimatedScale(
-                                duration: const Duration(milliseconds: 250),
+                                duration: AppDurations.normal,
                                 scale: isSelected ? 1.0 : 0.85,
                                 child: DuelCategoryCard(
                                   title: title,
@@ -159,7 +188,9 @@ class _DuelConfigModalState extends State<DuelConfigModal>
 
                   const SizedBox(height: AppSpacing.xl),
 
-                  /// ANIMATED GRADIENT FLOW BUTTON
+                  /// =======================
+                  /// START DUEL BUTTON
+                  /// =======================
                   SizedBox(
                     width: double.infinity,
                     child: AnimatedBuilder(
@@ -180,11 +211,9 @@ class _DuelConfigModalState extends State<DuelConfigModal>
                               questionTimeLimitSeconds: 30,
                             );
 
-                            Get.back(); // modal close
-
-                            Get.to(
-                              () => MatchmakingPage(config: config),
-                            );
+                            /// Close modal then navigate
+                            Get.back();
+                            Get.to(() => MatchmakingPage(config: config));
                           },
                           child: Container(
                             height: 52,
@@ -214,6 +243,8 @@ class _DuelConfigModalState extends State<DuelConfigModal>
                               ],
                             ),
                             alignment: Alignment.center,
+
+                            /// Button Content
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -224,13 +255,13 @@ class _DuelConfigModalState extends State<DuelConfigModal>
                                     color: Colors.white,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
+                                const SizedBox(width: AppSpacing.sm),
                                 Icon(
                                   PhosphorIcons.play(
                                     PhosphorIconsStyle.fill,
                                   ),
                                   color: Colors.white,
-                                  size: 16,
+                                  size: AppIconSizes.sm,
                                 ),
                               ],
                             ),

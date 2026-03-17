@@ -21,9 +21,12 @@ class DuelCategoryStyle {
         return AppColors.accentWinePlum;
 
       case "Algorithms":
-        return AppColors.stormyTeal;
+        return AppColors.accentRoyalPlum;
 
       case "Data & AI":
+        return AppColors.stormyTeal;
+
+      case "Databases":
         return AppColors.accentCeladon;
 
       case "Systems":
@@ -50,6 +53,9 @@ class DuelCategoryStyle {
 
       case "Data & AI":
         return PhosphorIcons.brain();
+
+      case "Databases":
+        return PhosphorIcons.database();
 
       case "Systems":
         return PhosphorIcons.network();
