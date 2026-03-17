@@ -1,17 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
+
+import 'package:interview_project/constants/constants.dart';
 import 'package:interview_project/constants/colors.dart';
 import 'package:interview_project/constants/text_styles.dart';
+
 import 'package:interview_project/pages/duello/widgets/duel_category_card.dart';
 import 'package:interview_project/pages/duello/widgets/duel_players_layout.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 
-import '../../constants/constants.dart';
 import '../../models/duel_config.dart';
 import '../../models/duel_enums.dart';
 import '../../utils/duel_category_style.dart';
 import 'controllers/matchmaking_controller.dart';
 
+/// ===============================================================
+/// MatchmakingPage (FINAL CLEAN VERSION)
+/// ---------------------------------------------------------------
+/// 1. Top → Category + Player Count
+/// 2. Center → Avatars
+/// 3. Bottom → Searching
+/// ===============================================================
 class MatchmakingPage extends StatelessWidget {
   final DuelConfig config;
 
@@ -22,83 +32,176 @@ class MatchmakingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    /// Controller yalnızca bir kere oluşturulur
     final controller = Get.put(
       MatchmakingController(config),
       permanent: false,
     );
 
     return Scaffold(
-      /// Scaffold background şeffaf yapıyoruz
       backgroundColor: Colors.transparent,
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
 
-      body: SizedBox.expand(
-        child: Container(
-          /// Fullscreen gradient garanti
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.primary,
-                AppColors.primaryAccent,
-              ],
-            ),
+        /// ===============================
+        /// BACKGROUND
+        /// ===============================
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.primary,
+              AppColors.primaryAccent,
+            ],
           ),
+        ),
 
-          child: SafeArea(
-            child: Obx(() {
-              final match = controller.match.value;
-              final status = controller.status.value;
-              final playerCount = match?.players.length ?? 0;
-              final lobbySeconds = controller.lobbyCountdownSeconds.value;
+        child: SafeArea(
+          child: Obx(() {
+            final match = controller.match.value;
+            final status = controller.status.value;
 
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+            /// 🔥 BUG FIX → minimum 1 player göster
+            final rawCount = match?.players.length ?? 0;
+            final playerCount = rawCount == 0 ? 1 : rawCount;
+
+            final lobbySeconds = controller.lobbyCountdownSeconds.value;
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              child: Column(
+                children: [
+                  /// ===================================================
+                  /// 🔝 TOP → CATEGORY + PLAYER COUNT
+                  /// ===================================================
+                  const SizedBox(height: AppSpacing.xxl),
+
+                  Column(
                     children: [
-                      const SizedBox(height: AppSpacing.xxl),
-                      // ===============================
-                      // CATEGORY CARD (TOP CENTER)
-                      // ===============================
                       DuelCategoryCard(
                         title: config.category,
                         color: DuelCategoryStyle.getColor(config.category),
                         isSelected: true,
-                        size: 80,
+                        size: 72,
                       ),
 
-                      const SizedBox(height: 80),
+                      const SizedBox(height: AppSpacing.sm),
 
-                      // ===============================
-                      // PLAYERS AVATARS
-                      // ===============================
-                      if (match != null) DuelPlayersLayout(match: match),
-
-                      const SizedBox(height: 70),
-
-                      // ===============================
-                      // STATUS TEXT
-                      // ===============================
                       Text(
-                        _statusText(status, playerCount, lobbySeconds),
-                        textAlign: TextAlign.center,
-                        style: AppTextStyles.displayLarge.copyWith(
-                          color: Colors.white,
+                        config.category,
+                        style: AppTextStyles.title.copyWith(
+                          color: AppColors.textLightPrimary,
                         ),
                       ),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: AppSpacing.xxl),
 
-                      // ===============================
-                      // LOBBY COUNTDOWN CIRCLE (multi modda)
-                      // ===============================
+                      /// 🔥 ÜST AYIRAÇ (daha kalın + belirgin)
+                      Container(
+                        width: 75,
+                        height: 3,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.35),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+
+                      const SizedBox(height: AppSpacing.sm),
+
+                      /// 🔥 ÜST AYIRAÇ (daha kalın + belirgin)
+                      Container(
+                        width: 100,
+                        height: 3,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.35),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+
+                      const SizedBox(height: AppSpacing.sm),
+
+                      Text(
+                        "$playerCount ${playerCount == 1 ? "player" : "players"} joined.",
+                        style: AppTextStyles.title.copyWith(
+                          color: AppColors.textLightPrimary.withOpacity(0.95),
+                        ),
+                      ),
+
+                      const SizedBox(height: AppSpacing.sm),
+
+                      /// 🔥 ALT AYIRAÇ (aynı stil)
+                      Container(
+                        width: 100,
+                        height: 3,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.35),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+
+                      const SizedBox(height: AppSpacing.sm),
+
+                      Container(
+                        width: 75,
+                        height: 3,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.35),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  /// ===================================================
+                  /// 🎯 CENTER → AVATARS
+                  /// ===================================================
+                  Expanded(
+                    child: Center(
+                      child: match != null
+                          ? DuelPlayersLayout(match: match)
+                          : const SizedBox(),
+                    ),
+                  ),
+
+                  /// ===================================================
+                  /// 🔻 BOTTOM → SEARCHING
+                  /// ===================================================
+                  Column(
+                    children: [
+                      if (status == DuelStatus.searching)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              "Searching for an opponent",
+                              style: AppTextStyles.headline.copyWith(
+                                color: AppColors.textLightPrimary,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            LoadingAnimationWidget.waveDots(
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ],
+                        )
+                      else
+                        Text(
+                          _statusText(status, playerCount, lobbySeconds),
+                          textAlign: TextAlign.center,
+                          style: AppTextStyles.headline.copyWith(
+                            color: AppColors.textLightPrimary,
+                          ),
+                        ),
+
+                      const SizedBox(height: AppSpacing.lg),
+
+                      /// countdown
                       if (status == DuelStatus.lobbyCountdown)
                         Container(
-                          width: 64,
-                          height: 64,
+                          width: 60,
+                          height: 60,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.white.withOpacity(0.15),
@@ -112,37 +215,30 @@ class MatchmakingPage extends StatelessWidget {
                             '$lobbySeconds',
                             style: AppTextStyles.displayLarge.copyWith(
                               color: Colors.white,
-                              fontSize: 28,
+                              fontSize: 24,
                             ),
                           ),
                         ),
-
-                      // ===============================
-                      // LOADER (searching)
-                      // ===============================
-                      if (status == DuelStatus.searching)
-                        LoadingAnimationWidget.discreteCircle(
-                          color: Colors.white,
-                          size: 56,
-                          secondRingColor: Colors.white.withValues(alpha: 0.6),
-                          thirdRingColor: Colors.white.withValues(alpha: 0.3),
-                        ),
                     ],
                   ),
-                ),
-              );
-            }),
-          ),
+
+                  const SizedBox(height: AppSpacing.xl),
+                ],
+              ),
+            );
+          }),
         ),
       ),
     );
   }
 
-  /// Status mesajı üretir
+  /// ===============================================================
+  /// STATUS TEXT
+  /// ===============================================================
   String _statusText(DuelStatus status, int count, int lobbySeconds) {
     switch (status) {
       case DuelStatus.searching:
-        return "$count players joined\nSearching...";
+        return "$count players joined\nSearching for an opponent...";
       case DuelStatus.matched:
         return "Match Found!";
       case DuelStatus.countdown:
@@ -154,4 +250,3 @@ class MatchmakingPage extends StatelessWidget {
     }
   }
 }
-

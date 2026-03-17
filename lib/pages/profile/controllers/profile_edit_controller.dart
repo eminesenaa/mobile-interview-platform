@@ -9,6 +9,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:overlay_support/overlay_support.dart';
 
+import '../../home/controllers/home_controller.dart';
+
 class ProfileEditController extends GetxController {
   // ===================== USER FIELDS (Reactive) =====================
   final name = ''.obs;
@@ -32,6 +34,9 @@ class ProfileEditController extends GetxController {
   final phoneCountryIso = 'TR'.obs;
 
   final cvUrl = ''.obs;
+
+  // ===================== AVATAR =====================
+  final avatarPath = "assets/avatars/avatar1.jpg".obs;
 
   // Dropdown data
   final List<String> roleOptions = [
@@ -94,6 +99,11 @@ class ProfileEditController extends GetxController {
       phoneNumber.value = data['phoneNumber'] ?? '';
       phoneCountryCode.value = data['phoneCountryCode'] ?? '+90';
       phoneCountryIso.value = data['phoneCountryIso'] ?? 'TR';
+      // avatar (duelAvatar alanından çekiyoruz)
+      final avatar = data['duelAvatar'];
+      avatarPath.value = (avatar != null && avatar.isNotEmpty)
+          ? avatar
+          : "assets/avatars/avatar1.jpg";
     } catch (e) {
       _toast("Error", e.toString(), Colors.red);
     } finally {
@@ -129,12 +139,15 @@ class ProfileEditController extends GetxController {
         "phoneNumber": phoneNumber.value,
         "phoneCountryCode": phoneCountryCode.value,
         "phoneCountryIso": phoneCountryIso.value,
+        "duelAvatar": avatarPath.value,
       };
 
       await FirebaseFirestore.instance
           .collection("users")
           .doc(uid)
           .update(updateData);
+
+      Get.find<HomeController>().listenToUser();
 
       _toast("Updated", "Your profile has been updated successfully 🎉",
           Colors.green);

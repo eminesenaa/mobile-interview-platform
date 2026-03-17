@@ -35,14 +35,29 @@ class ProfileHeader extends StatelessWidget {
           // ---------------------
           // Avatar
           // ---------------------
-          CircleAvatar(
-            radius: 48,
-            backgroundColor: AppColors.surface,
-            backgroundImage: (avatarUrl != null && avatarUrl!.isNotEmpty)
-                ? NetworkImage(avatarUrl!)
-                : null,
+          Container(
+            width: 96,
+            height: 96,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: AppColors.primary.withOpacity(0.4),
+                width: 3,
+              ),
+              color: (avatarUrl == null || avatarUrl!.isEmpty)
+                  ? _avatarColor(name)
+                  : null,
+              image: (avatarUrl != null && avatarUrl!.isNotEmpty)
+                  ? DecorationImage(
+                      image: avatarUrl!.startsWith('http')
+                          ? NetworkImage(avatarUrl!)
+                          : AssetImage(avatarUrl!) as ImageProvider,
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
             child: (avatarUrl == null || avatarUrl!.isEmpty)
-                ? const Icon(Icons.person, size: 48, color: AppColors.textMuted)
+                ? _buildInitialAvatar(name)
                 : null,
           ),
 
@@ -91,7 +106,6 @@ class ProfileHeader extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                 ),
-
               if (location.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -103,7 +117,6 @@ class ProfileHeader extends StatelessWidget {
                     ),
                   ),
                 ),
-
               GestureDetector(
                 onTap: onContactPressed,
                 child: Text(
@@ -120,4 +133,39 @@ class ProfileHeader extends StatelessWidget {
       ),
     );
   }
+}
+
+Widget _buildInitialAvatar(String name) {
+  final initials = _getInitials(name);
+
+  return Center(
+    child: Text(
+      initials,
+      style: AppTextStyles.headline.copyWith(
+        color: Colors.white,
+        fontSize: 28,
+      ),
+    ),
+  );
+}
+
+String _getInitials(String name) {
+  final parts = name.trim().split(" ");
+  final first = parts.isNotEmpty ? parts[0][0] : '';
+  final second = parts.length > 1 ? parts[1][0] : '';
+  return (first + second).toUpperCase();
+}
+
+Color _avatarColor(String seed) {
+  final colors = [
+    AppColors.cinnabar,
+    AppColors.accentWinePlum,
+    AppColors.accentRoyalPlum,
+    AppColors.stormyTeal,
+    AppColors.accentCeladon,
+    AppColors.accentSpicyOrange,
+    AppColors.honeyBronze,
+  ];
+  final index = seed.codeUnits.fold(0, (a, b) => a + b) % colors.length;
+  return colors[index];
 }

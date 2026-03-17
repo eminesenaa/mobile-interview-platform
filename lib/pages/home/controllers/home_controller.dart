@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../controllers/progress_controller.dart';
 import '../../../controllers/question_controller.dart';
 import '../../../models/question.dart';
+import '../../../models/user.dart' as app_user;
 import '../../../models/streak.dart';
 import '../../../models/leaderboard.dart';
 import '../services/leaderboard_service.dart';
@@ -14,6 +15,9 @@ import '../services/leaderboard_service.dart';
 class HomeController extends GetxController {
   final _db = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
+
+  /// User
+  final user = Rxn<app_user.User>();
 
   /// Services
   final LeaderboardService _leaderboardService = LeaderboardService();
@@ -62,6 +66,7 @@ class HomeController extends GetxController {
     });
 
     listenToLeaderboard();
+    listenToUser();
   }
 
   @override
@@ -205,6 +210,18 @@ class HomeController extends GetxController {
     } finally {
       lbLoading.value = false;
     }
+  }
+
+  // ------------------ USER ------------------
+  void listenToUser() {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+
+    _db.collection('users').doc(uid).snapshots().listen((doc) {
+      if (!doc.exists || doc.data() == null) return;
+
+      user.value = app_user.User.fromJson(doc.data()!);
+    });
   }
 
   // ------------------ REFRESH ------------------

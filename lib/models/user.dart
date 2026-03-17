@@ -200,6 +200,10 @@ class User {
         cvUrl: cvUrl ?? this.cvUrl,
       );
 
+
+  /// User avatar
+  String? get avatar => photoUrl ?? duelAvatar;
+
   /// 🔹 Level artık XP üzerinden hesaplanır (stored değil computed)
   int get level => LevelCalculator.calculate(totalXp);
 }

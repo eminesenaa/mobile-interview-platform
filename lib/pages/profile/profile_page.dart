@@ -50,7 +50,7 @@ class ProfilePage extends StatelessWidget {
                   // HEADER (full width gradient)
                   // ---------------------------
                   ProfileHeader(
-                    avatarUrl: user.photoUrl,
+                    avatarUrl: user.avatar,
                     name: "${user.name} ${user.surname}",
                     role: user.role ?? "",
                     location: user.location ?? "",
