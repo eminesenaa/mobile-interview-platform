@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
@@ -7,25 +6,43 @@ import '../../../models/duel_match.dart';
 import '../../../models/duel_enums.dart';
 import '../../../models/duel_player.dart';
 import '../../../models/question.dart';
+import '../../../services/firebase/firebase_duel_game_service.dart';
+import '../../../utils/duel_scoring_engine.dart';
 import '../duel_result_page.dart';
 
 class DuelGameController extends GetxController {
   final DuelMatch initialMatch;
   DuelGameController(this.initialMatch);
 
+  // ─────────────────────────────────────────
+  // REACTIVE STATE
+  // ─────────────────────────────────────────
   final match = Rx<DuelMatch?>(null);
   final remainingSeconds = 0.obs;
   final isLoadingQuestions = true.obs;
   final comboCount = 0.obs;
 
-  // Reaktif player listesi — bot cevap verince UI güncellenir
+  // Reaktif player listesi — Firestore'dan gelen her snapshot UI'ı günceller
   final players = <DuelPlayer>[].obs;
-  final forceUpdate = 0.obs; // sadece rebuild tetiklemek için
+  final forceUpdate = 0.obs;
+
+  // ─────────────────────────────────────────
+  // SERVICES & INTERNALS
+  // ─────────────────────────────────────────
+  final _gameService = FirebaseDuelGameService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   Timer? _questionTimer;
-  final List<Timer> _botTimers = [];
-  final _random = Random();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  StreamSubscription<DuelMatch>? _matchSubscription;
+
+  /// Local user'ın bu round'da cevap verip vermediği (Firestore'a yazılıncaya kadar guard)
+  bool _hasSubmittedThisRound = false;
+
+  /// Reveal sonrası advanceQuestion çağrılıp çağrılmadığını track et
+  bool _isAdvancing = false;
+
+  /// reveal timer referansı
+  Timer? _revealTimer;
 
   @override
   void onInit() {
@@ -38,21 +55,24 @@ class DuelGameController extends GetxController {
   @override
   void onClose() {
     _questionTimer?.cancel();
-    for (final t in _botTimers) t.cancel();
-    _botTimers.clear();
+    _revealTimer?.cancel();
+    _matchSubscription?.cancel();
+    _gameService.dispose();
     super.onClose();
   }
 
   // ─────────────────────────────────────────
-  // INIT
+  // INIT — Soruları yükle, listener bağla
   // ─────────────────────────────────────────
   Future<void> _initializeGame() async {
     final currentMatch = match.value;
     if (currentMatch == null) return;
 
+    // Sorular zaten match dokümanında varsa doğrudan kullan
     if (currentMatch.questions.isNotEmpty) {
       isLoadingQuestions.value = false;
     } else {
+      // Fallback: Firestore'dan çek
       isLoadingQuestions.value = true;
       try {
         final questions = await _fetchQuestionsFromFirestore(
@@ -62,121 +82,130 @@ class DuelGameController extends GetxController {
         currentMatch.questions.clear();
         currentMatch.questions.addAll(questions);
       } catch (e) {
-        print('❌ [GAME] Fallback failed: $e');
+        print('❌ [GAME] Question fetch failed: $e');
       } finally {
         isLoadingQuestions.value = false;
         _syncPlayers();
       }
     }
 
-    _startQuestion();
+    // 🔥 Real-time Firestore listener — tek kaynak
+    _startFirestoreListener();
+    _startTimer();
   }
 
   // ─────────────────────────────────────────
-  // Player listesini reaktif obs ile senkronize et
+  // FIRESTORE LISTENER — single source of truth
+  // ─────────────────────────────────────────
+  void _startFirestoreListener() {
+    final matchId = initialMatch.matchId;
+    if (matchId.isEmpty) return;
+
+    _matchSubscription?.cancel();
+    _matchSubscription = _gameService.listenToMatch(matchId).listen(
+      (updatedMatch) {
+        if (isClosed) return;
+
+        final previousPhase = match.value?.questionPhase;
+        final previousIndex = match.value?.currentQuestionIndex ?? 0;
+
+        // Firestore'dan gelen state → local state'i güncelle
+        match.value = updatedMatch;
+        players.value = updatedMatch.players.map((p) => p.snapshot()).toList();
+        forceUpdate.value++;
+
+        // ── STATUS DEĞİŞİMLERİ ──
+
+        // 1. Match iptal edildi (rakip çıktı)
+        if (updatedMatch.status == DuelStatus.cancelled) {
+          _questionTimer?.cancel();
+          Get.snackbar(
+            'Düello İptal',
+            'Rakibiniz ayrıldı.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+          Future.delayed(const Duration(seconds: 2), () {
+            if (!isClosed) Get.back();
+          });
+          return;
+        }
+
+        // 2. Match bitti
+        if (updatedMatch.status == DuelStatus.finished) {
+          _questionTimer?.cancel();
+          final result = updatedMatch.buildResult();
+          Get.off(() => const DuelResultPage(), arguments: result);
+          return;
+        }
+
+        // 3. Reveal fazına geçildi — timer durdur
+        if (updatedMatch.questionPhase == DuelQuestionPhase.reveal &&
+            previousPhase != DuelQuestionPhase.reveal) {
+          _questionTimer?.cancel();
+          _scheduleAdvance(updatedMatch);
+        }
+
+        // 4. Yeni soruya geçildi — timer sıfırla
+        if (updatedMatch.questionPhase == DuelQuestionPhase.active &&
+            updatedMatch.currentQuestionIndex != previousIndex) {
+          _hasSubmittedThisRound = false;
+          _isAdvancing = false;
+          _startTimer();
+        }
+      },
+      onError: (error) {
+        print('❌ [GAME] Firestore listener error: $error');
+      },
+    );
+  }
+
+  // ─────────────────────────────────────────
+  // PLAYER SYNC
   // ─────────────────────────────────────────
   void _syncPlayers() {
     final current = match.value?.players ?? [];
     players.value = current.map((p) => p.snapshot()).toList();
-    forceUpdate.value++; // Obx'i kesin tetikler
+    forceUpdate.value++;
   }
 
   // ─────────────────────────────────────────
-  // SORU BAŞLAT
-  // ─────────────────────────────────────────
-  void _startQuestion() {
-    final currentMatch = match.value!;
-    if (currentMatch.questions.isEmpty) return;
-
-    remainingSeconds.value = 10;
-    currentMatch.questionPhase = DuelQuestionPhase.active;
-
-    for (final p in currentMatch.players) {
-      p.resetForNextQuestion();
-    }
-
-    _syncPlayers();
-    match.refresh();
-    _startTimer();
-    _scheduleBotAnswers();
-  }
-
-  // ─────────────────────────────────────────
-  // TIMER
+  // TIMER — lokal countdown
   // ─────────────────────────────────────────
   void _startTimer() {
     _questionTimer?.cancel();
+    remainingSeconds.value = 10;
+
     _questionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (remainingSeconds.value > 0) {
         remainingSeconds.value--;
       } else {
         timer.cancel();
-        _forceReveal();
+        // Süre doldu — eğer local user henüz cevap vermediyse boş bırak
+        // Firestore tarafında diğer oyuncunun cevabı zaten var/yok
+        // Reveal'ı tetikle (sadece bir taraf tetikler, idempotent)
+        _triggerRevealIfNeeded();
       }
     });
   }
 
   // ─────────────────────────────────────────
-  // BOT SİMÜLASYONU
-  // ─────────────────────────────────────────
-  void _scheduleBotAnswers() {
-    for (final t in _botTimers) t.cancel();
-    _botTimers.clear();
-
-    final currentMatch = match.value!;
-    final localId = _localUserId();
-    final bots =
-        currentMatch.players.where((p) => p.userId != localId).toList();
-
-    for (final bot in bots) {
-      // Her bot 2-15 sn arası cevap verir
-      final delay = Duration(seconds: 2 + _random.nextInt(14));
-      final t = Timer(delay, () {
-        if (isClosed) return;
-        if (currentMatch.questionPhase != DuelQuestionPhase.active) return;
-        if (bot.answeredCurrentQuestion) return;
-
-        final optionCount = currentMatch.currentQuestion?.options?.length ?? 4;
-        final botOptionIndex = _random.nextInt(optionCount);
-
-        // %60 doğru yapma şansı
-        final isCorrect = _random.nextDouble() < 0.6;
-
-        bot.answeredCurrentQuestion = true;
-        bot.selectedOptionIndex = botOptionIndex;
-
-        if (isCorrect) {
-          bot.correctCount += 1;
-          bot.score += 3;
-        }
-
-        // Reaktif güncelleme — UI anında görür
-        _syncPlayers();
-        match.refresh();
-
-        if (currentMatch.allPlayersAnswered) {
-          _questionTimer?.cancel();
-          _forceReveal();
-        }
-      });
-      _botTimers.add(t);
-    }
-  }
-
-  // ─────────────────────────────────────────
-  // KULLANICI CEVAP
+  // KULLANICI CEVAP — Firestore'a yaz
   // ─────────────────────────────────────────
   void selectOption(int optionIndex) {
-    final currentMatch = match.value!;
+    final currentMatch = match.value;
+    if (currentMatch == null) return;
     if (currentMatch.questionPhase != DuelQuestionPhase.active) return;
+    if (_hasSubmittedThisRound) return;
 
+    _hasSubmittedThisRound = true;
     final localId = _localUserId();
-
-    // Combo hesapla
     final question = currentMatch.currentQuestion;
+    if (question == null) return;
+
+    // Doğru/yanlış hesapla
     bool isCorrect = false;
-    if (question?.correctAnswer != null && question?.options != null) {
-      final correctStr = question!.correctAnswer!.trim();
+    if (question.correctAnswer != null && question.options != null) {
+      final correctStr = question.correctAnswer!.trim();
       final correctIndex = int.tryParse(correctStr);
       if (correctIndex != null) {
         isCorrect = optionIndex == correctIndex;
@@ -185,68 +214,90 @@ class DuelGameController extends GetxController {
       }
     }
 
+    // Combo takibi (lokal)
     if (isCorrect) {
       comboCount.value++;
     } else {
       comboCount.value = 0;
     }
 
-    // Max combo kaydet
-    final localPlayer = currentMatch.players.firstWhere(
-      (p) => p.userId == localId,
-      orElse: () => currentMatch.players.first,
+    // Skor hesapla
+    final answerTime = 10 - remainingSeconds.value;
+    final scoreResult = DuelScoringEngine.evaluateAnswer(
+      isCorrect: isCorrect,
+      answerTimeSeconds: answerTime,
     );
-    if (comboCount.value > localPlayer.comboCount) {
-      localPlayer.comboCount = comboCount.value;
-    }
 
-    currentMatch.submitAnswer(
+    // 🔥 Firestore'a atomik yaz
+    _gameService
+        .submitAnswer(
+      matchId: currentMatch.matchId,
       userId: localId,
       selectedOptionIndex: optionIndex,
-      answerTimeSeconds: 30 - remainingSeconds.value,
-    );
-
-    _syncPlayers();
-    match.refresh();
-
-    if (currentMatch.allPlayersAnswered) {
-      _questionTimer?.cancel();
-      for (final t in _botTimers) t.cancel();
-      _forceReveal();
-    }
+      answerTimeSeconds: answerTime,
+      isCorrect: isCorrect,
+      scoreGained: scoreResult.scoreGained,
+      xpGained: scoreResult.xpGained,
+    )
+        .then((_) {
+      // Cevap yazıldı → tüm oyuncular cevap verdi mi kontrol et
+      _gameService.checkAndReveal(
+        matchId: currentMatch.matchId,
+        expectedPlayerCount: currentMatch.players.length,
+      );
+    });
   }
 
   // ─────────────────────────────────────────
-  // REVEAL
+  // REVEAL & ADVANCE
   // ─────────────────────────────────────────
-  void _forceReveal() {
-    final currentMatch = match.value!;
-    currentMatch.questionPhase = DuelQuestionPhase.reveal;
-    _syncPlayers();
-    match.refresh();
 
-    Future.delayed(const Duration(seconds: 2), _afterReveal);
+  /// Süre dolduğunda veya tüm oyuncular cevap verdiğinde reveal tetikle
+  void _triggerRevealIfNeeded() {
+    final currentMatch = match.value;
+    if (currentMatch == null) return;
+    if (currentMatch.questionPhase == DuelQuestionPhase.reveal) return;
+
+    // Firestore'da phase'i reveal yap (idempotent)
+    _firestore.collection('matches').doc(currentMatch.matchId).update({
+      'questionPhase': 'reveal',
+    });
   }
 
-  void _afterReveal() {
-    final currentMatch = match.value!;
-    if (currentMatch.isLastQuestion) {
-      currentMatch.finalizeMatch();
-      final result = currentMatch.buildResult();
-      Get.off(() => const DuelResultPage(), arguments: result);
-    } else {
-      currentMatch.moveToNextQuestion();
-      _syncPlayers();
-      match.refresh();
-      _startQuestion();
-    }
+  /// Reveal fazı başladıktan 2.5 sn sonra sonraki soruya ilerlet
+  void _scheduleAdvance(DuelMatch currentMatch) {
+    if (_isAdvancing) return;
+    _isAdvancing = true;
+
+    _revealTimer?.cancel();
+    _revealTimer = Timer(const Duration(milliseconds: 2500), () {
+      if (isClosed) return;
+
+      _gameService.advanceToNextQuestion(
+        matchId: currentMatch.matchId,
+        currentIndex: currentMatch.currentQuestionIndex,
+        totalQuestions: currentMatch.questions.length,
+      );
+    });
   }
 
+  // ─────────────────────────────────────────
+  // DISCONNECT
+  // ─────────────────────────────────────────
+  Future<void> disconnectFromMatch() async {
+    final currentMatch = match.value;
+    if (currentMatch == null) return;
+    await _gameService.handleDisconnect(currentMatch.matchId);
+  }
+
+  // ─────────────────────────────────────────
+  // HELPERS
+  // ─────────────────────────────────────────
   String _localUserId() =>
       FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
 
   // ─────────────────────────────────────────
-  // FIRESTORE FALLBACK
+  // FIRESTORE SORU ÇEKME (FALLBACK)
   // ─────────────────────────────────────────
   Future<List<Question>> _fetchQuestionsFromFirestore({
     required String category,

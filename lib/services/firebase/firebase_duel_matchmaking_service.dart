@@ -19,9 +19,10 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
   StreamSubscription<DocumentSnapshot>? _matchSubscription;
   String? _queueDocId;
   String? _currentMatchId;
+  Timer? _lobbyTimer;
 
   String _getUsername(User user) {
-    if (user.displayName != null && user.displayName!.isNotEmpty) {
+    if (user.displayName != null && user.displayName!.trim().isNotEmpty) {
       return user.displayName!;
     }
     return user.email?.split('@').first ?? 'Player';
@@ -44,7 +45,7 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
     final username = _getUsername(user);
 
     try {
-      // Başlangıç durumu: Searching [cite: 38, 61]
+      // Başlangıç durumu: Searching
       _controller.add(DuelMatch(
         matchId: '',
         players: [
@@ -53,21 +54,32 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
         ],
         questions: [],
         status: DuelStatus.searching,
+        duelType: config.duelType,
         createdAt: DateTime.now(),
       ));
 
+      // Multi modda hem 'waiting' hem 'lobbyCountdown' odalarını ara
+      final statusFilters = config.duelType == DuelType.multi
+          ? ['waiting', 'lobbyCountdown']
+          : ['waiting'];
+
       final waitingQuery = await _firestore
           .collection('matchQueue')
-          .where('status', isEqualTo: 'waiting')
+          .where('status', whereIn: statusFilters)
           .where('duelType', isEqualTo: config.duelType.name)
           .where('category', isEqualTo: config.category)
-          .where('userId', isNotEqualTo: user.uid)
-          .limit(1)
+          .limit(5)
           .get();
 
-      if (waitingQuery.docs.isNotEmpty) {
-        final existingDoc = waitingQuery.docs.first;
-        final existingMatchId = existingDoc.data()['matchId'] as String?;
+      final validDocs = waitingQuery.docs.where((doc) {
+        final data = doc.data() as Map<String, dynamic>?;
+        return data?['userId'] != user.uid;
+      }).toList();
+
+      if (validDocs.isNotEmpty) {
+        final existingDoc = validDocs.first;
+        final data = existingDoc.data() as Map<String, dynamic>?;
+        final existingMatchId = data?['matchId'] as String?;
 
         if (existingMatchId != null && existingMatchId.isNotEmpty) {
           await _joinExistingMatch(
@@ -101,11 +113,10 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
     _currentMatchId = matchId;
 
     final questionsData = questions.map((q) {
-      // 🔥 KRİTİK: Veritabanına yazarken 'text' ve 'options' alanlarını paketliyoruz
       return {
         'id': q.id,
         'title': q.title.trim(),
-        'text': q.description?.trim() ?? '', // Beyaz kutu metni
+        'text': q.description?.trim() ?? '',
         'topic': q.topic,
         'type': 'MCQ',
         'options':
@@ -147,7 +158,7 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
     });
 
     _queueDocId = queueRef.id;
-    _listenToMatch(matchId);
+    _listenToMatch(matchId, config.duelType);
   }
 
   Future<void> _joinExistingMatch(
@@ -159,6 +170,7 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
     _currentMatchId = matchId;
     final matchRef = _firestore.collection('matches').doc(matchId);
 
+    // Atomik olarak oyuncuyu ekle
     await matchRef.update({
       'players': FieldValue.arrayUnion([
         {
@@ -170,25 +182,109 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
           'totalXpGained': 0,
         }
       ]),
-      'status': 'matched',
     });
 
-    await _firestore
-        .collection('matchQueue')
-        .doc(queueDocId)
-        .update({'status': 'matched'});
+    // Güncel player count'u oku
+    final updatedSnapshot = await matchRef.get();
+    final updatedData = updatedSnapshot.data()!;
+    final playerCount = (updatedData['players'] as List).length;
+    final duelTypeName = updatedData['duelType'] as String? ?? 'oneVsOne';
+    final isMulti = duelTypeName == 'multi';
 
-    _listenToMatch(matchId);
+    if (!isMulti) {
+      // ─── 1v1 MOD: Hemen başlat ───
+      await matchRef.update({'status': 'matched'});
+      await _firestore
+          .collection('matchQueue')
+          .doc(queueDocId)
+          .update({'status': 'matched'});
 
-    // Lifecycle: matched -> countdown -> inProgress [cite: 39, 62-64]
-    await Future.delayed(const Duration(seconds: 1));
-    await matchRef.update({'status': 'countdown'});
-    await Future.delayed(const Duration(seconds: 3));
-    await matchRef.update(
-        {'status': 'inProgress', 'startedAt': FieldValue.serverTimestamp()});
+      _listenToMatch(matchId, DuelType.oneVsOne);
+
+      await Future.delayed(const Duration(seconds: 1));
+      await matchRef.update({'status': 'countdown'});
+      await Future.delayed(const Duration(seconds: 3));
+      await matchRef.update(
+          {'status': 'inProgress', 'startedAt': FieldValue.serverTimestamp()});
+    } else {
+      // ─── MULTI MOD: Flexible Lobby ───
+      _listenToMatch(matchId, DuelType.multi);
+
+      if (playerCount >= 5) {
+        // 5. oyuncu → hemen başlat
+        print('🚀 [MATCHMAKING] 5th player joined — starting immediately');
+        _lobbyTimer?.cancel();
+        await _firestore
+            .collection('matchQueue')
+            .doc(queueDocId)
+            .update({'status': 'matched'});
+        await matchRef.update({
+          'status': 'inProgress',
+          'startedAt': FieldValue.serverTimestamp(),
+        });
+        // Tüm queue'daki diğer waiting dokümanları da matched yap
+        await _markAllQueueMatched(matchId);
+      } else if (playerCount == 3) {
+        // 3. oyuncu → 18 sn countdown başlat
+        print('⏱ [MATCHMAKING] 3rd player joined — starting 18s countdown');
+        final countdownEnd =
+            DateTime.now().add(const Duration(seconds: 18));
+        await matchRef.update({
+          'status': 'lobbyCountdown',
+          'lobbyCountdownEndAt': Timestamp.fromDate(countdownEnd),
+        });
+        _startLobbyCountdown(matchRef, matchId);
+      } else if (playerCount < 3) {
+        // 2. oyuncu (multi modda) → bekle
+        print('⏳ [MATCHMAKING] $playerCount players — waiting for 3+');
+      }
+      // playerCount == 4 → hiçbir şey yapma, timer devam ediyor
+    }
   }
 
-  void _listenToMatch(String matchId) {
+  /// Multi modda 18 sn lobby countdown timer'ı
+  void _startLobbyCountdown(DocumentReference matchRef, String matchId) {
+    _lobbyTimer?.cancel();
+
+    _lobbyTimer = Timer(const Duration(seconds: 18), () async {
+      try {
+        // Timer dolduğunda durumu kontrol et — hâlâ lobbyCountdown mu?
+        final snap = await matchRef.get();
+        if (!snap.exists) return;
+        final data = snap.data() as Map<String, dynamic>?;
+        if (data == null) return;
+
+        final currentStatus = data['status'] as String?;
+        if (currentStatus != 'lobbyCountdown') {
+          // Zaten başlamış (5. oyuncu geldi) veya iptal edilmiş
+          return;
+        }
+
+        print('⏰ [MATCHMAKING] Lobby countdown expired — starting game');
+        await matchRef.update({
+          'status': 'inProgress',
+          'startedAt': FieldValue.serverTimestamp(),
+        });
+        await _markAllQueueMatched(matchId);
+      } catch (e) {
+        print('❌ [MATCHMAKING] Lobby countdown error: $e');
+      }
+    });
+  }
+
+  /// matchId'ye ait tüm queue dokümanlarını 'matched' olarak işaretle
+  Future<void> _markAllQueueMatched(String matchId) async {
+    final queueDocs = await _firestore
+        .collection('matchQueue')
+        .where('matchId', isEqualTo: matchId)
+        .where('status', whereIn: ['waiting', 'lobbyCountdown'])
+        .get();
+    for (final doc in queueDocs.docs) {
+      await doc.reference.update({'status': 'matched'});
+    }
+  }
+
+  void _listenToMatch(String matchId, DuelType duelType) {
     _matchSubscription?.cancel();
     _matchSubscription = _firestore
         .collection('matches')
@@ -197,14 +293,28 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
         .listen((snapshot) {
       if (!snapshot.exists) return;
       final data = snapshot.data()!;
-      _controller.add(_mapFirestoreToMatch(matchId, data));
+      final match = _mapFirestoreToMatch(matchId, data);
+
+      // Multi modda: 5. oyuncu gelirse lobby timer'ı iptal et ve başlat
+      if (duelType == DuelType.multi &&
+          match.status == DuelStatus.lobbyCountdown &&
+          match.players.length >= 5) {
+        _lobbyTimer?.cancel();
+        _firestore.collection('matches').doc(matchId).update({
+          'status': 'inProgress',
+          'startedAt': FieldValue.serverTimestamp(),
+        });
+        _markAllQueueMatched(matchId);
+        return; // Sonraki snapshot'ta inProgress olarak gelecek
+      }
+
+      _controller.add(match);
     });
   }
 
   Future<List<Question>> _fetchQuestions(DuelConfig config) async {
     print('🔎 [FETCH] MCQ Filtreleme başlatıldı...');
 
-    // ADIM 1: Firestore'dan sadece type == 'MCQ' olanları iste
     Query query =
         _firestore.collection('questions').where('type', isEqualTo: 'MCQ');
 
@@ -217,13 +327,8 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
 
     final snapshot = await query.get();
 
-    // ADIM 2: SERT MANUEL FİLTRE
-    // Firestore cache veya indeks hatası nedeniyle yanlış tip gelse bile
-    // burada kesinlikle sadece geçerli MCQ'lar geçer.
     final cleanQuestions = snapshot.docs.map((doc) {
       final data = doc.data() as Map<String, dynamic>;
-
-      // Firestore'daki 'text' alanını description'a map ediyoruz
       return Question.fromFirestore(data, doc.id).copyWith(
         description:
             (data['text'] ?? data['description'] ?? '').toString().trim(),
@@ -234,7 +339,6 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
         correctAnswer: data['correctAnswer']?.toString().trim(),
       );
     }).where((q) {
-      // 🔥 SERT KONTROL: type MCQ + en az 2 şık + correctAnswer dolu olmalı
       final bool isMcq = q.type == QuestionType.mcq;
       final bool hasOptions = q.options != null && q.options!.length >= 2;
       final bool hasAnswer =
@@ -248,7 +352,6 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
       return isMcq && hasOptions && hasAnswer;
     }).toList();
 
-    // ADIM 3: Karıştır, tam 10 al
     cleanQuestions.shuffle();
     final result = cleanQuestions.take(10).toList();
 
@@ -274,7 +377,7 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
       case 'Soft Skills':
         return ['Soft Skills'];
       default:
-        return []; // Mixed veya bilinmeyen → filtre yok, tüm topicler
+        return [];
     }
   }
 
@@ -282,15 +385,14 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
     final players = (data['players'] as List? ?? [])
         .map((p) => DuelPlayer(
               userId: p['userId'] ?? '',
-              username: p['username'] ?? 'Player',
-              avatarUrl: p['avatarUrl'],
+              username: p['username'] ?? p['displayName'] ?? 'Player',
+              avatarUrl: p['avatarUrl'] ?? p['photoUrl'] ?? p['photoURL'],
               score: p['score'] ?? 0,
               correctCount: p['correctCount'] ?? 0,
               totalXpGained: p['totalXpGained'] ?? 0,
             ))
         .toList();
 
-    // 🔥 SERT FİLTRE: matches dokümanından okurken de sadece geçerli MCQ'lar alınır
     final questions = (data['questions'] as List? ?? []).map((q) {
       final qMap = q as Map<String, dynamic>;
       return Question.fromFirestore(qMap, qMap['id'] ?? '').copyWith(
@@ -301,10 +403,9 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
                 (qMap['options'] as List).map((o) => o.toString().trim()))
             : [],
         correctAnswer: qMap['correctAnswer']?.toString().trim(),
-        type: QuestionType.mcq, // matches koleksiyonuna sadece MCQ yazıyoruz
+        type: QuestionType.mcq,
       );
     }).where((q) {
-      // Yine de options ve correctAnswer kontrolü — savunmacı programlama
       final valid = q.options != null &&
           q.options!.length >= 2 &&
           q.correctAnswer != null &&
@@ -313,11 +414,24 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
       return valid;
     }).toList();
 
+    // Parse duelType
+    final duelTypeStr = data['duelType'] as String? ?? 'oneVsOne';
+    final duelType = DuelType.values.firstWhere(
+      (e) => e.name == duelTypeStr,
+      orElse: () => DuelType.oneVsOne,
+    );
+
+    // Parse lobbyCountdownEndAt
+    final lobbyTimestamp = data['lobbyCountdownEndAt'] as Timestamp?;
+    final lobbyCountdownEndAt = lobbyTimestamp?.toDate();
+
     return DuelMatch(
       matchId: matchId,
       players: players,
       questions: questions,
       currentQuestionIndex: data['currentQuestionIndex'] ?? 0,
+      duelType: duelType,
+      lobbyCountdownEndAt: lobbyCountdownEndAt,
       status: DuelStatus.values.firstWhere(
           (e) => e.name == (data['status'] ?? 'idle'),
           orElse: () => DuelStatus.idle),
@@ -332,13 +446,14 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
 
   @override
   Future<void> cancelMatch() async {
+    _lobbyTimer?.cancel();
     final user = _auth.currentUser;
     if (user == null) return;
     try {
       final activeQueues = await _firestore
           .collection('matchQueue')
           .where('userId', isEqualTo: user.uid)
-          .where('status', whereIn: ['waiting', 'matched']).get();
+          .where('status', whereIn: ['waiting', 'matched', 'lobbyCountdown']).get();
       for (var doc in activeQueues.docs) {
         final mId = doc.data()['matchId'];
         await doc.reference.update({
@@ -361,6 +476,7 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
 
   @override
   Future<void> dispose() async {
+    _lobbyTimer?.cancel();
     _matchSubscription?.cancel();
     await _controller.close();
   }

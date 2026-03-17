@@ -51,6 +51,7 @@ class MatchmakingPage extends StatelessWidget {
               final match = controller.match.value;
               final status = controller.status.value;
               final playerCount = match?.players.length ?? 0;
+              final lobbySeconds = controller.lobbyCountdownSeconds.value;
 
               return Center(
                 child: Padding(
@@ -82,7 +83,7 @@ class MatchmakingPage extends StatelessWidget {
                       // STATUS TEXT
                       // ===============================
                       Text(
-                        _statusText(status, playerCount),
+                        _statusText(status, playerCount, lobbySeconds),
                         textAlign: TextAlign.center,
                         style: AppTextStyles.displayLarge.copyWith(
                           color: Colors.white,
@@ -92,7 +93,32 @@ class MatchmakingPage extends StatelessWidget {
                       const SizedBox(height: 24),
 
                       // ===============================
-                      // LOADER
+                      // LOBBY COUNTDOWN CIRCLE (multi modda)
+                      // ===============================
+                      if (status == DuelStatus.lobbyCountdown)
+                        Container(
+                          width: 64,
+                          height: 64,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withOpacity(0.15),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.6),
+                              width: 3,
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            '$lobbySeconds',
+                            style: AppTextStyles.displayLarge.copyWith(
+                              color: Colors.white,
+                              fontSize: 28,
+                            ),
+                          ),
+                        ),
+
+                      // ===============================
+                      // LOADER (searching)
                       // ===============================
                       if (status == DuelStatus.searching)
                         LoadingAnimationWidget.discreteCircle(
@@ -113,7 +139,7 @@ class MatchmakingPage extends StatelessWidget {
   }
 
   /// Status mesajı üretir
-  String _statusText(DuelStatus status, int count) {
+  String _statusText(DuelStatus status, int count, int lobbySeconds) {
     switch (status) {
       case DuelStatus.searching:
         return "$count players joined\nSearching...";
@@ -121,8 +147,11 @@ class MatchmakingPage extends StatelessWidget {
         return "Match Found!";
       case DuelStatus.countdown:
         return "Game Starting...";
+      case DuelStatus.lobbyCountdown:
+        return "$count players joined\nGame starts in ${lobbySeconds}s";
       default:
         return "";
     }
   }
 }
+

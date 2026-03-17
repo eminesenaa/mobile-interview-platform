@@ -88,6 +88,7 @@ class DuelGamePage extends StatelessWidget {
                     question: question,
                     controller: controller,
                     phase: phase,
+                    players: controller.players.toList(),
                   ),
                 ),
               ),

@@ -12,18 +12,25 @@ class PlayerAvatarWidget extends StatelessWidget {
   final String username;
   final String? avatarAsset;
   final bool highlight;
+  final bool isHost;
+  final Color textColor;
 
   const PlayerAvatarWidget({
     super.key,
     required this.username,
     this.avatarAsset,
     this.highlight = false,
+    this.isHost = false,
+    this.textColor = Colors.white,
   });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
         AnimatedContainer(
           duration: AppDurations.normal,
           padding: const EdgeInsets.all(3),
@@ -38,31 +45,78 @@ class PlayerAvatarWidget extends StatelessWidget {
                   )
                 : null,
           ),
-          child: CircleAvatar(
-            radius: 38,
-            backgroundColor: Colors.white.withOpacity(0.9),
-            backgroundImage:
-                avatarAsset != null ? AssetImage(avatarAsset!) : null,
-            child: avatarAsset == null
-                ? Text(
-                    username.isNotEmpty
-                        ? username.substring(0, 1).toUpperCase()
-                        : '?',
-                    style: AppTextStyles.title.copyWith(
-                      color: AppColors.primary,
-                    ),
-                  )
-                : null,
+          child: ClipOval(
+            child: _buildAvatarImage(),
           ),
+        ),
+        if (isHost)
+          Positioned(
+            top: -5,
+            right: -5,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: const BoxDecoration(
+                color: Colors.amber,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.star, color: Colors.white, size: 16),
+            ),
+          ),
+        ],
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          username,
+          username.trim().isNotEmpty ? username : 'Player',
           style: AppTextStyles.bodyStrong.copyWith(
-            color: Colors.white,
+            color: textColor,
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildAvatarImage() {
+    final bool hasAvatar = avatarAsset != null && avatarAsset!.trim().isNotEmpty;
+    if (!hasAvatar) {
+      return _buildFallback();
+    }
+
+    final isNetwork = avatarAsset!.startsWith('http');
+    if (isNetwork) {
+      return Image.network(
+        avatarAsset!,
+        width: 76,
+        height: 76,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildFallback(),
+      );
+    } else {
+      return Image.asset(
+        avatarAsset!,
+        width: 76,
+        height: 76,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildFallback(),
+      );
+    }
+  }
+
+  Widget _buildFallback() {
+    final String initial = (username.trim().isNotEmpty)
+        ? username.trim().substring(0, 1).toUpperCase()
+        : '?';
+
+    return Container(
+      width: 76,
+      height: 76,
+      color: Colors.white.withOpacity(0.9),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: AppTextStyles.title.copyWith(
+          color: AppColors.primary,
+        ),
+      ),
     );
   }
 }

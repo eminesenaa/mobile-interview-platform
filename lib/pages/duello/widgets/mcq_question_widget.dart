@@ -9,12 +9,14 @@ class MCQQuestionWidget extends StatefulWidget {
   final Question question;
   final DuelGameController controller;
   final DuelQuestionPhase phase;
+  final List<DuelPlayer> players;
 
   const MCQQuestionWidget({
     super.key,
     required this.question,
     required this.controller,
     required this.phase,
+    required this.players,
   });
 
   @override
@@ -152,6 +154,13 @@ class _MCQQuestionWidgetState extends State<MCQQuestionWidget>
                   textColor = AppColors.textPrimary;
                 }
 
+                // Reveal'da bu şıkkı seçen oyuncuları bul
+                final playersOnThisOption = isReveal
+                    ? widget.players
+                        .where((p) => p.selectedOptionIndex == index)
+                        .toList()
+                    : <DuelPlayer>[];
+
                 return Padding(
                   padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                   child: Stack(
@@ -227,6 +236,33 @@ class _MCQQuestionWidgetState extends State<MCQQuestionWidget>
                           ),
                         ),
                       ),
+
+                      // ── AVATAR OVERLAY — reveal fazında seçilen şıkkın üstünde ──
+                      if (isReveal && playersOnThisOption.isNotEmpty)
+                        Positioned(
+                          top: -10,
+                          right: -4,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 2, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                            ),
+                            child: Wrap(
+                              spacing: -6,
+                              children: playersOnThisOption
+                                  .map((p) => _MiniAvatar(player: p))
+                                  .toList(),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 );
@@ -273,13 +309,28 @@ class _MiniAvatar extends StatelessWidget {
         ],
       ),
       alignment: Alignment.center,
-      child: Text(
-        avatarInitial(player.username),
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-        ),
+      child: (player.avatarUrl != null && player.avatarUrl!.isNotEmpty)
+          ? ClipOval(
+              child: Image.network(
+                player.avatarUrl!,
+                width: 28,
+                height: 28,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) =>
+                    _buildInitialAvatar(),
+              ),
+            )
+          : _buildInitialAvatar(),
+    );
+  }
+
+  Widget _buildInitialAvatar() {
+    return Text(
+      avatarInitial(player.username),
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
       ),
     );
   }

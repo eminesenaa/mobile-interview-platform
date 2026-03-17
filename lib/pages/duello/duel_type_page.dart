@@ -5,6 +5,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:interview_project/constants/constants.dart';
 import 'package:interview_project/constants/colors.dart';
 import 'widgets/duel_mode_card.dart';
+import 'private_room_lobby_page.dart';
 
 class DuelTypePage extends StatelessWidget {
   const DuelTypePage({super.key});
@@ -101,7 +102,9 @@ class DuelTypePage extends StatelessWidget {
                           "Invite friends and create a custom duel room.",
                           icon: PhosphorIcons.lockKey(),
                           color: AppColors.success,
-                          onTap: () {},
+                          onTap: () {
+                            Get.to(() => const PrivateRoomLobbyPage());
+                          },
                         ),
                       ),
 
