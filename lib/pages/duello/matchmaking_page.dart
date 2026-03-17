@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:interview_project/pages/duello/widgets/animated_status_text.dart';
+import 'package:interview_project/pages/duello/widgets/duel_player_count_badge.dart';
+import 'package:interview_project/pages/duello/widgets/player_avatar_widget.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import 'package:interview_project/constants/constants.dart';
@@ -85,70 +88,17 @@ class MatchmakingPage extends StatelessWidget {
                         isSelected: true,
                         size: 72,
                       ),
-
                       const SizedBox(height: AppSpacing.sm),
-
                       Text(
                         config.category,
                         style: AppTextStyles.title.copyWith(
                           color: AppColors.textLightPrimary,
                         ),
                       ),
-
                       const SizedBox(height: AppSpacing.xxl),
-
-                      /// 🔥 ÜST AYIRAÇ (daha kalın + belirgin)
-                      Container(
-                        width: 75,
-                        height: 3,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.35),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-
-                      const SizedBox(height: AppSpacing.sm),
-
-                      /// 🔥 ÜST AYIRAÇ (daha kalın + belirgin)
-                      Container(
-                        width: 100,
-                        height: 3,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.35),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-
-                      const SizedBox(height: AppSpacing.sm),
-
-                      Text(
-                        "$playerCount ${playerCount == 1 ? "player" : "players"} joined.",
-                        style: AppTextStyles.title.copyWith(
-                          color: AppColors.textLightPrimary.withOpacity(0.95),
-                        ),
-                      ),
-
-                      const SizedBox(height: AppSpacing.sm),
-
-                      /// 🔥 ALT AYIRAÇ (aynı stil)
-                      Container(
-                        width: 100,
-                        height: 3,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.35),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-
-                      const SizedBox(height: AppSpacing.sm),
-
-                      Container(
-                        width: 75,
-                        height: 3,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.35),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
+                      DuelPlayerCountBadge(
+                        playerCount: playerCount,
+                        duelType: config.duelType,
                       ),
                     ],
                   ),
@@ -157,10 +107,13 @@ class MatchmakingPage extends StatelessWidget {
                   /// 🎯 CENTER → AVATARS
                   /// ===================================================
                   Expanded(
-                    child: Center(
-                      child: match != null
-                          ? DuelPlayersLayout(match: match)
-                          : const SizedBox(),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        match == null
+                            ? const SizedBox()
+                            : DuelPlayersLayout(match: match),
+                      ],
                     ),
                   ),
 
@@ -170,21 +123,12 @@ class MatchmakingPage extends StatelessWidget {
                   Column(
                     children: [
                       if (status == DuelStatus.searching)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              "Searching for an opponent",
-                              style: AppTextStyles.headline.copyWith(
-                                color: AppColors.textLightPrimary,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            LoadingAnimationWidget.waveDots(
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                          ],
+                        const AnimatedStatusText(
+                          text: "Searching for an opponent",
+                        )
+                      else if (status == DuelStatus.countdown)
+                        const AnimatedStatusText(
+                          text: "Game Starting",
                         )
                       else
                         Text(

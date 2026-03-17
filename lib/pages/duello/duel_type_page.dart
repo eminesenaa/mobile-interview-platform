@@ -4,6 +4,7 @@ import 'package:interview_project/pages/duello/widgets/duel_config_modal.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:interview_project/constants/constants.dart';
 import 'package:interview_project/constants/colors.dart';
+import '../home/home_page.dart';
 import 'widgets/duel_mode_card.dart';
 import 'private_room_lobby_page.dart';
 
@@ -31,14 +32,19 @@ class DuelTypePage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
                 /// BACK BUTTON (Gerçek AppBar hizası)
                 Padding(
                   padding: const EdgeInsets.only(top: 12, left: 8),
                   child: IconButton(
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
-                    onPressed: () => Get.back(),
+                    onPressed: () {
+                      if (Get.key.currentState?.canPop() ?? false) {
+                        Get.back();
+                      } else {
+                        Get.offAll(() => const HomePage());
+                      }
+                    },
                     icon: const Icon(
                       Icons.arrow_back_ios_new,
                       color: Colors.white,
@@ -56,13 +62,12 @@ class DuelTypePage extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-
                       /// 1v1
                       DuelModeCard(
                         position: CardPosition.top,
                         title: "1v1",
                         description:
-                        "Match with one opponent and start instantly.",
+                            "Match with one opponent and start instantly.",
                         icon: PhosphorIcons.userSwitch(),
                         color: AppColors.primary,
                         onTap: () {
@@ -80,7 +85,7 @@ class DuelTypePage extends StatelessWidget {
                           position: CardPosition.middle,
                           title: "Multiplayer",
                           description:
-                          "Play with 3–5 players in a competitive room.",
+                              "Play with 3–5 players in a competitive room.",
                           icon: PhosphorIcons.usersThree(),
                           color: AppColors.warning,
                           onTap: () {
@@ -99,7 +104,7 @@ class DuelTypePage extends StatelessWidget {
                           position: CardPosition.bottom,
                           title: "Private Room",
                           description:
-                          "Invite friends and create a custom duel room.",
+                              "Invite friends and create a custom duel room.",
                           icon: PhosphorIcons.lockKey(),
                           color: AppColors.success,
                           onTap: () {
