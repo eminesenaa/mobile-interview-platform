@@ -63,15 +63,31 @@ class ResultHeader extends StatelessWidget {
         const SizedBox(height: AppSpacing.xxl),
 
         /// 💬 MESSAGE
-        Text(
-          controller.isWinner
-              ? 'Well played!'
-              : 'You can do better next round.',
-          textAlign: TextAlign.center,
-          style: AppTextStyles.displayLarge.copyWith(
-            fontSize: 22,
-            color: AppColors.textLightPrimary,
-          ),
+        Column(
+          children: [
+            /// 🏆 HEADLINE
+            Text(
+              controller.isWinner ? 'Victory!' : 'So Close!',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.displayLarge.copyWith(
+                fontSize: 26,
+                color: AppColors.textLightPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            /// 💬 SUBTEXT
+            Text(
+              controller.personalMessage,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.textLightPrimary.withOpacity(0.7),
+                height: 1.4,
+              ),
+            ),
+          ],
         ),
       ],
     );
