@@ -5,6 +5,8 @@ import 'package:get/get.dart';
 import 'package:interview_project/models/duel_result.dart';
 import 'package:interview_project/services/firebase/duel_service.dart';
 
+import '../../../models/duel_player.dart';
+
 class DuelResultController extends GetxController {
   final isApplyingXp = true.obs;
   final xpApplyError = false.obs;
@@ -22,11 +24,23 @@ class DuelResultController extends GetxController {
 
   // ── Getters ──
   bool get isWinner => result.winnerId == localUserId;
+
   int get myScore => result.scoreMap[localUserId] ?? 0;
+
   int get myXp => result.xpGainedMap[localUserId] ?? 0;
+
   double get myAccuracyPercent =>
       (result.accuracyMap[localUserId] ?? 0.0) * 100;
+
   int get myCombo => result.comboMap?[localUserId] ?? 0;
+
+  DuelPlayer get me => result.players.firstWhere(
+        (p) => p.userId == localUserId,
+      );
+
+  String get username => me.username;
+
+  String? get avatarUrl => me.avatarUrl;
 
   /// Kişiselleştirilmiş mesaj
   String get personalMessage {
