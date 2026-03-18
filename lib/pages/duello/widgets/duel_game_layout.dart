@@ -93,7 +93,11 @@ class DuelGameLayout extends StatelessWidget {
               // =============================
               // QUESTION AREA
               // =============================
-              Expanded(child: child),
+              Expanded(
+                child: Center(
+                  child: child,
+                ),
+              ),
 
               const SizedBox(height: AppSpacing.lg),
             ],
