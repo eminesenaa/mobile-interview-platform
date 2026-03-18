@@ -188,7 +188,7 @@ class MatchmakingPage extends StatelessWidget {
       case DuelStatus.countdown:
         return "Game Starting...";
       case DuelStatus.lobbyCountdown:
-        return "$count players joined\nGame starts in ${lobbySeconds}s";
+        return "$count players joined.\nGame starts in";
       default:
         return "";
     }
