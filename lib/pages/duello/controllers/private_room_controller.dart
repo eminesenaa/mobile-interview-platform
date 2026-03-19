@@ -1,26 +1,30 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/animation.dart';
 import 'package:get/get.dart';
 import '../../../../models/duel_enums.dart';
 import '../../../../models/duel_match.dart';
 import '../../../../services/firebase/firebase_duel_game_service.dart';
 import '../duel_game_page.dart';
 
-class PrivateRoomController extends GetxController {
+class PrivateRoomController extends GetxController
+    with GetSingleTickerProviderStateMixin {
   final _service = FirebaseDuelGameService();
 
   final currentTab = 0.obs; // 0: Create, 1: Join
-  
+
   // Create Room variables
-  final macroCategories = <String>[
-    'Mixed',
-    'Programming',
-    'Algorithms',
-    'Data & AI',
-    'Systems',
-    'Soft Skills',
+  final macroCategories = [
+    "Mixed",
+    "Programming",
+    "Algorithms",
+    "Data & AI",
+    "Databases",
+    "Systems",
+    "Soft Skills",
   ];
   final selectedIndex = 0.obs;
+
   String get selectedCategory => macroCategories[selectedIndex.value];
 
   final generatedPassword = ''.obs;
@@ -33,13 +37,42 @@ class PrivateRoomController extends GetxController {
   // Shared state once connected
   final match = Rxn<DuelMatch>();
   final isHost = false.obs;
-  
+
+  late AnimationController lockAnimController;
+  late Animation<double> _scaleAnimation;
+  final lockScale = 1.0.obs;
+
   StreamSubscription<DuelMatch>? _matchSubscription;
+
+  @override
+  void onInit() {
+    super.onInit();
+
+    lockAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.9, end: 1.15).animate(
+      CurvedAnimation(
+        parent: lockAnimController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    _scaleAnimation.addListener(() {
+      lockScale.value = _scaleAnimation.value;
+    });
+
+    lockAnimController.repeat(reverse: true); // 🔥 LOOP
+  }
 
   @override
   void onClose() {
     _matchSubscription?.cancel();
     _service.dispose();
+    lockAnimController.dispose();
+    _matchSubscription?.cancel();
     super.onClose();
   }
 
@@ -59,14 +92,15 @@ class PrivateRoomController extends GetxController {
   Future<void> createRoom() async {
     if (isCreating.value) return;
     isCreating.value = true;
-    
+
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception("User not logged in");
 
-      final String finalUsername = (user.displayName != null && user.displayName!.trim().isNotEmpty)
-          ? user.displayName!
-          : (user.email?.split('@').first ?? 'Host');
+      final String finalUsername =
+          (user.displayName != null && user.displayName!.trim().isNotEmpty)
+              ? user.displayName!
+              : (user.email?.split('@').first ?? 'Host');
 
       final result = await _service.createPrivateRoom(
         category: selectedCategory,
@@ -81,11 +115,11 @@ class PrivateRoomController extends GetxController {
       // No need to query `joinPrivateRoom` since `createPrivateRoom` already places
       // the host into the `players` array. We just need the instantiated `matchId`.
       // The fastest way is to query the room, or we can just return it from creation.
-      
+
       _listenToMatch(result['matchId']!);
-      
     } catch (e) {
-      Get.snackbar('Hata', 'Oda oluşturulamadı: $e', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Hata', 'Oda oluşturulamadı: $e',
+          snackPosition: SnackPosition.BOTTOM);
     } finally {
       isCreating.value = false;
     }
@@ -94,7 +128,8 @@ class PrivateRoomController extends GetxController {
   Future<void> joinRoom() async {
     if (isJoining.value) return;
     if (joinPassword.value.trim().isEmpty) {
-      Get.snackbar('Uyarı', 'Lütfen geçerli bir şifre girin.', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Uyarı', 'Lütfen geçerli bir şifre girin.',
+          snackPosition: SnackPosition.BOTTOM);
       return;
     }
 
@@ -103,9 +138,10 @@ class PrivateRoomController extends GetxController {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception("User not logged in");
 
-      final String finalUsername = (user.displayName != null && user.displayName!.trim().isNotEmpty)
-          ? user.displayName!
-          : (user.email?.split('@').first ?? 'Player');
+      final String finalUsername =
+          (user.displayName != null && user.displayName!.trim().isNotEmpty)
+              ? user.displayName!
+              : (user.email?.split('@').first ?? 'Player');
 
       final matchId = await _service.joinPrivateRoom(
         password: joinPassword.value.toUpperCase().trim(),
@@ -117,7 +153,8 @@ class PrivateRoomController extends GetxController {
       isHost.value = false;
       _listenToMatch(matchId);
     } catch (e) {
-      Get.snackbar('Hata', 'Odaya katılamadı: $e', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Hata', 'Odaya katılamadı: $e',
+          snackPosition: SnackPosition.BOTTOM);
     } finally {
       isJoining.value = false;
     }
@@ -133,13 +170,16 @@ class PrivateRoomController extends GetxController {
         _matchSubscription?.cancel();
         Get.off(() => const DuelGamePage(), arguments: updatedMatch);
       }
-      
+
       // Auto-start if max players reached
-      if (isHost.value && updatedMatch.players.length == 5 && updatedMatch.status == DuelStatus.waiting) {
+      if (isHost.value &&
+          updatedMatch.players.length == 5 &&
+          updatedMatch.status == DuelStatus.waiting) {
         startGame();
       }
     }, onError: (err) {
-      Get.snackbar('Hata', 'Bağlantı koptu: $err', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Hata', 'Bağlantı koptu: $err',
+          snackPosition: SnackPosition.BOTTOM);
     });
   }
 
@@ -148,14 +188,16 @@ class PrivateRoomController extends GetxController {
     final currentMatch = match.value;
     if (currentMatch == null) return;
     if (currentMatch.players.length < 2) {
-      Get.snackbar('Uyarı', 'Oyunu başlatmak için en az 2 oyuncu olmalı.', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Uyarı', 'Oyunu başlatmak için en az 2 oyuncu olmalı.',
+          snackPosition: SnackPosition.BOTTOM);
       return;
     }
 
     try {
       await _service.startPrivateRoom(currentMatch.matchId);
     } catch (e) {
-      Get.snackbar('Hata', 'Oyun başlatılamadı: $e', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Hata', 'Oyun başlatılamadı: $e',
+          snackPosition: SnackPosition.BOTTOM);
     }
   }
 }
