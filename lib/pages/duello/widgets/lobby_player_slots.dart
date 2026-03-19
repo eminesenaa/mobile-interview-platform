@@ -1,7 +1,12 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:get/get_core/src/get_main.dart';
 import 'package:interview_project/constants/constants.dart';
 import 'package:interview_project/models/duel_player.dart';
-import 'package:interview_project/pages/duello/widgets/player_mini_avatar.dart';
+import 'package:interview_project/pages/duello/widgets/player_avatar_widget.dart';
+
+import '../controllers/private_room_controller.dart';
 
 /// ===============================================================
 /// 👥 LOBBY PLAYER SLOTS (CIRCLE LAYOUT)
@@ -16,11 +21,13 @@ class LobbyPlayerSlots extends StatelessWidget {
   final List<DuelPlayer> players;
   final String? hostId;
 
-  const LobbyPlayerSlots({
+  LobbyPlayerSlots({
     super.key,
     required this.players,
     required this.hostId,
   });
+
+  final controller = Get.find<PrivateRoomController>();
 
   @override
   Widget build(BuildContext context) {
@@ -32,25 +39,25 @@ class LobbyPlayerSlots extends StatelessWidget {
 
     return Center(
       child: SizedBox(
-        width: 260,
-        height: 260,
+        width: 300,
+        height: 300,
         child: Stack(
           alignment: Alignment.center,
           children: [
             /// 🔝 TOP
-            _buildSlot(slots[0], Offset(0, -110)),
+            _buildSlot(slots[0], Offset(0, -130)),
 
             /// LEFT TOP
-            _buildSlot(slots[1], Offset(-90, -40)),
+            _buildSlot(slots[1], Offset(-110, -50)),
 
             /// RIGHT TOP
-            _buildSlot(slots[2], Offset(90, -40)),
+            _buildSlot(slots[2], Offset(110, -50)),
 
             /// LEFT BOTTOM
-            _buildSlot(slots[3], Offset(-70, 70)),
+            _buildSlot(slots[3], Offset(-90, 90)),
 
             /// RIGHT BOTTOM
-            _buildSlot(slots[4], Offset(70, 70)),
+            _buildSlot(slots[4], Offset(90, 90)),
           ],
         ),
       ),
@@ -71,66 +78,19 @@ class LobbyPlayerSlots extends StatelessWidget {
         children: [
           /// 👤 AVATAR / EMPTY SLOT
           Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               shape: BoxShape.circle,
-
-              /// HOST GLOW
-              boxShadow: isHost
-                  ? [
-                      BoxShadow(
-                        color: AppColors.primaryAccent.withOpacity(0.6),
-                        blurRadius: 16,
-                        spreadRadius: 2,
-                      )
-                    ]
-                  : null,
             ),
             child: isEmpty
-                ? _buildEmptySlot()
-                : PlayerMiniAvatar(
+                ?  const SizedBox()
+                : PlayerAvatarWidget(
                     username: player.username,
                     avatarAsset: player.avatarUrl,
-                    isMe: false,
+                    isHost: isHost,
+                    isMe: player.userId == controller.userId,
                   ),
           ),
-
-          const SizedBox(height: 6),
-
-          /// NAME
-          if (!isEmpty)
-            Text(
-              player!.username,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.textLightPrimary,
-              ),
-            ),
         ],
-      ),
-    );
-  }
-
-  /// ===============================================================
-  /// EMPTY SLOT UI
-  /// ===============================================================
-  Widget _buildEmptySlot() {
-    return Container(
-      width: 52,
-      height: 52,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: AppColors.textLightPrimary.withOpacity(0.3),
-          width: 1.5,
-        ),
-        color: Colors.white.withOpacity(0.05),
-      ),
-      child: Center(
-        child: Icon(
-          Icons.add,
-          size: 18,
-          color: AppColors.textLightPrimary.withOpacity(0.5),
-        ),
       ),
     );
   }

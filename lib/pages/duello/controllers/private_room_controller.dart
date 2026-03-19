@@ -14,6 +14,8 @@ class PrivateRoomController extends GetxController
 
   final currentTab = 0.obs; // 0: Create, 1: Join
 
+  final currentUser = Rxn<User>();
+
   // Create Room variables
   final macroCategories = [
     "Mixed",
@@ -49,6 +51,8 @@ class PrivateRoomController extends GetxController
   void onInit() {
     super.onInit();
 
+    currentUser.value = FirebaseAuth.instance.currentUser;
+
     lockAnimController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1600),
@@ -77,6 +81,26 @@ class PrivateRoomController extends GetxController
     super.onClose();
   }
 
+  /// USER HELPER GETTER
+  String get username {
+    final user = currentUser.value;
+    if (user == null) return 'Player';
+
+    if (user.displayName != null && user.displayName!.trim().isNotEmpty) {
+      return user.displayName!;
+    }
+
+    return user.email?.split('@').first ?? 'Player';
+  }
+
+  String? get avatarUrl {
+    return currentUser.value?.photoURL;
+  }
+
+  String? get userId {
+    return currentUser.value?.uid;
+  }
+
   void switchTab(int index) {
     currentTab.value = index;
     // Reset states when switching tabs
@@ -95,19 +119,18 @@ class PrivateRoomController extends GetxController
     isCreating.value = true;
 
     try {
+      print('AUTH PHOTO URL: ${FirebaseAuth.instance.currentUser?.photoURL}');
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception("User not logged in");
-
-      final String finalUsername =
-          (user.displayName != null && user.displayName!.trim().isNotEmpty)
-              ? user.displayName!
-              : (user.email?.split('@').first ?? 'Host');
+      if (currentUser.value == null) {
+        Get.snackbar('Error', 'User not authenticated');
+        return;
+      }
 
       final result = await _service.createPrivateRoom(
         category: selectedCategory,
-        userId: user.uid,
-        username: finalUsername,
-        avatarUrl: user.photoURL,
+        userId: userId!,
+        username: username,
+        avatarUrl: avatarUrl ?? '',
       );
 
       generatedPassword.value = result['password']!;
@@ -150,19 +173,18 @@ class PrivateRoomController extends GetxController
 
     isJoining.value = true;
     try {
+      print('AUTH PHOTO URL: ${FirebaseAuth.instance.currentUser?.photoURL}');
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception("User not logged in");
-
-      final String finalUsername =
-          (user.displayName != null && user.displayName!.trim().isNotEmpty)
-              ? user.displayName!
-              : (user.email?.split('@').first ?? 'Player');
+      if (currentUser.value == null) {
+        Get.snackbar('Error', 'User not authenticated');
+        return;
+      }
 
       final matchId = await _service.joinPrivateRoom(
         password: joinPassword.value.toUpperCase().trim(),
-        userId: user.uid,
-        username: finalUsername,
-        avatarUrl: user.photoURL,
+        userId: userId!,
+        username: username,
+        avatarUrl: avatarUrl ?? '',
       );
 
       isHost.value = false;

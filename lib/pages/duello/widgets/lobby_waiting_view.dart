@@ -41,13 +41,29 @@ class LobbyWaitingView extends StatelessWidget {
         const SizedBox(height: AppSpacing.xl),
 
         /// 🧩 CATEGORY
-        DuelCategoryCard(
-          title: match.category ?? 'Mixed',
-          color: DuelCategoryStyle.getColor(match.category ?? 'Mixed'),
-          isSelected: true,
+        Column(
+          children: [
+            /// 🔤 CATEGORY TITLE (üstte)
+            Text(
+              match.category ?? 'Mixed',
+              style: AppTextStyles.title.copyWith(
+                color: Colors.white,
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            /// 🧩 CATEGORY CARD (biraz daha büyük)
+            DuelCategoryCard(
+              title: match.category ?? 'Mixed',
+              color: DuelCategoryStyle.getColor(match.category ?? 'Mixed'),
+              isSelected: true,
+              size: 80, // 🔥 büyüttük
+            ),
+          ],
         ),
 
-        const SizedBox(height: AppSpacing.xl),
+        const SizedBox(height: AppSpacing.xxl),
 
         /// 👥 PLAYER SLOTS
         Expanded(

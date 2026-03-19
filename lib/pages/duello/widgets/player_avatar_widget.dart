@@ -56,7 +56,7 @@ class PlayerAvatarWidget extends StatelessWidget {
                 right: 0,
                 child: Center(
                   child: Icon(
-                    PhosphorIcons.crown(PhosphorIconsStyle.fill),
+                    PhosphorIcons.crownSimple(PhosphorIconsStyle.fill),
                     color: Colors.white,
                     size: AppSpacing.lg,
                   ),
@@ -78,21 +78,10 @@ class PlayerAvatarWidget extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.xs,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppSpacing.md),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Text(
-            username.trim().isNotEmpty ? username : 'Player',
-            style: AppTextStyles.bodyStrong.copyWith(
-              color: AppColors.textPrimary,
-            ),
+        Text(
+          username.trim().isNotEmpty ? username : 'Player',
+          style: AppTextStyles.bodyStrong.copyWith(
+            color: Colors.white,
           ),
         ),
       ],

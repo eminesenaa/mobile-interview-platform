@@ -25,7 +25,7 @@ class LobbyStartButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    /// ❌ Non-host → sadece info text
+    /// ❌ Non-host
     if (!isHost) {
       return Text(
         'Waiting for host to start...',
@@ -39,59 +39,12 @@ class LobbyStartButton extends StatelessWidget {
 
     return GestureDetector(
       onTap: isEnabled ? onStart : null,
-      child: AnimatedContainer(
-        duration: AppDurations.fast,
-        height: 56,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-
-          /// 🎨 ENABLED → gradient
-          gradient: isEnabled
-              ? const LinearGradient(
-                  colors: [
-                    AppColors.primary,
-                    AppColors.primaryAccent,
-                  ],
-                )
-              : null,
-
-          /// ❌ DISABLED → muted
-          color: isEnabled ? null : Colors.white.withOpacity(0.12),
-
-          /// subtle border
-          border: Border.all(
-            color: Colors.white.withOpacity(0.25),
-          ),
-
-          /// shadow (only enabled)
-          boxShadow: isEnabled
-              ? [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.4),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  )
-                ]
-              : null,
-        ),
-        alignment: Alignment.center,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              PhosphorIcons.rocketLaunch(PhosphorIconsStyle.fill),
-              color: Colors.white,
-              size: 20,
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Text(
-              isEnabled ? 'Start Game' : 'Waiting players...',
-              style: AppTextStyles.button.copyWith(
-                color: Colors.white,
-              ),
-            ),
-          ],
+      child: Text(
+        isEnabled ? 'Start Game' : 'Waiting players...',
+        style: AppTextStyles.bodyStrong.copyWith(
+          color: isEnabled
+              ? Colors.white
+              : AppColors.textLightPrimary.withOpacity(0.5),
         ),
       ),
     );
