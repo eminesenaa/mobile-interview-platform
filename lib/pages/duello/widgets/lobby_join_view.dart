@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import 'package:interview_project/constants/constants.dart';
 import 'package:interview_project/pages/duello/controllers/private_room_controller.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 /// ===============================================================
 /// 🔐 LOBBY JOIN VIEW
@@ -21,92 +22,95 @@ class LobbyJoinView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const Spacer(),
-
-        /// 🏷 TITLE
-        Text(
-          "Enter Room Code",
-          style: AppTextStyles.bodyStrong.copyWith(
-            fontSize: 18,
-            color: AppColors.textLightPrimary,
-          ),
-        ),
-
-        const SizedBox(height: AppSpacing.xl),
-
-        /// 🔑 INPUT
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            color: Colors.white.withOpacity(0.12),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.25),
-            ),
-          ),
-          child: TextField(
-            onChanged: (val) => controller.joinPassword.value = val,
-            textAlign: TextAlign.center,
-            textCapitalization: TextCapitalization.characters,
-            inputFormatters: [
-              LengthLimitingTextInputFormatter(6),
-            ],
-            style: AppTextStyles.displayLarge.copyWith(
-              fontSize: 28,
-              letterSpacing: 6,
-              color: AppColors.textLightPrimary,
-            ),
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              hintText: "XXXXXX",
-              hintStyle: AppTextStyles.displayLarge.copyWith(
-                fontSize: 28,
-                letterSpacing: 6,
-                color: AppColors.textLightPrimary.withOpacity(0.4),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        child: Transform.translate(
+          offset: const Offset(0, -50),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              /// 🏷 TITLE
+              Text(
+                "Enter Room Code",
+                style: AppTextStyles.bodyStrong.copyWith(
+                  fontSize: 18,
+                  color: AppColors.textLightPrimary,
+                ),
               ),
-            ),
-          ),
-        ),
 
-        const SizedBox(height: AppSpacing.xxl),
+              const SizedBox(height: AppSpacing.xl),
 
-        /// 🚀 JOIN BUTTON
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed:
-                controller.isJoining.value ? null : () => controller.joinRoom(),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryAccent,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-              ),
-            ),
-            child: controller.isJoining.value
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : Text(
-                    "Join Room",
-                    style: AppTextStyles.button.copyWith(
-                      color: Colors.white,
+              /// 🔑 INPUT
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  color: Colors.white.withOpacity(0.12),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.25),
+                  ),
+                ),
+                child: TextField(
+                  onChanged: (val) {
+                    final formatted = val.toUpperCase().trim();
+                    controller.joinPassword.value = formatted;
+
+                    if (formatted.length == 6 && !controller.isJoining.value) {
+                      controller.joinRoom();
+                    }
+                  },
+                  textAlign: TextAlign.center,
+                  textCapitalization: TextCapitalization.characters,
+                  inputFormatters: [
+                    LengthLimitingTextInputFormatter(6),
+                  ],
+                  style: AppTextStyles.displayLarge.copyWith(
+                    fontSize: 28,
+                    letterSpacing: 6,
+                    color: AppColors.textLightPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    hintText: "XXXXXX",
+                    hintStyle: AppTextStyles.displayLarge.copyWith(
+                      fontSize: 28,
+                      letterSpacing: 6,
+                      color: AppColors.textLightPrimary.withOpacity(0.4),
                     ),
                   ),
+                ),
+              ),
+
+              Obx(() {
+                if (!controller.isJoining.value) return const SizedBox();
+
+                return Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.lg),
+                  child: Column(
+                    children: [
+                      LoadingAnimationWidget.discreteCircle(
+                        color: Colors.white,
+                        size: 36,
+                        secondRingColor: Colors.white70,
+                        thirdRingColor: Colors.white38,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        "Joining room...",
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: Colors.white.withOpacity(0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
           ),
         ),
-
-        const Spacer(),
-      ],
+      ),
     );
   }
 }

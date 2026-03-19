@@ -34,46 +34,57 @@ class LobbyTabSwitch extends StatelessWidget {
         builder: (context, constraints) {
           final tabWidth = (constraints.maxWidth - 6) / 2;
 
-          return Stack(
-            children: [
-              /// 🔵 SLIDING INDICATOR
-              Obx(
-                () => AnimatedPositioned(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOutCubic,
-                  left: currentTab.value == 0 ? 0 : tabWidth,
-                  top: 0,
-                  bottom: 0,
-                  child: Container(
-                    width: tabWidth,
-                    margin: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                      color: Colors.white.withOpacity(0.18),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.25),
-                        width: 1,
+          return GestureDetector(
+            onHorizontalDragEnd: (details) {
+              if (details.primaryVelocity == null) return;
+
+              if (details.primaryVelocity! < 0) {
+                if (currentTab.value == 0) onChanged(1);
+              } else {
+                if (currentTab.value == 1) onChanged(0);
+              }
+            },
+            child: Stack(
+              children: [
+                /// 🔵 SLIDING INDICATOR
+                Obx(
+                  () => AnimatedPositioned(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOutCubic,
+                    left: currentTab.value == 0 ? 0 : tabWidth,
+                    top: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: tabWidth,
+                      margin: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                        color: Colors.white.withOpacity(0.18),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.25),
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.10),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.10),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        )
-                      ],
                     ),
                   ),
                 ),
-              ),
 
-              /// 🧠 TEXT LAYER
-              Row(
-                children: [
-                  _buildTab("Create", 0),
-                  _buildTab("Join", 1),
-                ],
-              ),
-            ],
+                /// 🧠 TEXT LAYER
+                Row(
+                  children: [
+                    _buildTab("Create", 0),
+                    _buildTab("Join", 1),
+                  ],
+                ),
+              ],
+            ),
           );
         },
       ),

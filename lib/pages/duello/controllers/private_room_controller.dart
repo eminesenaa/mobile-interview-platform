@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/animation.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../models/duel_enums.dart';
 import '../../../../models/duel_match.dart';
@@ -118,8 +119,15 @@ class PrivateRoomController extends GetxController
 
       _listenToMatch(result['matchId']!);
     } catch (e) {
-      Get.snackbar('Hata', 'Oda oluşturulamadı: $e',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Error',
+        'Failed to create room.',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.white.withOpacity(0.15),
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(12),
+        borderRadius: 14,
+      );
     } finally {
       isCreating.value = false;
     }
@@ -128,8 +136,15 @@ class PrivateRoomController extends GetxController
   Future<void> joinRoom() async {
     if (isJoining.value) return;
     if (joinPassword.value.trim().isEmpty) {
-      Get.snackbar('Uyarı', 'Lütfen geçerli bir şifre girin.',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Warning',
+        'Please enter a valid room code.',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.white.withOpacity(0.15),
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(12),
+        borderRadius: 14,
+      );
       return;
     }
 
@@ -153,8 +168,15 @@ class PrivateRoomController extends GetxController
       isHost.value = false;
       _listenToMatch(matchId);
     } catch (e) {
-      Get.snackbar('Hata', 'Odaya katılamadı: $e',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Error',
+        'Failed to join room.',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.white.withOpacity(0.15),
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(12),
+        borderRadius: 14,
+      );
     } finally {
       isJoining.value = false;
     }
@@ -178,8 +200,15 @@ class PrivateRoomController extends GetxController
         startGame();
       }
     }, onError: (err) {
-      Get.snackbar('Hata', 'Bağlantı koptu: $err',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Error',
+        'Connection lost.',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.white.withOpacity(0.15),
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(12),
+        borderRadius: 14,
+      );
     });
   }
 
@@ -188,16 +217,30 @@ class PrivateRoomController extends GetxController
     final currentMatch = match.value;
     if (currentMatch == null) return;
     if (currentMatch.players.length < 2) {
-      Get.snackbar('Uyarı', 'Oyunu başlatmak için en az 2 oyuncu olmalı.',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Warning',
+        'At least 2 players are required to start.',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.white.withOpacity(0.15),
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(12),
+        borderRadius: 14,
+      );
       return;
     }
 
     try {
       await _service.startPrivateRoom(currentMatch.matchId);
     } catch (e) {
-      Get.snackbar('Hata', 'Oyun başlatılamadı: $e',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Error',
+        'Failed to start the game.',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.white.withOpacity(0.15),
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(12),
+        borderRadius: 14,
+      );
     }
   }
 }
