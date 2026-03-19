@@ -43,6 +43,7 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
     }
 
     final username = _getUsername(user);
+    final avatar = await _getUserAvatar(user);
 
     try {
       // Başlangıç durumu: Searching
@@ -50,7 +51,10 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
         matchId: '',
         players: [
           DuelPlayer(
-              userId: user.uid, username: username, avatarUrl: user.photoURL)
+            userId: user.uid,
+            username: username,
+            avatarUrl: avatar,
+          )
         ],
         questions: [],
         status: DuelStatus.searching,
@@ -110,6 +114,7 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
 
     final matchRef = _firestore.collection('matches').doc();
     final matchId = matchRef.id;
+    final avatar = await _getUserAvatar(user);
     _currentMatchId = matchId;
 
     final questionsData = questions.map((q) {
@@ -132,7 +137,7 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
         {
           'userId': user.uid,
           'username': username,
-          'avatarUrl': user.photoURL,
+          'avatarUrl': avatar,
           'score': 0,
           'correctCount': 0,
           'totalXpGained': 0,
@@ -169,6 +174,7 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
       required DuelConfig config}) async {
     _currentMatchId = matchId;
     final matchRef = _firestore.collection('matches').doc(matchId);
+    final avatar = await _getUserAvatar(user);
 
     // Atomik olarak oyuncuyu ekle
     await matchRef.update({
@@ -176,7 +182,7 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
         {
           'userId': user.uid,
           'username': username,
-          'avatarUrl': user.photoURL,
+          'avatarUrl': avatar,
           'score': 0,
           'correctCount': 0,
           'totalXpGained': 0,
@@ -227,8 +233,7 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
       } else if (playerCount == 3) {
         // 3. oyuncu → 18 sn countdown başlat
         print('⏱ [MATCHMAKING] 3rd player joined — starting 18s countdown');
-        final countdownEnd =
-            DateTime.now().add(const Duration(seconds: 18));
+        final countdownEnd = DateTime.now().add(const Duration(seconds: 18));
         await matchRef.update({
           'status': 'lobbyCountdown',
           'lobbyCountdownEndAt': Timestamp.fromDate(countdownEnd),
@@ -277,8 +282,7 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
     final queueDocs = await _firestore
         .collection('matchQueue')
         .where('matchId', isEqualTo: matchId)
-        .where('status', whereIn: ['waiting', 'lobbyCountdown'])
-        .get();
+        .where('status', whereIn: ['waiting', 'lobbyCountdown']).get();
     for (final doc in queueDocs.docs) {
       await doc.reference.update({'status': 'matched'});
     }
@@ -453,7 +457,8 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
       final activeQueues = await _firestore
           .collection('matchQueue')
           .where('userId', isEqualTo: user.uid)
-          .where('status', whereIn: ['waiting', 'matched', 'lobbyCountdown']).get();
+          .where('status',
+              whereIn: ['waiting', 'matched', 'lobbyCountdown']).get();
       for (var doc in activeQueues.docs) {
         final mId = doc.data()['matchId'];
         await doc.reference.update({
@@ -472,6 +477,14 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
     } catch (e) {
       print('❌ [CANCEL ERROR]: $e');
     }
+  }
+
+  /// Fetches the user's avatar from Firestore (photoUrl or duelAvatar fallback)
+  Future<String?> _getUserAvatar(User user) async {
+    final doc = await _firestore.collection('users').doc(user.uid).get();
+    final data = doc.data();
+
+    return data?['photoUrl'] ?? data?['duelAvatar'] ?? user.photoURL;
   }
 
   @override

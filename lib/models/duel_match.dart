@@ -169,6 +169,8 @@ class DuelMatch {
       comboMap: comboMap,
       totalDuration:
           (finishedAt ?? DateTime.now()).difference(startedAt ?? createdAt),
+      players: players.map((p) => p.snapshot()).toList(),
+
     );
   }
 }

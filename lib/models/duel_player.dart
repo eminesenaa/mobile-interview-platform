@@ -100,7 +100,10 @@ class DuelPlayer {
   factory DuelPlayer.fromFirestore(Map<String, dynamic> data) => DuelPlayer(
         userId: data['userId'] ?? '',
         username: data['username'] ?? data['displayName'] ?? 'Player',
-        avatarUrl: data['avatarUrl'] ?? data['photoUrl'] ?? data['photoURL'],
+        avatarUrl: data['avatarUrl'] ??
+            data['photoUrl'] ??
+            data['duelAvatar'] ??
+            data['photoURL'],
         score: data['score'] ?? 0,
         correctCount: data['correctCount'] ?? 0,
         totalXpGained: data['totalXpGained'] ?? 0,

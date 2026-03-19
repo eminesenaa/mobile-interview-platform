@@ -137,6 +137,9 @@ class AppColors {
   /// Wine Plum – koyu mor/bordo ton (rekabet hissi için ideal)
   static const Color accentWinePlum = Color(0xFF5B2333);
 
+  /// Royal Plum
+  static const Color accentRoyalPlum = Color(0xFF8c1a6a);
+
   /// White Smoke – açık nötr arka plan
   static const Color stormyTeal = Color(0xFF0d5d56);
 

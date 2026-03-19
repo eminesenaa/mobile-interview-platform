@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../../models/duel_match.dart';
 import '../../../models/duel_enums.dart';
@@ -26,30 +27,35 @@ class DuelPlayersLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final players = match.players;
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
     // 1v1 Layout
     if (players.length == 2 && match.duelType == DuelType.oneVsOne) {
       return Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           PlayerAvatarWidget(
             username: players[0].username,
             avatarAsset: players[0].avatarUrl,
             highlight: true,
             isHost: hostUserId != null && players[0].userId == hostUserId,
+            isMe: players[0].userId == currentUserId,
             textColor: textColor,
           ),
+          const SizedBox(width: AppSpacing.sm),
           Text(
             "VS",
             style: AppTextStyles.displayLarge.copyWith(
               color: textColor.withOpacity(0.8),
             ),
           ),
+          const SizedBox(width: AppSpacing.sm),
           PlayerAvatarWidget(
             username: players[1].username,
             avatarAsset: players[1].avatarUrl,
             highlight: true,
             isHost: hostUserId != null && players[1].userId == hostUserId,
+            isMe: players[1].userId == currentUserId,
             textColor: textColor,
           ),
         ],
@@ -68,6 +74,7 @@ class DuelPlayersLayout extends StatelessWidget {
           avatarAsset: players[index].avatarUrl,
           highlight: true,
           isHost: hostUserId != null && players[index].userId == hostUserId,
+          isMe: players[index].userId == currentUserId,
           textColor: textColor,
         ),
       ),

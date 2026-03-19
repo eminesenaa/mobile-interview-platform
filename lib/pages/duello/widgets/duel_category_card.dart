@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+import '../../../constants/constants.dart';
 import '../../../utils/duel_category_style.dart';
 
 /// ===============================================================
 /// DuelCategoryCard
 /// ---------------------------------------------------------------
-/// Config modal'daki kategori kartının reusable versiyonu.
+/// A reusable category selection card used inside duel config modal.
 ///
-/// - Her kategori kendi rengine sahiptir.
-/// - Selected durumuna göre arka plan ve icon rengi değişir.
-/// - Matchmaking ve diğer sayfalarda aynı görsel kullanılabilir.
+/// Responsibilities:
+/// - Displays category icon with dynamic color styling
+/// - Handles selected / unselected UI states
+/// - Provides smooth animated transitions
+///
+/// Notes:
+/// - Uses design system constants (spacing, radius, durations)
+/// - Avoids magic numbers for maintainability
 /// ===============================================================
 class DuelCategoryCard extends StatelessWidget {
   final String title;
@@ -30,25 +36,33 @@ class DuelCategoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final backgroundColor = isSelected ? color : color.withOpacity(0.18);
+    /// Selected state background vs muted state
+    final backgroundColor = isSelected
+        ? color
+        : color.withOpacity(0.2);
 
-    final iconColor = isSelected ? Colors.white : color;
+    /// Icon color changes depending on selection
+    final iconColor = isSelected
+        ? Colors.white
+        : color;
 
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
+        duration: AppDurations.normal,
         curve: Curves.easeOut,
         width: size,
         height: size,
         decoration: BoxDecoration(
           color: backgroundColor,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(AppRadius.xl),
         ),
         alignment: Alignment.center,
+
+        /// Category icon (from DuelCategoryStyle mapping)
         child: Icon(
           DuelCategoryStyle.getIcon(title),
-          size: size * 0.33, // responsive icon
+          size: size * 0.32, // responsive scaling
           color: iconColor,
         ),
       ),

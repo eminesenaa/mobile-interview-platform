@@ -4,6 +4,10 @@ import 'package:interview_project/models/duel_enums.dart';
 import 'package:interview_project/models/duel_player.dart';
 import 'package:interview_project/models/question.dart';
 import 'package:interview_project/pages/duello/controllers/duel_game_controller.dart';
+import 'package:interview_project/pages/duello/widgets/player_mini_avatar.dart';
+
+import '../../../utils/code_language_utils.dart';
+import '../../question_types/widgets/read_only_code_block.dart';
 
 class MCQQuestionWidget extends StatefulWidget {
   final Question question;
@@ -104,233 +108,169 @@ class _MCQQuestionWidgetState extends State<MCQQuestionWidget>
               borderRadius: BorderRadius.circular(AppRadius.lg),
               boxShadow: AppShadows.low,
             ),
-            child: Text(
-              widget.question.description ?? widget.question.title,
-              style: AppTextStyles.bodyStrong.copyWith(
-                fontSize: 16,
-                color: AppColors.textPrimary,
-              ),
-              textAlign: TextAlign.center,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                /// DESCRIPTION
+                if ((widget.question.description ?? '').isNotEmpty)
+                  Text(
+                    widget.question.description!,
+                    style: AppTextStyles.body.copyWith(
+                      fontSize: 15,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+
+                /// CODE BLOCK (🔥 EN ÖNEMLİ KISIM)
+                if ((widget.question.codeTemplate ?? '').isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  ReadOnlyCodeBlock(
+                    code: widget.question.codeTemplate!,
+                    language: CodeLanguageUtils.resolveLanguageFromTopic(
+                      widget.question.topic,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
 
           const SizedBox(height: AppSpacing.lg),
 
           // ── ŞIKLAR ──
-          AnimatedBuilder(
-            animation: _shakeAnim,
-            builder: (context, child) {
-              final t = _shakeAnim.value;
-              final offset = t < 0.5 ? -10 * t * 2 : 10 * (t - 0.5) * 2;
-              return Transform.translate(
-                offset: Offset(offset, 0),
-                child: child,
-              );
-            },
-            child: Column(
-              children: List.generate(options.length, (index) {
-                final isSelected = _localSelectedIndex == index;
-                final isCorrect = _isCorrectOption(index);
+          Column(
+            children: List.generate(options.length, (index) {
+              final isSelected = _localSelectedIndex == index;
+              final isCorrect = _isCorrectOption(index);
 
-                // Renkler sadece reveal'da değişir
-                Color bgColor = AppColors.surface;
-                Color borderColor = AppColors.border;
-                Color textColor = AppColors.textPrimary;
+              // Renkler sadece reveal'da değişir
+              /// ✅ Default state artık net ve okunur
+              Color bgColor =
+                  AppColors.surface.withOpacity(0.95); // daha net zemin
+              Color borderColor = Colors.white.withOpacity(0.6); // hafif border
+              Color textColor = AppColors.textPrimary;
 
-                if (isReveal) {
-                  if (isCorrect) {
-                    bgColor = const Color(0xFFE8F5E9);
-                    borderColor = AppColors.success;
-                    textColor = AppColors.success;
-                  } else if (isSelected) {
-                    bgColor = const Color(0xFFFFEBEE);
-                    borderColor = Colors.red;
-                    textColor = Colors.red;
-                  }
+              if (isReveal) {
+                if (isCorrect) {
+                  bgColor = const Color(0xFFE8F5E9);
+                  borderColor = AppColors.success;
+                  textColor = AppColors.success;
                 } else if (isSelected) {
-                  // Active fazda sadece hafif highlight — renk değişimi yok
-                  bgColor = AppColors.primarySoftBackground;
-                  borderColor = AppColors.primary;
-                  textColor = AppColors.textPrimary;
+                  bgColor = const Color(0xFFFFEBEE);
+                  borderColor = Colors.red;
+                  textColor = Colors.red;
                 }
+              } else if (isSelected) {
+                // 🔥 Seçildiğinde hafif koyulaşma + net border
+                bgColor = AppColors.primarySoftBackground.withOpacity(0.85);
+                borderColor = AppColors.primary.withOpacity(0.7);
+                textColor = AppColors.textPrimary;
+              }
 
-                // Reveal'da bu şıkkı seçen oyuncuları bul
-                final playersOnThisOption = isReveal
-                    ? widget.players
-                        .where((p) => p.selectedOptionIndex == index)
-                        .toList()
-                    : <DuelPlayer>[];
+              // Reveal'da bu şıkkı seçen oyuncuları bul
+              final playersOnThisOption = isReveal
+                  ? widget.players
+                      .where((p) => p.selectedOptionIndex == index)
+                      .toList()
+                  : <DuelPlayer>[];
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      // ── ŞIK BUTONU ──
-                      GestureDetector(
-                        onTap: () => _onTap(index),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 250),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.lg,
-                            vertical: AppSpacing.md,
-                          ),
-                          decoration: BoxDecoration(
-                            color: bgColor,
-                            borderRadius: BorderRadius.circular(AppRadius.lg),
-                            border: Border.all(color: borderColor, width: 1.5),
-                            boxShadow: AppShadows.low,
-                          ),
-                          child: Row(
-                            children: [
-                              // Harf balonu
-                              Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  color: borderColor.withOpacity(0.12),
-                                  shape: BoxShape.circle,
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  String.fromCharCode(65 + index),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                    color: borderColor,
-                                  ),
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // ── ŞIK BUTONU ──
+                    GestureDetector(
+                      onTap: () => _onTap(index),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.lg,
+                          vertical: AppSpacing.md,
+                        ),
+                        decoration: BoxDecoration(
+                          color: bgColor,
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                          border: Border.all(color: borderColor, width: 1.5),
+                          boxShadow: AppShadows.low,
+                        ),
+                        child: Row(
+                          children: [
+                            // Harf balonu
+                            Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: isReveal
+                                    ? (isCorrect
+                                        ? AppColors.success
+                                        : (isSelected
+                                            ? AppColors.error
+                                            : AppColors.paleSlate
+                                                .withOpacity(0.45)))
+                                    : (isSelected
+                                        ? AppColors.primarySoftBackground
+                                        : AppColors.paleSlate
+                                            .withOpacity(0.45)),
+                                shape: BoxShape.circle,
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                String.fromCharCode(65 + index),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: isReveal
+                                      ? Colors.white
+                                      : (isSelected
+                                          ? AppColors.textPrimary
+                                          : AppColors.textSecondary),
                                 ),
                               ),
-                              const SizedBox(width: AppSpacing.md),
-                              Expanded(
-                                child: Text(
-                                  options[index],
-                                  style: AppTextStyles.body.copyWith(
-                                    color: textColor,
-                                    fontWeight:
-                                        isSelected || (isReveal && isCorrect)
-                                            ? FontWeight.w600
-                                            : FontWeight.normal,
-                                  ),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Text(
+                                options[index],
+                                style: AppTextStyles.body.copyWith(
+                                  color: textColor,
+                                  fontWeight:
+                                      isSelected || (isReveal && isCorrect)
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
                                 ),
                               ),
-                              // Doğru/yanlış ikonu — sadece reveal + seçiliyse
-                              if (isReveal && isSelected)
-                                Icon(
-                                  isCorrect
-                                      ? Icons.check_circle_rounded
-                                      : Icons.cancel_rounded,
-                                  color: isCorrect
-                                      ? AppColors.success
-                                      : Colors.red,
-                                  size: 20,
-                                ),
-                              // Doğru şık işareti — seçilmese bile reveal'da
-                              if (isReveal && isCorrect && !isSelected)
-                                const Icon(
-                                  Icons.check_circle_outline_rounded,
-                                  color: AppColors.success,
-                                  size: 20,
-                                ),
-                            ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // ── AVATAR OVERLAY — reveal fazında seçilen şıkkın üstünde ──
+                    if (isReveal && playersOnThisOption.isNotEmpty)
+                      Positioned(
+                        top: -12,
+                        right: -4,
+                        child: Container(
+                          padding: EdgeInsets.zero,
+                          decoration: const BoxDecoration(),
+                          child: Wrap(
+                            spacing: -8,
+                            children: playersOnThisOption
+                                .map((p) => PlayerMiniAvatar(
+                                      username: p.username,
+                                      avatarAsset: p.avatarUrl,
+                                    ))
+                                .toList(),
                           ),
                         ),
                       ),
-
-                      // ── AVATAR OVERLAY — reveal fazında seçilen şıkkın üstünde ──
-                      if (isReveal && playersOnThisOption.isNotEmpty)
-                        Positioned(
-                          top: -10,
-                          right: -4,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 2, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.9),
-                              borderRadius: BorderRadius.circular(14),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 4,
-                                ),
-                              ],
-                            ),
-                            child: Wrap(
-                              spacing: -6,
-                              children: playersOnThisOption
-                                  .map((p) => _MiniAvatar(player: p))
-                                  .toList(),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                );
-              }),
-            ),
-          ),
-
-          // ── FEEDBACK BANNER (sadece reveal) ──
-          if (isReveal && _localSelectedIndex != null)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.md),
-              child: _FeedbackBanner(
-                isCorrect: _isCorrectOption(_localSelectedIndex!),
-                combo: combo,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────
-// MİNİ AVATAR
-// ─────────────────────────────────────────
-class _MiniAvatar extends StatelessWidget {
-  final DuelPlayer player;
-  const _MiniAvatar({required this.player});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 28,
-      height: 28,
-      decoration: BoxDecoration(
-        color: player.avatarColor,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.25),
-            blurRadius: 4,
+                  ],
+                ),
+              );
+            }),
           ),
         ],
-      ),
-      alignment: Alignment.center,
-      child: (player.avatarUrl != null && player.avatarUrl!.isNotEmpty)
-          ? ClipOval(
-              child: Image.network(
-                player.avatarUrl!,
-                width: 28,
-                height: 28,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    _buildInitialAvatar(),
-              ),
-            )
-          : _buildInitialAvatar(),
-    );
-  }
-
-  Widget _buildInitialAvatar() {
-    return Text(
-      avatarInitial(player.username),
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 11,
-        fontWeight: FontWeight.w800,
       ),
     );
   }
@@ -341,6 +281,7 @@ class _MiniAvatar extends StatelessWidget {
 // ─────────────────────────────────────────
 class _ComboBanner extends StatelessWidget {
   final int combo;
+
   const _ComboBanner({required this.combo});
 
   @override
@@ -367,47 +308,6 @@ class _ComboBanner extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────
-// FEEDBACK BANNER
-// ─────────────────────────────────────────
-class _FeedbackBanner extends StatelessWidget {
-  final bool isCorrect;
-  final int combo;
-  const _FeedbackBanner({required this.isCorrect, required this.combo});
-
-  @override
-  Widget build(BuildContext context) {
-    final text = isCorrect
-        ? (combo >= 3
-            ? '🔥 On fire!'
-            : combo >= 2
-                ? '⚡ Nice combo!'
-                : '✅ Correct!')
-        : '❌ Wrong!';
-    final color = isCorrect ? AppColors.success : Colors.red;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: color.withOpacity(0.4)),
-      ),
-      child: Center(
-        child: Text(
-          text,
-          style: TextStyle(
-            color: color,
-            fontWeight: FontWeight.w700,
-            fontSize: 16,
-          ),
-        ),
       ),
     );
   }
