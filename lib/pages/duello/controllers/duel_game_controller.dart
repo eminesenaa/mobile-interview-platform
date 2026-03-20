@@ -7,6 +7,7 @@ import '../../../models/duel_enums.dart';
 import '../../../models/duel_player.dart';
 import '../../../models/question.dart';
 import '../../../services/firebase/firebase_duel_game_service.dart';
+import '../../../services/sfx/sound_service.dart';
 import '../../../utils/duel_scoring_engine.dart';
 import '../duel_result_page.dart';
 
@@ -37,6 +38,7 @@ class DuelGameController extends GetxController {
 
   /// Local user'ın bu round'da cevap verip vermediği (Firestore'a yazılıncaya kadar guard)
   bool _hasSubmittedThisRound = false;
+  bool _lastAnswerWasCorrect = false;
 
   /// Reveal sonrası advanceQuestion çağrılıp çağrılmadığını track et
   bool _isAdvancing = false;
@@ -142,6 +144,13 @@ class DuelGameController extends GetxController {
         if (updatedMatch.questionPhase == DuelQuestionPhase.reveal &&
             previousPhase != DuelQuestionPhase.reveal) {
           _questionTimer?.cancel();
+
+          if (_hasSubmittedThisRound && _lastAnswerWasCorrect) {
+            SoundService.play(SoundEffect.correctAnswer);
+          } else {
+            SoundService.play(SoundEffect.wrongAnswer);
+          }
+
           _scheduleAdvance(updatedMatch);
         }
 
@@ -149,6 +158,7 @@ class DuelGameController extends GetxController {
         if (updatedMatch.questionPhase == DuelQuestionPhase.active &&
             updatedMatch.currentQuestionIndex != previousIndex) {
           _hasSubmittedThisRound = false;
+          _lastAnswerWasCorrect = false;
           _isAdvancing = false;
           _startTimer();
         }
@@ -178,6 +188,11 @@ class DuelGameController extends GetxController {
     _questionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (remainingSeconds.value > 0) {
         remainingSeconds.value--;
+        
+        // 3 saniye kala uyarı sesi çal
+        if (remainingSeconds.value == 3) {
+          //SoundService.play(SoundEffect.timerWarning);
+        }
       } else {
         timer.cancel();
         // Süre doldu — eğer local user henüz cevap vermediyse boş bırak
@@ -213,6 +228,9 @@ class DuelGameController extends GetxController {
         isCorrect = question.options![optionIndex].trim() == correctStr;
       }
     }
+
+    _lastAnswerWasCorrect = isCorrect;
+    SoundService.play(SoundEffect.buttonTap);
 
     // Combo takibi (lokal)
     if (isCorrect) {
