@@ -26,8 +26,8 @@ class DuelEntryCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.primary,
-            AppColors.primaryAccent,
+            AppColors.accentWinePlum,
+            AppColors.accentRoyalPlum,
           ],
         ),
         boxShadow: AppShadows.medium,
@@ -51,7 +51,7 @@ class DuelEntryCard extends StatelessWidget {
                       Text(
                         "Duel Arena",
                         style: AppTextStyles.displayLarge.copyWith(
-                          fontSize: 22,               // biraz küçülttük
+                          fontSize: 22, // biraz küçülttük
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
                         ),

@@ -62,17 +62,17 @@ class DuelTypePage extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      /// 1v1
+                      /// 1vs1
                       DuelModeCard(
                         position: CardPosition.top,
-                        title: "1v1",
+                        title: "1vs1",
                         description:
                             "Match with one opponent and start instantly.",
                         icon: PhosphorIcons.userSwitch(),
-                        color: AppColors.primary,
+                        color: AppColors.cinnabar,
                         onTap: () {
                           Get.dialog(
-                            DuelConfigModal(modeTitle: "1v1"),
+                            DuelConfigModal(modeTitle: "1vs1"),
                             barrierColor: Colors.transparent,
                           );
                         },
@@ -87,7 +87,7 @@ class DuelTypePage extends StatelessWidget {
                           description:
                               "Play with 3–5 players in a competitive room.",
                           icon: PhosphorIcons.usersThree(),
-                          color: AppColors.warning,
+                          color: AppColors.stormyTeal,
                           onTap: () {
                             Get.dialog(
                               DuelConfigModal(modeTitle: "Multiplayer"),
@@ -106,7 +106,7 @@ class DuelTypePage extends StatelessWidget {
                           description:
                               "Invite friends and create a custom duel room.",
                           icon: PhosphorIcons.lockKey(),
-                          color: AppColors.success,
+                          color: AppColors.accentRoyalPlum,
                           onTap: () {
                             Get.to(() => const PrivateRoomLobbyPage());
                           },

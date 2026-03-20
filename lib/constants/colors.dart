@@ -154,4 +154,16 @@ class AppColors {
   /// Evergreen – derin koyu yeşil (advanced / system temaları için)
   static const Color accentEvergreen = Color(0xFF14342B);
 
+  /// Chery Blossom
+  static const Color cherryBlossom = Color(0xFFfcb0b3);
+
+  /// Strawberry Red
+  static const Color strawberryRed = Color(0xFFf93943);
+
+  /// Sky Reflection
+  static const Color skyReflection = Color(0xFF445e93);
+
+
+
+
 }
