@@ -117,38 +117,52 @@ class FirebaseDuelGameService {
 
   /// currentRoundAnswers içindeki skor verilerini playerScores/playerCorrectCounts/playerXp'ye uygular.
   /// Bu sayede progress bar sadece reveal fazından SONRA ilerler.
+  ///
+  /// ⚠️ Transaction kullanılıyor çünkü her iki oyuncu da advanceToNextQuestion
+  /// çağırıyor. Transaction olmadan ikisi de aynı currentRoundAnswers'ı okuyup
+  /// aynı increment'leri uyguluyor → skorlar/correctCount 2× oluyor.
+  /// Transaction ile ilk commit eden cevapları temizler, ikinci çağrı boş
+  /// cevap görüp atlar.
   Future<void> _applyRoundScores(DocumentReference matchRef) async {
-    final snapshot = await matchRef.get();
-    if (!snapshot.exists) return;
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(matchRef);
+      if (!snapshot.exists) return;
 
-    final data = snapshot.data() as Map<String, dynamic>? ?? {};
-    final answers = data['currentRoundAnswers'] as Map<String, dynamic>? ?? {};
+      final data = snapshot.data() as Map<String, dynamic>? ?? {};
+      final answers =
+          data['currentRoundAnswers'] as Map<String, dynamic>? ?? {};
 
-    final Map<String, dynamic> scoreUpdates = {};
+      // Zaten başka client tarafından işlendi — atla
+      if (answers.isEmpty) return;
 
-    for (final entry in answers.entries) {
-      final userId = entry.key;
-      final answer = entry.value as Map<String, dynamic>? ?? {};
+      final Map<String, dynamic> scoreUpdates = {
+        // Cevapları atomik olarak temizle — ikinci çağrı boş görüp atlayacak
+        'currentRoundAnswers': {},
+      };
 
-      final scoreGained = answer['scoreGained'] as int? ?? 0;
-      final xpGained = answer['xpGained'] as int? ?? 0;
-      final isCorrect = answer['isCorrect'] as bool? ?? false;
+      for (final entry in answers.entries) {
+        final userId = entry.key;
+        final answer = entry.value as Map<String, dynamic>? ?? {};
 
-      if (scoreGained > 0) {
-        scoreUpdates['playerScores.$userId'] =
-            FieldValue.increment(scoreGained);
+        final scoreGained = answer['scoreGained'] as int? ?? 0;
+        final xpGained = answer['xpGained'] as int? ?? 0;
+        final isCorrect = answer['isCorrect'] as bool? ?? false;
+
+        if (scoreGained > 0) {
+          scoreUpdates['playerScores.$userId'] =
+              FieldValue.increment(scoreGained);
+        }
+        if (isCorrect) {
+          scoreUpdates['playerCorrectCounts.$userId'] =
+              FieldValue.increment(1);
+        }
+        if (xpGained > 0) {
+          scoreUpdates['playerXp.$userId'] = FieldValue.increment(xpGained);
+        }
       }
-      if (isCorrect) {
-        scoreUpdates['playerCorrectCounts.$userId'] = FieldValue.increment(1);
-      }
-      if (xpGained > 0) {
-        scoreUpdates['playerXp.$userId'] = FieldValue.increment(xpGained);
-      }
-    }
 
-    if (scoreUpdates.isNotEmpty) {
-      await matchRef.update(scoreUpdates);
-    }
+      transaction.update(matchRef, scoreUpdates);
+    });
   }
 
   // ─────────────────────────────────────────

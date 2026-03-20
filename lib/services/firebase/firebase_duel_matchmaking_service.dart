@@ -21,11 +21,27 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
   String? _currentMatchId;
   Timer? _lobbyTimer;
 
-  String _getUsername(User user) {
-    if (user.displayName != null && user.displayName!.trim().isNotEmpty) {
-      return user.displayName!;
+  /// Firestore'dan kullanıcı profil bilgilerini (username + avatar) tek seferde çeker.
+  /// Fallback zinciri: Firestore username → Auth displayName → email prefix
+  Future<Map<String, String?>> _getUserProfile(User user) async {
+    final doc = await _firestore.collection('users').doc(user.uid).get();
+    final data = doc.data();
+
+    // Username: Firestore username → displayName → email prefix
+    String username;
+    final firestoreUsername = data?['username'] as String?;
+    if (firestoreUsername != null && firestoreUsername.trim().isNotEmpty) {
+      username = firestoreUsername.trim();
+    } else if (user.displayName != null && user.displayName!.trim().isNotEmpty) {
+      username = user.displayName!;
+    } else {
+      username = user.email?.split('@').first ?? 'Player';
     }
-    return user.email?.split('@').first ?? 'Player';
+
+    // Avatar: Firestore photoUrl → duelAvatar → Auth photoURL
+    final avatar = data?['photoUrl'] ?? data?['duelAvatar'] ?? user.photoURL;
+
+    return {'username': username, 'avatar': avatar};
   }
 
   @override
@@ -42,8 +58,9 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
       return;
     }
 
-    final username = _getUsername(user);
-    final avatar = await _getUserAvatar(user);
+    final profile = await _getUserProfile(user);
+    final username = profile['username'] ?? 'Player';
+    final avatar = profile['avatar'];
 
     try {
       // Başlangıç durumu: Searching
@@ -91,13 +108,14 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
             queueDocId: existingDoc.id,
             user: user,
             username: username,
+            avatar: avatar,
             config: config,
           );
         } else {
-          await _createNewMatch(user: user, username: username, config: config);
+          await _createNewMatch(user: user, username: username, avatar: avatar, config: config);
         }
       } else {
-        await _createNewMatch(user: user, username: username, config: config);
+        await _createNewMatch(user: user, username: username, avatar: avatar, config: config);
       }
     } catch (e) {
       print('❌ [MATCHMAKING] Error: $e');
@@ -108,13 +126,13 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
   Future<void> _createNewMatch(
       {required User user,
       required String username,
+      required String? avatar,
       required DuelConfig config}) async {
     print('📥 [MATCHMAKING] Fetching MCQ questions...');
     final questions = await _fetchQuestions(config);
 
     final matchRef = _firestore.collection('matches').doc();
     final matchId = matchRef.id;
-    final avatar = await _getUserAvatar(user);
     _currentMatchId = matchId;
 
     final questionsData = questions.map((q) {
@@ -171,10 +189,10 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
       required String queueDocId,
       required User user,
       required String username,
+      required String? avatar,
       required DuelConfig config}) async {
     _currentMatchId = matchId;
     final matchRef = _firestore.collection('matches').doc(matchId);
-    final avatar = await _getUserAvatar(user);
 
     // Atomik olarak oyuncuyu ekle
     await matchRef.update({
@@ -479,13 +497,7 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
     }
   }
 
-  /// Fetches the user's avatar from Firestore (photoUrl or duelAvatar fallback)
-  Future<String?> _getUserAvatar(User user) async {
-    final doc = await _firestore.collection('users').doc(user.uid).get();
-    final data = doc.data();
-
-    return data?['photoUrl'] ?? data?['duelAvatar'] ?? user.photoURL;
-  }
+  // _getUserAvatar kaldırıldı — _getUserProfile ile birleştirildi
 
   @override
   Future<void> dispose() async {
