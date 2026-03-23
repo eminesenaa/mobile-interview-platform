@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import '../constants/text_styles.dart';
+import '../utils/avatar_utils.dart';
 
 class AppAvatar extends StatelessWidget {
   final String? avatarPath;
@@ -26,7 +27,7 @@ class AppAvatar extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: isEmpty ? _avatarColor(name) : null,
+        color: isEmpty ? AvatarUtils.getColor(name) : null,
         image: !isEmpty
             ? DecorationImage(
                 image: avatarPath!.startsWith('http')
@@ -41,33 +42,14 @@ class AppAvatar extends StatelessWidget {
   }
 
   Widget _buildInitials() {
-    final n = name.isNotEmpty ? name[0] : '';
-    final s = surname.isNotEmpty ? surname[0] : '';
-
     return Center(
       child: Text(
-        (n + s).toUpperCase(),
+        AvatarUtils.getInitials(name, surname),
         style: AppTextStyles.body.copyWith(
           color: Colors.white,
           fontWeight: FontWeight.bold,
         ),
       ),
     );
-  }
-
-  Color _avatarColor(String seed) {
-    final colors = [
-      AppColors.cinnabar,
-      AppColors.accentWinePlum,
-      AppColors.accentRoyalPlum,
-      AppColors.stormyTeal,
-      AppColors.accentCeladon,
-      AppColors.accentSpicyOrange,
-      AppColors.honeyBronze,
-    ];
-
-    final index = seed.codeUnits.fold(0, (a, b) => a + b) % colors.length;
-
-    return colors[index];
   }
 }

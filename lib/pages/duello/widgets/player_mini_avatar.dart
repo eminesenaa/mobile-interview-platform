@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:interview_project/constants/constants.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../../../utils/avatar_utils.dart';
 
 class PlayerMiniAvatar extends StatelessWidget {
   final String username;
@@ -77,15 +78,13 @@ class PlayerMiniAvatar extends StatelessWidget {
       }
     }
 
-    final initial = username.isNotEmpty ? username[0].toUpperCase() : "?";
-
     return Container(
-      color: Colors.white.withOpacity(0.9),
+      color: AvatarUtils.getColor(username),
       alignment: Alignment.center,
       child: Text(
-        initial,
+        AvatarUtils.getInitials(username),
         style: AppTextStyles.bodyStrong.copyWith(
-          color: AppColors.primary,
+          color: Colors.white,
         ),
       ),
     );

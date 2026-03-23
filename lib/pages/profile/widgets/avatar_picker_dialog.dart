@@ -5,6 +5,7 @@ import '../../../constants/colors.dart';
 import '../../../constants/constants.dart';
 import '../../../constants/text_styles.dart';
 import '../controllers/profile_edit_controller.dart';
+import '../../../utils/avatar_utils.dart';
 
 /// ===============================================================
 /// AvatarPickerDialog
@@ -165,7 +166,7 @@ class _AvatarPreview extends StatelessWidget {
           width: 3,
         ),
         color:
-            avatarPath.isEmpty ? _avatarColor(controller.username.value) : null,
+            avatarPath.isEmpty ? AvatarUtils.getColor(controller.username.value) : null,
         image: avatarPath.isNotEmpty
             ? DecorationImage(
                 image: AssetImage(avatarPath),
@@ -201,7 +202,7 @@ class _AvatarItem extends StatelessWidget {
           color: isSelected ? AppColors.primary : Colors.transparent,
           width: 3,
         ),
-        color: avatar.isEmpty ? _avatarColor(controller.username.value) : null,
+        color: avatar.isEmpty ? AvatarUtils.getColor(controller.username.value) : null,
         image: avatar.isNotEmpty
             ? DecorationImage(
                 image: AssetImage(avatar),
@@ -220,37 +221,13 @@ class _AvatarItem extends StatelessWidget {
 /// ===============================================================
 
 Widget _buildInitialAvatar(ProfileEditController c, {bool small = false}) {
-  final initials = _getInitials(c.name.value, c.surname.value);
-
   return Center(
     child: Text(
-      initials,
+      AvatarUtils.getInitials(c.name.value, c.surname.value),
       style: AppTextStyles.headline.copyWith(
         color: Colors.white,
         fontSize: small ? 16 : 28,
       ),
     ),
   );
-}
-
-String _getInitials(String name, String surname) {
-  final n = name.isNotEmpty ? name[0] : '';
-  final s = surname.isNotEmpty ? surname[0] : '';
-  return (n + s).toUpperCase();
-}
-
-Color _avatarColor(String seed) {
-  final colors = [
-    AppColors.cinnabar,
-    AppColors.accentWinePlum,
-    AppColors.accentRoyalPlum,
-    AppColors.stormyTeal,
-    AppColors.accentCeladon,
-    AppColors.accentSpicyOrange,
-    AppColors.honeyBronze,
-  ];
-
-  final index = seed.codeUnits.fold(0, (a, b) => a + b) % colors.length;
-
-  return colors[index];
 }

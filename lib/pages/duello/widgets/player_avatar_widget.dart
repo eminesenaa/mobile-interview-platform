@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:interview_project/constants/constants.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../../../utils/avatar_utils.dart';
 
 /// ===============================================================
 /// PlayerAvatarWidget
@@ -116,19 +117,15 @@ class PlayerAvatarWidget extends StatelessWidget {
   }
 
   Widget _buildFallback() {
-    final String initial = (username.trim().isNotEmpty)
-        ? username.trim().substring(0, 1).toUpperCase()
-        : '?';
-
     return Container(
       width: 76,
       height: 76,
-      color: Colors.white.withOpacity(0.9),
+      color: AvatarUtils.getColor(username),
       alignment: Alignment.center,
       child: Text(
-        initial,
+        AvatarUtils.getInitials(username),
         style: AppTextStyles.title.copyWith(
-          color: AppColors.primary,
+          color: Colors.white,
         ),
       ),
     );
