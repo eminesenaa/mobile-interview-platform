@@ -1537,16 +1537,16 @@ enum SoundEffect {
 
   /// PLAYED WHEN: Matchmaking finds an opponent.
   /// PLAYED WHERE: [matchmaking_controller.dart]
-  //matchFound('sfx/match_found.mp3'),
+  matchFound('sfx/match_found.mp3'),
 
   /// PLAYED WHEN: Duel ends and local player wins / loses.
   /// PLAYED WHERE: [duel_game_controller.dart → _afterReveal()]
-  //duelWin('sfx/duel_win.mp3'),
-  //duelLose('sfx/duel_lose.mp3'),
+  duelWin('sfx/duel_win.mp3'),
+  duelLose('sfx/duel_lose.mp3'),
 
   /// PLAYED WHEN: Player taps an option in a duel round (before reveal).
   /// PLAYED WHERE: [duel_game_controller.dart → selectOption()]
-  //buttonTap('sfx/button_tap.mp3'),
+  buttonTap('sfx/button_tap.mp3'),
 
   // ── UI ─────────────────────────────────────
 

@@ -117,38 +117,52 @@ class FirebaseDuelGameService {
 
   /// currentRoundAnswers içindeki skor verilerini playerScores/playerCorrectCounts/playerXp'ye uygular.
   /// Bu sayede progress bar sadece reveal fazından SONRA ilerler.
+  ///
+  /// ⚠️ Transaction kullanılıyor çünkü her iki oyuncu da advanceToNextQuestion
+  /// çağırıyor. Transaction olmadan ikisi de aynı currentRoundAnswers'ı okuyup
+  /// aynı increment'leri uyguluyor → skorlar/correctCount 2× oluyor.
+  /// Transaction ile ilk commit eden cevapları temizler, ikinci çağrı boş
+  /// cevap görüp atlar.
   Future<void> _applyRoundScores(DocumentReference matchRef) async {
-    final snapshot = await matchRef.get();
-    if (!snapshot.exists) return;
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(matchRef);
+      if (!snapshot.exists) return;
 
-    final data = snapshot.data() as Map<String, dynamic>? ?? {};
-    final answers = data['currentRoundAnswers'] as Map<String, dynamic>? ?? {};
+      final data = snapshot.data() as Map<String, dynamic>? ?? {};
+      final answers =
+          data['currentRoundAnswers'] as Map<String, dynamic>? ?? {};
 
-    final Map<String, dynamic> scoreUpdates = {};
+      // Zaten başka client tarafından işlendi — atla
+      if (answers.isEmpty) return;
 
-    for (final entry in answers.entries) {
-      final userId = entry.key;
-      final answer = entry.value as Map<String, dynamic>? ?? {};
+      final Map<String, dynamic> scoreUpdates = {
+        // Cevapları atomik olarak temizle — ikinci çağrı boş görüp atlayacak
+        'currentRoundAnswers': {},
+      };
 
-      final scoreGained = answer['scoreGained'] as int? ?? 0;
-      final xpGained = answer['xpGained'] as int? ?? 0;
-      final isCorrect = answer['isCorrect'] as bool? ?? false;
+      for (final entry in answers.entries) {
+        final userId = entry.key;
+        final answer = entry.value as Map<String, dynamic>? ?? {};
 
-      if (scoreGained > 0) {
-        scoreUpdates['playerScores.$userId'] =
-            FieldValue.increment(scoreGained);
+        final scoreGained = answer['scoreGained'] as int? ?? 0;
+        final xpGained = answer['xpGained'] as int? ?? 0;
+        final isCorrect = answer['isCorrect'] as bool? ?? false;
+
+        if (scoreGained > 0) {
+          scoreUpdates['playerScores.$userId'] =
+              FieldValue.increment(scoreGained);
+        }
+        if (isCorrect) {
+          scoreUpdates['playerCorrectCounts.$userId'] =
+              FieldValue.increment(1);
+        }
+        if (xpGained > 0) {
+          scoreUpdates['playerXp.$userId'] = FieldValue.increment(xpGained);
+        }
       }
-      if (isCorrect) {
-        scoreUpdates['playerCorrectCounts.$userId'] = FieldValue.increment(1);
-      }
-      if (xpGained > 0) {
-        scoreUpdates['playerXp.$userId'] = FieldValue.increment(xpGained);
-      }
-    }
 
-    if (scoreUpdates.isNotEmpty) {
-      await matchRef.update(scoreUpdates);
-    }
+      transaction.update(matchRef, scoreUpdates);
+    });
   }
 
   // ─────────────────────────────────────────
@@ -262,6 +276,20 @@ class FirebaseDuelGameService {
   // PRIVATE ROOM METHODS
   // ─────────────────────────────────────────
 
+  /// Firestore'dan kullanıcı profil bilgilerini (username + avatar) çeker.
+  /// Fallback zinciri: Firestore username → displayName param → email prefix
+  Future<Map<String, String?>> _getUserProfile(String userId) async {
+    final doc = await _firestore.collection('users').doc(userId).get();
+    final data = doc.data();
+
+    final username = (data?['username'] as String?)?.trim();
+    final avatar = data?['photoUrl'] as String? ??
+        data?['duelAvatar'] as String? ??
+        data?['photoURL'] as String?;
+
+    return {'username': username, 'avatar': avatar};
+  }
+
   /// Creates a private room, generates questions, returns the matchId and 6-digit password.
   Future<Map<String, String>> createPrivateRoom({
     required String category,
@@ -277,8 +305,12 @@ class FirebaseDuelGameService {
     // 2. Fetch questions
     final questions = await _fetchQuestionsForPrivateRoom(category);
 
-    final matchRef = _firestore.collection('matches').doc();
-    final matchId = matchRef.id;
+    // 3. Firestore'dan gerçek profili çek
+    final profile = await _getUserProfile(userId);
+    final resolvedUsername = (profile['username']?.isNotEmpty == true)
+        ? profile['username']!
+        : username;
+    final resolvedAvatar = profile['avatar'] ?? avatarUrl;
 
     final questionsData = questions.map((q) {
       return {
@@ -293,6 +325,9 @@ class FirebaseDuelGameService {
       };
     }).toList();
 
+    final matchRef = _firestore.collection('matches').doc();
+    final matchId = matchRef.id;
+
     await matchRef.set({
       'matchId': matchId,
       'isPrivate': true,
@@ -300,8 +335,8 @@ class FirebaseDuelGameService {
       'players': [
         {
           'userId': userId,
-          'username': username,
-          'avatarUrl': avatarUrl,
+          'username': resolvedUsername,
+          'avatarUrl': resolvedAvatar,
           'score': 0,
           'correctCount': 0,
           'totalXpGained': 0,
@@ -351,12 +386,19 @@ class FirebaseDuelGameService {
     // Oyuncu zaten odada mı?
     final alreadyJoined = players.any((p) => p['userId'] == userId);
     if (!alreadyJoined) {
+      // Firestore'dan gerçek profili çek
+      final profile = await _getUserProfile(userId);
+      final resolvedUsername = (profile['username']?.isNotEmpty == true)
+          ? profile['username']!
+          : username;
+      final resolvedAvatar = profile['avatar'] ?? avatarUrl;
+
       await doc.reference.update({
         'players': FieldValue.arrayUnion([
           {
             'userId': userId,
-            'username': username,
-            'avatarUrl': avatarUrl,
+            'username': resolvedUsername,
+            'avatarUrl': resolvedAvatar,
             'score': 0,
             'correctCount': 0,
             'totalXpGained': 0,

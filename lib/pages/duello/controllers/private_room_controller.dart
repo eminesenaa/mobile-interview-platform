@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter/material.dart';
@@ -70,6 +71,33 @@ class PrivateRoomController extends GetxController
     });
 
     lockAnimController.repeat(reverse: true); // 🔥 LOOP
+
+    // 🔥 Firestore'dan gerçek username ve avatar'ı yükle
+    _loadUserProfile();
+  }
+
+  /// Firestore'dan kullanıcı profil bilgilerini yükler
+  final _firestoreUsername = Rxn<String>();
+  final _firestoreAvatarUrl = Rxn<String>();
+
+  Future<void> _loadUserProfile() async {
+    final user = currentUser.value;
+    if (user == null) return;
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      final data = doc.data();
+      if (data != null) {
+        _firestoreUsername.value = data['username'] as String?;
+        _firestoreAvatarUrl.value =
+            data['photoUrl'] as String? ?? data['duelAvatar'] as String?;
+      }
+    } catch (e) {
+      print('❌ [PRIVATE ROOM] Profil yükleme hatası: $e');
+    }
   }
 
   @override
@@ -82,7 +110,14 @@ class PrivateRoomController extends GetxController
   }
 
   /// USER HELPER GETTER
+  /// Fallback zinciri: Firestore username → Auth displayName → email prefix
   String get username {
+    // Önce Firestore'daki username
+    final fsUsername = _firestoreUsername.value;
+    if (fsUsername != null && fsUsername.trim().isNotEmpty) {
+      return fsUsername.trim();
+    }
+
     final user = currentUser.value;
     if (user == null) return 'Player';
 
@@ -94,6 +129,11 @@ class PrivateRoomController extends GetxController
   }
 
   String? get avatarUrl {
+    // Önce Firestore'daki avatar
+    final fsAvatar = _firestoreAvatarUrl.value;
+    if (fsAvatar != null && fsAvatar.isNotEmpty) {
+      return fsAvatar;
+    }
     return currentUser.value?.photoURL;
   }
 

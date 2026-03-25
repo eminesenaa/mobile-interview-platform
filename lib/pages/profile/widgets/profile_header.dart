@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../constants/colors.dart';
 import '../../../constants/text_styles.dart';
 import '../../../constants/constants.dart';
+import '../../../utils/avatar_utils.dart';
 
 class ProfileHeader extends StatelessWidget {
   final String? avatarUrl;
@@ -45,7 +46,7 @@ class ProfileHeader extends StatelessWidget {
                 width: 3,
               ),
               color: (avatarUrl == null || avatarUrl!.isEmpty)
-                  ? _avatarColor(name)
+                  ? AvatarUtils.getColor(name)
                   : null,
               image: (avatarUrl != null && avatarUrl!.isNotEmpty)
                   ? DecorationImage(
@@ -57,7 +58,15 @@ class ProfileHeader extends StatelessWidget {
                   : null,
             ),
             child: (avatarUrl == null || avatarUrl!.isEmpty)
-                ? _buildInitialAvatar(name)
+                ? Center(
+                    child: Text(
+                      AvatarUtils.getInitials(name),
+                      style: AppTextStyles.headline.copyWith(
+                        color: Colors.white,
+                        fontSize: 28,
+                      ),
+                    ),
+                  )
                 : null,
           ),
 
@@ -133,39 +142,4 @@ class ProfileHeader extends StatelessWidget {
       ),
     );
   }
-}
-
-Widget _buildInitialAvatar(String name) {
-  final initials = _getInitials(name);
-
-  return Center(
-    child: Text(
-      initials,
-      style: AppTextStyles.headline.copyWith(
-        color: Colors.white,
-        fontSize: 28,
-      ),
-    ),
-  );
-}
-
-String _getInitials(String name) {
-  final parts = name.trim().split(" ");
-  final first = parts.isNotEmpty ? parts[0][0] : '';
-  final second = parts.length > 1 ? parts[1][0] : '';
-  return (first + second).toUpperCase();
-}
-
-Color _avatarColor(String seed) {
-  final colors = [
-    AppColors.cinnabar,
-    AppColors.accentWinePlum,
-    AppColors.accentRoyalPlum,
-    AppColors.stormyTeal,
-    AppColors.accentCeladon,
-    AppColors.accentSpicyOrange,
-    AppColors.honeyBronze,
-  ];
-  final index = seed.codeUnits.fold(0, (a, b) => a + b) % colors.length;
-  return colors[index];
 }

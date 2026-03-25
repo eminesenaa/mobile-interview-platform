@@ -200,7 +200,7 @@ class _DuelConfigModalState extends State<DuelConfigModal>
                           onTap: () {
                             final selectedCategory = controller.selectedMacro;
 
-                            final duelType = widget.modeTitle == "1v1"
+                            final duelType = widget.modeTitle == "1vs1"
                                 ? DuelType.oneVsOne
                                 : DuelType.multi;
 

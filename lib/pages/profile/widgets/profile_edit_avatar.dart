@@ -5,6 +5,7 @@ import '../../../constants/constants.dart';
 import '../../../constants/text_styles.dart';
 import '../controllers/profile_edit_controller.dart';
 import 'avatar_picker_dialog.dart';
+import '../../../utils/avatar_utils.dart';
 
 /// ===============================================================
 /// ProfileEditAvatar
@@ -31,7 +32,7 @@ class ProfileEditAvatar extends StatelessWidget {
                 width: 3,
               ),
               color: avatarPath.isEmpty
-                  ? _avatarColor(controller.username.value)
+                  ? AvatarUtils.getColor(controller.username.value)
                   : null,
               image: avatarPath.isNotEmpty
                   ? DecorationImage(
@@ -65,37 +66,13 @@ class ProfileEditAvatar extends StatelessWidget {
 /// ===============================================================
 
 Widget _buildInitialAvatar(ProfileEditController c, {bool small = false}) {
-  final initials = _getInitials(c.name.value, c.surname.value);
-
   return Center(
     child: Text(
-      initials,
+      AvatarUtils.getInitials(c.name.value, c.surname.value),
       style: AppTextStyles.headline.copyWith(
         color: Colors.white,
         fontSize: small ? 16 : 28,
       ),
     ),
   );
-}
-
-String _getInitials(String name, String surname) {
-  final n = name.isNotEmpty ? name[0] : '';
-  final s = surname.isNotEmpty ? surname[0] : '';
-  return (n + s).toUpperCase();
-}
-
-Color _avatarColor(String seed) {
-  final colors = [
-    AppColors.cinnabar,
-    AppColors.accentWinePlum,
-    AppColors.accentRoyalPlum,
-    AppColors.stormyTeal,
-    AppColors.accentCeladon,
-    AppColors.accentSpicyOrange,
-    AppColors.honeyBronze,
-  ];
-
-  final index = seed.codeUnits.fold(0, (a, b) => a + b) % colors.length;
-
-  return colors[index];
 }

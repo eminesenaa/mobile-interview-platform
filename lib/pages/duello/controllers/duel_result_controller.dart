@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'package:interview_project/models/duel_result.dart';
 import 'package:interview_project/services/firebase/duel_service.dart';
+import 'package:interview_project/services/sfx/sound_service.dart';
 
 import '../../../models/duel_player.dart';
 
@@ -31,6 +32,9 @@ class DuelResultController extends GetxController {
     /// 🎯 SADECE WINNER
     if (isWinner) {
       confettiController.play();
+      SoundService.play(SoundEffect.duelWin);
+    } else {
+      SoundService.play(SoundEffect.duelLose);
     }
 
     _applyXp();

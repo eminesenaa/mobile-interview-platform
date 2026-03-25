@@ -4,6 +4,7 @@ import '../../../models/duel_config.dart';
 import '../../../models/duel_enums.dart';
 import '../../../models/duel_match.dart';
 import '../../../services/firebase/firebase_duel_matchmaking_service.dart';
+import '../../../services/sfx/sound_service.dart';
 import '../duel_game_page.dart';
 import '../duel_type_page.dart';
 
@@ -47,6 +48,8 @@ class MatchmakingController extends GetxController {
   /// ===============================
   Timer? _matchTimeoutTimer;
 
+  bool _hasPlayedMatchFoundSound = false;
+
   @override
   void onInit() {
     super.onInit();
@@ -78,6 +81,17 @@ class MatchmakingController extends GetxController {
 
           match.value = event;
           status.value = event.status;
+
+          /// ===============================
+          /// Play Match Found Sound
+          /// ===============================
+          if (!_hasPlayedMatchFoundSound &&
+              event.status != DuelStatus.searching &&
+              event.status != DuelStatus.cancelled &&
+              event.status != DuelStatus.idle) {
+            _hasPlayedMatchFoundSound = true;
+            SoundService.play(SoundEffect.matchFound);
+          }
 
           /// ===============================
           /// Cancel timeout if process moves forward
@@ -157,23 +171,39 @@ class MatchmakingController extends GetxController {
 
   /// ===============================================================
   /// Starts local countdown based on backend timestamp
+  /// (Fixes clock skew: "ilk giren kullanıcı önden gidiyor" bug)
   /// ===============================================================
   void _startLocalCountdown(DateTime endAt) {
+    if (_lobbyCountdownTimer != null && _lobbyCountdownTimer!.isActive) {
+      return; // Timer zaten çalışıyor, stream her güncellendiğinde sıfırlama!
+    }
+
     _lobbyCountdownTimer?.cancel();
 
-    _updateCountdown(endAt);
+    // Cihazlar arası saat farkı (clock skew) nedeniyle remaining farklı hesaplanabilir.
+    // 18 saniyelik bir sayaçta, eğer remaining 15-21 sn arasındaysa cihaz saati hafif kayıktır.
+    // Tam senkronizasyon için herkesi "18" saniyeye kenetliyoruz, 
+    // böylece herkes aynı anda lokal saymaya başlar!
+    int remaining = endAt.difference(DateTime.now()).inSeconds;
+    if (remaining >= 15 && remaining <= 21) {
+      remaining = 18;
+    }
+
+    lobbyCountdownSeconds.value = remaining > 0 ? remaining : 0;
 
     _lobbyCountdownTimer = Timer.periodic(
       const Duration(seconds: 1),
-      (_) => _updateCountdown(endAt),
+      (timer) {
+        if (lobbyCountdownSeconds.value > 0) {
+          lobbyCountdownSeconds.value--;
+        } else {
+          timer.cancel();
+        }
+      },
     );
   }
 
-  /// Updates countdown value every second
-  void _updateCountdown(DateTime endAt) {
-    final remaining = endAt.difference(DateTime.now()).inSeconds;
-    lobbyCountdownSeconds.value = remaining > 0 ? remaining : 0;
-  }
+  // _updateCountdown metodunu kaldırdık, çünkü periodic timer içinde çözdük
 
   @override
   void onClose() {
