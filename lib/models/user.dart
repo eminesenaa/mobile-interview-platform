@@ -201,8 +201,12 @@ class User {
       );
 
 
-  /// User avatar
-  String? get avatar => photoUrl ?? duelAvatar;
+  /// User avatar — duelAvatar (user-selected) takes priority over photoUrl (Google/auth)
+  String? get avatar {
+    if (duelAvatar != null && duelAvatar!.isNotEmpty) return duelAvatar;
+    if (photoUrl != null && photoUrl!.isNotEmpty) return photoUrl;
+    return null;
+  }
 
   /// 🔹 Level artık XP üzerinden hesaplanır (stored değil computed)
   int get level => LevelCalculator.calculate(totalXp);

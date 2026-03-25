@@ -38,8 +38,10 @@ class FirebaseDuelMatchmakingService implements DuelMatchmakingService {
       username = user.email?.split('@').first ?? 'Player';
     }
 
-    // Avatar: Firestore photoUrl → duelAvatar → Auth photoURL
-    final avatar = data?['photoUrl'] ?? data?['duelAvatar'] ?? user.photoURL;
+    // Avatar: duelAvatar (user-selected) önce gelir → photoUrl → Auth photoURL
+    final avatar = (data?['duelAvatar'] as String?)?.isNotEmpty == true
+        ? data!['duelAvatar'] as String
+        : (data?['photoUrl'] as String?) ?? user.photoURL;
 
     return {'username': username, 'avatar': avatar};
   }
