@@ -40,6 +40,17 @@ class User {
   final List<String> savedQuestions;
   final Map<String, dynamic> progress; // soru türü bazlı ilerleme
 
+  // ===================== INTERVIEW SYSTEM FIELDS =====================
+
+  /// Assigned interviews (Interview IDs)
+  final List<String> assignedInterviewIds;
+
+  /// Completed interview results (InterviewResult IDs)
+  final List<String> interviewResultIds;
+
+  /// Currently active interview (if user is inside one)
+  final String? activeInterviewId;
+
   const User({
     required this.id,
     required this.name,
@@ -63,6 +74,9 @@ class User {
     // this.level = 1,
     this.savedQuestions = const [],
     this.progress = const {},
+    this.assignedInterviewIds = const [],
+    this.interviewResultIds = const [],
+    this.activeInterviewId,
   });
 
   factory User.initial({
@@ -122,6 +136,12 @@ class User {
         // level: json['level'] ?? 1,
         savedQuestions: List<String>.from(json['savedQuestions'] ?? []),
         progress: json['progress'] ?? {},
+        assignedInterviewIds:
+            List<String>.from(json['assignedInterviewIds'] ?? []),
+
+        interviewResultIds: List<String>.from(json['interviewResultIds'] ?? []),
+
+        activeInterviewId: json['activeInterviewId'],
       );
 
   // Firestore’a yazmak için
@@ -149,6 +169,9 @@ class User {
         // 'level': level,
         'savedQuestions': savedQuestions,
         'progress': progress,
+        'assignedInterviewIds': assignedInterviewIds,
+        'interviewResultIds': interviewResultIds,
+        if (activeInterviewId != null) 'activeInterviewId': activeInterviewId,
       };
 
   User copyWith({
@@ -174,6 +197,9 @@ class User {
     String? linkedinUrl,
     String? githubUrl,
     String? cvUrl,
+    List<String>? assignedInterviewIds,
+    List<String>? interviewResultIds,
+    String? activeInterviewId,
   }) =>
       User(
         id: id ?? this.id,
@@ -198,8 +224,10 @@ class User {
         linkedinUrl: linkedinUrl ?? this.linkedinUrl,
         githubUrl: githubUrl ?? this.githubUrl,
         cvUrl: cvUrl ?? this.cvUrl,
+        assignedInterviewIds: assignedInterviewIds ?? this.assignedInterviewIds,
+        interviewResultIds: interviewResultIds ?? this.interviewResultIds,
+        activeInterviewId: activeInterviewId ?? this.activeInterviewId,
       );
-
 
   /// User avatar — duelAvatar (user-selected) takes priority over photoUrl (Google/auth)
   String? get avatar {
