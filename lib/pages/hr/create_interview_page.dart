@@ -1,217 +1,115 @@
 // ===================== File: create_interview_page.dart =====================
 // Purpose:
-// HR creates a new interview session
+// HR creates a new interview session (FINAL VERSION)
+//
+// Architecture:
+// - Stateless + GetX
+// - Fully modular widgets
+// - Backend-ready
 //
 // Notes:
-// - Temporary UI (functional first)
-// - Backend integration later
-// ===========================================================================
+// - Uses Phosphor icons
+// - Clean spacing system
+// ============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:interview_project/pages/hr/widgets/ci_duration_picker.dart';
+import 'package:interview_project/pages/hr/widgets/ci_questions_actions.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-import '../../constants/colors.dart';
 import '../../constants/constants.dart';
 
-class CreateInterviewPage extends StatefulWidget {
+// CONTROLLER
+import 'controllers/create_interview_controller.dart';
+
+// WIDGETS
+import 'widgets/ci_text_field.dart';
+import 'widgets/ci_date_time_row.dart';
+import 'widgets/ci_candidates_section.dart';
+import 'widgets/ci_invite_code_card.dart';
+import 'widgets/ci_create_button.dart';
+
+class CreateInterviewPage extends StatelessWidget {
   const CreateInterviewPage({super.key});
 
   @override
-  State<CreateInterviewPage> createState() => _CreateInterviewPageState();
-}
-
-class _CreateInterviewPageState extends State<CreateInterviewPage> {
-  final titleCtrl = TextEditingController();
-  final positionCtrl = TextEditingController();
-  final durationCtrl = TextEditingController();
-
-  DateTime? selectedDate;
-  TimeOfDay? selectedTime;
-
-  String inviteCode = "—";
-
-  @override
   Widget build(BuildContext context) {
+    final controller = Get.put(CreateInterviewController());
+
     return Scaffold(
+      backgroundColor: AppColors.background,
+
+      // ================= APP BAR =================
       appBar: AppBar(
-        title: const Text("Create Interview"),
+        elevation: 0,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.textPrimary,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Get.back(),
+        ),
+        title: Text(
+          "Create Interview",
+          style: AppTextStyles.title,
+        ),
       ),
-      body: Padding(
+
+      // ================= BODY =================
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.lg),
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              // ================= TITLE =================
-              TextField(
-                controller: titleCtrl,
-                decoration: const InputDecoration(
-                  labelText: "Interview Title",
-                ),
-              ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ================= TITLE =================
+            CITextField(
+              label: "Interview Title",
+              controller: controller.titleCtrl,
+            ),
 
-              const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.md),
 
-              // ================= POSITION =================
-              TextField(
-                controller: positionCtrl,
-                decoration: const InputDecoration(
-                  labelText: "Position",
-                ),
-              ),
+            // ================= POSITION =================
+            CITextField(
+              label: "Position",
+              controller: controller.positionCtrl,
+            ),
 
-              const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.md),
 
-              // ================= DATE =================
-              ListTile(
-                title: Text(
-                  selectedDate == null
-                      ? "Select Date"
-                      : selectedDate.toString().split(" ")[0],
-                ),
-                trailing: const Icon(Icons.calendar_today),
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: DateTime.now(),
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime(2100),
-                  );
+            // ================= DATE + TIME =================
+            const CIDateTimeRow(),
 
-                  if (picked != null) {
-                    setState(() => selectedDate = picked);
-                  }
-                },
-              ),
+            const SizedBox(height: AppSpacing.md),
 
-              // ================= TIME =================
-              ListTile(
-                title: Text(
-                  selectedTime == null
-                      ? "Select Time"
-                      : selectedTime!.format(context),
-                ),
-                trailing: const Icon(Icons.access_time),
-                onTap: () async {
-                  final picked = await showTimePicker(
-                    context: context,
-                    initialTime: TimeOfDay.now(),
-                  );
+            // ================= DURATION =================
+            const CIDurationPicker(),
 
-                  if (picked != null) {
-                    setState(() => selectedTime = picked);
-                  }
-                },
-              ),
+            const SizedBox(height: AppSpacing.lg),
 
-              const SizedBox(height: AppSpacing.md),
+            // ================= QUESTIONS =================
+            const CIQuestionsActions(),
 
-              // ================= DURATION =================
-              TextField(
-                controller: durationCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: "Duration (minutes)",
-                ),
-              ),
+            const SizedBox(height: AppSpacing.lg),
 
-              const SizedBox(height: AppSpacing.lg),
+            // ================= CANDIDATES =================
+            const CICandidatesSection(),
 
-              // ================= QUESTIONS =================
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Get.snackbar("TODO", "Select from database");
-                      },
-                      child: const Text("From Database"),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Get.snackbar("TODO", "Manual question add");
-                      },
-                      child: const Text("Manual Add"),
-                    ),
-                  ),
-                ],
-              ),
+            const SizedBox(height: AppSpacing.lg),
 
-              const SizedBox(height: AppSpacing.lg),
+            // ================= INVITE CODE =================
+            const CIInviteCodeCard(),
 
-              // ================= INVITE CODE =================
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceMuted,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text("Invite Code: $inviteCode"),
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          inviteCode = _generateCode();
-                        });
-                      },
-                      child: const Text("Generate"),
-                    )
-                  ],
-                ),
-              ),
+            const SizedBox(height: AppSpacing.xl),
 
-              const SizedBox(height: AppSpacing.xl),
+            // ================= CREATE BUTTON =================
+            const CICreateButton(),
 
-              // ================= CREATE BUTTON =================
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _createInterview,
-                  child: const Text("Create Interview"),
-                ),
-              ),
-            ],
-          ),
+            const SizedBox(height: AppSpacing.lg),
+          ],
         ),
       ),
     );
-  }
-
-  // ================= CREATE =================
-  void _createInterview() {
-    if (titleCtrl.text.isEmpty ||
-        positionCtrl.text.isEmpty ||
-        selectedDate == null ||
-        selectedTime == null ||
-        durationCtrl.text.isEmpty ||
-        inviteCode == "—") {
-      Get.snackbar("Error", "Fill all fields");
-      return;
-    }
-
-    Get.snackbar("Success", "Interview created (mock)");
-
-    Get.back();
-  }
-
-  // ================= CODE GENERATOR =================
-  String _generateCode() {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    return List.generate(
-      6,
-          (index) => chars[(chars.length * (index + 3) % chars.length)],
-    ).join();
-  }
-
-  @override
-  void dispose() {
-    titleCtrl.dispose();
-    positionCtrl.dispose();
-    durationCtrl.dispose();
-    super.dispose();
   }
 }
