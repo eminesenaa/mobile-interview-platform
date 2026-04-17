@@ -2,7 +2,7 @@
 // Purpose:
 // Core model for the Interview system.
 //
-// Represents a scheduled interview session created by an HR user
+// Represents a scheduled interview session created by an hr user
 // under a company. Includes:
 // - Scheduling (start/end time)
 // - Assigned candidates
@@ -23,7 +23,7 @@ enum InterviewStatus {
 class Interview {
   final String id;
 
-  /// Company & HR
+  /// Company & hr
   final String companyId;
   final String createdByHrId;
 

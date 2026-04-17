@@ -8,6 +8,7 @@ import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
 import '../../constants/constants.dart';
 
+import '../interview/interview_main_page.dart';
 import 'controllers/profile_controller.dart';
 import 'widgets/profile_header.dart';
 import 'widgets/profile_stats_row.dart';
@@ -89,6 +90,46 @@ class ProfilePage extends StatelessWidget {
                           hasCV: user.cvUrl != null,
                           onCVPressed:
                               () {}, // BURASI DOLACAK MI VS KONTROL EDİLMESİ LAZIM
+                        ),
+                        // ---------------------------
+// INTERVIEW SECTION (TEMP ENTRY)
+// ---------------------------
+                        const SizedBox(height: AppSpacing.xxl),
+
+                        Text(
+                          "Interviews",
+                          style: AppTextStyles.headline,
+                        ),
+
+                        const SizedBox(height: AppSpacing.md),
+
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.all(16),
+                            leading: const Icon(
+                              Icons.work_outline,
+                              color: AppColors.primary,
+                            ),
+                            title: const Text(
+                              "My Interviews",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              "View and enter your interviews",
+                            ),
+                            trailing:
+                                const Icon(Icons.arrow_forward_ios, size: 16),
+                            onTap: () {
+                              // 👉 Navigate to Interview Main Page
+                              Get.to(() => const InterviewMainPage());
+                            },
+                          ),
                         ),
                       ],
                     ),

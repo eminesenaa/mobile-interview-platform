@@ -6,16 +6,16 @@
 // - Candidate answers
 // - AI evaluation result
 // - Final score
-// - HR decision (accepted / rejected)
-// - HR message
+// - hr decision (accepted / rejected)
+// - hr message
 //
-// This model connects Interview ↔ Candidate ↔ HR
+// This model connects Interview ↔ Candidate ↔ hr
 // ================================================================================
 
 import 'ai_exam_result.dart';
 
 enum InterviewDecisionStatus {
-  pending,   // HR henüz karar vermedi
+  pending,   // hr henüz karar vermedi
   accepted,
   rejected,
 }
@@ -40,15 +40,15 @@ class InterviewResult {
   final int wrongCount;
   final int unansweredCount;
 
-  /// HR decision
+  /// hr decision
   final InterviewDecisionStatus decision;
 
-  /// HR message (manual or AI generated)
+  /// hr message (manual or AI generated)
   final String? hrMessage;
 
   /// Flags
   final bool isSubmitted;   // aday submit etti mi
-  final bool isReviewed;    // HR inceledi mi
+  final bool isReviewed;    // hr inceledi mi
 
   /// Metadata
   final DateTime? submittedAt;

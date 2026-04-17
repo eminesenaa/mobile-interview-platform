@@ -29,6 +29,14 @@ class InterviewEntryPage extends StatelessWidget {
     final controller = Get.find<InterviewController>();
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Get.back(),
+        ),
+      ),
       body: Container(
         /// ===============================
         /// BACKGROUND

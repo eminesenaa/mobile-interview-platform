@@ -1,7 +1,7 @@
 // ===================== File: lib/models/hr_user.dart =====================
 // Purpose:
-// Represents an HR user in the system.
-// HR users belong to a company and are responsible for:
+// Represents an hr user in the system.
+// hr users belong to a company and are responsible for:
 // - Creating interviews
 // - Managing candidates
 // - Reviewing results and making decisions
@@ -12,7 +12,7 @@
 class HRUser {
   final String id;
 
-  /// Company this HR belongs to
+  /// Company this hr belongs to
   final String companyId;
 
   /// Basic info
@@ -21,7 +21,7 @@ class HRUser {
   final String email;
 
   /// Role inside company (optional)
-  /// Example: "HR Manager", "Recruiter"
+  /// Example: "hr Manager", "Recruiter"
   final String? roleTitle;
 
   /// Optional profile image

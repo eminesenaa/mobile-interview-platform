@@ -1,10 +1,10 @@
 // ===================== File: lib/models/company.dart =====================
 // Purpose:
 // Represents a company entity in the system.
-// Each HR user belongs to a company.
+// Each hr user belongs to a company.
 // Each interview is created under a company.
 //
-// This model is the root of the HR system.
+// This model is the root of the hr system.
 //
 // ========================================================================
 
@@ -18,7 +18,7 @@ class Company {
   /// Optional logo
   final String? logoUrl;
 
-  /// List of HR user IDs belonging to this company
+  /// List of hr user IDs belonging to this company
   final List<String> hrUserIds;
 
   /// Metadata

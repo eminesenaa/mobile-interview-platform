@@ -75,6 +75,88 @@ class SignUpPage extends StatelessWidget {
                                   ),
                                   child: Column(
                                     children: [
+                                      // =========================
+// SIGNUP TYPE SWITCH (Candidate / HR)
+// =========================
+                                      Obx(
+                                        () => Container(
+                                          margin: const EdgeInsets.only(
+                                              bottom: AppSpacing.md),
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.surfaceMuted,
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              // Candidate
+                                              Expanded(
+                                                child: GestureDetector(
+                                                  onTap: () => controller
+                                                      .setSignupMode(false),
+                                                  child: Container(
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                        vertical: 10),
+                                                    decoration: BoxDecoration(
+                                                      color: controller
+                                                              .isHrSignup.value
+                                                          ? Colors.transparent
+                                                          : AppColors.surface,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              10),
+                                                    ),
+                                                    alignment: Alignment.center,
+                                                    child: Text(
+                                                      "Candidate",
+                                                      style: AppTextStyles
+                                                          .body
+                                                          .copyWith(
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+
+                                              // HR
+                                              Expanded(
+                                                child: GestureDetector(
+                                                  onTap: () => controller
+                                                      .setSignupMode(true),
+                                                  child: Container(
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                        vertical: 10),
+                                                    decoration: BoxDecoration(
+                                                      color: controller
+                                                              .isHrSignup.value
+                                                          ? AppColors.surface
+                                                          : Colors.transparent,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              10),
+                                                    ),
+                                                    alignment: Alignment.center,
+                                                    child: Text(
+                                                      "HR Signup",
+                                                      style: AppTextStyles
+                                                          .body
+                                                          .copyWith(
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
                                       AuthTextField(
                                         controller: controller.nameCtrl,
                                         hint: "First name",
@@ -149,9 +231,11 @@ class SignUpPage extends StatelessWidget {
                                       // =========================
                                       Obx(
                                         () => AuthPrimaryButton(
-                                          label: "Create account",
+                                          label: controller.isHrSignup.value
+                                              ? "Create HR Account"
+                                              : "Create Account",
                                           isLoading: controller.isLoading.value,
-                                          onPressed: controller.signUp,
+                                          onPressed: controller.handleSignup,
                                         ),
                                       ),
 

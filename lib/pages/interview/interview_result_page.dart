@@ -5,8 +5,8 @@
 // Responsibilities:
 // - Show score
 // - Show correct / wrong
-// - Show HR decision (accepted / rejected)
-// - Show HR message (if exists)
+// - Show hr decision (accepted / rejected)
+// - Show hr message (if exists)
 //
 // Notes:
 // - Uses InterviewController
