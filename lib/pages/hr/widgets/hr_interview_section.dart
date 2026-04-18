@@ -15,6 +15,7 @@ import 'package:get/get.dart';
 
 import '../../../constants/constants.dart';
 import '../controllers/hr_interviews_controller.dart';
+import '../hr_interview_list_page.dart';
 import 'hr_interview_card.dart';
 
 class HRInterviewSection extends StatelessWidget {
@@ -58,7 +59,11 @@ class HRInterviewSection extends StatelessWidget {
               ),
             ),
             GestureDetector(
-              onTap: () => controller.openSeeAll(sectionKey),
+              onTap: () {
+                Get.to(() => HRInterviewListPage(
+                  sectionKey: sectionKey,
+                ));
+              },
               child: Text(
                 "See all",
                 style: AppTextStyles.textButton,
