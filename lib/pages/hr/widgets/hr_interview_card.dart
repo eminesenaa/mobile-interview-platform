@@ -12,6 +12,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:interview_project/pages/hr/hr_upcoming_interview_detail_page.dart';
 import 'package:interview_project/pages/hr/widgets/status_badge.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../constants/constants.dart';
@@ -53,7 +54,9 @@ class HRInterviewCard extends StatelessWidget {
         // UPCOMING (şimdilik boş)
         // ===============================
         if (status == "upcoming") {
-          Get.snackbar("TODO", "Upcoming detail page");
+          Get.to(() => HRUpcomingInterviewDetailPage(
+                interview: interview,
+              ));
           return;
         }
 

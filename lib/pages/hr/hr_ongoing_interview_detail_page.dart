@@ -11,8 +11,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:interview_project/pages/hr/widgets/hr_detail_header.dart';
 import 'package:interview_project/pages/hr/widgets/ongoing_detail/od_candidate_section.dart';
-import 'package:interview_project/pages/hr/widgets/ongoing_detail/od_header.dart';
 import 'package:interview_project/pages/hr/widgets/ongoing_detail/od_info_card.dart';
 import 'package:interview_project/pages/hr/widgets/ongoing_detail/od_live_banner.dart';
 
@@ -55,7 +55,7 @@ class HROngoingInterviewDetailPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ================= HEADER =================
-              OngoingDetailHeader(
+              HRDetailHeader(
                 title: controller.title.value,
                 status: "ongoing",
               ),

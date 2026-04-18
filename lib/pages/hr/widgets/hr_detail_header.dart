@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:interview_project/pages/hr/widgets/status_badge.dart';
 import '../../../../constants/text_styles.dart';
-import '../../widgets/status_badge.dart';
 
-class OngoingDetailHeader extends StatelessWidget {
+class HRDetailHeader extends StatelessWidget {
   final String title;
   final String status;
+  final String reviewStatus;
 
-  const OngoingDetailHeader({
+  const HRDetailHeader({
     super.key,
     required this.title,
     required this.status,
+    this.reviewStatus = "pending", // default fallback
   });
 
   @override
@@ -24,7 +26,7 @@ class OngoingDetailHeader extends StatelessWidget {
         ),
         StatusBadge.from(
           status: status,
-          reviewStatus: "pending", // ongoing için önemli değil ama zorunlu
+          reviewStatus: reviewStatus,
         ),
       ],
     );
