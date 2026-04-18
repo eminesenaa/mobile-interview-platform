@@ -14,7 +14,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:interview_project/pages/hr/widgets/ci_duration_picker.dart';
 import 'package:interview_project/pages/hr/widgets/ci_questions_actions.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
@@ -80,11 +79,6 @@ class CreateInterviewPage extends StatelessWidget {
 
             // ================= DATE + TIME =================
             const CIDateTimeRow(),
-
-            const SizedBox(height: AppSpacing.md),
-
-            // ================= DURATION =================
-            const CIDurationPicker(),
 
             const SizedBox(height: AppSpacing.lg),
 

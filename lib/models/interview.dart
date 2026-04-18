@@ -8,6 +8,11 @@
 // - Assigned candidates
 // - Question set
 // - Join code access
+
+// scheduled → UPCOMING
+// active → ONGOING
+// completed + pending → NEEDS REVIEW
+// completed + reviewed → REVIEWED
 //
 // This is the central entity of the Interview module.
 // ==========================================================================
@@ -18,6 +23,11 @@ enum InterviewStatus {
   scheduled,   // henüz başlamadı
   active,      // şu an devam ediyor
   completed,   // bitmiş
+}
+
+enum ReviewStatus {
+  pending,   // henüz değerlendirilmedi
+  reviewed,  // değerlendirme tamamlandı
 }
 
 class Interview {
@@ -46,6 +56,8 @@ class Interview {
 
   /// Status
   final InterviewStatus status;
+  final ReviewStatus reviewStatus;
+
 
   /// Metadata
   final DateTime createdAt;
@@ -62,6 +74,7 @@ class Interview {
     required this.endTime,
     required this.joinCode,
     required this.status,
+    required this.reviewStatus,
     required this.createdAt,
   });
 
@@ -85,6 +98,10 @@ class Interview {
             (e) => e.name == json['status'],
         orElse: () => InterviewStatus.scheduled,
       ),
+      reviewStatus: ReviewStatus.values.firstWhere(
+            (e) => e.name == json['reviewStatus'],
+        orElse: () => ReviewStatus.pending,
+      ),
       createdAt:
       DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
     );
@@ -103,6 +120,7 @@ class Interview {
       'endTime': endTime.toIso8601String(),
       'joinCode': joinCode,
       'status': status.name,
+      'reviewStatus': reviewStatus.name,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -121,6 +139,7 @@ class Interview {
     DateTime? endTime,
     String? joinCode,
     InterviewStatus? status,
+    ReviewStatus? reviewStatus,
     DateTime? createdAt,
   }) {
     return Interview(
@@ -135,6 +154,7 @@ class Interview {
       endTime: endTime ?? this.endTime,
       joinCode: joinCode ?? this.joinCode,
       status: status ?? this.status,
+      reviewStatus: reviewStatus ?? this.reviewStatus,
       createdAt: createdAt ?? this.createdAt,
     );
   }

@@ -18,12 +18,14 @@ import 'hr_action_card.dart';
 class HRQuickActionsSection extends StatelessWidget {
   final VoidCallback onCreateInterview;
   final VoidCallback onViewInterviews;
+  final VoidCallback onViewResults;
   final VoidCallback onViewCandidates;
 
   const HRQuickActionsSection({
     super.key,
     required this.onCreateInterview,
     required this.onViewInterviews,
+    required this.onViewResults,
     required this.onViewCandidates,
   });
 
@@ -51,7 +53,7 @@ class HRQuickActionsSection extends StatelessWidget {
           title: "Create Interview",
           subtitle: "Set up a new interview session",
           icon: PhosphorIcons.plus(),
-          accentColor: AppColors.accentRoyalPlum,
+          accentColor: AppColors.strawberryRed,
           onTap: onCreateInterview,
         ),
 
@@ -64,8 +66,21 @@ class HRQuickActionsSection extends StatelessWidget {
           title: "View Interviews",
           subtitle: "Manage scheduled sessions",
           icon: PhosphorIcons.monitor(),
-          accentColor: AppColors.stormyTeal,
+          accentColor: AppColors.accentRoyalPlum,
           onTap: onViewInterviews,
+        ),
+
+        const SizedBox(height: AppSpacing.sm),
+
+        // ===============================
+        // VIEW RESULTS
+        // ===============================
+        HRActionCard(
+          title: "Results",
+          subtitle: "Review completed interviews",
+          icon: PhosphorIcons.chartBar(),
+          accentColor: AppColors.stormyTeal,
+          onTap: onViewResults,
         ),
 
         const SizedBox(height: AppSpacing.sm),
@@ -77,7 +92,7 @@ class HRQuickActionsSection extends StatelessWidget {
           title: "Candidates",
           subtitle: "Browse & manage applicants",
           icon: PhosphorIcons.users(),
-          accentColor: AppColors.accentSpicyOrange,
+          accentColor: AppColors.honeyBronze,
           onTap: onViewCandidates,
         ),
       ],

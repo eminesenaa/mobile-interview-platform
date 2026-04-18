@@ -15,6 +15,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:interview_project/pages/hr/hr_interviews_page.dart';
 import 'package:interview_project/pages/hr/widgets/hr_recent_activity_section.dart';
 
 import '../../constants/constants.dart';
@@ -73,6 +74,9 @@ class HRDashboardPage extends StatelessWidget {
                   Get.to(() => const CreateInterviewPage());
                 },
                 onViewInterviews: () {
+                  Get.to(() => const HRInterviewsPage());
+                },
+                onViewResults: () {
                   Get.to(() => const HRResultsPage());
                 },
                 onViewCandidates: () {

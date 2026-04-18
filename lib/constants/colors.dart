@@ -163,6 +163,11 @@ class AppColors {
   /// Sky Reflection
   static const Color skyReflection = Color(0xFF445e93);
 
+  /// Dark Cyan
+  static const Color darkCyan = Color(0xFF129490);
+
+
+
 
 
 

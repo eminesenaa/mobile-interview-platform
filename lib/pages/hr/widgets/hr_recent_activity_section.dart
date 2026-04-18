@@ -16,6 +16,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:interview_project/pages/hr/widgets/status_badge.dart';
 import '../../../constants/constants.dart';
 import '../controllers/hr_dashboard_controller.dart';
 
@@ -130,61 +131,12 @@ class _ActivityItem extends StatelessWidget {
         // ===============================
         // STATUS CHIP
         // ===============================
-        _StatusChip(type: type),
+        StatusBadge.from(
+          status: type == "upcoming" ? "upcoming" : "completed",
+          reviewStatus: type == "pending" ? "pending" : "reviewed",
+        ),
       ],
     );
   }
 }
 
-/// ===============================
-/// STATUS CHIP
-/// ===============================
-class _StatusChip extends StatelessWidget {
-  final String type;
-
-  const _StatusChip({required this.type});
-
-  @override
-  Widget build(BuildContext context) {
-    Color bgColor;
-    Color textColor;
-    String label;
-
-    switch (type) {
-      case "pending":
-        bgColor = AppColors.warning.withOpacity(0.2);
-        textColor = AppColors.warning;
-        label = "Pending";
-        break;
-
-      case "upcoming":
-        bgColor = AppColors.primarySoftBackground;
-        textColor = AppColors.primary;
-        label = "Upcoming";
-        break;
-
-      default:
-        bgColor = AppColors.surfaceMuted;
-        textColor = AppColors.textMuted;
-        label = "Unknown";
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyles.bodySmall.copyWith(
-          color: textColor,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-}

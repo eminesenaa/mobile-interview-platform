@@ -11,6 +11,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:math';
 
+import 'package:wheel_picker/wheel_picker.dart';
+
+import '../../../constants/colors.dart';
+import '../../../constants/constants.dart';
+import '../../../constants/text_styles.dart';
+
 class CreateInterviewController extends GetxController {
   // ===============================
   // TEXT FIELDS
@@ -22,12 +28,10 @@ class CreateInterviewController extends GetxController {
   // DATE & TIME
   // ===============================
   final selectedDate = Rxn<DateTime>();
-  final selectedTime = Rxn<TimeOfDay>();
 
-  // ===============================
-  // DURATION (NEW - iOS PICKER)
-  // ===============================
-  final selectedDuration = 45.obs; // dakika
+  final selectedStartTime = Rxn<TimeOfDay>();
+  final selectedEndTime = Rxn<TimeOfDay>();
+
 
   // ===============================
   // INVITE CODE
@@ -68,7 +72,6 @@ class CreateInterviewController extends GetxController {
     generateInviteCode();
   }
 
-
   // ===============================
   // ACTIONS
   // ===============================
@@ -83,13 +86,53 @@ class CreateInterviewController extends GetxController {
     if (picked != null) selectedDate.value = picked;
   }
 
-  void pickTime(BuildContext context) async {
+  void pickStartTime(BuildContext context) async {
     final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
     );
 
-    if (picked != null) selectedTime.value = picked;
+    if (picked != null) selectedStartTime.value = picked;
+  }
+
+  void pickEndTime(BuildContext context) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+
+    if (picked != null) selectedEndTime.value = picked;
+  }
+
+  // ===============================
+  // SET START TIME
+  // ===============================
+  void setStartTime(TimeOfDay time) {
+    selectedStartTime.value = time;
+  }
+
+  // ===============================
+  // SET END TIME
+  // ===============================
+  void setEndTime(TimeOfDay time) {
+    selectedEndTime.value = time;
+  }
+
+  // ===============================
+  // AUTO DURATION (READ ONLY)
+  // ===============================
+  int get durationInMinutes {
+    if (selectedStartTime.value == null || selectedEndTime.value == null) {
+      return 0;
+    }
+
+    final start = selectedStartTime.value!;
+    final end = selectedEndTime.value!;
+
+    final startMinutes = start.hour * 60 + start.minute;
+    final endMinutes = end.hour * 60 + end.minute;
+
+    return endMinutes - startMinutes;
   }
 
   // ===============================
@@ -110,7 +153,8 @@ class CreateInterviewController extends GetxController {
     );
 
     final part2 = String.fromCharCodes(
-      Iterable.generate(4, (_) => chars.codeUnitAt(random.nextInt(chars.length))),
+      Iterable.generate(
+          4, (_) => chars.codeUnitAt(random.nextInt(chars.length))),
     );
 
     inviteCode.value = "$part1-$part2";
@@ -128,14 +172,6 @@ class CreateInterviewController extends GetxController {
     selectedCandidates.remove(name);
   }
 
-
-  // ===============================
-  // SET DURATION
-  // ===============================
-  void setDuration(int minutes) {
-    selectedDuration.value = minutes;
-  }
-
   // ===============================
   // CREATE INTERVIEW
   // ===============================
@@ -143,10 +179,37 @@ class CreateInterviewController extends GetxController {
     if (titleCtrl.text.isEmpty ||
         positionCtrl.text.isEmpty ||
         selectedDate.value == null ||
-        selectedTime.value == null ||
-        selectedDuration.value <= 0 ||
+        selectedStartTime.value == null ||
+        selectedEndTime.value == null ||
         inviteCode.value == "—") {
       Get.snackbar("Error", "Fill all fields");
+      return;
+    }
+
+    // ===============================
+    // BUILD DATETIME OBJECTS
+    // ===============================
+    final startDateTime = DateTime(
+      selectedDate.value!.year,
+      selectedDate.value!.month,
+      selectedDate.value!.day,
+      selectedStartTime.value!.hour,
+      selectedStartTime.value!.minute,
+    );
+
+    final endDateTime = DateTime(
+      selectedDate.value!.year,
+      selectedDate.value!.month,
+      selectedDate.value!.day,
+      selectedEndTime.value!.hour,
+      selectedEndTime.value!.minute,
+    );
+
+    // ===============================
+    // VALIDATE TIME RANGE
+    // ===============================
+    if (endDateTime.isBefore(startDateTime)) {
+      Get.snackbar("Error", "End time must be after start time");
       return;
     }
 
