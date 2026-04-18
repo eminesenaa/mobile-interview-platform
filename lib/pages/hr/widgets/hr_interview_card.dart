@@ -11,9 +11,11 @@
 // ======================================================================
 
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:interview_project/pages/hr/widgets/status_badge.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../constants/constants.dart';
+import '../hr_ongoing_interview_detail_page.dart';
 
 class HRInterviewCard extends StatelessWidget {
   final Map<String, dynamic> interview;
@@ -33,7 +35,44 @@ class HRInterviewCard extends StatelessWidget {
     final reviewStatus = interview["reviewStatus"];
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        final status = interview["status"];
+        final reviewStatus = interview["reviewStatus"];
+
+        // ===============================
+        // ONGOING
+        // ===============================
+        if (status == "ongoing") {
+          Get.to(() => HROngoingInterviewDetailPage(
+                interview: interview,
+              ));
+          return;
+        }
+
+        // ===============================
+        // UPCOMING (şimdilik boş)
+        // ===============================
+        if (status == "upcoming") {
+          Get.snackbar("TODO", "Upcoming detail page");
+          return;
+        }
+
+        // ===============================
+        // NEEDS REVIEW
+        // ===============================
+        if (status == "completed" && reviewStatus == "pending") {
+          Get.snackbar("TODO", "Needs review detail page");
+          return;
+        }
+
+        // ===============================
+        // REVIEWED
+        // ===============================
+        if (status == "completed" && reviewStatus == "reviewed") {
+          Get.snackbar("TODO", "Reviewed detail page");
+          return;
+        }
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: AppSpacing.md),
         decoration: BoxDecoration(
@@ -113,7 +152,9 @@ class HRInterviewCard extends StatelessWidget {
                     Row(
                       children: [
                         Icon(
-                          isToday ? PhosphorIcons.clock() : PhosphorIcons.calendar(),
+                          isToday
+                              ? PhosphorIcons.clock()
+                              : PhosphorIcons.calendar(),
                           size: AppIconSizes.sm,
                           color: AppColors.textMuted,
                         ),
@@ -147,12 +188,23 @@ class HRInterviewCard extends StatelessWidget {
     );
   }
 }
+
 String _formatDate(String date) {
   final d = DateTime.parse(date);
 
   const months = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
   ];
 
   return "${months[d.month - 1]} ${d.day}";
