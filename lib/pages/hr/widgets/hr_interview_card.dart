@@ -12,6 +12,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:interview_project/pages/hr/hr_needs_review_detail_page.dart';
 import 'package:interview_project/pages/hr/hr_upcoming_interview_detail_page.dart';
 import 'package:interview_project/pages/hr/widgets/status_badge.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -51,7 +52,7 @@ class HRInterviewCard extends StatelessWidget {
         }
 
         // ===============================
-        // UPCOMING (şimdilik boş)
+        // UPCOMING
         // ===============================
         if (status == "upcoming") {
           Get.to(() => HRUpcomingInterviewDetailPage(
@@ -64,7 +65,9 @@ class HRInterviewCard extends StatelessWidget {
         // NEEDS REVIEW
         // ===============================
         if (status == "completed" && reviewStatus == "pending") {
-          Get.snackbar("TODO", "Needs review detail page");
+          Get.to(() => HrNeedsReviewDetailPage(
+                interview: interview,
+              ));
           return;
         }
 

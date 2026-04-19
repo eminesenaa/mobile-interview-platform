@@ -28,7 +28,7 @@ class OngoingCandidateSection extends StatelessWidget {
                 title.toUpperCase(),
                 style: AppTextStyles.label.copyWith(
                   color: AppColors.textMuted,
-                  fontSize: 12,
+                  fontSize: 13,
                 ),
               ),
             ),
