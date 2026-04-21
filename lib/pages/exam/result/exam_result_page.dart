@@ -132,7 +132,11 @@ class ExamResultPage extends StatelessWidget {
             // ===================================================
             // TOPIC DISTRIBUTION
             // ===================================================
-            const TopicCharts(),
+            Obx(
+                  () => TopicCharts(
+                topicRatios: c.topicRatios,
+              ),
+            ),
 
             const SizedBox(height: AppSpacing.sm),
 

@@ -19,6 +19,7 @@ import 'package:get/get.dart';
 
 import '../../../constants/colors.dart';
 import '../hr_candidate_list_page.dart';
+import '../hr_candidate_result_page.dart';
 
 class HrNeedsReviewDetailController extends GetxController {
   final Map<String, dynamic> interview;
@@ -117,6 +118,9 @@ class HrNeedsReviewDetailController extends GetxController {
         "name": "James Chen",
         "initials": "JC",
         "score": 96,
+        "interviewTitle": title.value,
+        "interviewDate": date.value,
+        "decision": null,
         "topics": {
           "SQL": 90,
           "ML": 80,
@@ -127,6 +131,9 @@ class HrNeedsReviewDetailController extends GetxController {
         "name": "Mia Kim",
         "initials": "MK",
         "score": 91,
+        "interviewTitle": title.value,
+        "interviewDate": date.value,
+        "decision": null,
         "topics": {
           "SQL": 85,
           "ML": 55,
@@ -137,6 +144,9 @@ class HrNeedsReviewDetailController extends GetxController {
         "name": "Ava Lopez",
         "initials": "AL",
         "score": 87,
+        "interviewTitle": title.value,
+        "interviewDate": date.value,
+        "decision": null,
         "topics": {
           "SQL": 60,
           "ML": 90,
@@ -147,6 +157,9 @@ class HrNeedsReviewDetailController extends GetxController {
         "name": "Noah Park",
         "initials": "NP",
         "score": 79,
+        "interviewTitle": title.value,
+        "interviewDate": date.value,
+        "decision": null,
         "topics": {
           "SQL": 40,
           "ML": 60,
@@ -157,6 +170,9 @@ class HrNeedsReviewDetailController extends GetxController {
         "name": "Tom Rivera",
         "initials": "TR",
         "score": 74,
+        "interviewTitle": title.value,
+        "interviewDate": date.value,
+        "decision": null,
         "topics": {
           "SQL": 75,
           "ML": 30,
@@ -167,6 +183,9 @@ class HrNeedsReviewDetailController extends GetxController {
         "name": "Emma Stone",
         "initials": "ES",
         "score": 70,
+        "interviewTitle": title.value,
+        "interviewDate": date.value,
+        "decision": null,
         "topics": {
           "SQL": 50,
           "ML": 45,
@@ -177,6 +196,9 @@ class HrNeedsReviewDetailController extends GetxController {
         "name": "Chris Lee",
         "initials": "CL",
         "score": 65,
+        "interviewTitle": title.value,
+        "interviewDate": date.value,
+        "decision": null,
         "topics": {
           "SQL": 30,
           "ML": 20,
@@ -187,6 +209,9 @@ class HrNeedsReviewDetailController extends GetxController {
         "name": "Liam Brown",
         "initials": "LB",
         "score": 60,
+        "interviewTitle": title.value,
+        "interviewDate": date.value,
+        "decision": null,
         "topics": {
           "SQL": 20,
           "ML": 35,
@@ -205,6 +230,10 @@ class HrNeedsReviewDetailController extends GetxController {
     final sorted = List<Map<String, dynamic>>.from(candidates);
 
     sorted.sort((a, b) => b["score"].compareTo(a["score"]));
+
+    for (int i = 0; i < sorted.length; i++) {
+      sorted[i]["rank"] = i + 1;
+    }
 
     sortedCandidates.value = sorted;
 
@@ -344,10 +373,10 @@ class HrNeedsReviewDetailController extends GetxController {
   }
 
   void openCandidateDetail(Map<String, dynamic> candidate) {
-    // TODO (Navigation)
-    /*
-    Get.toNamed('/candidate-result', arguments: candidate);
-    */
+    Get.to(
+      () => const HrCandidateResultPage(),
+      arguments: candidate,
+    );
   }
 
   void openAllCandidates() {
