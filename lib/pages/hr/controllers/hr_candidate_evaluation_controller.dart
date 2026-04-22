@@ -76,17 +76,18 @@ class HrCandidateEvaluationController extends GetxController {
   }
 
   void submitEvaluation() {
+    final decisionResult = isAccepted.value == true ? "accepted" : "rejected";
+
+    Get.back(result: {
+      "decision": decisionResult,
+    });
+
     Get.to(
       () => HrCandidateEvaluationSuccessPage(
         candidateName: candidateName.value,
-        interview: candidate?["interview"] ?? {},
+        interview: candidate?["interview"],
       ),
-    )?.then((_) {
-      /// 🔥 geri result page’e decision gönder
-      Get.back(result: {
-        "decision": isAccepted.value == true ? "accepted" : "rejected",
-      });
-    });
+    );
   }
 
   void _loadMockData() {

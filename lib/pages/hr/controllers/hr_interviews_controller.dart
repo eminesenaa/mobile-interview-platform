@@ -20,6 +20,11 @@
 
 import 'package:get/get.dart';
 
+import '../hr_needs_review_detail_page.dart';
+import '../hr_ongoing_interview_detail_page.dart';
+import '../hr_upcoming_interview_detail_page.dart';
+import 'hr_needs_review_detail_controller.dart';
+
 class HRInterviewsController extends GetxController {
   // ===============================
   // RAW INTERVIEW LIST
@@ -208,10 +213,53 @@ class HRInterviewsController extends GetxController {
 
   /// Called when clicking interview card
   void openInterviewDetail(Map<String, dynamic> interview) {
-    // TODO:
-    // Navigate to interview detail page
-    // Pass interviewId
-    Get.snackbar("TODO", "Open interview detail");
+    final status = interview["status"];
+    final reviewStatus = interview["reviewStatus"];
+
+    // ===============================
+    // ONGOING
+    // ===============================
+    if (status == "ongoing") {
+      Get.to(() => HROngoingInterviewDetailPage(
+            interview: interview,
+          ));
+      return;
+    }
+
+    // ===============================
+    // UPCOMING
+    // ===============================
+    if (status == "upcoming") {
+      Get.to(() => HRUpcomingInterviewDetailPage(
+            interview: interview,
+          ));
+      return;
+    }
+
+    // ===============================
+    // NEEDS REVIEW
+    // ===============================
+    if (status == "completed" && reviewStatus == "pending") {
+      Get.to(
+        () => HrNeedsReviewDetailPage(
+          interview: interview,
+        ),
+        binding: BindingsBuilder(() {
+          Get.put(HrNeedsReviewDetailController(
+            interview: interview,
+          ));
+        }),
+      );
+      return;
+    }
+
+    // ===============================
+    // REVIEWED
+    // ===============================
+    if (status == "completed" && reviewStatus == "reviewed") {
+      Get.snackbar("TODO", "Reviewed detail page");
+      return;
+    }
   }
 
   // ===============================

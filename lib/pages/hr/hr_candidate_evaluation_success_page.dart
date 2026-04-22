@@ -70,14 +70,8 @@ class HrCandidateEvaluationSuccessPage extends StatelessWidget {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: () {
-                    Get.offUntil(
-                      GetPageRoute(
-                        page: () => HrNeedsReviewDetailPage(
-                          interview: interview,
-                        ),
-                      ),
-                      (route) => false,
-                    );
+                    Get.back(); // success page
+                    Get.back(); // evaluation page
                   },
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primary,
@@ -91,9 +85,8 @@ class HrCandidateEvaluationSuccessPage extends StatelessWidget {
                   child: Text(
                     "Continue Reviewing Candidates",
                     style: AppTextStyles.bodyStrong.copyWith(
-                      color: AppColors.textLightPrimary,
-                      fontWeight: FontWeight.w700
-                    ),
+                        color: AppColors.textLightPrimary,
+                        fontWeight: FontWeight.w700),
                   ),
                 ),
               ),

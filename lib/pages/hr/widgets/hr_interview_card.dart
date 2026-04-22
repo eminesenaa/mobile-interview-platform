@@ -11,13 +11,9 @@
 // ======================================================================
 
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:interview_project/pages/hr/hr_needs_review_detail_page.dart';
-import 'package:interview_project/pages/hr/hr_upcoming_interview_detail_page.dart';
 import 'package:interview_project/pages/hr/widgets/status_badge.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../constants/constants.dart';
-import '../hr_ongoing_interview_detail_page.dart';
 
 class HRInterviewCard extends StatelessWidget {
   final Map<String, dynamic> interview;
@@ -37,48 +33,7 @@ class HRInterviewCard extends StatelessWidget {
     final reviewStatus = interview["reviewStatus"];
 
     return GestureDetector(
-      onTap: () {
-        final status = interview["status"];
-        final reviewStatus = interview["reviewStatus"];
-
-        // ===============================
-        // ONGOING
-        // ===============================
-        if (status == "ongoing") {
-          Get.to(() => HROngoingInterviewDetailPage(
-                interview: interview,
-              ));
-          return;
-        }
-
-        // ===============================
-        // UPCOMING
-        // ===============================
-        if (status == "upcoming") {
-          Get.to(() => HRUpcomingInterviewDetailPage(
-                interview: interview,
-              ));
-          return;
-        }
-
-        // ===============================
-        // NEEDS REVIEW
-        // ===============================
-        if (status == "completed" && reviewStatus == "pending") {
-          Get.to(() => HrNeedsReviewDetailPage(
-                interview: interview,
-              ));
-          return;
-        }
-
-        // ===============================
-        // REVIEWED
-        // ===============================
-        if (status == "completed" && reviewStatus == "reviewed") {
-          Get.snackbar("TODO", "Reviewed detail page");
-          return;
-        }
-      },
+      onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: AppSpacing.md),
         decoration: BoxDecoration(
