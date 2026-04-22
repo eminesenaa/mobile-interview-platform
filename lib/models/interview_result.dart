@@ -12,6 +12,7 @@
 // This model connects Interview ↔ Candidate ↔ hr
 // ================================================================================
 
+import 'user.dart';
 import 'ai_exam_result.dart';
 
 enum InterviewDecisionStatus {
@@ -26,6 +27,9 @@ class InterviewResult {
   /// Relations
   final String interviewId;
   final String candidateId;
+
+  /// Embedded candidate (for UI access)
+  final User? candidate;
 
   /// Candidate answers
   /// questionId -> answer
@@ -58,6 +62,7 @@ class InterviewResult {
     required this.id,
     required this.interviewId,
     required this.candidateId,
+    this.candidate,
     this.answers = const {},
     this.aiResult,
     this.score = 0,
@@ -79,6 +84,9 @@ class InterviewResult {
       id: json['id'] ?? '',
       interviewId: json['interviewId'] ?? '',
       candidateId: json['candidateId'] ?? '',
+      candidate: json['candidate'] != null
+          ? User.fromJson(json['candidate'])
+          : null,
       answers: json['answers'] != null
           ? Map<String, dynamic>.from(json['answers'])
           : {},
@@ -110,6 +118,7 @@ class InterviewResult {
       'id': id,
       'interviewId': interviewId,
       'candidateId': candidateId,
+      if (candidate != null) 'candidate': candidate!.toJson(),
       'answers': answers,
       if (aiResult != null) 'aiResult': aiResult!.toJson(),
       'score': score,
@@ -131,6 +140,7 @@ class InterviewResult {
     String? id,
     String? interviewId,
     String? candidateId,
+    User? candidate,
     Map<String, dynamic>? answers,
     AiExamResult? aiResult,
     int? score,
@@ -148,6 +158,7 @@ class InterviewResult {
       id: id ?? this.id,
       interviewId: interviewId ?? this.interviewId,
       candidateId: candidateId ?? this.candidateId,
+      candidate: candidate ?? this.candidate,
       answers: answers ?? this.answers,
       aiResult: aiResult ?? this.aiResult,
       score: score ?? this.score,
@@ -162,4 +173,22 @@ class InterviewResult {
       reviewedAt: reviewedAt ?? this.reviewedAt,
     );
   }
+
+  String get displayName {
+    if (candidate == null) return "Candidate";
+    return "${candidate!.name} ${candidate!.surname}";
+  }
+
+  String get initials {
+    if (candidate == null) return "NA";
+
+    final n = candidate!.name;
+    final s = candidate!.surname;
+
+    if (n.isEmpty) return "NA";
+    if (s.isEmpty) return n[0];
+
+    return "${n[0]}${s[0]}";
+  }
 }
+

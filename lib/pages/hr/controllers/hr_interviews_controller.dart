@@ -22,6 +22,7 @@ import 'package:get/get.dart';
 
 import '../hr_needs_review_detail_page.dart';
 import '../hr_ongoing_interview_detail_page.dart';
+import '../hr_reviewed_detail_page.dart';
 import '../hr_upcoming_interview_detail_page.dart';
 import 'hr_needs_review_detail_controller.dart';
 
@@ -60,6 +61,7 @@ class HRInterviewsController extends GetxController {
   void loadMockData() {
     interviews.value = [
       {
+        "id": "INT-2026-XXX-001",
         "title": "Product Designer Interview",
         "position": "Senior Product Designer",
         "date": "2026-04-17",
@@ -70,6 +72,7 @@ class HRInterviewsController extends GetxController {
         "reviewStatus": "pending", // pending | reviewed
       },
       {
+        "id": "INT-2026-XXX-002",
         "title": "Frontend Developer Interview",
         "position": "Senior Frontend Engineer",
         "date": "2026-04-17",
@@ -80,6 +83,7 @@ class HRInterviewsController extends GetxController {
         "reviewStatus": "pending",
       },
       {
+        "id": "INT-2026-XXX-003",
         "title": "Data Science Technical Round",
         "position": "ML Engineer",
         "date": "2026-04-17",
@@ -90,6 +94,7 @@ class HRInterviewsController extends GetxController {
         "reviewStatus": "pending",
       },
       {
+        "id": "INT-2026-XXX-004",
         "title": "Backend Engineering – Round 2",
         "position": "Backend Engineer (Node.js)",
         "date": "2026-04-15",
@@ -100,6 +105,7 @@ class HRInterviewsController extends GetxController {
         "reviewStatus": "pending", // ❗ needs review
       },
       {
+        "id": "INT-2026-XXX-005",
         "title": "iOS Developer Interview",
         "position": "iOS Engineer – Swift",
         "date": "2026-04-14",
@@ -257,7 +263,14 @@ class HRInterviewsController extends GetxController {
     // REVIEWED
     // ===============================
     if (status == "completed" && reviewStatus == "reviewed") {
-      Get.snackbar("TODO", "Reviewed detail page");
+      Get.to(() => HrReviewedDetailPage(
+        interview: {
+          ...interview,
+
+          /// 🔥 CANDIDATES EKLE
+          "candidates": interview["candidates"] ?? [],
+        },
+      ));
       return;
     }
   }

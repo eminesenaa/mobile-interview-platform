@@ -375,7 +375,10 @@ class HrNeedsReviewDetailController extends GetxController {
   void openCandidateDetail(Map<String, dynamic> candidate) {
     Get.to(
       () => const HrCandidateResultPage(),
-      arguments: candidate,
+      arguments: {
+        ...candidate,
+        "interview": interview,
+      },
     );
   }
 
