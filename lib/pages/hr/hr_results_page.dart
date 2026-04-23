@@ -1,183 +1,124 @@
 // ===================== File: hr_results_page.dart =====================
 // Purpose:
-// HR reviews interview results and makes decisions
-//
-// Notes:
-// - Uses mock data for now
-// - Accept / Reject flow implemented
-// - Will connect to backend later
+// Global analytics page for all completed interviews
 // =====================================================================
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:interview_project/pages/hr/widgets/results/results_completed_interviews.dart';
+import 'package:interview_project/pages/hr/widgets/results/results_decision_breakdown.dart';
+import 'package:interview_project/pages/hr/widgets/results/results_filter_bar.dart';
+import 'package:interview_project/pages/hr/widgets/results/results_key_metrics.dart';
+import 'package:interview_project/pages/hr/widgets/reviewed_detail/rd_insights_score_distribution.dart';
 
-import '../../constants/colors.dart';
 import '../../constants/constants.dart';
+import 'controllers/hr_results_controller.dart';
+import 'hr_interview_list_page.dart';
 
-class HRResultsPage extends StatefulWidget {
-  const HRResultsPage({super.key});
-
-  @override
-  State<HRResultsPage> createState() => _HRResultsPageState();
-}
-
-class _HRResultsPageState extends State<HRResultsPage> {
-  int? selectedIndex;
-
-  final List<Map<String, dynamic>> candidates = [
-    {
-      "name": "Ayşe Kaya",
-      "score": 87,
-      "correct": 17,
-      "wrong": 3,
-      "status": "Pending",
-    },
-    {
-      "name": "Burak Demir",
-      "score": 74,
-      "correct": 15,
-      "wrong": 5,
-      "status": "Pending",
-    },
-    {
-      "name": "Zeynep Arslan",
-      "score": 61,
-      "correct": 12,
-      "wrong": 8,
-      "status": "Pending",
-    },
-  ];
+class HrResultsPage extends StatelessWidget {
+  const HrResultsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final c = Get.put(HrResultsController());
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Interview Results")),
-      body: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          children: [
-            // ================= LEADERBOARD =================
-            Expanded(
-              flex: 2,
-              child: ListView.builder(
-                itemCount: candidates.length,
-                itemBuilder: (context, index) {
-                  final c = candidates[index];
+      backgroundColor: AppColors.background,
 
-                  return ListTile(
-                    leading: CircleAvatar(
-                      child: Text(c["name"][0]),
-                    ),
-                    title: Text(c["name"]),
-                    trailing: Text("${c["score"]}"),
-                    selected: selectedIndex == index,
+      /// ================= APP BAR =================
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.textPrimary,
+        centerTitle: true,
+        title: const Text("Results"),
+      ),
+
+      /// ================= BODY =================
+      body: Obx(() {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              /// ================= FILTER =================
+              ResultsFilterBar(
+                selected: c.selectedFilter.value,
+                onChanged: c.changeFilter,
+              ),
+
+              const SizedBox(height: AppSpacing.xl),
+
+              /// ================= KEY METRICS =================
+              Text("KEY METRICS",
+                  style: AppTextStyles.label.copyWith(fontSize: 12)),
+              const SizedBox(height: AppSpacing.md),
+
+              ResultsKeyMetrics(
+                avgScore: c.avgScore,
+                acceptRate: c.acceptRate,
+                highest: c.highestScore,
+                lowest: c.lowestScore,
+              ),
+
+              const SizedBox(height: AppSpacing.xl),
+
+              /// ================= DECISION =================
+              Text("DECISION BREAKDOWN",
+                  style: AppTextStyles.label.copyWith(fontSize: 12)),
+              const SizedBox(height: AppSpacing.md),
+
+              ResultsDecisionBreakdown(
+                accepted: c.acceptedCount,
+                rejected: c.rejectedCount,
+              ),
+
+              const SizedBox(height: AppSpacing.xl),
+
+              /// ================= SCORE DISTRIBUTION =================
+              Text("SCORE DISTRIBUTION",
+                  style: AppTextStyles.label.copyWith(fontSize: 12)),
+              const SizedBox(height: AppSpacing.md),
+
+              RdInsightsScoreDistribution(
+                distribution: c.scoreDistribution,
+              ),
+
+              const SizedBox(height: AppSpacing.xl),
+
+              /// ================= COMPLETED =================
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text("COMPLETED INTERVIEWS",
+                      style: AppTextStyles.label.copyWith(fontSize: 12)),
+                  GestureDetector(
                     onTap: () {
-                      setState(() {
-                        selectedIndex = index;
-                      });
+                      Get.to(() =>
+                          const HRInterviewListPage(sectionKey: "reviewed"));
                     },
-                  );
-                },
+                    child: Text("See all",
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        )),
+                  )
+                ],
               ),
-            ),
 
-            const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
 
-            // ================= DETAIL =================
-            if (selectedIndex != null)
-              _buildDetailCard(candidates[selectedIndex!]),
-          ],
-        ),
-      ),
-    );
-  }
+              ResultsCompletedInterviews(
+                interviews: c.reviewedInterviews,
+                onTap: c.openInsights,
+              ),
 
-  Widget _buildDetailCard(Map<String, dynamic> c) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
-      child: Column(
-        children: [
-          Text(
-            c["name"],
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-
-          const SizedBox(height: AppSpacing.md),
-
-          Text("Score: ${c["score"]}"),
-
-          const SizedBox(height: AppSpacing.md),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _stat("Correct", c["correct"], Colors.green),
-              _stat("Wrong", c["wrong"], Colors.red),
+              const SizedBox(height: AppSpacing.xl),
             ],
           ),
-
-          const SizedBox(height: AppSpacing.lg),
-
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                  ),
-                  onPressed: () {
-                    _sendDecision("Accepted");
-                  },
-                  child: const Text("Accept"),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                  ),
-                  onPressed: () {
-                    _sendDecision("Rejected");
-                  },
-                  child: const Text("Reject"),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _stat(String label, int value, Color color) {
-    return Column(
-      children: [
-        Text(
-          "$value",
-          style: TextStyle(
-            color: color,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Text(label),
-      ],
-    );
-  }
-
-  void _sendDecision(String decision) {
-    Get.defaultDialog(
-      title: decision,
-      middleText: "Decision sent (mock)",
-      textConfirm: "OK",
-      onConfirm: () => Get.back(),
+        );
+      }),
     );
   }
 }

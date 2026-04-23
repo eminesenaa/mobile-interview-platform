@@ -28,11 +28,6 @@ class RdInsightsScoreDistribution extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "SCORE DISTRIBUTION",
-          style: AppTextStyles.label.copyWith(fontSize: 12),
-        ),
-        const SizedBox(height: AppSpacing.md),
         Column(
           children: distribution.entries.toList().asMap().entries.map((entry) {
             final index = entry.key;

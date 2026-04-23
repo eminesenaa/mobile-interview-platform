@@ -77,7 +77,7 @@ class HRDashboardPage extends StatelessWidget {
                   Get.to(() => const HRInterviewsPage());
                 },
                 onViewResults: () {
-                  Get.to(() => const HRResultsPage());
+                  Get.to(() => const HrResultsPage());
                 },
                 onViewCandidates: () {
                   Get.snackbar("TODO", "Candidates Page");

@@ -26,7 +26,7 @@ class HRInterviewListPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<HRInterviewsController>();
+    final controller = Get.put(HRInterviewsController());
 
     return Scaffold(
       backgroundColor: AppColors.background,
