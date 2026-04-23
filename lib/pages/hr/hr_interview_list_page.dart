@@ -60,7 +60,7 @@ class HRInterviewListPage extends StatelessWidget {
             return HRInterviewCard(
               interview: interview,
               isToday: sectionKey == "today",
-              onTap: () {},
+              onTap: () => controller.openInterviewDetail(interview),
             );
           },
         );
