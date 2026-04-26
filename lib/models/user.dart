@@ -33,6 +33,11 @@ class User {
 
   final String? phoneNumber;
 
+  /// ===================== EDUCATION =====================
+  /// Used in job applications UI
+  final String? university;
+  final String? department;
+
   /// 🔹 Yeni eklenen alanlar
   final int totalXp;
 
@@ -47,6 +52,9 @@ class User {
 
   /// Completed interview results (InterviewResult IDs)
   final List<String> interviewResultIds;
+
+  /// 🔥 NEW: Job applications (başvurular)
+  final List<String> jobApplicationIds;
 
   /// Currently active interview (if user is inside one)
   final String? activeInterviewId;
@@ -70,12 +78,15 @@ class User {
     this.githubUrl,
     this.cvUrl,
     this.phoneNumber,
+    this.university,
+    this.department,
     this.totalXp = 0,
     // this.level = 1,
     this.savedQuestions = const [],
     this.progress = const {},
     this.assignedInterviewIds = const [],
     this.interviewResultIds = const [],
+    this.jobApplicationIds = const [],
     this.activeInterviewId,
   });
 
@@ -130,6 +141,8 @@ class User {
         githubUrl: json['githubUrl'],
         cvUrl: json['cvUrl'],
         phoneNumber: json['phoneNumber'],
+        university: json['university'],
+        department: json['department'],
 
         /// 🔹 yeni alanlar
         totalXp: json['totalXp'] ?? 0,
@@ -140,6 +153,7 @@ class User {
             List<String>.from(json['assignedInterviewIds'] ?? []),
 
         interviewResultIds: List<String>.from(json['interviewResultIds'] ?? []),
+        jobApplicationIds: List<String>.from(json['jobApplicationIds'] ?? []),
 
         activeInterviewId: json['activeInterviewId'],
       );
@@ -163,6 +177,8 @@ class User {
         'githubUrl': githubUrl,
         'cvUrl': cvUrl,
         'phoneNumber': phoneNumber,
+        'university': university,
+        'department': department,
 
         /// 🔹 yeni alanlar
         'totalXp': totalXp,
@@ -171,6 +187,7 @@ class User {
         'progress': progress,
         'assignedInterviewIds': assignedInterviewIds,
         'interviewResultIds': interviewResultIds,
+        'jobApplicationIds': jobApplicationIds,
         if (activeInterviewId != null) 'activeInterviewId': activeInterviewId,
       };
 
@@ -182,6 +199,8 @@ class User {
     String? username,
     String? email,
     String? phoneNumber,
+    String? university,
+    String? department,
     String? password,
     String? photoUrl,
     String? duelAvatar,
@@ -199,6 +218,7 @@ class User {
     String? cvUrl,
     List<String>? assignedInterviewIds,
     List<String>? interviewResultIds,
+    List<String>? jobApplicationIds,
     String? activeInterviewId,
   }) =>
       User(
@@ -209,6 +229,8 @@ class User {
         username: username ?? this.username,
         email: email ?? this.email,
         phoneNumber: phoneNumber ?? this.phoneNumber,
+        university: university ?? this.university,
+        department: department ?? this.department,
         password: password ?? this.password,
         photoUrl: photoUrl ?? this.photoUrl,
         duelAvatar: duelAvatar ?? this.duelAvatar,
@@ -226,6 +248,7 @@ class User {
         cvUrl: cvUrl ?? this.cvUrl,
         assignedInterviewIds: assignedInterviewIds ?? this.assignedInterviewIds,
         interviewResultIds: interviewResultIds ?? this.interviewResultIds,
+        jobApplicationIds: jobApplicationIds ?? this.jobApplicationIds,
         activeInterviewId: activeInterviewId ?? this.activeInterviewId,
       );
 
@@ -238,4 +261,16 @@ class User {
 
   /// 🔹 Level artık XP üzerinden hesaplanır (stored değil computed)
   int get level => LevelCalculator.calculate(totalXp);
+
+  /// ===================== DISPLAY =====================
+  /// Used in applicant cards
+  String get educationDisplay {
+    if (university == null && department == null) return "-";
+
+    if (university != null && department != null) {
+      return "$university · $department";
+    }
+
+    return university ?? department ?? "-";
+  }
 }

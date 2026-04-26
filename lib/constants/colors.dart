@@ -160,6 +160,18 @@ class AppColors {
   /// Strawberry Red
   static const Color strawberryRed = Color(0xFFf93943);
 
+  /// Dark Amethyst
+  static const Color darkAmethyst = Color(0xFF4E0250);
+
+  /// Dark Magenta
+  static const Color darkMagenta = Color(0xFF801A86);
+
+  /// Pink Carnation
+  static const Color pinkCarnation = Color(0xFFF991CC);
+
+  /// Pink Orchid
+  static const Color pinkOrchid = Color(0xFFE2AFDE);
+
   /// Sky Reflection
   static const Color skyReflection = Color(0xFF445e93);
 

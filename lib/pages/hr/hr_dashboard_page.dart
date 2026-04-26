@@ -21,6 +21,7 @@ import 'package:interview_project/pages/hr/widgets/hr_recent_activity_section.da
 import '../../constants/constants.dart';
 import 'controllers/hr_dashboard_controller.dart';
 import 'create_interview_page.dart';
+import 'hr_job_postings_page.dart';
 import 'hr_results_page.dart';
 
 // Widgets
@@ -70,6 +71,9 @@ class HRDashboardPage extends StatelessWidget {
               // QUICK ACTIONS
               // ===============================
               HRQuickActionsSection(
+                onManagePostings: () {
+                  Get.to(() => const HRJobPostingsPage());
+                },
                 onCreateInterview: () {
                   Get.to(() => const CreateInterviewPage());
                 },

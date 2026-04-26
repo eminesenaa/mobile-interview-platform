@@ -20,14 +20,14 @@
 import 'question.dart';
 
 enum InterviewStatus {
-  scheduled,   // henüz başlamadı
-  active,      // şu an devam ediyor
-  completed,   // bitmiş
+  scheduled, // henüz başlamadı
+  active, // şu an devam ediyor
+  completed, // bitmiş
 }
 
 enum ReviewStatus {
-  pending,   // henüz değerlendirilmedi
-  reviewed,  // değerlendirme tamamlandı
+  pending, // henüz değerlendirilmedi
+  reviewed, // değerlendirme tamamlandı
 }
 
 class Interview {
@@ -54,10 +54,12 @@ class Interview {
   /// Join system
   final String joinCode;
 
+  /// 🔥 NEW: Source job posting (ilan bağlantısı)
+  final String? jobPostingId;
+
   /// Status
   final InterviewStatus status;
   final ReviewStatus reviewStatus;
-
 
   /// Metadata
   final DateTime createdAt;
@@ -73,6 +75,7 @@ class Interview {
     required this.startTime,
     required this.endTime,
     required this.joinCode,
+    this.jobPostingId,
     required this.status,
     required this.reviewStatus,
     required this.createdAt,
@@ -94,16 +97,16 @@ class Interview {
       startTime: DateTime.tryParse(json['startTime'] ?? '') ?? DateTime.now(),
       endTime: DateTime.tryParse(json['endTime'] ?? '') ?? DateTime.now(),
       joinCode: json['joinCode'] ?? '',
+      jobPostingId: json['jobPostingId'],
       status: InterviewStatus.values.firstWhere(
-            (e) => e.name == json['status'],
+        (e) => e.name == json['status'],
         orElse: () => InterviewStatus.scheduled,
       ),
       reviewStatus: ReviewStatus.values.firstWhere(
-            (e) => e.name == json['reviewStatus'],
+        (e) => e.name == json['reviewStatus'],
         orElse: () => ReviewStatus.pending,
       ),
-      createdAt:
-      DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
+      createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
     );
   }
 
@@ -119,6 +122,7 @@ class Interview {
       'startTime': startTime.toIso8601String(),
       'endTime': endTime.toIso8601String(),
       'joinCode': joinCode,
+      if (jobPostingId != null) 'jobPostingId': jobPostingId,
       'status': status.name,
       'reviewStatus': reviewStatus.name,
       'createdAt': createdAt.toIso8601String(),
@@ -138,6 +142,7 @@ class Interview {
     DateTime? startTime,
     DateTime? endTime,
     String? joinCode,
+    String? jobPostingId,
     InterviewStatus? status,
     ReviewStatus? reviewStatus,
     DateTime? createdAt,
@@ -153,6 +158,7 @@ class Interview {
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
       joinCode: joinCode ?? this.joinCode,
+      jobPostingId: jobPostingId ?? this.jobPostingId,
       status: status ?? this.status,
       reviewStatus: reviewStatus ?? this.reviewStatus,
       createdAt: createdAt ?? this.createdAt,
@@ -162,8 +168,7 @@ class Interview {
   // -------------------- HELPERS --------------------
 
   /// 5 dakika önce giriş açılır
-  DateTime get joinOpenTime =>
-      startTime.subtract(const Duration(minutes: 5));
+  DateTime get joinOpenTime => startTime.subtract(const Duration(minutes: 5));
 
   /// Süre (dakika)
   Duration get duration => endTime.difference(startTime);

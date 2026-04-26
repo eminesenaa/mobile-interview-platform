@@ -16,6 +16,7 @@ import '../../../constants/constants.dart';
 import 'hr_action_card.dart';
 
 class HRQuickActionsSection extends StatelessWidget {
+  final VoidCallback onManagePostings;
   final VoidCallback onCreateInterview;
   final VoidCallback onViewInterviews;
   final VoidCallback onViewResults;
@@ -23,6 +24,7 @@ class HRQuickActionsSection extends StatelessWidget {
 
   const HRQuickActionsSection({
     super.key,
+    required this.onManagePostings,
     required this.onCreateInterview,
     required this.onViewInterviews,
     required this.onViewResults,
@@ -45,6 +47,19 @@ class HRQuickActionsSection extends StatelessWidget {
         ),
 
         const SizedBox(height: AppSpacing.md),
+
+        // ===============================
+        // JOB POSTINGS
+        // ===============================
+        HRActionCard(
+          title: "Job Postings",
+          subtitle: "Create & manage job applications",
+          icon: PhosphorIcons.briefcase(),
+          accentColor: AppColors.topicBrightTeal,
+          onTap: onManagePostings,
+        ),
+
+        const SizedBox(height: AppSpacing.sm),
 
         // ===============================
         // CREATE INTERVIEW
