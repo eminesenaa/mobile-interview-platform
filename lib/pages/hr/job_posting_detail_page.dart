@@ -87,7 +87,7 @@ class JobPostingDetailPage extends StatelessWidget {
 
             // ================= STATS =================
             JPDetailStats(
-              applicants: posting["applicants"] ?? 0,
+              applicants: posting["applicantCount"] ?? 0,
               accepted: posting["accepted"] ?? 0,
               rejected: posting["rejected"] ?? 0,
               pending: posting["pending"] ?? 0,
@@ -125,9 +125,7 @@ class JobPostingDetailPage extends StatelessWidget {
               applicants: List<Map<String, dynamic>>.from(
                 posting["applicantsPreview"] ?? [],
               ),
-              onSeeAll: () {
-                Get.snackbar("TODO", "Open full applicant list");
-              },
+              onSeeAll: () => c.openApplicants(posting),
             ),
 
             const SizedBox(height: AppSpacing.xl),

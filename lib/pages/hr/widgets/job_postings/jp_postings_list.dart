@@ -20,7 +20,7 @@ class JPPostingsList extends StatelessWidget {
           level: p["level"],
           location: p["location"],
           workType: p["workType"],
-          applicants: p["applicants"],
+          applicants: p["applicantCount"],
           accepted: p["accepted"],
           pending: p["pending"],
           onTap: () => onTap(p),

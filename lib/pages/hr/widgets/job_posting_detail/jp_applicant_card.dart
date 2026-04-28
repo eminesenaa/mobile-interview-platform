@@ -6,7 +6,8 @@ import '../../../../constants/constants.dart';
 /// - avatar (initials)
 /// - name
 /// - education
-/// - status chip (bordered, premium look)
+/// - status chip (accepted/rejected)
+/// - OR action buttons (pending)
 /// ==========================================================
 
 class JPApplicantCard extends StatelessWidget {
@@ -23,6 +24,8 @@ class JPApplicantCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPending = status == "pending";
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
@@ -31,41 +34,106 @@ class JPApplicantCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: AppColors.border),
       ),
-      child: Row(
+      child: Column(
         children: [
-          /// ================= AVATAR =================
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: AppColors.primary.withOpacity(0.1),
-            child: Text(
-              _initials(name),
-              style: AppTextStyles.bodyStrong.copyWith(
-                color: AppColors.primary,
+          /// ================= TOP ROW =================
+          Row(
+            children: [
+              /// AVATAR
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: AppColors.primary.withOpacity(0.1),
+                child: Text(
+                  _initials(name),
+                  style: AppTextStyles.bodyStrong.copyWith(
+                    color: AppColors.primary,
+                  ),
+                ),
               ),
-            ),
+
+              const SizedBox(width: 12),
+
+              /// NAME + EDUCATION
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name, style: AppTextStyles.bodyStrong),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              /// STATUS (only if not pending)
+              if (!isPending) _statusChip(),
+            ],
           ),
 
-          const SizedBox(width: 12),
-
-          /// ================= NAME + EDUCATION =================
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          /// ================= ACTIONS (ONLY PENDING) =================
+          if (isPending) ...[
+            const SizedBox(height: 12),
+            Row(
               children: [
-                Text(name, style: AppTextStyles.bodyStrong),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textMuted,
+                /// ACCEPT BUTTON
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      // TODO: controller.acceptApplicant(...)
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                      child: Center(
+                        child: Text(
+                          "✓ Accept",
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(width: 10),
+
+                /// REJECT BUTTON
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      // TODO: controller.rejectApplicant(...)
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                      child: Center(
+                        child: Text(
+                          "✕ Reject",
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.error,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
-
-          /// ================= STATUS CHIP =================
-          _statusChip(),
+          ],
         ],
       ),
     );
@@ -113,6 +181,7 @@ class JPApplicantCard extends StatelessWidget {
     return parts[0][0] + parts[1][0];
   }
 
+  /// ================= STATUS LABEL =================
   String _statusLabel(String status) {
     if (status.isEmpty) return status;
     return status[0].toUpperCase() + status.substring(1);

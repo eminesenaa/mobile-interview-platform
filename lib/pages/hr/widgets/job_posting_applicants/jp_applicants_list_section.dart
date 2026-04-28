@@ -1,0 +1,62 @@
+import 'package:flutter/material.dart';
+import '../../controllers/hr_job_postings_controller.dart';
+import 'jp_applicants_section_label.dart';
+import '../job_posting_detail/jp_applicant_card.dart';
+import 'package:get/get.dart';
+
+/// ===================== APPLICANTS LIST SECTION =====================
+/// Combines:
+/// - Section label
+/// - List of applicant cards
+///
+/// Used for:
+/// - Pending section
+/// - Accepted section
+/// - Rejected section
+/// ================================================================
+
+class JPApplicantsListSection extends StatelessWidget {
+  final String title;
+  final List<Map<String, dynamic>> applicants;
+
+  const JPApplicantsListSection({
+    super.key,
+    required this.title,
+    required this.applicants,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (applicants.isEmpty) return const SizedBox();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        /// SECTION LABEL
+        JPApplicantsSectionLabel(
+          title: title,
+          count: applicants.length,
+        ),
+
+        const SizedBox(height: 10),
+
+        /// LIST
+        ...applicants.map((a) {
+          final controller = Get.find<HrJobPostingsController>();
+
+          final user = controller.getUserByName(a["name"]);
+
+          final subtitle = user != null
+              ? "${user.university ?? ''} · ${user.department ?? ''}"
+              : "";
+
+          return JPApplicantCard(
+            name: a["name"],
+            subtitle: subtitle,
+            status: a["status"],
+          );
+        }),
+      ],
+    );
+  }
+}

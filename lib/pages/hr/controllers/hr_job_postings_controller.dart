@@ -20,6 +20,7 @@
 import 'package:get/get.dart';
 
 import '../../../models/user.dart';
+import '../job_posting_applicants_page.dart';
 import '../job_posting_create_page.dart';
 import '../job_posting_detail_page.dart';
 
@@ -85,6 +86,63 @@ class HrJobPostingsController extends GetxController {
     Get.to(() => const JobPostingCreatePage());
   }
 
+
+  // ===============================
+  // OPEN APPLICANTS PAGE
+  // ===============================
+  void openApplicants(Map<String, dynamic> posting) {
+    Get.to(() => JobPostingApplicantsPage(posting: posting));
+  }
+
+  // ===============================
+  // ACCEPT APPLICANT
+  // ===============================
+  void acceptApplicant(String postingId, String userId) {
+    final posting = getPostingById(postingId);
+    if (posting == null) return;
+
+    final applicants = List<Map<String, dynamic>>.from(posting["applicants"]);
+
+    final index = applicants.indexWhere((a) => a["userId"] == userId);
+    if (index == -1) return;
+
+    applicants[index]["status"] = "accepted";
+
+    posting["pending"] = (posting["pending"] ?? 1) - 1;
+    posting["accepted"] = (posting["accepted"] ?? 0) + 1;
+
+    posting["applicants"] = applicants;
+
+    activePostings.refresh();
+
+    Get.snackbar("Success", "Applicant accepted");
+  }
+
+  // ===============================
+  // REJECT APPLICANT
+  // ===============================
+  void rejectApplicant(String postingId, String userId) {
+    final posting = getPostingById(postingId);
+    if (posting == null) return;
+
+    final applicants = List<Map<String, dynamic>>.from(posting["applicants"]);
+
+    final index = applicants.indexWhere((a) => a["userId"] == userId);
+    if (index == -1) return;
+
+    applicants[index]["status"] = "rejected";
+
+    posting["pending"] = (posting["pending"] ?? 1) - 1;
+    posting["rejected"] = (posting["rejected"] ?? 0) + 1;
+
+    posting["applicants"] = applicants;
+
+    activePostings.refresh();
+
+    Get.snackbar("Success", "Applicant rejected");
+  }
+
+
   // ===============================
   // MOCK DATA
   // ===============================
@@ -99,10 +157,15 @@ class HrJobPostingsController extends GetxController {
         "workType": "Remote",
         "salary": "\$4,000 - \$6,000 / mo",
 
-        "applicants": 24,
+        "applicantCount": 24,
         "accepted": 7,
         "rejected": 6,
         "pending": 5,
+        "applicants": [
+          {"userId": "U1", "name": "James Chen", "status": "accepted"},
+          {"userId": "U2", "name": "Mia Kim", "status": "pending"},
+          {"userId": "U3", "name": "Sara Reyes", "status": "rejected"},
+        ],
 
         "status": "active",
 
@@ -131,10 +194,15 @@ class HrJobPostingsController extends GetxController {
         "workType": "Hybrid",
         "salary": "\$3,500 - \$5,000 / mo",
 
-        "applicants": 18,
+        "applicantCount": 18,
         "accepted": 4,
         "rejected": 6,
         "pending": 8,
+        "applicants": [
+          {"userId": "U4", "name": "Lukas Weber", "status": "accepted"},
+          {"userId": "U5", "name": "Anna Schmidt", "status": "pending"},
+          {"userId": "U6", "name": "Carlos Mendes", "status": "rejected"},
+        ],
 
         "status": "active",
 
@@ -163,10 +231,15 @@ class HrJobPostingsController extends GetxController {
         "workType": "On-site",
         "salary": "\$1,500 - \$2,000 / mo",
 
-        "applicants": 47,
+        "applicantCount": 47,
         "accepted": 0,
         "rejected": 33,
         "pending": 14,
+        "applicants": [
+          {"userId": "U7", "name": "Kevin Lee", "status": "pending"},
+          {"userId": "U8", "name": "Elena Petrova", "status": "pending"},
+          {"userId": "U9", "name": "David Park", "status": "rejected"},
+        ],
 
         "status": "active",
 
@@ -195,10 +268,15 @@ class HrJobPostingsController extends GetxController {
         "workType": "Hybrid",
         "salary": "\$2,500 - \$3,500 / mo",
 
-        "applicants": 21,
+        "applicantCount": 21,
         "accepted": 6,
         "rejected": 8,
         "pending": 7,
+        "applicants": [
+          {"userId": "U10", "name": "Noah van Dijk", "status": "accepted"},
+          {"userId": "U11", "name": "Emma Janssen", "status": "pending"},
+          {"userId": "U12", "name": "Ali Demir", "status": "rejected"},
+        ],
 
         "status": "active",
 
@@ -227,10 +305,15 @@ class HrJobPostingsController extends GetxController {
         "workType": "Remote",
         "salary": "\$5,000 - \$7,000 / mo",
 
-        "applicants": 16,
+        "applicantCount": 16,
         "accepted": 5,
         "rejected": 5,
         "pending": 6,
+        "applicants": [
+          {"userId": "U13", "name": "Oliver Brown", "status": "accepted"},
+          {"userId": "U14", "name": "Sophie Martin", "status": "pending"},
+          {"userId": "U15", "name": "Raj Patel", "status": "rejected"},
+        ],
 
         "status": "active",
 
@@ -543,6 +626,27 @@ class HrJobPostingsController extends GetxController {
     } catch (e) {
       return null;
     }
+  }
+
+  // ===============================
+  // SEARCH APPLICANTS
+  // ===============================
+  List<Map<String, dynamic>> searchApplicants(
+      List<Map<String, dynamic>> applicants,
+      String query,
+      ) {
+    if (query.isEmpty) return applicants;
+
+    final q = query.toLowerCase();
+
+    return applicants.where((a) {
+      final name = (a["name"] ?? "").toLowerCase();
+
+      final user = getUserByName(a["name"] ?? "");
+      final email = user?.email.toLowerCase() ?? "";
+
+      return name.contains(q) || email.contains(q);
+    }).toList();
   }
 
 
