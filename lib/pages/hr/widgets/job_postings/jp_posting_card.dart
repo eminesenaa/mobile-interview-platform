@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get_core/src/get_main.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../../constants/constants.dart';
 
@@ -11,6 +12,7 @@ class JPPostingCard extends StatelessWidget {
   final int applicants;
   final int accepted;
   final int pending;
+  final String status;
 
   final VoidCallback onTap;
 
@@ -23,6 +25,7 @@ class JPPostingCard extends StatelessWidget {
     required this.applicants,
     required this.accepted,
     required this.pending,
+    required this.status,
     required this.onTap,
   });
 
@@ -133,7 +136,48 @@ class JPPostingCard extends StatelessWidget {
   // 🔥 STATUS CHIP (Animated blinking dot INSIDE)
   // =========================================================
   Widget _statusChip() {
-    return _BlinkingDotChip();
+    final isActive = status == "active";
+    final isClosed = status == "closed";
+    final isReady = isClosed && pending == 0;
+
+    if (isActive) {
+      return _BlinkingDotChip(); // 🔥 sadece active
+    }
+
+    // 🔥 READY TO INTERVIEW (NEW STATE)
+    if (isReady) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppColors.cherryBlossom.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.cherryBlossom.withOpacity(0.4)),
+        ),
+        child: Text(
+          "Ready",
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.cherryBlossom,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
+
+    // 🔥 CLOSED CHIP (UPDATED COLOR)
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.border,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        "Closed",
+        style: AppTextStyles.bodySmall.copyWith(
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
   }
 
   // =========================================================

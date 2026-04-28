@@ -27,6 +27,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:interview_project/pages/hr/widgets/job_posting_detail/jp_finalize_posting_section.dart';
 
 import '../../constants/constants.dart';
 import 'controllers/hr_job_postings_controller.dart';
@@ -52,6 +53,7 @@ class JobPostingDetailPage extends StatelessWidget {
     final c = Get.find<HrJobPostingsController>();
 
     final isActive = posting["status"] == "active";
+    final isClosed = posting["status"] == "closed";
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -131,15 +133,17 @@ class JobPostingDetailPage extends StatelessWidget {
 
             const SizedBox(height: AppSpacing.xl),
 
-            // ================= CLOSE POSTING =================
+            // ================= ACTION =================
             if (isActive)
               JPClosePostingSection(
                 onClose: () {
-                  /// 🔥 Controller action
                   c.closePosting(posting["id"]);
-
                   Get.back();
                 },
+              )
+            else if (isClosed)
+              JPFinalizePostingSection(
+                onFinalize: () => c.finalizePosting(posting["id"]),
               ),
 
             const SizedBox(height: AppSpacing.xl),

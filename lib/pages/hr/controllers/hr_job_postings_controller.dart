@@ -72,15 +72,7 @@ class HrJobPostingsController extends GetxController {
   // ===============================
 
   void openPosting(Map<String, dynamic> posting) {
-    final isClosed = posting["status"] == "closed";
-
-    if (isClosed) {
-      // 👉 CLOSED → candidate evaluation / results page
-      // TODO: replace with actual route
-      Get.snackbar("TODO", "Open Closed Posting Detail");
-    } else {
-      Get.to(() => JobPostingDetailPage(posting: posting));
-    }
+    Get.to(() => JobPostingDetailPage(posting: posting));
   }
 
   void createPosting() {
@@ -652,9 +644,41 @@ class HrJobPostingsController extends GetxController {
     closedPostings.insert(0, {
       ...posting,
       "status": "closed",
+
+      /// 🔥 FIX: pending korunacak ama UI doğru çalışacak
+      "pending": posting["pending"] ?? 0,
     });
 
     Get.snackbar("Success", "Posting closed");
+  }
+
+  // ===============================
+// FINALIZE POSTING (READY FOR INTERVIEW)
+// ===============================
+  void finalizePosting(String id) {
+    final posting = getPostingById(id);
+    if (posting == null) return;
+
+    final pending = posting["pending"] ?? 0;
+
+    /// 🔥 VALIDATION
+    if (pending > 0) {
+      Get.snackbar(
+        "Cannot finalize",
+        "Please review all pending candidates first.",
+      );
+      return;
+    }
+
+    /// 🔥 TODO: backend → create interview
+    Get.snackbar(
+      "Ready",
+      "All candidates reviewed. Proceed to interview.",
+    );
+
+    /// 🔥 ileride:
+    /// - interview oluştur
+    /// - interview page’e yönlendir
   }
 
   /// ===============================
