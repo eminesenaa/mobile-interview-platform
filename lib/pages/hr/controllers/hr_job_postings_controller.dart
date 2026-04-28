@@ -20,6 +20,7 @@
 import 'package:get/get.dart';
 
 import '../../../models/user.dart';
+import '../candidate_application_detail_page.dart';
 import '../job_posting_applicants_page.dart';
 import '../job_posting_create_page.dart';
 import '../job_posting_detail_page.dart';
@@ -92,6 +93,47 @@ class HrJobPostingsController extends GetxController {
   // ===============================
   void openApplicants(Map<String, dynamic> posting) {
     Get.to(() => JobPostingApplicantsPage(posting: posting));
+  }
+
+  // ===============================
+  // OPEN CANDIDATE DETAIL
+  // ===============================
+  void openCandidateDetail(String postingId, String userId) {
+    final posting = getPostingById(postingId);
+    if (posting == null) return;
+
+    final applicants = List<Map<String, dynamic>>.from(posting["applicants"]);
+
+    final applicant =
+    applicants.firstWhere((a) => a["userId"] == userId, orElse: () => {});
+
+    if (applicant.isEmpty) return;
+
+    final user = getUserByName(applicant["name"]);
+
+    /// 🔥 PAGE'e gönderilecek data
+    final application = {
+      "id": userId,
+      "name": applicant["name"],
+      "status": applicant["status"],
+
+      /// user info
+      "email": user?.email ?? "-",
+      "phone": user?.phoneNumber ?? "-",
+      "location": user?.location ?? "-",
+
+      /// application data (şimdilik mock)
+      "position": posting["position"],
+      "skills": ["React", "TypeScript", "CSS"],
+      "coverLetter":
+      "I am passionate about building modern UI applications and would love to join your team.",
+      "portfolioUrl": "portfolio.com",
+      "githubUrl": "github.com/user",
+      "linkedinUrl": "linkedin.com/in/user",
+      "resumeUrl": "resume.pdf",
+    };
+
+    Get.to(() => CandidateApplicationDetailPage(application: application));
   }
 
   // ===============================

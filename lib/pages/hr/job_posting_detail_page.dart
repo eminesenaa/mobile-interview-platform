@@ -122,6 +122,7 @@ class JobPostingDetailPage extends StatelessWidget {
 
             // ================= APPLICANTS =================
             JPDetailApplicantsPreview(
+              postingId: posting["id"],
               applicants: List<Map<String, dynamic>>.from(
                 posting["applicantsPreview"] ?? [],
               ),

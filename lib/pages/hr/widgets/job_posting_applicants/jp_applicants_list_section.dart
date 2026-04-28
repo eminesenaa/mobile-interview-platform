@@ -16,11 +16,13 @@ import 'package:get/get.dart';
 /// ================================================================
 
 class JPApplicantsListSection extends StatelessWidget {
+  final String postingId;
   final String title;
   final List<Map<String, dynamic>> applicants;
 
   const JPApplicantsListSection({
     super.key,
+    required this.postingId,
     required this.title,
     required this.applicants,
   });
@@ -50,10 +52,18 @@ class JPApplicantsListSection extends StatelessWidget {
               ? "${user.university ?? ''} · ${user.department ?? ''}"
               : "";
 
-          return JPApplicantCard(
-            name: a["name"],
-            subtitle: subtitle,
-            status: a["status"],
+          return GestureDetector(
+            onTap: () {
+              controller.openCandidateDetail(
+                postingId,
+                a["userId"],
+              );
+            },
+            child: JPApplicantCard(
+              name: a["name"],
+              subtitle: subtitle,
+              status: a["status"],
+            ),
           );
         }),
       ],

@@ -130,18 +130,21 @@ class _JobPostingApplicantsPageState extends State<JobPostingApplicantsPage> {
         children: [
           if (pending.isNotEmpty)
             JPApplicantsListSection(
+              postingId: widget.posting["id"],
               title: "Pending Review",
               applicants: pending,
             ),
           const SizedBox(height: AppSpacing.xl),
           if (accepted.isNotEmpty)
             JPApplicantsListSection(
+              postingId: widget.posting["id"],
               title: "Accepted",
               applicants: accepted,
             ),
           const SizedBox(height: AppSpacing.xl),
           if (rejected.isNotEmpty)
             JPApplicantsListSection(
+              postingId: widget.posting["id"],
               title: "Rejected",
               applicants: rejected,
             ),
@@ -167,6 +170,7 @@ class _JobPostingApplicantsPageState extends State<JobPostingApplicantsPage> {
     }
 
     return JPApplicantsListSection(
+      postingId: widget.posting["id"],
       title: selectedFilter,
       applicants: list,
     );

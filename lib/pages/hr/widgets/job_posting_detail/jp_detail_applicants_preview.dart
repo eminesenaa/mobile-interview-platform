@@ -9,11 +9,13 @@ import 'jp_applicant_card.dart';
 /// ===============================================================
 
 class JPDetailApplicantsPreview extends StatelessWidget {
+  final String postingId;
   final List<Map<String, dynamic>> applicants;
   final VoidCallback onSeeAll;
 
   const JPDetailApplicantsPreview({
     super.key,
+    required this.postingId,
     required this.applicants,
     required this.onSeeAll,
   });
@@ -47,10 +49,22 @@ class JPDetailApplicantsPreview extends StatelessWidget {
         ...preview.map((a) {
           final user = controller.getUserByName(a["name"]);
 
-          return JPApplicantCard(
-            name: a["name"],
-            subtitle: user?.educationDisplay ?? "-",
-            status: a["status"],
+          final subtitle = user != null
+              ? "${user.university ?? ''} · ${user.department ?? ''}"
+              : "";
+
+          return GestureDetector(
+            onTap: () {
+              controller.openCandidateDetail(
+                postingId,
+                a["userId"] ?? "",
+              );
+            },
+            child: JPApplicantCard(
+              name: a["name"] ?? "",
+              subtitle: subtitle,
+              status: a["status"] ?? "pending",
+            ),
           );
         }),
       ],

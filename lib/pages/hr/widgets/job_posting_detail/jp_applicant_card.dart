@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../../constants/constants.dart';
 
 /// ===================== APPLICANT CARD =====================
@@ -70,8 +71,22 @@ class JPApplicantCard extends StatelessWidget {
                 ),
               ),
 
-              /// STATUS (only if not pending)
-              if (!isPending) _statusChip(),
+              /// STATUS + ARROW (always visible)
+              Row(
+                children: [
+                  /// status sadece pending değilse
+                  if (!isPending) _statusChip(),
+
+                  const SizedBox(width: 6),
+
+                  /// ARROW ICON
+                  Icon(
+                    PhosphorIcons.caretRight(),
+                    size: 16,
+                    color: AppColors.textMuted,
+                  ),
+                ],
+              ),
             ],
           ),
 
