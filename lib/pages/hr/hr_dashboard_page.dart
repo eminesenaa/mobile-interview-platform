@@ -89,9 +89,6 @@ class HRDashboardPage extends StatelessWidget {
                 onViewResults: () {
                   Get.to(() => const HrResultsPage());
                 },
-                onViewCandidates: () {
-                  Get.snackbar("TODO", "Candidates Page");
-                },
               ),
               const SizedBox(height: AppSpacing.xl),
 

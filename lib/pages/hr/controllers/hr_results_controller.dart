@@ -6,6 +6,7 @@
 import 'package:get/get.dart';
 
 import '../hr_insights_page.dart';
+import 'hr_reviewed_detail_controller.dart';
 
 
 class HrResultsController extends GetxController {
@@ -85,6 +86,11 @@ class HrResultsController extends GetxController {
 
   /// ================= NAVIGATION =================
   void openInsights(Map<String, dynamic> interview) {
-    Get.to(() => const HrInsightsPage());
+    Get.to(
+          () => const HrInsightsPage(),
+      binding: BindingsBuilder(() {
+        Get.put(HrReviewedDetailController());
+      }),
+    );
   }
 }

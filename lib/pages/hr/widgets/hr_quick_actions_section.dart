@@ -20,7 +20,6 @@ class HRQuickActionsSection extends StatelessWidget {
   final VoidCallback onCreateInterview;
   final VoidCallback onViewInterviews;
   final VoidCallback onViewResults;
-  final VoidCallback onViewCandidates;
 
   const HRQuickActionsSection({
     super.key,
@@ -28,7 +27,6 @@ class HRQuickActionsSection extends StatelessWidget {
     required this.onCreateInterview,
     required this.onViewInterviews,
     required this.onViewResults,
-    required this.onViewCandidates,
   });
 
   @override
@@ -42,6 +40,7 @@ class HRQuickActionsSection extends StatelessWidget {
         Text(
           "QUICK ACTIONS",
           style: AppTextStyles.label.copyWith(
+            fontSize: 13,
             color: AppColors.textMuted,
           ),
         ),
@@ -81,7 +80,7 @@ class HRQuickActionsSection extends StatelessWidget {
           title: "View Interviews",
           subtitle: "Manage scheduled sessions",
           icon: PhosphorIcons.monitor(),
-          accentColor: AppColors.accentRoyalPlum,
+          accentColor: AppColors.darkMagenta,
           onTap: onViewInterviews,
         ),
 
@@ -94,21 +93,8 @@ class HRQuickActionsSection extends StatelessWidget {
           title: "Results",
           subtitle: "Review completed interviews",
           icon: PhosphorIcons.chartBar(),
-          accentColor: AppColors.stormyTeal,
-          onTap: onViewResults,
-        ),
-
-        const SizedBox(height: AppSpacing.sm),
-
-        // ===============================
-        // CANDIDATES
-        // ===============================
-        HRActionCard(
-          title: "Candidates",
-          subtitle: "Browse & manage applicants",
-          icon: PhosphorIcons.users(),
           accentColor: AppColors.honeyBronze,
-          onTap: onViewCandidates,
+          onTap: onViewResults,
         ),
       ],
     );

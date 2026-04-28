@@ -36,8 +36,8 @@ class HRRecentActivitySection extends StatelessWidget {
         Text(
           "RECENT ACTIVITY",
           style: AppTextStyles.label.copyWith(
+            fontSize: 13,
             color: AppColors.textMuted,
-            letterSpacing: 1,
           ),
         ),
 
