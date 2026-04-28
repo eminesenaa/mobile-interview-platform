@@ -15,12 +15,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:interview_project/pages/hr/cip_select_job_posting_page.dart';
 import 'package:interview_project/pages/hr/hr_interviews_page.dart';
 import 'package:interview_project/pages/hr/widgets/hr_recent_activity_section.dart';
 
 import '../../constants/constants.dart';
+import 'controllers/create_interview_controller.dart';
 import 'controllers/hr_dashboard_controller.dart';
-import 'create_interview_page.dart';
 import 'hr_job_postings_page.dart';
 import 'hr_results_page.dart';
 
@@ -75,7 +76,12 @@ class HRDashboardPage extends StatelessWidget {
                   Get.to(() => const HRJobPostingsPage());
                 },
                 onCreateInterview: () {
-                  Get.to(() => const CreateInterviewPage());
+                  Get.to(
+                        () => const CipSelectJobPostingPage(),
+                    binding: BindingsBuilder(() {
+                      Get.put(CreateInterviewController());
+                    }),
+                  );
                 },
                 onViewInterviews: () {
                   Get.to(() => const HRInterviewsPage());

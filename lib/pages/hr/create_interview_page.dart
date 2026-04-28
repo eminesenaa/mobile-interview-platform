@@ -14,8 +14,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:interview_project/pages/hr/widgets/ci_questions_actions.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:interview_project/pages/hr/widgets/create_interview/ci_questions_actions.dart';
 
 import '../../constants/constants.dart';
 
@@ -23,11 +22,10 @@ import '../../constants/constants.dart';
 import 'controllers/create_interview_controller.dart';
 
 // WIDGETS
-import 'widgets/ci_text_field.dart';
-import 'widgets/ci_date_time_row.dart';
-import 'widgets/ci_candidates_section.dart';
-import 'widgets/ci_invite_code_card.dart';
-import 'widgets/ci_create_button.dart';
+import 'widgets/create_interview/ci_text_field.dart';
+import 'widgets/create_interview/ci_date_time_row.dart';
+import 'widgets/create_interview/ci_invite_code_card.dart';
+import 'widgets/create_interview/ci_create_button.dart';
 
 class CreateInterviewPage extends StatelessWidget {
   const CreateInterviewPage({super.key});
@@ -85,17 +83,12 @@ class CreateInterviewPage extends StatelessWidget {
             // ================= QUESTIONS =================
             const CIQuestionsActions(),
 
-            const SizedBox(height: AppSpacing.lg),
-
-            // ================= CANDIDATES =================
-            const CICandidatesSection(),
-
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.xxl),
 
             // ================= INVITE CODE =================
             const CIInviteCodeCard(),
 
-            const SizedBox(height: AppSpacing.xl),
+            const SizedBox(height: AppSpacing.xxl),
 
             // ================= CREATE BUTTON =================
             const CICreateButton(),

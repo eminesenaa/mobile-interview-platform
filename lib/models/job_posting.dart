@@ -179,4 +179,16 @@ class JobPosting {
       closedAt: closedAt ?? this.closedAt,
     );
   }
+
+
+  // ===================== HELPERS =====================
+
+  /// 🔥 Posting is ready for interview
+  /// Condition:
+  /// - Closed
+  /// - No pending applications left
+  bool get isReady {
+    return status == JobPostingStatus.closed &&
+        applicationIds.length == acceptedCandidateIds.length;
+  }
 }

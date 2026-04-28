@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../constants/constants.dart';
+import '../../../../constants/constants.dart';
 
 class CITextEditDialog extends StatefulWidget {
   final String title;

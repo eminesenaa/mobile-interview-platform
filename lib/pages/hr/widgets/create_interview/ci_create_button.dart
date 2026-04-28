@@ -5,8 +5,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../constants/constants.dart';
-import '../controllers/create_interview_controller.dart';
+import '../../../../constants/constants.dart';
+import '../../controllers/create_interview_controller.dart';
 
 class CICreateButton extends StatelessWidget {
   const CICreateButton({super.key});

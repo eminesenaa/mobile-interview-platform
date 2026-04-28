@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../constants/constants.dart';
+import '../../../../constants/constants.dart';
 import 'ci_time_picker.dart';
 
 class CITimeRangeDialog extends StatefulWidget {

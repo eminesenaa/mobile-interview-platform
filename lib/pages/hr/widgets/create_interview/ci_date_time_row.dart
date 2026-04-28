@@ -10,8 +10,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import '../../../constants/constants.dart';
-import '../controllers/create_interview_controller.dart';
+import '../../../../constants/constants.dart';
+import '../../controllers/create_interview_controller.dart';
 import 'ci_time_picker.dart';
 
 class CIDateTimeRow extends StatelessWidget {

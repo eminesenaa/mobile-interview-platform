@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get_core/src/get_main.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../../constants/constants.dart';
 

@@ -11,9 +11,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:interview_project/pages/hr/ud_candidates_edit_page.dart';
-import 'package:interview_project/pages/hr/widgets/ci_text_edit_dialog.dart';
+import 'package:interview_project/pages/hr/widgets/create_interview/ci_text_edit_dialog.dart';
 import 'package:interview_project/pages/hr/widgets/hr_detail_header.dart';
-import 'package:interview_project/pages/hr/widgets/ud_candidates_preview.dart';
+import 'package:interview_project/pages/hr/widgets/upcoming_detail/ud_candidates_preview.dart';
 import 'package:interview_project/pages/hr/widgets/upcoming_detail/ud_info_card.dart';
 import 'package:interview_project/pages/hr/widgets/upcoming_detail/ud_interview_details_card.dart';
 

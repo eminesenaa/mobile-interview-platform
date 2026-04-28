@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:wheel_picker/wheel_picker.dart';
 
-import '../../../constants/constants.dart';
+import '../../../../constants/constants.dart';
 
 class CITimePicker {
   static void show({

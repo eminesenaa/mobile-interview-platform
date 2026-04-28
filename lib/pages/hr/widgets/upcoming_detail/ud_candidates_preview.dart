@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../constants/constants.dart';
+import '../../../../constants/constants.dart';
 
 class UDCandidatesPreview extends StatelessWidget {
   final List<Map<String, dynamic>> candidates;
