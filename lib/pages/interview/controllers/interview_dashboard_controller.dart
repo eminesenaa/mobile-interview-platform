@@ -76,7 +76,16 @@ class InterviewDashboardController extends GetxController {
         "level": "Senior",
         "location": "Istanbul, Turkey",
         "workType": "Remote",
-        "description": "Build performant UIs with React & TypeScript.",
+        "description":
+        "Build and maintain modern, scalable, and high-performance user interfaces using React and TypeScript. Collaborate closely with designers and backend teams to deliver seamless user experiences. Optimize applications for speed and responsiveness, ensure cross-browser compatibility, and contribute to UI architecture decisions.",
+        "requirements": [
+          "4+ years of frontend development experience",
+          "Strong proficiency in React and TypeScript",
+          "Experience with state management libraries (Redux, Zustand, etc.)",
+          "Solid understanding of responsive design and UI/UX principles",
+          "Familiarity with REST APIs and modern frontend tooling",
+        ],
+        "salary": "\$4,000 - \$6,000",
       },
       {
         "id": "JP-2",
@@ -84,7 +93,16 @@ class InterviewDashboardController extends GetxController {
         "level": "Mid-Level",
         "location": "Berlin, Germany",
         "workType": "Hybrid",
-        "description": "Design scalable APIs with Node.js.",
+        "description":
+        "Design, develop, and maintain scalable backend systems and APIs using Node.js. Work with microservice architectures, integrate third-party services, and ensure high availability and performance. Collaborate with frontend and DevOps teams to deliver end-to-end solutions.",
+        "requirements": [
+          "3+ years of backend development experience",
+          "Strong knowledge of Node.js and Express.js",
+          "Experience with RESTful API design and microservices",
+          "Familiarity with databases (PostgreSQL, MongoDB)",
+          "Understanding of authentication, security, and performance optimization",
+        ],
+        "salary": "\$3,500 - \$5,000",
       },
     ];
 

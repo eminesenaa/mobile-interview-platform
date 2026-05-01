@@ -3,7 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:interview_project/pages/interview/interview_dashboard_page.dart';
+import 'package:interview_project/pages/interview/pages/interview_dashboard_page.dart';
 
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';

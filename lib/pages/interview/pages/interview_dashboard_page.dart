@@ -22,19 +22,21 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../constants/constants.dart';
+import '../../../constants/constants.dart';
 
 // CONTROLLER
-import 'controllers/interview_dashboard_controller.dart';
+import '../controllers/interview_dashboard_controller.dart';
 
 // WIDGETS
-import 'widgets/interview_dashboard/id_dashboard_hero.dart';
-import 'widgets/interview_dashboard/id_stats_row.dart';
-import 'widgets/interview_dashboard/id_section_header.dart';
-import 'widgets/interview_dashboard/id_open_position_card.dart';
-import 'widgets/interview_dashboard/id_application_item.dart';
-import 'widgets/interview_dashboard/id_interview_card.dart';
-import 'widgets/interview_dashboard/id_result_item.dart';
+import '../widgets/interview_dashboard/id_dashboard_hero.dart';
+import '../widgets/interview_dashboard/id_stats_row.dart';
+import '../widgets/interview_dashboard/id_section_header.dart';
+import '../widgets/interview_dashboard/id_open_position_card.dart';
+import '../widgets/interview_dashboard/id_application_item.dart';
+import '../widgets/interview_dashboard/id_interview_card.dart';
+import '../widgets/interview_dashboard/id_result_item.dart';
+import 'open_positions/job_detail_page.dart';
+import 'open_positions/open_positions_page.dart';
 
 class InterviewDashboardPage extends StatelessWidget {
   const InterviewDashboardPage({super.key});
@@ -99,7 +101,7 @@ class InterviewDashboardPage extends StatelessWidget {
                   title: "Open Positions",
                   actionText: "Browse all",
                   onTap: () {
-                    // TODO: navigate to full job list
+                    Get.to(() => const OpenPositionsPage());
                   },
                 ),
 
@@ -110,7 +112,12 @@ class InterviewDashboardPage extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: AppSpacing.md),
                     child: IdOpenPositionCard(
                       job: job,
-                      onApply: () => controller.applyToJob(job),
+                      onApply: () {
+                        Get.to(
+                              () => const JobDetailPage(),
+                          arguments: job,
+                        );
+                      },
                     ),
                   );
                 }),
