@@ -35,6 +35,8 @@ import '../widgets/interview_dashboard/id_open_position_card.dart';
 import '../widgets/interview_dashboard/id_application_item.dart';
 import '../widgets/interview_dashboard/id_interview_card.dart';
 import '../widgets/interview_dashboard/id_result_item.dart';
+import 'applications/application_detail_page.dart';
+import 'applications/applications_page.dart';
 import 'open_positions/job_detail_page.dart';
 import 'open_positions/open_positions_page.dart';
 
@@ -107,14 +109,14 @@ class InterviewDashboardPage extends StatelessWidget {
 
                 const SizedBox(height: AppSpacing.md),
 
-                ...controller.openPositions.map((job) {
+                ...controller.openPositions.take(2).map((job) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.md),
                     child: IdOpenPositionCard(
                       job: job,
                       onApply: () {
                         Get.to(
-                              () => const JobDetailPage(),
+                          () => const JobDetailPage(),
                           arguments: job,
                         );
                       },
@@ -130,16 +132,21 @@ class InterviewDashboardPage extends StatelessWidget {
                 IdSectionHeader(
                   title: "My Applications",
                   actionText: "View all",
-                  onTap: () {},
+                  onTap: () {
+                    Get.to(() => const ApplicationsPage());
+                  },
                 ),
 
                 const SizedBox(height: AppSpacing.md),
 
-                ...controller.applications.map((app) {
+                ...controller.applications.take(3).map((app) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                     child: IdApplicationItem(
                       application: app,
+                      onTap: () {
+                        Get.to(() => ApplicationDetailPage(), arguments: app);
+                      },
                     ),
                   );
                 }),
@@ -171,7 +178,7 @@ class InterviewDashboardPage extends StatelessWidget {
 
                 const SizedBox(height: AppSpacing.md),
 
-                ...controller.results.map((result) {
+                ...controller.results.take(3).map((result) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                     child: IdResultItem(
