@@ -8,8 +8,7 @@ import 'dart:io';
 
 import '../../../models/user.dart';
 import '../../../models/streak.dart';
-import '../profile_edit_page.dart';
-import '../widgets/contact_info_modal.dart';
+import '../edit_profile_page.dart';
 import '../widgets/pdf_viewer_page.dart';
 
 /// ============================================================================
@@ -192,17 +191,11 @@ class ProfileController extends GetxController {
   // --------------------------------------------------------------------------
   // 🔹 UI Actions (navigation helpers)
   // --------------------------------------------------------------------------
-  void openEditProfile() => Get.to(() => const ProfileSettingsPage());
+  void openEditProfile() => Get.to(() => const EditProfilePage());
 
   void openProgressPage() => Get.snackbar("Progress", "Opening...");
 
   void openInterviewResults() =>
       Get.snackbar("Interview Results", "Coming soon");
 
-  void openContactInfoModal() {
-    Get.bottomSheet(
-      ContactInfoModal(),
-      isScrollControlled: true,
-    );
-  }
 }

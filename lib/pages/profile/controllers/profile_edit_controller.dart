@@ -9,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:overlay_support/overlay_support.dart';
 
+import '../../../constants/text_styles.dart';
 import '../../home/controllers/home_controller.dart';
 
 class ProfileEditController extends GetxController {
@@ -149,7 +150,7 @@ class ProfileEditController extends GetxController {
 
       Get.find<HomeController>().listenToUser();
 
-      _toast("Updated", "Your profile has been updated successfully 🎉",
+      _toast("Updated", "Your profile has been updated successfully.",
           Colors.green);
     } catch (e) {
       _toast("Error", e.toString(), Colors.red);
@@ -169,14 +170,14 @@ class ProfileEditController extends GetxController {
       await user.reauthenticateWithCredential(cred);
 
       if (current == next) {
-        _toast("Error", "New password cannot match current password ❌",
+        _toast("Error", "New password cannot match current password.",
             Colors.red);
         return;
       }
 
       await user.updatePassword(next);
       Get.back();
-      _toast("Success", "Your password has been changed 🎉", Colors.green);
+      _toast("Success", "Your password has been changed.", Colors.green);
     } on FirebaseAuthException catch (e) {
       _toast("Error", e.message ?? "Password update failed", Colors.red);
     }
@@ -201,12 +202,38 @@ class ProfileEditController extends GetxController {
   // ===================== INTERNAL TOAST HELPER =====================
   void _toast(String title, String message, Color color) {
     showSimpleNotification(
-      Text(title,
-          style: const TextStyle(
-              color: Colors.white, fontWeight: FontWeight.bold)),
-      subtitle: Text(message, style: const TextStyle(color: Colors.white)),
-      background: color,
-      autoDismiss: true,
+      Container(
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 10,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.75),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: AppTextStyles.bodyStrong.copyWith(
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              message,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: Colors.white.withOpacity(0.85),
+              ),
+            ),
+          ],
+        ),
+      ),
+
+      background: Colors.transparent,
+      elevation: 0,
       duration: const Duration(seconds: 3),
     );
   }

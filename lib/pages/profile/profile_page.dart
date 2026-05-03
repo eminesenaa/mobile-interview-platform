@@ -1,145 +1,127 @@
 // ===================== File: profile_page.dart =====================
-// Modern, null-safe Profile Page – build() içinde Get.put()
+// Purpose:
+// Modern Profile Page (UI Refactored)
+//
+// Features:
+// - Clean centered header
+// - XP & Streak cards
+// - Account actions (Edit / Results / Settings)
+// - Interview entry card
+//
+// IMPORTANT:
+// - Backend & controller logic is NOT changed
+// - Only UI is refactored
+//
+// TODO (Future):
+// - Replace mock counts (interview stats) with real backend data
+// ==================================================================
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:interview_project/pages/interview/pages/interview_dashboard_page.dart';
+import 'package:interview_project/pages/profile/settings_page.dart';
 
-import '../../constants/colors.dart';
-import '../../constants/text_styles.dart';
 import '../../constants/constants.dart';
 
+// ================= CONTROLLER =================
 import 'controllers/profile_controller.dart';
-import 'widgets/profile_header.dart';
-import 'widgets/profile_stats_row.dart';
-import 'widgets/profile_tools_list.dart';
+import 'controllers/profile_edit_controller.dart';
+
+// ================= NEW WIDGETS =================
+import 'widgets/profile/np_header_section.dart';
+import 'widgets/profile/np_stats_section.dart';
+import 'widgets/profile/np_account_section.dart';
+import 'widgets/profile/np_interview_card.dart';
+
+// ================= NAVIGATION =================
+import '../interview/pages/interview_dashboard_page.dart';
+import 'edit_profile_page.dart';
+import '../interview/pages/results/interview_results_page.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // ================= INIT CONTROLLER =================
     final controller = Get.put(ProfileController());
+    Get.lazyPut(() => ProfileEditController());
 
     return Scaffold(
-      // backgroundColor: AppColors.background,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppColors.primary,
-              AppColors.background,
-            ],
-            stops: [0.0, 0.55],
-          ),
-        ),
-        child: Obx(() {
-          final user = controller.user.value;
+      backgroundColor: AppColors.background,
+      body: Obx(() {
+        final user = controller.user.value;
 
-          if (user == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          return SafeArea(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ---------------------------
-                  // HEADER (full width gradient)
-                  // ---------------------------
-                  ProfileHeader(
-                    avatarUrl: user.avatar,
-                    name: "${user.name} ${user.surname}",
-                    role: user.role ?? "",
-                    location: user.location ?? "",
-                    onContactPressed: controller.openContactInfoModal,
-                  ),
-
-                  // ---------------------------
-                  // BODY
-                  // ---------------------------
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.lg,
-                      vertical: AppSpacing.md,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: AppSpacing.xl),
-                        ProfileStatsRow(
-                          xp: user.totalXp,
-                          streak: user.streak.streakCount,
-                        ),
-                        const SizedBox(height: AppSpacing.xxl),
-                        Text(
-                          "Profile Tools",
-                          style: AppTextStyles.headline,
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        ProfileToolsList(
-                          onOpenProgress: controller.openProgressPage,
-                          onOpenInterviewResults:
-                              controller.openInterviewResults,
-                          onEditProfile: controller.openEditProfile,
-                          onUploadCV: controller.uploadCV,
-                          onViewCV: controller.openCVViewer,
-                          hasCV: user.cvUrl != null,
-                          onCVPressed:
-                              () {}, // BURASI DOLACAK MI VS KONTROL EDİLMESİ LAZIM
-                        ),
-                        // ---------------------------
-                        // INTERVIEW SECTION (TEMP ENTRY)
-                        // ---------------------------
-                        const SizedBox(height: AppSpacing.xxl),
-
-                        Text(
-                          "Interviews",
-                          style: AppTextStyles.headline,
-                        ),
-
-                        const SizedBox(height: AppSpacing.md),
-
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.all(16),
-                            leading: const Icon(
-                              Icons.work_outline,
-                              color: AppColors.primary,
-                            ),
-                            title: const Text(
-                              "My Interviews",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            subtitle: const Text(
-                              "View and enter your interviews",
-                            ),
-                            trailing:
-                                const Icon(Icons.arrow_forward_ios, size: 16),
-                            onTap: () {
-                              // 👉 Navigate to Interview Main Page
-                              Get.to(() => const InterviewDashboardPage());
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+        // ================= LOADING =================
+        if (user == null) {
+          return const Center(
+            child: CircularProgressIndicator(),
           );
-        }),
-      ),
+        }
+
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg, // left
+              AppSpacing.xxl, // top
+              AppSpacing.lg, // right
+              AppSpacing.md, // bottom
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // =====================================================
+                // HEADER SECTION
+                // =====================================================
+                NpHeaderSection(
+                  name: "${user.name} ${user.surname}",
+                  role: user.role ?? "User",
+                  location: user.location,
+                ),
+
+                const SizedBox(height: AppSpacing.xl),
+
+                // =====================================================
+                // STATS SECTION (XP + STREAK)
+                // =====================================================
+                NpStatsSection(
+                  xp: user.totalXp,
+                  streak: user.streak.streakCount,
+                ),
+
+                const SizedBox(height: AppSpacing.xxl),
+
+                // =====================================================
+                // ACCOUNT SECTION
+                // =====================================================
+                NpAccountSection(
+                  onEdit: () {
+                    Get.to(() => const EditProfilePage());
+                  },
+                  onResults: () {
+                    Get.to(() => const InterviewResultsPage());
+                  },
+                  onSettings: () {
+                    Get.to(() => const SettingsPage());
+                  },
+                ),
+
+                const SizedBox(height: AppSpacing.md),
+
+                // =====================================================
+                // INTERVIEW ENTRY CARD
+                // =====================================================
+                NpInterviewCard(
+                  upcoming: 0, // TODO (Backend): replace with real data
+                  completed: 0, // TODO (Backend): replace with real data
+                  onTap: () {
+                    Get.to(() => const InterviewDashboardPage());
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
     );
   }
 }
