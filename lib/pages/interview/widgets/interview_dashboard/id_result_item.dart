@@ -1,24 +1,19 @@
 // ===================== File: id_result_item.dart =====================
 // Purpose:
-// Displays a candidate's interview result (clean + actionable)
+// Displays interview result item (UPDATED)
 //
-// Design Decisions:
-// - No avatar (single-user context)
-// - Left icon (Phosphor)
-// - Status chip (accepted / rejected / pending)
-// - Navigation arrow (indicates detail page)
-// - Minimal + premium look
-//
-// Status Types:
-// - accepted → success
-// - rejected → error
-// - pending  → warning
+// Improvements:
+// - Fixed height (all cards equal)
+// - Removed icon block
+// - Added left colored status bar
+// - Cleaner, more premium layout
 // ====================================================================
 
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../../constants/constants.dart';
+import '../../../../models/interview_result.dart';
 
 class IdResultItem extends StatelessWidget {
   final Map<String, dynamic> result;
@@ -32,131 +27,128 @@ class IdResultItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = result["status"] ?? "pending";
+    final decision = result["result"].decision;
 
+    final status = decision == InterviewDecisionStatus.accepted
+        ? "accepted"
+        : decision == InterviewDecisionStatus.rejected
+        ? "rejected"
+        : "pending";
     final config = _getStatusConfig(status);
 
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            // ================= ICON =================
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: config.color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              child: Icon(
-                config.icon,
-                color: config.color,
-                size: AppIconSizes.md,
-              ),
-            ),
-
-            const SizedBox(width: AppSpacing.md),
-
-            // ================= TEXT =================
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // TITLE
-                  Text(
-                    result["title"] ?? "",
-                    style: AppTextStyles.title,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: Container(
+          height: 92,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              // ================= LEFT STATUS BAR =================
+              Container(
+                width: 4,
+                decoration: BoxDecoration(
+                  color: config.color,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(AppRadius.lg),
+                    bottomLeft: Radius.circular(AppRadius.lg),
                   ),
-
-                  const SizedBox(height: AppSpacing.xs),
-
-                  // SUBTEXT
-                  Text(
-                    _buildSubtitle(status),
-                    style: AppTextStyles.bodySmall,
-                  ),
-                ],
+                ),
               ),
-            ),
 
-            const SizedBox(width: AppSpacing.sm),
+              const SizedBox(width: AppSpacing.md),
 
-            // ================= STATUS CHIP =================
-            _statusChip(
-              config.label,
-              config.color,
-            ),
+              // ================= CONTENT =================
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AppSpacing.sm,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // TITLE
+                      Text(
+                        result["title"] ?? "",
+                        style: AppTextStyles.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
 
-            const SizedBox(width: AppSpacing.sm),
+                      const SizedBox(height: AppSpacing.xs),
 
-            // ================= NAV ARROW =================
-            Icon(
-              PhosphorIcons.caretRight(),
-              size: AppIconSizes.md,
-              color: AppColors.textMuted,
-            ),
-          ],
+                      // SUBTITLE
+                      Text(
+                        _buildSubtitle(status),
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textMuted,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: AppSpacing.sm),
+
+              // ================= STATUS CHIP =================
+              _statusChip(
+                config.label,
+                config.color,
+              ),
+
+              const SizedBox(width: AppSpacing.sm),
+
+              // ================= ARROW =================
+              Icon(
+                PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
+                size: AppIconSizes.sm,
+                color: AppColors.textMuted,
+              ),
+
+              const SizedBox(width: AppSpacing.sm),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // =========================================================
-  // 🎯 STATUS CONFIG
-  // =========================================================
+  // ================= STATUS CONFIG =================
   _StatusConfig _getStatusConfig(String status) {
     switch (status.toLowerCase()) {
       case "accepted":
-        return _StatusConfig(
-          "Accepted",
-          AppColors.success,
-          PhosphorIcons.check(PhosphorIconsStyle.bold),
-        );
-
+        return _StatusConfig("Accepted", AppColors.success);
       case "rejected":
-        return _StatusConfig(
-          "Rejected",
-          AppColors.error,
-          PhosphorIcons.x(PhosphorIconsStyle.bold),
-        );
-
+        return _StatusConfig("Rejected", AppColors.error);
       case "pending":
       default:
-        return _StatusConfig(
-          "Pending",
-          AppColors.warning,
-          PhosphorIcons.clockUser(),
-        );
+        return _StatusConfig("Pending", AppColors.warning);
     }
   }
 
-  // =========================================================
-  // 📝 SUBTITLE LOGIC
-  // =========================================================
+  // ================= SUBTITLE =================
   String _buildSubtitle(String status) {
     switch (status.toLowerCase()) {
       case "accepted":
         return "You passed this interview.";
-
       case "rejected":
-        return "Application was not successful";
-
+        return "Application was not successful.";
       case "pending":
       default:
         return "Under HR review.";
     }
   }
 
-  // =========================================================
-  // 🎯 CHIP
-  // =========================================================
+  // ================= CHIP =================
   Widget _statusChip(String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -165,26 +157,23 @@ class IdResultItem extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Text(
         text,
         style: AppTextStyles.bodySmall.copyWith(
           color: color,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
   }
 }
 
-// =========================================================
-// 🔹 INTERNAL MODEL
-// =========================================================
+// ================= INTERNAL MODEL =================
 class _StatusConfig {
   final String label;
   final Color color;
-  final IconData icon;
 
-  _StatusConfig(this.label, this.color, this.icon);
+  _StatusConfig(this.label, this.color);
 }

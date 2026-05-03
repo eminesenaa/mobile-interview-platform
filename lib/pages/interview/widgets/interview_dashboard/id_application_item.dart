@@ -156,7 +156,7 @@ class IdApplicationItem extends StatelessWidget {
         text,
         style: AppTextStyles.bodySmall.copyWith(
           color: color,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

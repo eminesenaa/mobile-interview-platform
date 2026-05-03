@@ -20,6 +20,7 @@
 
 import 'package:get/get.dart';
 
+import '../../../models/interview_result.dart';
 import '../pages/interview/waiting/interview_waiting_page.dart';
 
 class InterviewDashboardController extends GetxController {
@@ -79,7 +80,7 @@ class InterviewDashboardController extends GetxController {
         "location": "Istanbul, Turkey",
         "workType": "Remote",
         "description":
-        "Build and maintain modern, scalable, and high-performance user interfaces using React and TypeScript. Collaborate closely with designers and backend teams to deliver seamless user experiences. Optimize applications for speed and responsiveness, ensure cross-browser compatibility, and contribute to UI architecture decisions.",
+            "Build and maintain modern, scalable, and high-performance user interfaces using React and TypeScript. Collaborate closely with designers and backend teams to deliver seamless user experiences. Optimize applications for speed and responsiveness, ensure cross-browser compatibility, and contribute to UI architecture decisions.",
         "requirements": [
           "4+ years of frontend development experience",
           "Strong proficiency in React and TypeScript",
@@ -96,7 +97,7 @@ class InterviewDashboardController extends GetxController {
         "location": "Berlin, Germany",
         "workType": "Hybrid",
         "description":
-        "Design, develop, and maintain scalable backend systems and APIs using Node.js. Work with microservice architectures, integrate third-party services, and ensure high availability and performance. Collaborate with frontend and DevOps teams to deliver end-to-end solutions.",
+            "Design, develop, and maintain scalable backend systems and APIs using Node.js. Work with microservice architectures, integrate third-party services, and ensure high availability and performance. Collaborate with frontend and DevOps teams to deliver end-to-end solutions.",
         "requirements": [
           "3+ years of backend development experience",
           "Strong knowledge of Node.js and Express.js",
@@ -116,7 +117,7 @@ class InterviewDashboardController extends GetxController {
         "workType": "Remote",
         "salary": "\$4,000 - \$6,000",
         "description":
-        "Join our design team to create intuitive and user-friendly experiences. Collaborate with product managers and engineers to design seamless user journeys, improve usability, and contribute to design system consistency.",
+            "Join our design team to create intuitive and user-friendly experiences. Collaborate with product managers and engineers to design seamless user journeys, improve usability, and contribute to design system consistency.",
         "requirements": [
           "3+ years experience in product design",
           "Figma / Adobe XD knowledge",
@@ -131,7 +132,7 @@ class InterviewDashboardController extends GetxController {
         "endTime": "2026-05-12T15:00:00",
         "inviteCode": "PQ-Z040",
         "hrMessage":
-        "Your application is currently under review. If selected, you will receive an interview invitation with further details.",
+            "Your application is currently under review. If selected, you will receive an interview invitation with further details.",
       },
       {
         "title": "iOS Engineer",
@@ -139,7 +140,7 @@ class InterviewDashboardController extends GetxController {
         "workType": "On-site",
         "salary": "\$5,000 - \$7,000",
         "description":
-        "Develop high-quality iOS applications using Swift and modern Apple frameworks. Work closely with cross-functional teams to build scalable, maintainable mobile solutions and deliver smooth user experiences.",
+            "Develop high-quality iOS applications using Swift and modern Apple frameworks. Work closely with cross-functional teams to build scalable, maintainable mobile solutions and deliver smooth user experiences.",
         "requirements": [
           "3+ years of iOS development experience",
           "Strong knowledge of Swift and UIKit/SwiftUI",
@@ -155,7 +156,7 @@ class InterviewDashboardController extends GetxController {
         "endTime": "2026-05-14T11:00:00",
         "inviteCode": "IO-A921",
         "hrMessage":
-        "Hi! We are happy to inform you that you have been selected for an interview. Please be available at the scheduled time and use your invite code to join.",
+            "Hi! We are happy to inform you that you have been selected for an interview. Please be available at the scheduled time and use your invite code to join.",
       },
       {
         "title": "Data Analyst",
@@ -163,7 +164,7 @@ class InterviewDashboardController extends GetxController {
         "workType": "Remote",
         "salary": "\$3,000 - \$4,500",
         "description":
-        "Analyze datasets to generate actionable insights and support business decisions. Build dashboards, create reports, and collaborate with teams to identify trends and improve data-driven strategies.",
+            "Analyze datasets to generate actionable insights and support business decisions. Build dashboards, create reports, and collaborate with teams to identify trends and improve data-driven strategies.",
         "requirements": [
           "2+ years of experience in data analysis",
           "Strong SQL and Excel skills",
@@ -179,7 +180,7 @@ class InterviewDashboardController extends GetxController {
         "endTime": "2026-05-10T00:00:00",
         "inviteCode": "—",
         "hrMessage":
-        "Thank you for your interest. After careful consideration, we will not be moving forward with your application at this time.",
+            "Thank you for your interest. After careful consideration, we will not be moving forward with your application at this time.",
       },
       {
         "title": "Backend Engineer",
@@ -187,7 +188,7 @@ class InterviewDashboardController extends GetxController {
         "workType": "Hybrid",
         "salary": "\$4,000 - \$6,000",
         "description":
-        "Design and maintain backend systems and APIs with a focus on scalability and performance. Work with distributed systems, integrate services, and ensure secure and efficient data handling.",
+            "Design and maintain backend systems and APIs with a focus on scalability and performance. Work with distributed systems, integrate services, and ensure secure and efficient data handling.",
         "requirements": [
           "3+ years of backend development experience",
           "Strong knowledge of Node.js or similar backend technologies",
@@ -203,7 +204,7 @@ class InterviewDashboardController extends GetxController {
         "endTime": "2026-05-16T17:00:00",
         "inviteCode": "BE-X552",
         "hrMessage":
-        "Hi! We are happy to inform you that you have been selected for an interview. Please be available at the scheduled time and use your invite code to join.",
+            "Hi! We are happy to inform you that you have been selected for an interview. Please be available at the scheduled time and use your invite code to join.",
       },
     ];
 
@@ -224,21 +225,63 @@ class InterviewDashboardController extends GetxController {
     results.value = [
       {
         "title": "Frontend Developer",
-        "status": "accepted",
-        "date": "Apr 14, 2025",
-        "feedback": "Excellent performance across all topics.",
+        "company": "AppNova",
+        "location": "San Francisco",
+        "startTime": "2026-05-14T10:00:00",
+        "endTime": "2026-05-14T11:00:00",
+        "result": InterviewResult(
+          id: "1",
+          interviewId: "int_1",
+          candidateId: "user_1",
+          score: 95,
+          correctCount: 9,
+          wrongCount: 1,
+          unansweredCount: 0,
+          decision: InterviewDecisionStatus.accepted,
+          hrMessage: "Excellent performance!",
+          isSubmitted: true,
+          isReviewed: true,
+          submittedAt: DateTime.now().subtract(const Duration(days: 2)),
+          reviewedAt: DateTime.now().subtract(const Duration(days: 1)),
+        ),
       },
       {
         "title": "Product Designer",
-        "status": "pending",
-        "date": "Apr 20, 2025",
-        "feedback": "Under HR review",
+        "company": "CreativeWorks",
+        "location": "Amsterdam",
+        "startTime": "2026-05-18T09:00:00",
+        "endTime": "2026-05-18T10:00:00",
+        "result": InterviewResult(
+          id: "2",
+          interviewId: "int_2",
+          candidateId: "user_1",
+          decision: InterviewDecisionStatus.pending,
+          isSubmitted: true,
+          isReviewed: false,
+          submittedAt: DateTime.now().subtract(const Duration(days: 1)),
+        ),
       },
       {
         "title": "Backend Engineer",
-        "status": "rejected",
-        "date": "Apr 18, 2025",
-        "feedback": "Did not meet expectations.",
+        "company": "Cloudify",
+        "location": "Berlin",
+        "startTime": "2026-05-10T14:00:00",
+        "endTime": "2026-05-10T15:00:00",
+        "result": InterviewResult(
+          id: "3",
+          interviewId: "int_3",
+          candidateId: "user_1",
+          score: 62,
+          correctCount: 6,
+          wrongCount: 4,
+          unansweredCount: 0,
+          decision: InterviewDecisionStatus.rejected,
+          hrMessage: "Did not meet expectations.",
+          isSubmitted: true,
+          isReviewed: true,
+          submittedAt: DateTime.now().subtract(const Duration(days: 4)),
+          reviewedAt: DateTime.now().subtract(const Duration(days: 3)),
+        ),
       },
     ];
   }
@@ -337,7 +380,7 @@ class InterviewDashboardController extends GetxController {
     }
 
     Get.to(
-          () => const InterviewWaitingPage(),
+      () => const InterviewWaitingPage(),
       arguments: {
         "date": "May 14, 2026",
         "time": "10:00 – 11:00",
@@ -368,8 +411,19 @@ class InterviewDashboardController extends GetxController {
 
   String _monthName(int month) {
     const months = [
-      "", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+      "",
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
     ];
     return months[month];
   }

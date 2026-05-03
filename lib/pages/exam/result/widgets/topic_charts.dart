@@ -33,11 +33,11 @@ class TopicCharts extends StatelessWidget {
 
     /// 🎨 Soft, tekrar edebilir renk paleti
     final List<Color> palette = [
-      AppColors.topicDeepTwilight,
-      AppColors.topicBrightTeal,
+      AppColors.cinnabar,
+      AppColors.accentRoyalPlum,
+      AppColors.accentCeladon,
+      AppColors.honeyBronze,
       AppColors.topicTurquoise,
-      AppColors.topicFrostedBlue,
-      AppColors.topicLightCyan,
     ];
 
     /// 🏷️ Label düzenleyici

@@ -22,6 +22,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:interview_project/pages/interview/pages/results/interview_result_detail_page.dart';
+import 'package:interview_project/pages/interview/pages/results/interview_results_page.dart';
 import '../../../constants/constants.dart';
 
 // CONTROLLER
@@ -173,7 +175,9 @@ class InterviewDashboardPage extends StatelessWidget {
                 IdSectionHeader(
                   title: "Interview Results",
                   actionText: "View all",
-                  onTap: () {},
+                  onTap: () {
+                    Get.to(() => const InterviewResultsPage());
+                  },
                 ),
 
                 const SizedBox(height: AppSpacing.md),
@@ -183,6 +187,12 @@ class InterviewDashboardPage extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                     child: IdResultItem(
                       result: result,
+                      onTap: () {
+                        Get.to(
+                          () => const InterviewResultDetailPage(),
+                          arguments: result,
+                        );
+                      },
                     ),
                   );
                 }),
