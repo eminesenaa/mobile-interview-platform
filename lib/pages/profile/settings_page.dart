@@ -9,15 +9,18 @@
 // - Navigation ready
 // ===================================================================
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../constants/constants.dart';
+import '../auth/login_page.dart';
 import '../profile/controllers/profile_controller.dart';
 import '../profile/edit_profile_page.dart';
 
 // Widgets
+import 'controllers/profile_edit_controller.dart';
 import 'widgets/settings/st_header_section.dart';
 import 'widgets/settings/st_action_tile.dart';
 import 'widgets/settings/st_toggle_tile.dart';
@@ -91,6 +94,7 @@ class SettingsPage extends StatelessWidget {
                   subtitle: "Update your password",
                   icon: PhosphorIcons.lock(),
                   onTap: () {
+                    Get.put(ProfileEditController());
                     Get.dialog(const StChangePasswordDialog());
                   },
                 ),
@@ -194,8 +198,9 @@ class SettingsPage extends StatelessWidget {
               // LOGOUT
               // =====================================================
               StLogoutButton(
-                onTap: () {
-                  // TODO: logout logic
+                onTap: () async {
+                  await FirebaseAuth.instance.signOut();
+                  Get.offAll(() => const LoginPage());
                 },
               ),
             ],
