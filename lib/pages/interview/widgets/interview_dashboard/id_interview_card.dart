@@ -18,8 +18,9 @@ import '../../../../constants/constants.dart';
 
 class IdInterviewCard extends StatelessWidget {
   final Map<String, dynamic> interview;
+  final TextEditingController codeCtrl = TextEditingController();
 
-  const IdInterviewCard({
+   IdInterviewCard({
     super.key,
     required this.interview,
   });
@@ -136,6 +137,7 @@ class IdInterviewCard extends StatelessWidget {
                       ),
                     ),
                     child: TextField(
+                      controller: codeCtrl,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         hintText: "ENTER - CODE",
@@ -169,7 +171,19 @@ class IdInterviewCard extends StatelessWidget {
                   SizedBox(
                     height: 42,
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        final code = codeCtrl.text.trim();
+
+                        // =======================================================
+                        // 🔥 MOCK FLOW (TEMPORARY)
+                        // =======================================================
+                        // TODO (Backend):
+                        // - Validate invite code via API
+                        // - Fetch interview session
+                        // - Replace this with real response
+
+                        controller.joinInterview(code);
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor:
                             AppColors.topicDeepTwilight,

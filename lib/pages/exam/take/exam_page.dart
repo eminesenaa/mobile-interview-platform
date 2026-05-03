@@ -49,8 +49,11 @@ class ExamPage extends StatelessWidget {
           backgroundColor: AppColors.surface,
           foregroundColor: AppColors.textPrimary,
           centerTitle: false,
+          // TODO (Interview):
+          // - For interview flow, exam.title will be "Interview"
+          // - Later backend should provide dynamic session title
           title: Text(
-            'Exam',
+            exam.title,
             style: AppTextStyles.headline,
           ),
           actions: [

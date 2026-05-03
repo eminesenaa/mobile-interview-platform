@@ -20,6 +20,8 @@
 
 import 'package:get/get.dart';
 
+import '../pages/interview/waiting/interview_waiting_page.dart';
+
 class InterviewDashboardController extends GetxController {
   // ===============================
   // OPEN POSITIONS (APPLY)
@@ -321,12 +323,27 @@ class InterviewDashboardController extends GetxController {
   }
 
   void joinInterview(String inviteCode) {
+    // =======================================================
+    // 🔥 MOCK NAVIGATION (TEMPORARY)
+    // =======================================================
     // TODO (Backend):
     // - Validate invite code
-    // - Fetch interview session
-    // - Navigate to interview (Exam module)
+    // - Fetch real interview session data
+    // - Replace mock values below
 
-    print("Joining interview with code: $inviteCode");
+    if (inviteCode.isEmpty) {
+      Get.snackbar("Error", "Please enter invite code");
+      return;
+    }
+
+    Get.to(
+          () => const InterviewWaitingPage(),
+      arguments: {
+        "date": "May 14, 2026",
+        "time": "10:00 – 11:00",
+        "code": inviteCode,
+      },
+    );
   }
 
   // ===============================
