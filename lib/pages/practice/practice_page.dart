@@ -158,6 +158,11 @@ class PracticePage extends StatelessWidget {
                         SearchAddBar(
                           searchText: controller.searchQuery.value,
                           onSearchChanged: controller.updateSearch,
+                          isFilterActive:
+                          controller.selectedTopicsMulti.isNotEmpty ||
+                              controller.selectedDifficultiesMulti.isNotEmpty ||
+                              controller.selectedQuestionTypesMulti.isNotEmpty ||
+                              controller.selectedStatus.value != null,
                           onFilterPressed: () {
                             showModalBottomSheet(
                               context: context,

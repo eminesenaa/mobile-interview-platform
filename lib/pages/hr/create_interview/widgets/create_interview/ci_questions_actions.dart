@@ -13,6 +13,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../select_questions_page.dart';
 import '/../../../../constants/constants.dart';
 
 class CIQuestionsActions extends StatelessWidget {
@@ -41,11 +42,13 @@ class CIQuestionsActions extends StatelessWidget {
               child: _ActionButton(
                 title: "From Database",
                 isPrimary: true,
-                onTap: () {
-                  Get.snackbar(
-                    "Coming Soon",
-                    "Database question selection will be added",
-                  );
+                onTap: () async {
+                  final selectedIds = await Get.to(() => const SelectQuestionsPage());
+
+                  if (selectedIds != null) {
+                    // TODO: burada selectedIds’i interview state’ine ekle
+                    print(selectedIds);
+                  }
                 },
               ),
             ),
