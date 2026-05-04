@@ -106,6 +106,7 @@ class HrJobPostingsController extends GetxController {
     /// 🔥 PAGE'e gönderilecek data
     final application = {
       "id": userId,
+      "postingId": postingId,
       "name": applicant["name"],
       "status": applicant["status"],
 
@@ -142,12 +143,13 @@ class HrJobPostingsController extends GetxController {
 
     applicants[index]["status"] = "accepted";
 
-    posting["pending"] = (posting["pending"] ?? 1) - 1;
+    posting["pending"] = ((posting["pending"] ?? 1) - 1).clamp(0, 999);
     posting["accepted"] = (posting["accepted"] ?? 0) + 1;
 
     posting["applicants"] = applicants;
 
     activePostings.refresh();
+    closedPostings.refresh();
 
     Get.snackbar("Success", "Applicant accepted");
   }
@@ -166,14 +168,68 @@ class HrJobPostingsController extends GetxController {
 
     applicants[index]["status"] = "rejected";
 
-    posting["pending"] = (posting["pending"] ?? 1) - 1;
+    posting["pending"] = ((posting["pending"] ?? 1) - 1).clamp(0, 999);
     posting["rejected"] = (posting["rejected"] ?? 0) + 1;
 
     posting["applicants"] = applicants;
 
     activePostings.refresh();
+    closedPostings.refresh();
 
     Get.snackbar("Success", "Applicant rejected");
+  }
+
+  // =====================
+  // UPDATE APPLICANT STATUS (UI + Backend Ready)
+  // =====================
+  void updateApplicantStatus(String postingId, String userId, String status) {
+    final posting = getPostingById(postingId);
+    if (posting == null) return;
+
+    final applicants = List<Map<String, dynamic>>.from(posting["applicants"]);
+
+    final index = applicants.indexWhere((a) => a["userId"] == userId);
+    if (index == -1) return;
+
+    // 🔥 UPDATE STATUS
+    applicants[index]["status"] = status;
+
+    // 🔥 UPDATE COUNTS (VERY IMPORTANT)
+    if (status == "accepted") {
+      posting["accepted"] = (posting["accepted"] ?? 0) + 1;
+    } else {
+      posting["rejected"] = (posting["rejected"] ?? 0) + 1;
+    }
+
+    posting["pending"] = ((posting["pending"] ?? 1) - 1).clamp(0, 999);
+
+    // 🔥 SAVE BACK
+    posting["applicants"] = applicants;
+
+    // 🔥 UI REFRESH
+    activePostings.refresh();
+    closedPostings.refresh();
+
+    // TODO (Backend):
+    // await api.updateApplicantStatus(
+    //   postingId: postingId,
+    //   userId: userId,
+    //   status: status,
+    // );
+  }
+
+  String getApplicantStatus(String postingId, String userId) {
+    final posting = getPostingById(postingId);
+    if (posting == null) return "pending";
+
+    final applicants = List<Map<String, dynamic>>.from(posting["applicants"]);
+
+    final applicant = applicants.firstWhere(
+          (a) => a["userId"] == userId,
+      orElse: () => {},
+    );
+
+    return applicant["status"] ?? "pending";
   }
 
 

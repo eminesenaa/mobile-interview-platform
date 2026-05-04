@@ -23,6 +23,8 @@ import '../../../constants/constants.dart';
 
 // Widgets
 import '../controllers/hr_job_postings_controller.dart';
+import '../controllers/send_decision_message_controller.dart';
+import 'send_decision_message_page.dart';
 import 'widgets/candidate_application_detail/cad_action_section.dart';
 import 'widgets/candidate_application_detail/cad_application_info_section.dart';
 import 'widgets/candidate_application_detail/cad_contact_section.dart';
@@ -47,7 +49,10 @@ class CandidateApplicationDetailPage extends StatelessWidget {
     /// ================= DATA PARSING =================
     final name = application["name"] ?? "Unknown";
     final position = application["position"] ?? "Unknown Position";
-    final status = application["status"] ?? "pending";
+    final status = c.getApplicantStatus(
+      application["postingId"],
+      application["id"],
+    );
 
     final email = application["email"] ?? "-";
     final phone = application["phone"] ?? "-";
@@ -161,19 +166,37 @@ class CandidateApplicationDetailPage extends StatelessWidget {
             /// ================= ACTION =================
             CADActionSection(
               status: status,
-              onAccept: () {
-                c.acceptApplicant(
-                  application["postingId"],
-                  application["id"],
-                );
-                Get.back();
+              onAccept: () async {
+                final result = await Get.to(() => SendDecisionMessagePage(
+                  decision: DecisionType.accept,
+                  application: application,
+                ));
+
+                if (result != null) {
+                  c.updateApplicantStatus(
+                    application["postingId"],
+                    application["id"],
+                    result["decision"] == DecisionType.accept
+                        ? "accepted"
+                        : "rejected",
+                  );
+                }
               },
-              onReject: () {
-                c.rejectApplicant(
-                  application["postingId"],
-                  application["id"],
-                );
-                Get.back();
+              onReject: () async {
+                final result = await Get.to(() => SendDecisionMessagePage(
+                  decision: DecisionType.reject,
+                  application: application,
+                ));
+
+                if (result != null) {
+                  c.updateApplicantStatus(
+                    application["postingId"],
+                    application["id"],
+                    result["decision"] == DecisionType.accept
+                        ? "accepted"
+                        : "rejected",
+                  );
+                }
               },
             ),
 

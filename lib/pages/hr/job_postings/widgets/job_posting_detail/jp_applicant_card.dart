@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../../controllers/send_decision_message_controller.dart';
+import '../../send_decision_message_page.dart';
 import '/../../../../constants/constants.dart';
 
 /// ===================== APPLICANT CARD =====================
@@ -9,18 +12,21 @@ import '/../../../../constants/constants.dart';
 /// - education
 /// - status chip (accepted/rejected)
 /// - OR action buttons (pending)
+/// - 🔥 Accept/Reject → navigates to SendDecisionMessagePage
 /// ==========================================================
 
 class JPApplicantCard extends StatelessWidget {
   final String name;
   final String subtitle;
   final String status;
+  final Map<String, dynamic> application;
 
   const JPApplicantCard({
     super.key,
     required this.name,
     required this.subtitle,
     required this.status,
+    required this.application,
   });
 
   @override
@@ -71,15 +77,11 @@ class JPApplicantCard extends StatelessWidget {
                 ),
               ),
 
-              /// STATUS + ARROW (always visible)
+              /// STATUS + ARROW
               Row(
                 children: [
-                  /// status sadece pending değilse
                   if (!isPending) _statusChip(),
-
                   const SizedBox(width: 6),
-
-                  /// ARROW ICON
                   Icon(
                     PhosphorIcons.caretRight(),
                     size: 16,
@@ -95,11 +97,14 @@ class JPApplicantCard extends StatelessWidget {
             const SizedBox(height: 12),
             Row(
               children: [
-                /// ACCEPT BUTTON
+                /// ================= ACCEPT =================
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
-                      // TODO: controller.acceptApplicant(...)
+                      Get.to(() => SendDecisionMessagePage(
+                            decision: DecisionType.accept,
+                            application: application,
+                          ));
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -122,11 +127,14 @@ class JPApplicantCard extends StatelessWidget {
 
                 const SizedBox(width: 10),
 
-                /// REJECT BUTTON
+                /// ================= REJECT =================
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
-                      // TODO: controller.rejectApplicant(...)
+                      Get.to(() => SendDecisionMessagePage(
+                            decision: DecisionType.reject,
+                            application: application,
+                          ));
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 10),

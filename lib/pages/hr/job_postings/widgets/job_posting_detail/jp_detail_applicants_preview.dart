@@ -64,6 +64,7 @@ class JPDetailApplicantsPreview extends StatelessWidget {
               name: a["name"] ?? "",
               subtitle: subtitle,
               status: a["status"] ?? "pending",
+              application: a,
             ),
           );
         }),

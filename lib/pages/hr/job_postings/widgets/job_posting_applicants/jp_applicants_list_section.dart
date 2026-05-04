@@ -63,6 +63,7 @@ class JPApplicantsListSection extends StatelessWidget {
               name: a["name"],
               subtitle: subtitle,
               status: a["status"],
+              application: a,
             ),
           );
         }),
