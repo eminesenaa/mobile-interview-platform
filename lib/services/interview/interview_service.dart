@@ -51,6 +51,6 @@ abstract class InterviewService {
 
   // ===================== RESULTS =====================
 
-  /// Get results for candidate
+  /// Get widgets for candidate
   Future<List<InterviewResult>> getUserResults(String userId);
 }

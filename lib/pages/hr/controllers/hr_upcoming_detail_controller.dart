@@ -16,7 +16,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
-import '../widgets/create_interview/ci_time_range_dialog.dart';
+import '../create_interview/widgets/create_interview/ci_time_range_dialog.dart';
+
 
 class HRUpcomingDetailController extends GetxController {
   final Map<String, dynamic> interview;

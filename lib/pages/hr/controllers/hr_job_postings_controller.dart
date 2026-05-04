@@ -20,10 +20,10 @@
 import 'package:get/get.dart';
 
 import '../../../models/user.dart';
-import '../candidate_application_detail_page.dart';
-import '../job_posting_applicants_page.dart';
-import '../job_posting_create_page.dart';
-import '../job_posting_detail_page.dart';
+import '../job_postings/candidate_application_detail_page.dart';
+import '../job_postings/job_posting_applicants_page.dart';
+import '../job_postings/job_posting_create_page.dart';
+import '../job_postings/job_posting_detail_page.dart';
 
 class HrJobPostingsController extends GetxController {
   // ===============================

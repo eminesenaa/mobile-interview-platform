@@ -3,7 +3,7 @@
 // Controls Interview Results (View All page)
 //
 // Responsibilities:
-// - Hold all interview results
+// - Hold all interview widgets
 // - Manage search & filter state
 // - Provide grouped & sorted data
 //
@@ -12,7 +12,7 @@
 // - Fully backend-ready structure
 //
 // TODO (Backend):
-// - Fetch interview results from API / Firestore
+// - Fetch interview widgets from API / Firestore
 // - Support pagination
 // - Add real-time updates (optional)
 // - Replace mock filtering with server-side filtering
@@ -50,7 +50,7 @@ class InterviewResultsController extends GetxController {
   // DATA SOURCE (MOCK)
   // ===============================
 
-  /// All interview results (mock data)
+  /// All interview widgets (mock data)
   ///
   /// IMPORTANT:
   /// - UI needs extra fields (title, company, location, time)
@@ -73,7 +73,7 @@ class InterviewResultsController extends GetxController {
     // 🔥 MOCK DATA INIT
     // =======================================================
     // TODO (Backend):
-    // results.value = await api.fetchInterviewResults();
+    // widgets.value = await api.fetchInterviewResults();
 
     results.value = [
       {
@@ -180,7 +180,7 @@ class InterviewResultsController extends GetxController {
   // FILTERED DATA
   // ===============================
 
-  /// Returns filtered + searched + sorted results
+  /// Returns filtered + searched + sorted widgets
   List<Map<String, dynamic>> get filteredResults {
     List<Map<String, dynamic>> list = results;
 

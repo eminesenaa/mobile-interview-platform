@@ -1,6 +1,6 @@
 // ===================== File: ir_results_list.dart =====================
 // Purpose:
-// Displays grouped interview results list
+// Displays grouped interview widgets list
 // (Accepted → Pending → Rejected)
 // ====================================================================
 

@@ -39,7 +39,7 @@ class IdStatsRow extends StatelessWidget {
           color: AppColors.darkCyan,
         ),
         IdStatChip(
-          text: "2 results pending",
+          text: "2 widgets pending",
           color: AppColors.honeyBronze,
         ),
       ],

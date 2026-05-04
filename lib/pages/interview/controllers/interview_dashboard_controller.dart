@@ -6,7 +6,7 @@
 // - Fetch open job postings
 // - Manage user applications
 // - Provide upcoming interview data
-// - Provide interview results
+// - Provide interview widgets
 //
 // IMPORTANT:
 // - Uses mock data for now
@@ -46,7 +46,7 @@ class InterviewDashboardController extends GetxController {
   // ===============================
   // INTERVIEW RESULTS
   // ===============================
-  /// Completed / pending interview results
+  /// Completed / pending interview widgets
   final results = <Map<String, dynamic>>[].obs;
 
   // ===============================
@@ -315,7 +315,7 @@ class InterviewDashboardController extends GetxController {
       openPositions.value = response.openPositions;
       applications.value = response.applications;
       upcomingInterview.value = response.upcomingInterview;
-      results.value = response.results;
+      widgets.value = response.widgets;
       */
     } catch (e) {
       // TODO: error handling

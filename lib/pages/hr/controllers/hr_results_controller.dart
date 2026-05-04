@@ -5,7 +5,7 @@
 
 import 'package:get/get.dart';
 
-import '../hr_insights_page.dart';
+import '../interviews/reviewed/hr_insights_page.dart';
 import 'hr_reviewed_detail_controller.dart';
 
 

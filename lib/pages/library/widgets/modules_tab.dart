@@ -30,7 +30,7 @@ class LibraryModulesTab extends StatelessWidget {
         // Arama yapılıyorsa farklı, hiç veri yoksa farklı mesaj
         if (c.searchQuery.value.isNotEmpty) {
           return const LibraryEmptyState(
-            title: 'No results found',
+            title: 'No widgets found',
             subtitle: 'Try adjusting your search terms.',
             icon: Icons.search_off,
           );

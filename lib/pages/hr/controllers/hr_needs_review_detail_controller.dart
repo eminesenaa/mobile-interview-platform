@@ -18,8 +18,8 @@ import 'dart:ui';
 import 'package:get/get.dart';
 
 import '../../../constants/colors.dart';
-import '../hr_candidate_list_page.dart';
-import '../hr_candidate_result_page.dart';
+import '../interviews/needs_review/hr_candidate_list_page.dart';
+import '../interviews/needs_review/hr_candidate_result_page.dart';
 
 class HrNeedsReviewDetailController extends GetxController {
   final Map<String, dynamic> interview;

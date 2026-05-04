@@ -50,7 +50,7 @@ class User {
   /// Assigned interviews (Interview IDs)
   final List<String> assignedInterviewIds;
 
-  /// Completed interview results (InterviewResult IDs)
+  /// Completed interview widgets (InterviewResult IDs)
   final List<String> interviewResultIds;
 
   /// 🔥 NEW: Job applications (başvurular)

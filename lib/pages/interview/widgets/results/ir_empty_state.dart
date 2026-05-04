@@ -1,6 +1,6 @@
 // ===================== File: ir_empty_state.dart =====================
 // Purpose:
-// Displayed when no results found
+// Displayed when no widgets found
 // ====================================================================
 
 import 'package:flutter/material.dart';
@@ -22,7 +22,7 @@ class IrEmptyState extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            "No interview results found",
+            "No interview widgets found",
             style: AppTextStyles.body.copyWith(
               color: AppColors.textMuted,
             ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../hr_candidate_evaluation_success_page.dart';
+import '../interviews/needs_review/hr_candidate_evaluation_success_page.dart';
 
 class HrCandidateEvaluationController extends GetxController {
   final Map<String, dynamic>? candidate;

@@ -20,10 +20,10 @@
 
 import 'package:get/get.dart';
 
-import '../hr_needs_review_detail_page.dart';
-import '../hr_ongoing_interview_detail_page.dart';
-import '../hr_reviewed_detail_page.dart';
-import '../hr_upcoming_interview_detail_page.dart';
+import '../interviews/needs_review/hr_needs_review_detail_page.dart';
+import '../interviews/ongoing/hr_ongoing_interview_detail_page.dart';
+import '../interviews/reviewed/hr_reviewed_detail_page.dart';
+import '../interviews/upcoming/hr_upcoming_interview_detail_page.dart';
 import 'hr_needs_review_detail_controller.dart';
 
 class HRInterviewsController extends GetxController {

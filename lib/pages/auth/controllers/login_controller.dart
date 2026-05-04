@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../services/firebase/auth_service.dart';
 import '../../../services/sfx/sound_service.dart';
-import '../../hr/hr_dashboard_page.dart';
+import '../../hr/dashboard/hr_dashboard_page.dart';
 import '../../main_view.dart';
 
 class LoginController extends GetxController {

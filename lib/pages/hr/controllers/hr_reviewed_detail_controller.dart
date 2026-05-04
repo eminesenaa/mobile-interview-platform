@@ -22,9 +22,9 @@ import '../../../models/interview_result.dart';
 import '../../../models/streak.dart';
 import '../../../models/user.dart';
 import '../../../models/user_library.dart';
-import '../hr_all_candidates_page.dart';
-import '../hr_candidate_detail_page.dart';
-import '../hr_insights_page.dart';
+import '../interviews/reviewed/hr_all_candidates_page.dart';
+import '../interviews/reviewed/hr_candidate_detail_page.dart';
+import '../interviews/reviewed/hr_insights_page.dart';
 
 class HrReviewedDetailController extends GetxController {
   final Map<String, dynamic>? interview;
@@ -153,7 +153,7 @@ class HrReviewedDetailController extends GetxController {
   // ===============================
   void _initFromInterview(Map<String, dynamic> interview) {
     // TODO (Backend):
-    // Map interview results to InterviewResult model list
+    // Map interview widgets to InterviewResult model list
 
     title.value = interview["title"] ?? "Interview";
     position.value = interview["position"] ?? "Position";
@@ -167,7 +167,7 @@ class HrReviewedDetailController extends GetxController {
         interview["id"] ?? interview["interviewId"] ?? "INT-UNKNOWN";
 
     // TODO (Backend):
-    // results = interviewResults.map((json) => InterviewResult.fromJson(json)).toList();
+    // widgets = interviewResults.map((json) => InterviewResult.fromJson(json)).toList();
     if (results.isEmpty) {
       _loadMockData();
       return;
@@ -331,7 +331,7 @@ class HrReviewedDetailController extends GetxController {
           questionEvaluations: const [],
         ),
         decision: InterviewDecisionStatus.accepted,
-        hrMessage: "Very solid results overall.",
+        hrMessage: "Very solid widgets overall.",
         isSubmitted: true,
         isReviewed: true,
         submittedAt: DateTime.now().subtract(const Duration(days: 1)),

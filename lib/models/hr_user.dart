@@ -4,7 +4,7 @@
 // hr users belong to a company and are responsible for:
 // - Creating interviews
 // - Managing candidates
-// - Reviewing results and making decisions
+// - Reviewing widgets and making decisions
 //
 // This is separate from the main User model (candidate).
 // ========================================================================

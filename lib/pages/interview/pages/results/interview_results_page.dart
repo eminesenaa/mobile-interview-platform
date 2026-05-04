@@ -1,12 +1,12 @@
 // ===================== File: interview_results_page.dart =====================
 // Purpose:
-// Displays all interview results (View All page)
+// Displays all interview widgets (View All page)
 //
 // Features:
 // - AppBar (standard)
 // - Search bar (title-based search)
 // - Filter chips (All, Accepted, Pending, Rejected)
-// - Grouped results list
+// - Grouped widgets list
 // - Empty state
 //
 // IMPORTANT:

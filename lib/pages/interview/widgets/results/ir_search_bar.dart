@@ -1,6 +1,6 @@
 // ===================== File: ir_search_bar.dart =====================
 // Purpose:
-// Search bar for filtering interview results by title
+// Search bar for filtering interview widgets by title
 // ===================================================================
 
 import 'package:flutter/material.dart';
@@ -42,7 +42,7 @@ class IrSearchBar extends StatelessWidget {
             child: TextField(
               onChanged: onChanged,
               decoration: InputDecoration(
-                hintText: "Search interview results...",
+                hintText: "Search interview widgets...",
                 hintStyle: AppTextStyles.body.copyWith(
                   color: AppColors.textMuted,
                 ),

@@ -15,7 +15,7 @@
 
 import 'package:get/get.dart';
 
-import '../hr_candidate_evaluation_page.dart';
+import '../interviews/needs_review/hr_candidate_evaluation_page.dart';
 import 'hr_needs_review_detail_controller.dart';
 
 class HrCandidateResultController extends GetxController {
