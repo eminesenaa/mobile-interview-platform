@@ -54,13 +54,13 @@ class ExamReviewPage extends StatelessWidget {
           foregroundColor: AppColors.textPrimary,
           centerTitle: true,
           title: Text(
-            'Exam Review',
+            'Review',
             style: AppTextStyles.headline,
           ),
           leading: IconButton(
             tooltip: 'Back to Results',
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => Get.off(() => const ExamResultPage()),
+            onPressed: () => Get.back(),
           ),
           actions: [
             IconButton(

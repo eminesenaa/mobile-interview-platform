@@ -1,3 +1,14 @@
+// ===================== File: exam_option_card.dart =====================
+// Purpose:
+// Redesigned Exam Option Card (with decorative background)
+//
+// Improvements:
+// - Decorative soft circles (like duel card)
+// - Clean gradient
+// - Horizontal layout preserved
+// - Premium but not noisy
+// ======================================================================
+
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
@@ -39,45 +50,96 @@ class _ExamOptionCardState extends State<ExamOptionCard> {
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            boxShadow: AppShadows.medium,
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppColors.primary,
-                AppColors.primaryAccent,
+                AppColors.topicBrightTeal,
+                AppColors.topicTurquoise,
+                AppColors.topicFrostedBlue,
               ],
             ),
+            boxShadow: AppShadows.low,
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xl),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
+
+          // 🔥 CLIP for decorations
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            child: Stack(
               children: [
-                Icon(
-                  widget.icon,
-                  size: AppIconSizes.xl,
-                  color: Colors.white,
+                // ================= DECORATIVE SHAPES =================
+                Positioned(
+                  top: -30,
+                  right: -30,
+                  child: _circle(100),
                 ),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  widget.title,
-                  style: AppTextStyles.title.copyWith(
-                    color: Colors.white,
+                Positioned(
+                  bottom: -20,
+                  left: -20,
+                  child: _circle(70),
+                ),
+
+                // ================= CONTENT =================
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                    vertical: AppSpacing.xxl + AppSpacing.md,
                   ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  widget.description,
-                  style: AppTextStyles.body.copyWith(
-                    color: Colors.white.withOpacity(0.9),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // ================= ICON =================
+                      Icon(
+                        widget.icon,
+                        size: 26,
+                        color: AppColors.textLightPrimary,
+                      ),
+
+                      const SizedBox(width: AppSpacing.md),
+
+                      // ================= TEXT =================
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.title,
+                              style: AppTextStyles.title.copyWith(
+                                color: AppColors.textLightPrimary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              widget.description,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.body.copyWith(
+                                color: AppColors.textLightPrimary.withOpacity(0.85),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // ================= DECORATIVE CIRCLE =================
+  Widget _circle(double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        shape: BoxShape.circle,
       ),
     );
   }

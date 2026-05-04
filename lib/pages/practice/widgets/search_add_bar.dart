@@ -8,6 +8,7 @@ import '../controllers/practice_controller.dart';
 class SearchAddBar extends StatelessWidget {
   final String searchText;
   final ValueChanged<String> onSearchChanged;
+  final bool isFilterActive;
   final VoidCallback onFilterPressed;
   final VoidCallback onRandomPressed;
 
@@ -15,20 +16,13 @@ class SearchAddBar extends StatelessWidget {
     super.key,
     required this.searchText,
     required this.onSearchChanged,
+    required this.isFilterActive,
     required this.onFilterPressed,
     required this.onRandomPressed,
   });
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<PracticeController>();
-
-// Herhangi bir topic / difficulty / status seçiliyse filter aktif kabul edelim.
-    final bool isFilterActive =
-        controller.selectedTopic.value != controller.allTopics.first ||
-            controller.selectedDifficulty.value != null ||
-            controller.selectedStatus.value != null;
-
     return Container(
       margin: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,

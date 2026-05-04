@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../services/firebase/auth_service.dart';
 import '../../../services/sfx/sound_service.dart';
+import '../../hr/dashboard/hr_dashboard_page.dart';
 import '../../main_view.dart';
 
 class LoginController extends GetxController {
@@ -16,6 +17,11 @@ class LoginController extends GetxController {
 
   final isLoading = false.obs;
   final rememberMe = false.obs;
+
+  // ===================== LOGIN MODE =====================
+
+  /// false = Candidate, true = HR
+  final isHrLogin = false.obs;
 
   static const _kRememberMe = 'remember_me';
   static const _kSavedInput = 'saved_input';
@@ -45,10 +51,26 @@ class LoginController extends GetxController {
     }
   }
 
+  // ===================== LOGIN MODE SWITCH =====================
+
+  void setLoginMode(bool isHr) {
+    isHrLogin.value = isHr;
+  }
+
   Future<void> _saveInputIfRemembered() async {
     if (rememberMe.value) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_kSavedInput, emailOrUsernameCtrl.text.trim());
+    }
+  }
+
+  // ===================== LOGIN HANDLER =====================
+
+  void handleLogin() {
+    if (isHrLogin.value) {
+      loginAsHR();
+    } else {
+      login();
     }
   }
 
@@ -127,6 +149,41 @@ class LoginController extends GetxController {
     } catch (e) {
       Get.snackbar(
           "Login failed", e.toString().replaceAll("Exception:", "").trim());
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // ===================== HR LOGIN (TEMP) =====================
+
+  Future<void> loginAsHR() async {
+    if (isLoading.value) return;
+
+    isLoading.value = true;
+
+    try {
+      final input = emailOrUsernameCtrl.text.trim();
+      final password = passwordCtrl.text.trim();
+
+      if (input.isEmpty || password.isEmpty) {
+        Get.snackbar("Error", "Please fill all fields");
+        return;
+      }
+
+      // 🔥 TEMP LOGIC (backend gelince değişecek)
+      if (!input.contains("hr")) {
+        Get.snackbar("Error", "This account is not an HR account");
+        return;
+      }
+
+      // 🔊 sound (optional)
+      SoundService.play(SoundEffect.loginSuccess);
+
+      // 🔥 TODO: HR Dashboard'a yönlendirilecek
+      Get.offAll(() => const HRDashboardPage());
+
+    } catch (e) {
+      Get.snackbar("HR Login Failed", e.toString());
     } finally {
       isLoading.value = false;
     }

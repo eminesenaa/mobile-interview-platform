@@ -31,7 +31,7 @@ class AuthSocialButtons extends StatelessWidget {
           child: PhosphorIcon(
             icon,
             size: AppIconSizes.lg,
-            color: AppColors.textPrimary,
+            color: AppColors.textSecondary.withValues(alpha: 0.7),
           ),
         ),
       ),

@@ -43,7 +43,7 @@ class DuelResultPage extends StatelessWidget {
                     CircularProgressIndicator(color: Colors.white),
                     SizedBox(height: AppSpacing.md),
                     Text(
-                      'Calculating results...',
+                      'Calculating widgets...',
                       style: TextStyle(color: Colors.white),
                     ),
                   ],

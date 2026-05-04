@@ -1,5 +1,14 @@
-import 'package:flutter/material.dart';
+// ===================== File: topic_chip_scroll.dart =====================
+// Purpose:
+// Clean, minimal topic chips (NO icon, NO aggressive animation)
+//
+// Updates:
+// - Removed check icon
+// - Removed ChoiceChip (less animation)
+// - Custom container → smoother UX
+// ======================================================================
 
+import 'package:flutter/material.dart';
 import '../../../constants/constants.dart';
 
 class TopicChipScroll extends StatelessWidget {
@@ -16,9 +25,7 @@ class TopicChipScroll extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (topics.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    if (topics.isEmpty) return const SizedBox.shrink();
 
     return SizedBox(
       height: 40,
@@ -31,39 +38,38 @@ class TopicChipScroll extends StatelessWidget {
           final topic = topics[index];
           final isSelected = topic == selectedTopic;
 
-          return ChoiceChip(
-            selected: isSelected,
-            showCheckmark: false,
-            avatar: isSelected
-                ? const Icon(
-                    Icons.check,
-                    size: 16,
-                    color: AppColors.textLightPrimary,
-                  )
-                : null,
-            label: Text(
-              topic,
-              style: AppTextStyles.bodySmall.copyWith(
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected
-                    ? AppColors.textLightPrimary
-                    : AppColors.textSecondary,
+          return GestureDetector(
+            onTap: () => onTopicSelected(topic),
+
+            // 🔥 smooth but subtle transition
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              curve: Curves.easeOut,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.primary : AppColors.surfaceMuted,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(
+                  color: isSelected
+                      ? AppColors.primary
+                      : AppColors.border.withOpacity(0.6),
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  topic,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    color: isSelected
+                        ? AppColors.textLightPrimary
+                        : AppColors.textSecondary,
+                  ),
+                ),
               ),
             ),
-            onSelected: (_) => onTopicSelected(topic),
-            backgroundColor: AppColors.surfaceMuted,
-            selectedColor: AppColors.primary,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(999),
-              side: BorderSide(
-                color: isSelected ? AppColors.primary : AppColors.border,
-              ),
-            ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: 0,
-            ),
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           );
         },
       ),

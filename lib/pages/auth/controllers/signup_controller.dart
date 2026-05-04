@@ -18,6 +18,27 @@ class SignupController extends GetxController {
   final isLoading = false.obs;
   final acceptedTerms = false.obs;
 
+  // ===================== SIGNUP MODE =====================
+
+  /// false = Candidate, true = HR
+  final isHrSignup = false.obs;
+
+  // ===================== SIGNUP MODE SWITCH =====================
+
+  void setSignupMode(bool isHr) {
+    isHrSignup.value = isHr;
+  }
+
+  // ===================== SIGNUP HANDLER =====================
+
+  void handleSignup() {
+    if (isHrSignup.value) {
+      signUpAsHR();
+    } else {
+      signUp();
+    }
+  }
+
   Future<void> signUp() async {
     if (isLoading.value) return;
 
@@ -90,6 +111,62 @@ class SignupController extends GetxController {
       Get.snackbar("Sign Up Error", message);
     } catch (e) {
       Get.snackbar("Error", e.toString().replaceAll("Exception:", "").trim());
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // ===================== HR SIGNUP (TEMP) =====================
+
+  Future<void> signUpAsHR() async {
+    if (isLoading.value) return;
+
+    final name = nameCtrl.text.trim();
+    final surname = surnameCtrl.text.trim();
+    final email = emailCtrl.text.trim();
+    final password = passwordCtrl.text.trim();
+
+    if (name.isEmpty || surname.isEmpty || email.isEmpty || password.isEmpty) {
+      Get.snackbar("Error", "Please fill all fields");
+      return;
+    }
+
+    if (!acceptedTerms.value) {
+      Get.snackbar("Error", "You must accept the Terms of Service");
+      return;
+    }
+
+    isLoading.value = true;
+
+    try {
+      // 🔥 TEMP LOGIC
+      // Backend gelince:
+      // - HRUser oluşturulacak
+      // - Company oluşturulacak veya bağlanacak
+
+      if (!email.contains("hr")) {
+        Get.snackbar("Error", "Use an HR email (e.g. hr@company.com)");
+        return;
+      }
+
+      // 🔥 Simülasyon
+      await Future.delayed(const Duration(seconds: 1));
+
+      Get.defaultDialog(
+        title: "HR Account Created",
+        middleText:
+            "Your HR account has been created.\nYou can now manage interviews.",
+        textConfirm: "Go to Login",
+        confirmTextColor: Colors.white,
+        buttonColor: Colors.blueAccent,
+        barrierDismissible: false,
+        onConfirm: () {
+          Get.back();
+          Get.offAll(() => const LoginPage());
+        },
+      );
+    } catch (e) {
+      Get.snackbar("HR Sign Up Failed", e.toString());
     } finally {
       isLoading.value = false;
     }

@@ -120,6 +120,22 @@ class AppColors {
   /// Light Cyan – background / minimal contribution topics
   static const Color topicLightCyan = Color(0xFFCAF0F8);
 
+
+  // =========
+  // Leaderboard Rank Colors
+  // =========
+  // Used for top 3 leaderboard positions
+  // Keep subtle & premium (avoid too bright tones)
+
+  /// 🥇 Gold – 1st place
+  static const Color rankGold = Color(0xFFFFD700);
+
+  /// 🥈 Silver – 2nd place
+  static const Color rankSilver = Color(0xFFC0C0C0);
+
+  /// 🥉 Bronze – 3rd place
+  static const Color rankBronze = Color(0xFFCD7F32);
+
   // =========
   // Extended Accent Palette (UI Cards, Charts, Gamification)
   // =========
@@ -160,8 +176,25 @@ class AppColors {
   /// Strawberry Red
   static const Color strawberryRed = Color(0xFFf93943);
 
+  /// Dark Amethyst
+  static const Color darkAmethyst = Color(0xFF4E0250);
+
+  /// Dark Magenta
+  static const Color darkMagenta = Color(0xFF801A86);
+
+  /// Pink Carnation
+  static const Color pinkCarnation = Color(0xFFF991CC);
+
+  /// Pink Orchid
+  static const Color pinkOrchid = Color(0xFFE2AFDE);
+
   /// Sky Reflection
   static const Color skyReflection = Color(0xFF445e93);
+
+  /// Dark Cyan
+  static const Color darkCyan = Color(0xFF129490);
+
+
 
 
 

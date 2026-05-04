@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 
 import '../../../../constants/colors.dart';
-import '../../controllers/exam_result_controller.dart';
 
 class TopicCharts extends StatelessWidget {
-  const TopicCharts({super.key});
+  final Map<String, double> topicRatios;
+
+  const TopicCharts({
+    super.key,
+    required this.topicRatios,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final c = Get.find<ExamResultController>();
-    final entries = c.topicRatios.entries.toList();
+    final entries = topicRatios.entries.toList();
 
     // 🔹 Eğer hiç veri yoksa
     if (entries.isEmpty) {
@@ -31,11 +33,11 @@ class TopicCharts extends StatelessWidget {
 
     /// 🎨 Soft, tekrar edebilir renk paleti
     final List<Color> palette = [
-      AppColors.topicDeepTwilight,
-      AppColors.topicBrightTeal,
+      AppColors.cinnabar,
+      AppColors.accentRoyalPlum,
+      AppColors.accentCeladon,
+      AppColors.honeyBronze,
       AppColors.topicTurquoise,
-      AppColors.topicFrostedBlue,
-      AppColors.topicLightCyan,
     ];
 
     /// 🏷️ Label düzenleyici

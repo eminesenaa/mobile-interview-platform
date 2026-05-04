@@ -83,7 +83,9 @@ class _ResultLoadingPageState extends State<ResultLoadingPage> {
 
             // Title
             Text(
-              'Analyzing your answers.',
+              c.exam.title == "Interview"
+                  ? 'Submitting your interview.'
+                  : 'Analyzing your answers.',
               textAlign: TextAlign.center,
               style: AppTextStyles.title.copyWith(
                 fontWeight: FontWeight.w700,
@@ -95,7 +97,9 @@ class _ResultLoadingPageState extends State<ResultLoadingPage> {
 
             // Subtitle
             Text(
-              'This may take a few seconds.\nPlease keep the app open.',
+              c.exam.title == "Interview"
+                  ? 'Your answers are being sent to HR.\nPlease wait a moment.'
+                  : 'This may take a few seconds.\nPlease keep the app open.',
               textAlign: TextAlign.center,
               style: AppTextStyles.bodySmall.copyWith(
                 color: AppColors.textSecondary,
@@ -133,7 +137,9 @@ class _ResultLoadingPageState extends State<ResultLoadingPage> {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'We couldn’t finish evaluating your exam.',
+              c.exam.title == "Interview"
+                  ? 'We couldn’t submit your interview.'
+                  : 'We couldn’t finish evaluating your exam.',
               textAlign: TextAlign.center,
               style: AppTextStyles.bodySmall.copyWith(
                 color: AppColors.textSecondary,

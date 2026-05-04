@@ -22,7 +22,7 @@ class LoginPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(LoginController());
+    final controller = Get.put(LoginController(), permanent: true);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -52,7 +52,7 @@ class LoginPage extends StatelessWidget {
                             const AuthHeader(
                               title: "Welcome to MIPP",
                               subtitle: "Login to continue",
-                              size: AuthHeaderSize.large,
+                              size: AuthHeaderSize.compact,
                             ),
 
                             const SizedBox(height: AppSpacing.lg),
@@ -73,6 +73,81 @@ class LoginPage extends StatelessWidget {
                               ),
                               child: Column(
                                 children: [
+                                  // =========================
+                                  // LOGIN TYPE SWITCH (Candidate / HR)
+                                  // =========================
+                                  Obx(
+                                    () => Container(
+                                      margin: const EdgeInsets.only(
+                                          bottom: AppSpacing.md),
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.surfaceMuted,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          // Candidate
+                                          Expanded(
+                                            child: GestureDetector(
+                                              onTap: () => controller
+                                                  .setLoginMode(false),
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        vertical: 10),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      controller.isHrLogin.value
+                                                          ? Colors.transparent
+                                                          : AppColors.surface,
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                ),
+                                                alignment: Alignment.center,
+                                                child: Text(
+                                                  "Candidate",
+                                                  style: AppTextStyles.body
+                                                      .copyWith(
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+
+                                          // HR
+                                          Expanded(
+                                            child: GestureDetector(
+                                              onTap: () =>
+                                                  controller.setLoginMode(true),
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        vertical: 10),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      controller.isHrLogin.value
+                                                          ? AppColors.surface
+                                                          : Colors.transparent,
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                ),
+                                                alignment: Alignment.center,
+                                                child: Text(
+                                                  "Company",
+                                                  style: AppTextStyles.body
+                                                      .copyWith(
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
                                   // Email / Username
                                   AuthTextField(
                                     controller: controller.emailOrUsernameCtrl,
@@ -114,7 +189,6 @@ class LoginPage extends StatelessWidget {
                                       const Spacer(),
                                       TextButton(
                                         onPressed: () {
-                                          // 🔹 GÜNCELLENEN KISIM BURASI
                                           controller.showForgotPasswordDialog();
                                         },
                                         child: Text(
@@ -132,7 +206,7 @@ class LoginPage extends StatelessWidget {
                                     () => AuthPrimaryButton(
                                       label: "Login",
                                       isLoading: controller.isLoading.value,
-                                      onPressed: controller.login,
+                                      onPressed: controller.handleLogin,
                                     ),
                                   ),
 

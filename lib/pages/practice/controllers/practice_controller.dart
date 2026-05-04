@@ -214,8 +214,10 @@ class PracticeController extends GetxController {
           snap.docs.map((d) => Question.fromFirestore(d.data(), d.id)).toList();
       allQuestions.assignAll(items);
 
-      final topics = <String>{'All', ...items.map((e) => e.topic)};
-      allTopics.assignAll(topics.toList()..sort());
+      final uniqueTopics = items.map((e) => e.topic).toSet().toList()..sort();
+
+      // 🔥 ALL sabit en başta
+      allTopics.assignAll(['All', ...uniqueTopics]);
     } catch (e) {
       debugPrint('[Questions] Yükleme hatası: $e');
     }

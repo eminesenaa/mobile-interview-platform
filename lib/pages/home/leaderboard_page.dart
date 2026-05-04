@@ -1,12 +1,27 @@
-// lib/pages/home/leaderboard_page.dart
+// ===================== File: leaderboard_page.dart =====================
+// Purpose:
+// Redesigned Leaderboard Page (UI Refactor)
+//
+// IMPORTANT:
+// - Controller logic untouched
+// - Uses new leaderboard widgets
+// - Supports podium + segmented list structure
+// ======================================================================
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'controllers/leaderboard_controller.dart';
-import 'widgets/leaderboard_list_item.dart';
+
 import 'package:interview_project/constants/colors.dart';
 import 'package:interview_project/constants/constants.dart';
 import 'package:interview_project/constants/text_styles.dart';
+
+// 🔥 NEW WIDGETS
+import 'widgets/leaderboard/lb_podium.dart';
+import 'widgets/leaderboard/lb_list_item.dart';
+import 'widgets/leaderboard/lb_separator.dart';
+import 'widgets/leaderboard/lb_me_item.dart';
 
 class LeaderboardPage extends StatelessWidget {
   const LeaderboardPage({super.key});
@@ -17,25 +32,27 @@ class LeaderboardPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+
+      // ================= APP BAR =================
       appBar: AppBar(
         elevation: 0,
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.textPrimary,
         toolbarHeight: 70,
-        // HomePage ile aynı yükseklik
         centerTitle: true,
-        // 💙 Bu sayfada da global davranışı takip etsin
         title: Text(
           'Leaderboard',
           style: AppTextStyles.headline,
         ),
       ),
+
+      // ================= BODY =================
       body: Obx(() {
+        /// ================= LOADING =================
         if (c.loading.value) {
           return ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(AppSpacing.md),
-            itemCount: 8,
+            itemCount: 6,
             itemBuilder: (_, __) => Container(
               height: 64,
               margin: const EdgeInsets.symmetric(vertical: 6),
@@ -47,6 +64,7 @@ class LeaderboardPage extends StatelessWidget {
           );
         }
 
+        /// ================= EMPTY =================
         if (c.entries.isEmpty) {
           return Center(
             child: Padding(
@@ -62,6 +80,37 @@ class LeaderboardPage extends StatelessWidget {
           );
         }
 
+        /// ================= DATA SPLIT =================
+        final entries = c.entries;
+
+        final top3 = entries.length >= 3 ? entries.take(3).toList() : [];
+
+        final others = entries.length > 3 ? entries.skip(3).toList() : [];
+
+        final meIndex = others.indexWhere((e) => (e.isMe ?? false));
+
+        final me =
+            (meIndex != -1 && meIndex < others.length) ? others[meIndex] : null;
+
+        final beforeMe = me != null && me.rank > 10
+            ? entries.where((e) => e.rank >= 4 && e.rank <= 7).toList()
+            : me != null
+                ? entries.where((e) => e.rank >= 4 && e.rank < me.rank).toList()
+                : entries.where((e) => e.rank >= 4 && e.rank <= 10).toList();
+
+        final isLast = meIndex + 1 >= others.length;
+
+        final afterMe = me != null && me.rank <= 10
+            ? entries.where((e) => e.rank > me.rank && e.rank <= 10).toList()
+            : me != null && !isLast
+                ? [others[meIndex + 1]]
+                : [];
+
+        final beforeLastMe = me != null && isLast && meIndex > 0
+            ? [others[meIndex - 1]]
+            : <dynamic>[];
+
+        /// ================= UI =================
         return NotificationListener<ScrollNotification>(
           onNotification: (_) => false,
           child: ScrollConfiguration(
@@ -70,26 +119,50 @@ class LeaderboardPage extends StatelessWidget {
               key: const PageStorageKey('leaderboard_scroll'),
               physics: const ClampingScrollPhysics(),
               slivers: [
-                // ===== FULL LIST =====
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (ctx, i) {
-                      final e = c.entries[i];
-                      final isMe = e.isMe ?? false;
+                SliverPadding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      // ================= PODIUM =================
+                      if (top3.length == 3) LbPodium(top3: top3),
 
-                      return Container(
-                        color: isMe
-                            ? AppColors.primary.withOpacity(0.03)
-                            : Colors.transparent,
-                        child: Column(
+                      const SizedBox(height: AppSpacing.lg),
+
+                      // ================= BEFORE ME =================
+                      ...beforeMe.map((e) {
+                        return Column(
                           children: [
-                            LeaderboardListItem(e: e),
+                            LbListItem(user: e),
                             const SizedBox(height: 6),
                           ],
-                        ),
-                      );
-                    },
-                    childCount: c.entries.length,
+                        );
+                      }),
+
+                      // ================= SEPARATOR =================
+                      if (me != null && me.rank > 10) const LbSeparator(),
+
+                      // ================= BEFORE LAST ME =================
+                      ...beforeLastMe.map((e) => Column(
+                            children: [
+                              LbListItem(user: e),
+                              const SizedBox(height: 6),
+                            ],
+                          )),
+
+                      // ================= ME =================
+                      if (me != null) ...[
+                        LbMeItem(me: me),
+                        const SizedBox(height: 6),
+                      ],
+
+                      // ================= AFTER ME =================
+                      ...afterMe.map((e) => Column(
+                            children: [
+                              LbListItem(user: e),
+                              const SizedBox(height: 6),
+                            ],
+                          )),
+                    ]),
                   ),
                 ),
               ],
@@ -101,6 +174,7 @@ class LeaderboardPage extends StatelessWidget {
   }
 }
 
+// ================= SCROLL FIX =================
 class _NoGlowScrollBehavior extends ScrollBehavior {
   const _NoGlowScrollBehavior();
 

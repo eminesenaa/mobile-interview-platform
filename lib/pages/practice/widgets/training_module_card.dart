@@ -1,19 +1,20 @@
-// ===================== File: lib/pages/practice/widgets/training_module_card.dart =====================
+// ===================== File: training_module_card.dart =====================
+// Purpose:
+// Redesigned Training Module Card (UI ONLY)
+//
+// FIXES:
+// - Removed right arrow
+// - Fixed RenderFlex overflow
+// - Improved vertical layout stability
+// ==========================================================================
 
 import 'package:flutter/material.dart';
 import 'package:interview_project/constants/constants.dart';
 import 'package:interview_project/models/training_module.dart';
 
-/// Practice sayfasının en üstündeki training plan kartı.
-/// Arkaplanda gradient / görsel, üstte format chip'i,
-/// ortada başlık + kısa açıklama, altta toplam soru + mini progress bar.
 class TrainingModuleCard extends StatelessWidget {
   final TrainingModule module;
-
-  /// 0.0 – 1.0 arası ilerleme. Şimdilik null bırakılabilir.
   final double? progress;
-
-  /// Kart tıklanınca çalışacak callback.
   final VoidCallback? onTap;
 
   const TrainingModuleCard({
@@ -25,120 +26,144 @@ class TrainingModuleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveProgress =
-        (progress ?? 0).clamp(0.0, 1.0).toDouble(); // 0–1 aralığına sabitle
+    // 🔥 GRADIENT COLORS (edit burayı)
+    final gradients = [
+      // Turquoise → daha açık cyan
+      const [AppColors.topicBrightTeal, Color(0xFF48CAE4)],
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      onTap: onTap,
-      child: Ink(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          boxShadow: AppShadows.medium,
-          color: AppColors.primary,
-          image: module.coverImageUrl != null
-              ? DecorationImage(
-                  image: NetworkImage(module.coverImageUrl!),
-                  fit: BoxFit.cover,
-                  colorFilter: ColorFilter.mode(
-                    Colors.black.withOpacity(0.35),
-                    BlendMode.srcOver,
-                  ),
-                )
-              : null,
-          // Eğer görsel yoksa gradient kullan.
-          gradient: module.coverImageUrl == null
-              ? const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.primary,
-                    AppColors.primaryAccent,
-                  ],
-                )
-              : null,
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Üst kısım: format label
-              _FormatChip(format: module.format),
+      // Cinnabar (kırmızı) → daha soft coral
+      const [AppColors.cinnabar, Color(0xFFFF7F7A)],
 
-              const SizedBox(height: AppSpacing.sm), // Boşluk ekle
+      // Celadon (yeşil) → mint tonu
+      const [AppColors.accentCeladon, Color(0xFFCFF4D2)],
 
-              // Orta kısım: başlık + alt açıklama
-              Column(
-                mainAxisSize: MainAxisSize.min, // Sadece içeriği kadar yer kapla
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    module.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.headline.copyWith(
-                      color: Colors.white,
+      // Honey Bronze (sarı/turuncu) → açık amber
+      const [AppColors.honeyBronze, Color(0xFFFFD166)],
+
+      // Dark Magenta → mor-pembe geçiş
+      const [AppColors.darkMagenta, Color(0xFFB65FCF)],
+
+      // Pink Carnation → soft pink
+      const [AppColors.pinkCarnation, Color(0xFFFFB3E6)],
+    ];
+
+    final colorIndex = module.id.hashCode.abs() % gradients.length;
+
+    final gradient = gradients[colorIndex];
+
+    final effectiveProgress = (progress ?? 0).clamp(0.0, 1.0).toDouble();
+
+    return AspectRatio(
+      aspectRatio: 2.2,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        onTap: onTap,
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+            boxShadow: AppShadows.medium,
+            gradient: module.coverImageUrl == null
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: gradient,
+                  )
+                : null,
+            image: module.coverImageUrl != null
+                ? DecorationImage(
+                    image: NetworkImage(module.coverImageUrl!),
+                    fit: BoxFit.cover,
+                    colorFilter: ColorFilter.mode(
+                      Colors.black.withOpacity(0.45),
+                      BlendMode.srcOver,
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    module.subtitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.body.copyWith(
-                      color: Colors.white.withOpacity(0.9),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              // Alt kısım:
-              // - Henüz başlanmadıysa sadece "X questions"
-              // - En az 1 soru çözülmüşse sadece görsel progress bar
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (effectiveProgress <= 0) ...[
-                    Text(
-                      '${module.totalQuestions} questions',
-                      style: AppTextStyles.label.copyWith(
-                        color: Colors.white.withOpacity(0.85),
-                      ),
-                    ),
-                  ] else ...[
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                      child: Container(
-                        height: 8,
-                        decoration: BoxDecoration(
-                          // Boş track biraz daha belirgin
-                          color: Colors.white.withValues(alpha: 0.5),
-                        ),
-                        child: FractionallySizedBox(
-                          alignment: Alignment.centerLeft,
-                          widthFactor: effectiveProgress.clamp(0.0, 1.0),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              // Dolu kısım daha parlak, accent renginde
-                              color: AppColors.primaryAccent.withValues(alpha: 0.95),
+                  )
+                : null,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+            child: Stack(
+              children: [
+                // 🔵 decorative circles
+                Positioned(top: -30, right: -30, child: _circle(120)),
+                Positioned(bottom: -20, left: -20, child: _circle(80)),
+
+                // ================= CONTENT =================
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 🔹 LABEL
+                      _FormatChip(format: module.format),
+
+                      const SizedBox(height: AppSpacing.sm),
+
+                      // 🔹 TITLE + DESCRIPTION (EXPANDED = overflow fix)
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              module.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.headline.copyWith(
+                                color: AppColors.textLightPrimary,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                          ),
+
+                            const SizedBox(height: 2),
+
+                            // 🔥 CRITICAL FIX
+                            Flexible(
+                              child: Text(
+                                module.subtitle,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.body.copyWith(
+                                  color: AppColors.textLightPrimary,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
-                ],
-              ),
-            ],
+
+                      const SizedBox(height: AppSpacing.sm),
+
+                      // 🔹 FOOTER
+                      Text(
+                        '${module.totalQuestions} questions',
+                        style: AppTextStyles.label.copyWith(
+                          color: AppColors.textLightPrimary.withOpacity(0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
+  Widget _circle(double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        shape: BoxShape.circle,
+      ),
+    );
+  }
 }
 
+// ================= FORMAT CHIP =================
 class _FormatChip extends StatelessWidget {
   final TrainingModuleFormat format;
 
@@ -164,13 +189,13 @@ class _FormatChip extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        color: Colors.black.withOpacity(0.30),
+        color: Colors.white.withOpacity(0.15),
       ),
       child: Text(
         _label.toUpperCase(),
         style: AppTextStyles.label.copyWith(
-          color: Colors.white,
-          letterSpacing: 1.0,
+          color: AppColors.textLightPrimary,
+          letterSpacing: 1,
         ),
       ),
     );

@@ -13,6 +13,7 @@ import '../../../models/ai_exam_result.dart';
 import '../../../models/exam.dart';
 import '../../../models/question.dart';
 import '../../../services/ai/ai_service.dart';
+import '../../interview/pages/interview/submitted/interview_submitted_page.dart';
 import 'create_exam_controller.dart'; // ✅ düzeltildi
 import '../result/exam_result_page.dart'; // ✅ bir üst klasörde
 import '../services/exam_xp_service.dart';
@@ -293,17 +294,44 @@ class ExamController extends GetxController {
     final resultExam = exam.copyWith(answers: snapshotAnswers);
 
     try {
+      // =======================================================
+      // 🔥 INTERVIEW MODE CHECK
+      // =======================================================
+      // TODO (Backend):
+      // - Replace this flag with real interview session type
+      // - Backend should determine if this is an interview
+      final bool isInterview = exam.title == "Interview";
+
+      // =======================================================
+      // 🔥 INTERVIEW FLOW (NO AI EVALUATION)
+      // =======================================================
+      if (isInterview) {
+        // TODO (Backend):
+        // - Send answers to backend instead of AI evaluation
+        // - Backend will store answers and notify HR
+        // - Questions come from HR-selected pool (by question IDs)
+
+        // 🔊 Optional: play completion sound
+        SoundService.play(SoundEffect.examComplete);
+
+        Get.offAll(
+              () => const InterviewSubmittedPage(),
+          arguments: resultExam,
+        );
+
+        return;
+      }
+
+      // =======================================================
+      // 🔥 NORMAL EXAM FLOW (UNCHANGED)
+      // =======================================================
+
       // 2️⃣ AI değerlendirmesi
       final aiService = Get.find<AiService>();
       final aiEval = await aiService.evaluateExam(
         exam: resultExam,
         userAnswers: snapshotAnswers,
       );
-
-
-      //print("AI değerlendirmesi tamamlandı soru başına dönen CORRECTANSWERLAR:");
-      //for (final qEval in aiEval.questionEvaluations)
-      //  print(qEval.correctAnswer);
 
       final aiResult = AiExamResult.fromEvaluateResult(aiEval);
 
@@ -323,7 +351,7 @@ class ExamController extends GetxController {
         aiResult: aiEval,
       );
 
-      // 🔥🔥 4️⃣ EXAM XP KAYDI (FIRESTORE'A YAZILAN YER)
+      // 🔥🔥 4️⃣ EXAM XP KAYDI
       await ExamXpService.saveExamResult(
         exam: updatedExam,
         aiResult: aiResult,
@@ -334,7 +362,7 @@ class ExamController extends GetxController {
 
       // 5️⃣ Sonuç sayfasına yönlendir
       Get.offAll(
-        () => const ExamResultPage(),
+            () => const ExamResultPage(),
         arguments: {
           'exam': updatedExam,
           'aiResult': aiResult,
@@ -343,12 +371,24 @@ class ExamController extends GetxController {
     } catch (e, st) {
       debugPrint("⚠️ AI evaluation failed: $e\n$st");
 
-      Get.offAll(
-        () => const ExamResultPage(),
-        arguments: {
-          'exam': resultExam,
-        },
-      );
+      // =======================================================
+      // 🔥 ERROR CASE → INTERVIEW VS EXAM AYRIMI
+      // =======================================================
+      final bool isInterview = exam.title == "Interview";
+
+      if (isInterview) {
+        Get.offAll(
+              () => const InterviewSubmittedPage(),
+          arguments: resultExam,
+        );
+      } else {
+        Get.offAll(
+              () => const ExamResultPage(),
+          arguments: {
+            'exam': resultExam,
+          },
+        );
+      }
     }
   }
 

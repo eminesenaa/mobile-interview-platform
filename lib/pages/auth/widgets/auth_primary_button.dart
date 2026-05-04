@@ -27,7 +27,7 @@ class AuthPrimaryButton extends StatelessWidget {
           backgroundColor: AppColors.primary,
           disabledBackgroundColor: AppColors.primary.withOpacity(0.6),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.round),
+            borderRadius: BorderRadius.circular(AppRadius.md),
           ),
           elevation: AppZIndex.card,
         ),
