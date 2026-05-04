@@ -13,14 +13,12 @@ import 'package:interview_project/constants/constants.dart';
 import 'package:interview_project/models/training_module.dart';
 
 class TrainingModuleCard extends StatelessWidget {
-  final int index;
   final TrainingModule module;
   final double? progress;
   final VoidCallback? onTap;
 
   const TrainingModuleCard({
     super.key,
-    required this.index,
     required this.module,
     this.progress,
     this.onTap,
@@ -48,7 +46,10 @@ class TrainingModuleCard extends StatelessWidget {
       // Pink Carnation → soft pink
       const [AppColors.pinkCarnation, Color(0xFFFFB3E6)],
     ];
-    final selectedGradient = gradients[index % gradients.length];
+
+    final colorIndex = module.id.hashCode.abs() % gradients.length;
+
+    final gradient = gradients[colorIndex];
 
     final effectiveProgress = (progress ?? 0).clamp(0.0, 1.0).toDouble();
 
@@ -65,7 +66,7 @@ class TrainingModuleCard extends StatelessWidget {
                 ? LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: selectedGradient,
+                    colors: gradient,
                   )
                 : null,
             image: module.coverImageUrl != null

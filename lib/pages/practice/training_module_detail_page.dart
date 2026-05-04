@@ -47,6 +47,8 @@ class TrainingModuleDetailPage extends StatelessWidget {
     final moduleQuestionRefs =
         questionRefs ?? const <TrainingModuleQuestionRef>[];
 
+    final practice = Get.find<PracticeController>();
+
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
@@ -90,7 +92,6 @@ class TrainingModuleDetailPage extends StatelessWidget {
                       AspectRatio(
                         aspectRatio: 2.2,
                         child: TrainingModuleCard(
-                          index: 0,
                           module: module,
                           // Kart üzerindeki bar da güncel olsun
                           progress: progressRatio,
@@ -293,7 +294,6 @@ class TrainingModuleDetailPage extends StatelessWidget {
   // ===========================================================================
   // 🛠 HELPERS
   // ===========================================================================
-
   static String _formatLabel(TrainingModuleFormat format) {
     switch (format) {
       case TrainingModuleFormat.crashCourse:

@@ -103,7 +103,6 @@ class PracticePage extends StatelessWidget {
                                         bottom: AppSpacing.sm,
                                       ),
                                       child: TrainingModuleCard(
-                                        index: index,
                                         module: module,
                                         progress: progressValue,
                                         onTap: () {

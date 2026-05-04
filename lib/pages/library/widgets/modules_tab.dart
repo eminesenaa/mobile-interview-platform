@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../constants/constants.dart';
+import '../../../models/training_module.dart';
 import '../controllers/library_controller.dart';
 import '../../practice/widgets/training_module_card.dart';
 import 'empty_state.dart'; // Projenizde mevcut olan empty state widgets'ı
@@ -57,7 +58,6 @@ class LibraryModulesTab extends StatelessWidget {
           final progressRatio = userProgress?.progress ?? 0.0;
 
           return TrainingModuleCard(
-            index: i,
             module: module,
             progress: progressRatio,
             // 🔥 Gerçek ilerleme yüzdesi buraya gidiyor
