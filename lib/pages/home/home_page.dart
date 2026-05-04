@@ -1,21 +1,34 @@
 // ===================== File: lib/pages/home/home_page.dart =====================
+// Purpose:
+// Refactored Home Page with new UI architecture
+//
+// IMPORTANT:
+// - Logic untouched (HomeController 그대로)
+// - Only UI layer updated
+// - Uses new Home widgets (sections)
+// ==============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
 import 'package:interview_project/constants/colors.dart';
 import 'package:interview_project/constants/constants.dart';
 import 'package:interview_project/constants/text_styles.dart';
-import 'package:interview_project/pages/home/progress_page.dart';
-import 'package:interview_project/controllers/progress_controller.dart';
-import 'package:interview_project/pages/home/widgets/duel_entry_card.dart';
-import 'package:interview_project/pages/home/widgets/leaderboard_card.dart';
-import 'package:interview_project/pages/home/widgets/progress_summary_card.dart';
-import '../duello/duel_type_page.dart';
+import 'package:interview_project/pages/home/widgets/home/hp_duel_section.dart';
+import 'package:interview_project/pages/home/widgets/home/hp_leaderboard_section.dart';
+import 'package:interview_project/pages/home/widgets/home/hp_section_header.dart';
+import 'package:interview_project/pages/home/widgets/home/hp_streak_section.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
+
 import 'controllers/home_controller.dart';
+import '../duello/duel_type_page.dart';
 import 'leaderboard_page.dart';
-import 'widgets/streak_card.dart';
-import 'widgets/popular_question_card.dart';
-import 'widgets/user_greeting_title.dart';
+
+// 🔥 EXISTING (KEEP)
+import 'widgets/home/hp_user_greeting_title.dart';
+import 'widgets/home/hp_popular_question_card.dart';
+
+// 🔥 NEW UI LAYER
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -26,58 +39,78 @@ class HomePage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+
+      // ===================== APP BAR =====================
       appBar: AppBar(
         elevation: 0,
         backgroundColor: AppColors.surface,
         toolbarHeight: 70,
         titleSpacing: 0,
-        title: const Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
+        title: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.lg,
           ),
           child: Row(
             children: [
               Expanded(child: UserGreetingTitle()),
+
+              // NOTIFICATION ICON
+              Icon(
+                PhosphorIcons.bell(),
+                size: 22,
+                color: AppColors.textPrimary,
+              ),
             ],
           ),
         ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, thickness: 1, color: AppColors.border),
+          child: Divider(
+            height: 1,
+            thickness: 1,
+            color: AppColors.border,
+          ),
         ),
       ),
+
+      // ===================== BODY =====================
       body: RefreshIndicator(
         onRefresh: hc.refreshAll,
         child: CustomScrollView(
           key: const PageStorageKey('home_scroll'),
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            // 🔥 TÜM SAYFAYA ORTAK HORIZONTAL PADDING
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: 0,
+              ),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  // ---- GREETING & STREAK ----
+                  // ===================== STREAK =====================
                   Padding(
-                    padding:
-                        const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.lg,
+                    ),
                     child: Obx(() {
                       final s = hc.streak.value;
                       if (s == null) return const SizedBox.shrink();
 
-                      return StreakCard(
-                        currentStreak: s.streakCount,
-                        longestStreak: s.longestStreak,
-                        history: s.streakHistory,
+                      return HpStreakSection(
+                        current: s.streakCount,
+                        longest: s.longestStreak,
+
+                        // 🔥 TYPE SAFE
+                        history: Map<String, bool>.from(s.streakHistory),
                       );
                     }),
                   ),
 
-                  // ---- DUEL ENTRY ----
+                  // ===================== DUEL =====================
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-                    child: DuelEntryCard(
+                    child: HpDuelSection(
                       onTap: () {
                         Get.to(
                           () => const DuelTypePage(),
@@ -88,16 +121,15 @@ class HomePage extends StatelessWidget {
                     ),
                   ),
 
-                  // ---- SECTION HEADER ----
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-                    child: Text(
-                      "Today’s Popular Questions",
-                      style: AppTextStyles.headline,
+                  // ===================== POPULAR HEADER =====================
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: AppSpacing.md),
+                    child: HpSectionHeader(
+                      title: "Today’s Popular Questions",
                     ),
                   ),
 
-                  // ---- POPULAR QUESTIONS ----
+                  // ===================== POPULAR LIST =====================
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.lg),
                     child: Obx(() {
@@ -108,36 +140,33 @@ class HomePage extends StatelessWidget {
                         height: 180,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
-                          padding: EdgeInsets.zero,
-                          // 🔥 önemli
                           itemCount: items.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(width: 12),
-                          itemBuilder: (_, i) => PopularQuestionCard.horizontal(
-                            question: items[i],
-                            width: MediaQuery.of(context).size.width * 0.8,
-                          ),
+                          itemBuilder: (_, i) {
+                            return PopularQuestionCard.horizontal(
+                              question: items[i],
+                              width: MediaQuery.of(context).size.width * 0.8,
+                            );
+                          },
                         ),
                       );
                     }),
                   ),
 
-                  // ---- LEADERBOARD ----
+                  // ===================== LEADERBOARD =====================
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-                    child: Obx(
-                      () => LeaderboardCard(
+                    child: Obx(() {
+                      return HpLeaderboardSection(
                         top3: hc.top3,
                         me: hc.me.value,
-                        loading: hc.lbLoading.value,
                         onTap: () {
                           Get.to(() => const LeaderboardPage());
                         },
-                      ),
-                    ),
+                      );
+                    }),
                   ),
-
-                  const SizedBox(height: AppSpacing.lg),
                 ]),
               ),
             ),

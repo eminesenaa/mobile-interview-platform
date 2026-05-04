@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../constants/text_styles.dart';
-import '../../../widgets/app_avatar.dart';
-import '../controllers/home_controller.dart';
+import '../../../../constants/text_styles.dart';
+import '../../../../widgets/app_avatar.dart';
+import '../../controllers/home_controller.dart';
 
 /// Header: Kullanıcı avatarı + "Hi, Name!"
 /// - photoUrl null ise default ikon gösterir.

@@ -120,6 +120,22 @@ class AppColors {
   /// Light Cyan – background / minimal contribution topics
   static const Color topicLightCyan = Color(0xFFCAF0F8);
 
+
+  // =========
+  // Leaderboard Rank Colors
+  // =========
+  // Used for top 3 leaderboard positions
+  // Keep subtle & premium (avoid too bright tones)
+
+  /// 🥇 Gold – 1st place
+  static const Color rankGold = Color(0xFFFFD700);
+
+  /// 🥈 Silver – 2nd place
+  static const Color rankSilver = Color(0xFFC0C0C0);
+
+  /// 🥉 Bronze – 3rd place
+  static const Color rankBronze = Color(0xFFCD7F32);
+
   // =========
   // Extended Accent Palette (UI Cards, Charts, Gamification)
   // =========

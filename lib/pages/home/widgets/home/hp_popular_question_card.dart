@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:interview_project/constants/colors.dart';
 import 'package:interview_project/constants/text_styles.dart';
 
-import '../../../models/question.dart';
-import '../../question_types/question_navigator.dart';
+import '../../../../models/question.dart';
+import '../../../question_types/question_navigator.dart';
 
 class PopularQuestionCard extends StatelessWidget {
   final Question question;
