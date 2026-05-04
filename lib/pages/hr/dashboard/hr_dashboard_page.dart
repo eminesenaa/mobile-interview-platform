@@ -48,13 +48,15 @@ class HRDashboardPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const SizedBox(height: AppSpacing.xs),
               // ===============================
               // HEADER
               // ===============================
-              Obx(() => HRDashboardHeader(
-                    companyName: controller.companyName.value,
-                    initials: controller.initials.value,
-                  )),
+              Obx(
+                () => HRDashboardHeader(
+                  companyName: controller.companyName.value,
+                ),
+              ),
 
               const SizedBox(height: AppSpacing.xl),
 
@@ -77,7 +79,7 @@ class HRDashboardPage extends StatelessWidget {
                 },
                 onCreateInterview: () {
                   Get.to(
-                        () => const CipSelectJobPostingPage(),
+                    () => const CipSelectJobPostingPage(),
                     binding: BindingsBuilder(() {
                       Get.put(CreateInterviewController());
                     }),
