@@ -41,10 +41,11 @@ class TrainingModuleDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     // Controller'ı bul
     final practiceController = Get.find<PracticeController>();
-    
+
     // Verileri güvenli şekilde alalım
     final moduleSections = sections ?? const <TrainingSection>[];
-    final moduleQuestionRefs = questionRefs ?? const <TrainingModuleQuestionRef>[];
+    final moduleQuestionRefs =
+        questionRefs ?? const <TrainingModuleQuestionRef>[];
 
     return Scaffold(
       appBar: AppBar(
@@ -73,7 +74,9 @@ class TrainingModuleDetailPage extends StatelessWidget {
 
           // 2. 🔥 TİK İŞARETİ İÇİN KRİTİK VERİ:
           // Bu modülde çözülen soruların ID listesini (Set olarak) alıyoruz.
-          final completedIds = practiceController.completedQuestionIdsByModule[module.id] ?? <String>{};
+          final completedIds =
+              practiceController.completedQuestionIdsByModule[module.id] ??
+                  <String>{};
 
           return Column(
             children: [
@@ -84,9 +87,10 @@ class TrainingModuleDetailPage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Hero-like kart
-                      SizedBox(
-                        height: 170,
+                      AspectRatio(
+                        aspectRatio: 2.2,
                         child: TrainingModuleCard(
+                          index: 0,
                           module: module,
                           // Kart üzerindeki bar da güncel olsun
                           progress: progressRatio,
@@ -162,14 +166,15 @@ class TrainingModuleDetailPage extends StatelessWidget {
                                   moduleSections[i],
                                   practiceController.allQuestions,
                                   moduleQuestionRefs,
-                                  completedIds, 
+                                  completedIds,
                                 ),
                                 onQuestionTap: (question) {
                                   _startRunnerForQuestion(
                                     module: module,
                                     sections: moduleSections,
                                     refs: moduleQuestionRefs,
-                                    allQuestions: practiceController.allQuestions,
+                                    allQuestions:
+                                        practiceController.allQuestions,
                                     tappedQuestion: question,
                                   );
                                 },
@@ -179,7 +184,7 @@ class TrainingModuleDetailPage extends StatelessWidget {
                             ],
                           ],
                         ),
-                      
+
                       const SizedBox(height: AppSpacing.xl),
                     ],
                   ),
@@ -188,14 +193,13 @@ class TrainingModuleDetailPage extends StatelessWidget {
 
               // 🔹 ALT BUTON (Get Started / Continue)
               _buildBottomButton(
-                context, 
-                moduleSections, 
-                moduleQuestionRefs, 
-                practiceController.allQuestions, 
-                currentCompleted, 
-                totalQuestions,
-                completedIds
-              ),
+                  context,
+                  moduleSections,
+                  moduleQuestionRefs,
+                  practiceController.allQuestions,
+                  currentCompleted,
+                  totalQuestions,
+                  completedIds),
             ],
           );
         }),
@@ -222,7 +226,7 @@ class TrainingModuleDetailPage extends StatelessWidget {
       label = "Continue";
       icon = Icons.fast_forward_rounded;
     } else if (completed > 0 && completed == total) {
-      label = "Review"; 
+      label = "Review";
       icon = Icons.replay_rounded;
     }
 
@@ -232,7 +236,7 @@ class TrainingModuleDetailPage extends StatelessWidget {
         color: AppColors.surface,
         border: Border(top: BorderSide(color: AppColors.border)),
         boxShadow: [
-           BoxShadow(
+          BoxShadow(
             color: Colors.black12,
             blurRadius: 4,
             offset: Offset(0, -2),
@@ -261,10 +265,7 @@ class TrainingModuleDetailPage extends StatelessWidget {
           onPressed: () {
             // Tüm soruları sıralı al
             final orderedQuestions = _getAllOrderedQuestions(
-              sections: sections, 
-              refs: refs, 
-              allQuestions: allQuestions
-            );
+                sections: sections, refs: refs, allQuestions: allQuestions);
 
             if (orderedQuestions.isEmpty) return;
 
@@ -280,16 +281,14 @@ class TrainingModuleDetailPage extends StatelessWidget {
 
             // Runner'ı başlat
             _startRunnerWithIndex(
-              module: module,
-              questions: orderedQuestions,
-              startIndex: startIndex
-            );
+                module: module,
+                questions: orderedQuestions,
+                startIndex: startIndex);
           },
         ),
       ),
     );
   }
-
 
   // ===========================================================================
   // 🛠 HELPERS
@@ -319,12 +318,12 @@ class TrainingModuleDetailPage extends StatelessWidget {
     List<Question> result = [];
 
     for (var section in sections) {
-       final refsForSection = refs
+      final refsForSection = refs
           .where((r) => r.sectionId == section.id)
           .toList()
-          ..sort((a, b) => a.order.compareTo(b.order));
-      
-      for(var ref in refsForSection) {
+        ..sort((a, b) => a.order.compareTo(b.order));
+
+      for (var ref in refsForSection) {
         final q = idToQuestion[ref.questionId];
         if (q != null) result.add(q);
       }
@@ -437,9 +436,9 @@ List<Question> _resolveSectionQuestions(
       // 🔥 İŞTE SİHİR BURADA:
       // Eğer soru tamamlanmışlar listesindeyse, statüsünü değiştirip listeye ekliyoruz.
       if (completedIds.contains(ref.questionId)) {
-         result.add(q.copyWith(status: Status.solved));
+        result.add(q.copyWith(status: Status.solved));
       } else {
-         result.add(q);
+        result.add(q);
       }
     }
   }
@@ -485,13 +484,13 @@ void _startRunnerForQuestion({
   final orderedQuestions = <Question>[];
   // Section sırasını takip et
   for (var section in sections) {
-     final sRefs = refs.where((r) => r.sectionId == section.id).toList()
-       ..sort((a,b) => a.order.compareTo(b.order));
-     
-     for (var r in sRefs) {
-       final q = idToQuestion[r.questionId];
-       if(q != null) orderedQuestions.add(q);
-     }
+    final sRefs = refs.where((r) => r.sectionId == section.id).toList()
+      ..sort((a, b) => a.order.compareTo(b.order));
+
+    for (var r in sRefs) {
+      final q = idToQuestion[r.questionId];
+      if (q != null) orderedQuestions.add(q);
+    }
   }
 
   if (orderedQuestions.isEmpty) {
@@ -511,8 +510,5 @@ void _startRunnerForQuestion({
   }
 
   _startRunnerWithIndex(
-    module: module, 
-    questions: orderedQuestions, 
-    startIndex: startIndex
-  );
+      module: module, questions: orderedQuestions, startIndex: startIndex);
 }

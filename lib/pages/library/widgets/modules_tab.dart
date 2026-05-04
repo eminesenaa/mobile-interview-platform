@@ -28,13 +28,13 @@ class LibraryModulesTab extends StatelessWidget {
       if (items.isEmpty) {
         // Arama yapılıyorsa farklı, hiç veri yoksa farklı mesaj
         if (c.searchQuery.value.isNotEmpty) {
-           return const LibraryEmptyState(
+          return const LibraryEmptyState(
             title: 'No results found',
             subtitle: 'Try adjusting your search terms.',
             icon: Icons.search_off,
           );
         }
-        
+
         return const LibraryEmptyState(
           title: 'No started plans',
           subtitle: 'Training plans you start will appear here.',
@@ -44,20 +44,23 @@ class LibraryModulesTab extends StatelessWidget {
 
       // 4. Modül listesi
       return ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md, vertical: AppSpacing.sm),
         physics: const BouncingScrollPhysics(),
         itemCount: items.length,
         separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
         itemBuilder: (_, i) {
           final module = items[i];
-          
+
           // Controller üzerindeki Map'ten bu modülün progress verisini çekiyoruz
           final userProgress = c.modulesProgressMap[module.id];
           final progressRatio = userProgress?.progress ?? 0.0;
 
           return TrainingModuleCard(
+            index: i,
             module: module,
-            progress: progressRatio, // 🔥 Gerçek ilerleme yüzdesi buraya gidiyor
+            progress: progressRatio,
+            // 🔥 Gerçek ilerleme yüzdesi buraya gidiyor
             onTap: () => c.navigateToModuleDetail(module),
           );
         },

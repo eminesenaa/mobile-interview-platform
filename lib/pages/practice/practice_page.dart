@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:interview_project/pages/practice/widgets/section_label.dart';
 import 'package:sliver_tools/sliver_tools.dart';
 
 import 'package:interview_project/constants/constants.dart';
@@ -24,12 +25,15 @@ class PracticePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 🔥 DÜZELTME: permanent: false ile mevcut controller'ı bul ya da yenisini oluştur
     final controller = Get.put(PracticeController(), permanent: false);
     final lib = LibraryService.instance;
 
     final bottomInset = MediaQuery.of(context).padding.bottom + 12;
-    final trainingPageController = PageController(viewportFraction: 0.9);
+
+    // PageView kartı ekran genişliğinin tamamını kaplar,
+    // peek effect için viewportFraction 1.0 bırakılır,
+    // padding kart Padding'i ile sağlanır.
+    final trainingPageController = PageController(viewportFraction: 1.0);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -53,12 +57,24 @@ class PracticePage extends StatelessWidget {
             physics: const BouncingScrollPhysics(),
             slivers: [
               // (1) TRAINING MODULES
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                sliver: SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.md),
-                    child: SizedBox(
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(
+                        top: AppSpacing.md,
+                        left: AppSpacing.lg,
+                        right: AppSpacing.lg,
+                      ),
+                      child: SectionLabel(
+                        title: "Training Modules",
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    // PageView tam ekran genişliğinde,
+                    // her kart kendi Padding'i ile lg boşluk bırakır
+                    SizedBox(
                       height: 170,
                       child: isModulesLoading
                           // 🔥 DÜZELTME: isModulesLoading flag ile loading kontrolü
@@ -80,11 +96,14 @@ class PracticePage extends StatelessWidget {
                                         userProgress?.progress ?? 0.0;
 
                                     return Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: AppSpacing.xs,
-                                        vertical: AppSpacing.sm,
+                                      padding: const EdgeInsets.only(
+                                        left: AppSpacing.lg,
+                                        right: AppSpacing.lg,
+                                        top: AppSpacing.sm,
+                                        bottom: AppSpacing.sm,
                                       ),
                                       child: TrainingModuleCard(
+                                        index: index,
                                         module: module,
                                         progress: progressValue,
                                         onTap: () {
@@ -109,7 +128,7 @@ class PracticePage extends StatelessWidget {
                                   },
                                 ),
                     ),
-                  ),
+                  ],
                 ),
               ),
 
@@ -118,11 +137,9 @@ class PracticePage extends StatelessWidget {
                 child: Container(
                   color: AppColors.background,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md,
-                      AppSpacing.sm,
-                      AppSpacing.md,
-                      AppSpacing.md,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.md,
                     ),
                     child: Column(
                       children: [
@@ -132,7 +149,13 @@ class PracticePage extends StatelessWidget {
                           onTopicSelected: (topic) =>
                               controller.updateFilters(topic: topic),
                         ),
-                        const Divider(height: 24),
+                        // Divider
+                        Container(
+                          margin: const EdgeInsets.symmetric(
+                              vertical: AppSpacing.md),
+                          height: 1.2,
+                          color: AppColors.textMuted,
+                        ),
                         SearchAddBar(
                           searchText: controller.searchQuery.value,
                           onSearchChanged: controller.updateSearch,
@@ -207,11 +230,9 @@ class PracticePage extends StatelessWidget {
                 )
               else
                 SliverPadding(
-                  padding: EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    bottomInset,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                    vertical: 0,
                   ),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
