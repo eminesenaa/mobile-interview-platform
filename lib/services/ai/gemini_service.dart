@@ -47,6 +47,12 @@ class GeminiService {
       case PromptType.codeWriting:
         return await rootBundle
             .loadString('assets/prompts/CodeWritingTraining.yml');
+      case PromptType.interviewQuestion:
+        return await rootBundle
+            .loadString('assets/prompts/InterviewQuestionEvaluation.yml');
+      case PromptType.interviewFinalDecision:
+        return await rootBundle
+            .loadString('assets/prompts/InterviewFinalDecision.yml');
     }
   }
 
@@ -218,4 +224,148 @@ class GeminiService {
       AiConfig.GEMINIoutOfTokenFlag = true;
     }
   }
+
+  // ===============================================================
+  // 🔥 INTERVIEW GRADING — Stage 1: Single Question Evaluation
+  // ===============================================================
+
+  Future<Map<String, dynamic>> gradeInterviewQuestion({
+    required Map<String, String> qMeta,
+    required String candidateAnswer,
+    required String category,
+    required String questionTypeName,
+    Duration timeout = const Duration(seconds: 45),
+  }) async {
+    try {
+      var tmpl = await rootBundle
+          .loadString('assets/prompts/InterviewQuestionEvaluation.yml');
+
+      tmpl = _stripInterviewSections(tmpl, questionTypeName);
+
+      tmpl = _renderTemplate(tmpl, {
+        ...qMeta,
+        'Category': category,
+        'candidate_answer_or_choice': candidateAnswer,
+      });
+
+      final model = GenerativeModel(
+        model: _modelName,
+        apiKey: _apiKey,
+        systemInstruction: Content.system("Output ONLY raw JSON."),
+      );
+
+      final resp = await model.generateContent(
+        [Content.text(tmpl)],
+        generationConfig: GenerationConfig(
+          temperature: 0.1,
+          responseMimeType: 'application/json',
+        ),
+      ).timeout(timeout);
+
+      final text = resp.text ?? '';
+      if (text.isEmpty) throw Exception("Gemini returned empty response");
+
+      final parsed = jsonDecode(text);
+      if (parsed is! Map<String, dynamic>) {
+        throw Exception("Interview question result is not a JSON object.");
+      }
+      return parsed;
+    } catch (e) {
+      _handleQuotaError(e);
+      rethrow;
+    }
+  }
+
+  // ===============================================================
+  // 🔥 INTERVIEW GRADING — Stage 2: Final Decision
+  // ===============================================================
+
+  Future<Map<String, dynamic>> gradeInterviewFinal({
+    required List<Map<String, dynamic>> evaluationsJson,
+    Duration timeout = const Duration(seconds: 60),
+  }) async {
+    try {
+      var tmpl = await rootBundle
+          .loadString('assets/prompts/InterviewFinalDecision.yml');
+
+      tmpl = tmpl.replaceFirst(
+        '{{EVALUATIONS_JSON}}',
+        jsonEncode(evaluationsJson),
+      );
+
+      final model = GenerativeModel(
+        model: _modelName,
+        apiKey: _apiKey,
+        systemInstruction: Content.system("Output ONLY raw JSON."),
+      );
+
+      final resp = await model.generateContent(
+        [Content.text(tmpl)],
+        generationConfig: GenerationConfig(
+          temperature: 0.2,
+          responseMimeType: 'application/json',
+        ),
+      ).timeout(timeout);
+
+      final text = resp.text ?? '';
+      if (text.isEmpty) throw Exception("Gemini returned empty response");
+
+      final parsed = jsonDecode(text);
+      if (parsed is! Map<String, dynamic>) {
+        throw Exception("Interview final result is not a JSON object.");
+      }
+      return parsed;
+    } catch (e) {
+      _handleQuotaError(e);
+      rethrow;
+    }
+  }
+
+  // ===============================================================
+  // 🔥 INTERVIEW SECTION STRIPPING
+  // ===============================================================
+
+  static String _stripInterviewSections(String tmpl, String questionTypeName) {
+    const allSections = [
+      'MCQ EVALUATION',
+      'FILL-IN-THE-BLANK (N = 1)',
+      'FILL-IN-THE-BLANK (N > 1)',
+      'SHORT ANSWER EVALUATION',
+      'CODING EVALUATION',
+      'BEHAVIORAL (STAR) EVALUATION',
+    ];
+
+    final Set<String> keepSections;
+    switch (questionTypeName.toLowerCase()) {
+      case 'mcq':
+        keepSections = {'MCQ EVALUATION'};
+        break;
+      case 'fillblank':
+      case 'fillBlanks':
+        keepSections = {
+          'FILL-IN-THE-BLANK (N = 1)',
+          'FILL-IN-THE-BLANK (N > 1)',
+        };
+        break;
+      case 'shortanswer':
+      case 'short_answer':
+        keepSections = {'SHORT ANSWER EVALUATION'};
+        break;
+      case 'coding':
+      case 'debugging':
+        keepSections = {'CODING EVALUATION'};
+        break;
+      default:
+        keepSections = {'BEHAVIORAL (STAR) EVALUATION'};
+    }
+
+    for (final section in allSections) {
+      if (!keepSections.contains(section)) {
+        tmpl = _removeSection(tmpl, section);
+      }
+    }
+
+    return tmpl;
+  }
 }
+

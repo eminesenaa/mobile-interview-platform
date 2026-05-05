@@ -3,7 +3,10 @@ import 'dart:async';
 import 'dart:collection';
 
 import '../../models/exam.dart';
+import '../../models/interview.dart';
 import '../../models/question.dart';
+import '../../models/ai_interview_question_result.dart';
+import '../../models/ai_interview_result.dart';
 import 'ai_config.dart';
 import 'gemini_service.dart';
 import 'openai_service.dart';
@@ -89,9 +92,202 @@ class AiService {
     required Exam exam,
     required Map<String, dynamic> userAnswers,
   }) async {
-    // Tüm çağrılar 5’li batch değerlendirmeye yönlensin
+    // Tüm çağrılar 5'li batch değerlendirmeye yönlensin
     return await evaluateExamBatched(exam: exam, userAnswers: userAnswers);
   }
+
+  // ===============================================================
+  // 🔥 INTERVIEW EVALUATION (Two-Stage Pipeline)
+  // ===============================================================
+  //
+  // Stage 1: Evaluate each question individually
+  //   - Loads InterviewQuestionEvaluation.yml
+  //   - Strips irrelevant rubric sections per question type
+  //   - Returns rich JSON per question (subscores, STAR, coaching, etc.)
+  //
+  // Stage 2: Final hiring decision
+  //   - Sends all Stage 1 JSON outputs to InterviewFinalDecision.yml
+  //   - Returns executive summary, role recommendation, global patterns
+  // ===============================================================
+
+  Future<AiInterviewResult> evaluateInterview({
+    required Interview interview,
+    required Map<String, dynamic> userAnswers,
+  }) async {
+    final totalSw = Stopwatch()..start();
+
+    // ═══════════════════════════════════════
+    // STAGE 1: Per-Question Evaluation
+    // ═══════════════════════════════════════
+    final questionResults = <AiInterviewQuestionResult>[];
+    final rawJsonResults = <Map<String, dynamic>>[];
+
+    // Use _AsyncPool to limit concurrency (avoid rate limits)
+    final pool = _AsyncPool(3);
+    final futures = <Future<void>>[];
+
+    for (int i = 0; i < interview.questions.length; i++) {
+      final q = interview.questions[i];
+      final questionKey = q.id;
+      final rawAns = userAnswers[questionKey];
+
+      final safeAns =
+          (rawAns == null || (rawAns is String && rawAns.trim().isEmpty))
+              ? "noAnswerProvided"
+              : rawAns;
+
+      final int capturedIndex = i;
+
+      futures.add(pool.withResource(() async {
+        try {
+          final meta = _toMeta(q);
+          final candidate = _candidateFromAnswer(q, safeAns);
+          final category = _mapTopicToCategory(q.topic);
+          final provider =
+              AiConfig.chooseModel(questionType: q.type.name);
+
+          print(
+            "📝 [INTERVIEW Q$capturedIndex] type=${q.type.name} "
+            "topic=${q.topic} provider=$provider",
+          );
+
+          final resultJson = await switch (provider) {
+            AiProvider.openai => OpenAIService.gradeInterviewQuestion(
+              qMeta: meta,
+              candidateAnswer: candidate,
+              category: category,
+              questionTypeName: q.type.name,
+            ),
+            AiProvider.gemini => GeminiService().gradeInterviewQuestion(
+              qMeta: meta,
+              candidateAnswer: candidate,
+              category: category,
+              questionTypeName: q.type.name,
+            ),
+            AiProvider.anthropic =>
+                AnthropicService().gradeInterviewQuestion(
+              qMeta: meta,
+              candidateAnswer: candidate,
+              category: category,
+              questionTypeName: q.type.name,
+            ),
+            AiProvider.llama => LlamaService().gradeInterviewQuestion(
+              qMeta: meta,
+              candidateAnswer: candidate,
+              category: category,
+              questionTypeName: q.type.name,
+            ),
+          };
+
+          final parsed = AiInterviewQuestionResult.fromJson(
+            resultJson,
+            questionKey,
+            capturedIndex,
+          );
+
+          questionResults.add(parsed);
+          rawJsonResults.add(resultJson);
+
+          print(
+            "✅ [INTERVIEW Q$capturedIndex] "
+            "score=${parsed.overallScore} decision=${parsed.decision}",
+          );
+        } catch (e, st) {
+          print("❌ [INTERVIEW Q$capturedIndex] error=$e");
+          print(st);
+
+          // Add a fallback result so we don't lose the question
+          questionResults.add(AiInterviewQuestionResult(
+            questionId: questionKey,
+            questionIndex: capturedIndex,
+            overallScore: 0.0,
+            decision: 'reject',
+            weaknesses: ['AI evaluation failed for this question.'],
+          ));
+          rawJsonResults.add({
+            'overall_score': 0.0,
+            'decision': 'reject',
+            'error': e.toString(),
+          });
+        }
+      }));
+    }
+
+    await Future.wait(futures);
+
+    // Sort by question index
+    questionResults
+        .sort((a, b) => a.questionIndex.compareTo(b.questionIndex));
+    // rawJsonResults doesn't need sorting — Stage 2 doesn't care about order
+
+    print(
+      "📊 [INTERVIEW STAGE 1 DONE] "
+      "questions=${interview.questions.length} "
+      "results=${questionResults.length}",
+    );
+
+    // ═══════════════════════════════════════
+    // STAGE 2: Final Decision
+    // ═══════════════════════════════════════
+    Map<String, dynamic> finalJson;
+
+    try {
+      final provider = AiConfig.provider;
+
+      finalJson = await switch (provider) {
+        AiProvider.openai => OpenAIService.gradeInterviewFinal(
+          evaluationsJson: rawJsonResults,
+        ),
+        AiProvider.gemini => GeminiService().gradeInterviewFinal(
+          evaluationsJson: rawJsonResults,
+        ),
+        AiProvider.anthropic => AnthropicService().gradeInterviewFinal(
+          evaluationsJson: rawJsonResults,
+        ),
+        AiProvider.llama => LlamaService().gradeInterviewFinal(
+          evaluationsJson: rawJsonResults,
+        ),
+      };
+
+      print(
+        "✅ [INTERVIEW STAGE 2 DONE] "
+        "decision=${finalJson['final_decision']} "
+        "score=${finalJson['overall_interview_score']}",
+      );
+    } catch (e, st) {
+      print("❌ [INTERVIEW STAGE 2 FAILED] error=$e");
+      print(st);
+
+      // Fallback: compute basic aggregation without AI
+      final avgScore = questionResults.isEmpty
+          ? 0.0
+          : questionResults.map((q) => q.overallScore).reduce((a, b) => a + b) /
+              questionResults.length;
+
+      finalJson = {
+        'final_decision': avgScore >= 3.5 ? 'advance' : 'reject',
+        'overall_interview_score': avgScore,
+        'executive_summary': 'Stage 2 AI evaluation failed. Scores aggregated manually.',
+        'global_strengths': <String>[],
+        'global_weaknesses': <String>[],
+        'critical_red_flags': <String>[],
+        'technical_competence_summary': '',
+        'behavioral_and_soft_skills_summary': '',
+        'recommended_role_level': 'none',
+        'areas_for_probing_in_next_round': <String>[],
+      };
+    }
+
+    totalSw.stop();
+    print(
+      "🏁 [INTERVIEW EVAL COMPLETE] "
+      "questions=${interview.questions.length} "
+      "totalTime=${totalSw.elapsedMilliseconds}ms",
+    );
+
+    return AiInterviewResult.fromStages(questionResults, finalJson);
+  }
+
 
   /// ✅ Paralel chunk değerlendirme (controller/firebase değişmeden)
   Future<AiExamEvaluateResult> evaluateExamBatched({
