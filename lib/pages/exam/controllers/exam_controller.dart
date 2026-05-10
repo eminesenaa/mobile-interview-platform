@@ -10,7 +10,9 @@ import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../models/ai_exam_result.dart';
+import '../../../models/ai_interview_result.dart';
 import '../../../models/exam.dart';
+import '../../../models/interview.dart';
 import '../../../models/question.dart';
 import '../../../services/ai/ai_service.dart';
 import '../../interview/pages/interview/submitted/interview_submitted_page.dart';
@@ -303,20 +305,151 @@ class ExamController extends GetxController {
       final bool isInterview = exam.title == "Interview";
 
       // =======================================================
-      // 🔥 INTERVIEW FLOW (NO AI EVALUATION)
+      // 🔥 INTERVIEW FLOW — AI EVALUATION
       // =======================================================
       if (isInterview) {
-        // TODO (Backend):
-        // - Send answers to backend instead of AI evaluation
-        // - Backend will store answers and notify HR
-        // - Questions come from HR-selected pool (by question IDs)
+        print('');
+        print('╔══════════════════════════════════════════════════════╗');
+        print('║       🎯 INTERVIEW SUBMIT — AI SCORING STARTED      ║');
+        print('╚══════════════════════════════════════════════════════╝');
+        print('📋 Interview ID: ${exam.id}');
+        print('📋 Total Questions: ${exam.questions.length}');
+        print('📋 Answers Provided: ${snapshotAnswers.length}/${exam.questions.length}');
+        print('📋 Unanswered: ${exam.questions.length - snapshotAnswers.length}');
+        print('');
 
-        // 🔊 Optional: play completion sound
+        // Log answer preview per question
+        for (int i = 0; i < exam.questions.length; i++) {
+          final q = exam.questions[i];
+          final ans = snapshotAnswers[q.id];
+          final ansPreview = ans == null
+              ? '⬜ (empty)'
+              : (ans.toString().length > 60
+                  ? '${ans.toString().substring(0, 60)}...'
+                  : ans.toString());
+          print('   Q$i [${q.type.name}] ${q.title.length > 40 ? q.title.substring(0, 40) + '...' : q.title}');
+          print('      → Answer: $ansPreview');
+        }
+        print('');
+
+        // Build Interview object from exam data.
+        // NOTE: The InterviewSessionController currently converts the real
+        // interview into an Exam. Ideally the Interview object should be
+        // passed through navigation arguments. For now we reconstruct it.
+        // TODO (Backend): Pass the real Interview object through Get.arguments
+        //   instead of reconstructing it here.
+        final interview = Interview(
+          id: exam.id,
+          companyId: '',        // TODO (Backend): populate from session
+          createdByHrId: '',    // TODO (Backend): populate from session
+          title: exam.title,
+          position: '',         // TODO (Backend): populate from session
+          questions: exam.questions,
+          candidateIds: [],
+          startTime: DateTime.now(),
+          endTime: DateTime.now(),
+          joinCode: '',
+          status: InterviewStatus.completed,
+          reviewStatus: ReviewStatus.pending,
+          createdAt: exam.createdAt,
+        );
+
+        print('✅ Interview object built successfully');
+        print('🚀 Sending to AI evaluation pipeline (2-stage)...');
+        print('');
+
+        // 🔥 Call AI evaluation (two-stage pipeline)
+        final evalSw = Stopwatch()..start();
+        final aiService = Get.find<AiService>();
+        final aiResult = await aiService.evaluateInterview(
+          interview: interview,
+          userAnswers: snapshotAnswers,
+        );
+        evalSw.stop();
+
+        // Log result summary
+        print('');
+        print('╔══════════════════════════════════════════════════════╗');
+        print('║       📊 INTERVIEW AI SCORING — RESULTS             ║');
+        print('╚══════════════════════════════════════════════════════╝');
+        print('⏱️  Total AI evaluation time: ${evalSw.elapsedMilliseconds}ms');
+        print('🏆 Final Decision: ${aiResult.finalDecision}');
+        print('📈 Overall Score: ${aiResult.overallInterviewScore}/5.0 (${aiResult.totalScore}/100)');
+        print('👤 Recommended Level: ${aiResult.recommendedRoleLevel}');
+        print('');
+
+        // Per-question breakdown
+        print('📝 Per-Question Breakdown:');
+        for (final qr in aiResult.questionResults) {
+          final emoji = qr.decision == 'advance' ? '✅' : (qr.decision == 'borderline' ? '⚠️' : '❌');
+          print('   $emoji Q${qr.questionIndex}: score=${qr.overallScore}/5.0 decision=${qr.decision}');
+          if (qr.strengths.isNotEmpty) {
+            print('      💪 Strengths: ${qr.strengths.take(2).join(', ')}');
+          }
+          if (qr.weaknesses.isNotEmpty) {
+            print('      ⚡ Weaknesses: ${qr.weaknesses.take(2).join(', ')}');
+          }
+          if (qr.redFlags.isNotEmpty) {
+            print('      🚩 Red Flags: ${qr.redFlags.join(', ')}');
+          }
+        }
+        print('');
+
+        // Global summary
+        if (aiResult.globalStrengths.isNotEmpty) {
+          print('💪 Global Strengths: ${aiResult.globalStrengths.join(', ')}');
+        }
+        if (aiResult.globalWeaknesses.isNotEmpty) {
+          print('⚡ Global Weaknesses: ${aiResult.globalWeaknesses.join(', ')}');
+        }
+        if (aiResult.criticalRedFlags.isNotEmpty) {
+          print('🚩 Critical Red Flags: ${aiResult.criticalRedFlags.join(', ')}');
+        }
+        if (aiResult.executiveSummary.isNotEmpty) {
+          print('📄 Executive Summary: ${aiResult.executiveSummary}');
+        }
+
+        // Topic percentages
+        final tp = aiResult.topicPercentage;
+        if (tp.isNotEmpty) {
+          print('📊 Topic Scores:');
+          tp.forEach((topic, pct) => print('   • $topic: $pct%'));
+        }
+
+        print('');
+        print('✅ Interview AI scoring pipeline completed successfully!');
+        print('═══════════════════════════════════════════════════════');
+        print('');
+
+        // =======================================================
+        // TODO (Backend Teammate):
+        // Save the interview result to the backend database.
+        // This should persist:
+        //   - interviewId, candidateId
+        //   - snapshotAnswers (the candidate's raw answers)
+        //   - aiResult (AiInterviewResult — full AI evaluation)
+        //   - submittedAt timestamp
+        //
+        // Example:
+        // await interviewService.saveInterviewResult(
+        //   interviewId: interview.id,
+        //   candidateId: currentUserId,
+        //   answers: snapshotAnswers,
+        //   aiResult: aiResult,
+        // );
+        // =======================================================
+
+        // 🔊 Completion sound
         SoundService.play(SoundEffect.examComplete);
+
+        print('🔄 Navigating to InterviewSubmittedPage...');
 
         Get.offAll(
               () => const InterviewSubmittedPage(),
-          arguments: resultExam,
+          arguments: {
+            'exam': resultExam,
+            'aiResult': aiResult,
+          },
         );
 
         return;
@@ -377,9 +510,13 @@ class ExamController extends GetxController {
       final bool isInterview = exam.title == "Interview";
 
       if (isInterview) {
+        // AI evaluation failed — navigate without aiResult
         Get.offAll(
               () => const InterviewSubmittedPage(),
-          arguments: resultExam,
+          arguments: {
+            'exam': resultExam,
+            // aiResult is null — AI evaluation failed
+          },
         );
       } else {
         Get.offAll(

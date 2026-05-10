@@ -97,7 +97,7 @@ class AiService {
   }
 
   // ===============================================================
-  // 🔥 INTERVIEW EVALUATION (Two-Stage Pipeline)
+  // INTERVIEW EVALUATION (Two-Stage Pipeline)
   // ===============================================================
   //
   // Stage 1: Evaluate each question individually
@@ -140,15 +140,23 @@ class AiService {
 
       futures.add(pool.withResource(() async {
         try {
+          final qSw = Stopwatch()..start();
           final meta = _toMeta(q);
           final candidate = _candidateFromAnswer(q, safeAns);
           final category = _mapTopicToCategory(q.topic);
           final provider =
               AiConfig.chooseModel(questionType: q.type.name);
 
+          // Log question details before API call
+          final ansPreview = safeAns.toString().length > 50
+              ? '${safeAns.toString().substring(0, 50)}...'
+              : safeAns.toString();
           print(
             "📝 [INTERVIEW Q$capturedIndex] type=${q.type.name} "
-            "topic=${q.topic} provider=$provider",
+            "topic=${q.topic} category=$category provider=$provider",
+          );
+          print(
+            "   📎 [INTERVIEW Q$capturedIndex] answer=$ansPreview",
           );
 
           final resultJson = await switch (provider) {
@@ -179,6 +187,8 @@ class AiService {
             ),
           };
 
+          qSw.stop();
+
           final parsed = AiInterviewQuestionResult.fromJson(
             resultJson,
             questionKey,
@@ -190,7 +200,9 @@ class AiService {
 
           print(
             "✅ [INTERVIEW Q$capturedIndex] "
-            "score=${parsed.overallScore} decision=${parsed.decision}",
+            "score=${parsed.overallScore} decision=${parsed.decision} "
+            "apiTime=${qSw.elapsedMilliseconds}ms "
+            "jsonKeys=${resultJson.keys.length}",
           );
         } catch (e, st) {
           print("❌ [INTERVIEW Q$capturedIndex] error=$e");
@@ -220,10 +232,21 @@ class AiService {
         .sort((a, b) => a.questionIndex.compareTo(b.questionIndex));
     // rawJsonResults doesn't need sorting — Stage 2 doesn't care about order
 
+    // Compute Stage 1 stats for logging
+    final advanceCount = questionResults.where((q) => q.decision == 'advance').length;
+    final rejectCount = questionResults.where((q) => q.decision == 'reject').length;
+    final borderlineCount = questionResults.where((q) => q.decision == 'borderline').length;
+    final avgS1Score = questionResults.isEmpty
+        ? 0.0
+        : questionResults.map((q) => q.overallScore).reduce((a, b) => a + b) /
+            questionResults.length;
+
     print(
       "📊 [INTERVIEW STAGE 1 DONE] "
       "questions=${interview.questions.length} "
-      "results=${questionResults.length}",
+      "results=${questionResults.length} "
+      "advance=$advanceCount borderline=$borderlineCount reject=$rejectCount "
+      "avgScore=${avgS1Score.toStringAsFixed(2)}",
     );
 
     // ═══════════════════════════════════════
@@ -232,7 +255,13 @@ class AiService {
     Map<String, dynamic> finalJson;
 
     try {
+      final stage2Sw = Stopwatch()..start();
       final provider = AiConfig.provider;
+
+      print(
+        "🧠 [INTERVIEW STAGE 2] Sending ${rawJsonResults.length} evaluations "
+        "to final decision engine (provider=$provider)...",
+      );
 
       finalJson = await switch (provider) {
         AiProvider.openai => OpenAIService.gradeInterviewFinal(
@@ -249,10 +278,14 @@ class AiService {
         ),
       };
 
+      stage2Sw.stop();
+
       print(
         "✅ [INTERVIEW STAGE 2 DONE] "
         "decision=${finalJson['final_decision']} "
-        "score=${finalJson['overall_interview_score']}",
+        "score=${finalJson['overall_interview_score']} "
+        "level=${finalJson['recommended_role_level']} "
+        "apiTime=${stage2Sw.elapsedMilliseconds}ms",
       );
     } catch (e, st) {
       print("❌ [INTERVIEW STAGE 2 FAILED] error=$e");
@@ -271,10 +304,7 @@ class AiService {
         'global_strengths': <String>[],
         'global_weaknesses': <String>[],
         'critical_red_flags': <String>[],
-        'technical_competence_summary': '',
-        'behavioral_and_soft_skills_summary': '',
         'recommended_role_level': 'none',
-        'areas_for_probing_in_next_round': <String>[],
       };
     }
 

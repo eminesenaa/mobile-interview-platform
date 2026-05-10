@@ -13,7 +13,7 @@
 // ================================================================================
 
 import 'user.dart';
-import 'ai_exam_result.dart';
+import 'ai_interview_result.dart';
 
 enum InterviewDecisionStatus {
   pending,   // hr henüz karar vermedi
@@ -35,8 +35,8 @@ class InterviewResult {
   /// questionId -> answer
   final Map<String, dynamic> answers;
 
-  /// AI evaluation (reuse existing system)
-  final AiExamResult? aiResult;
+  /// AI evaluation result from the two-stage interview grading pipeline
+  final AiInterviewResult? aiResult;
 
   /// Basic stats (quick access)
   final int score;
@@ -91,7 +91,7 @@ class InterviewResult {
           ? Map<String, dynamic>.from(json['answers'])
           : {},
       aiResult: json['aiResult'] != null
-          ? AiExamResult.fromJson(json['aiResult'])
+          ? AiInterviewResult.fromJson(json['aiResult'])
           : null,
       score: json['score'] ?? 0,
       correctCount: json['correctCount'] ?? 0,
@@ -142,7 +142,7 @@ class InterviewResult {
     String? candidateId,
     User? candidate,
     Map<String, dynamic>? answers,
-    AiExamResult? aiResult,
+    AiInterviewResult? aiResult,
     int? score,
     int? correctCount,
     int? wrongCount,

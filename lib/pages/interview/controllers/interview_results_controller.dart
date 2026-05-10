@@ -271,11 +271,22 @@ class InterviewResultsController extends GetxController {
   // ===============================
   /// Returns topic ratios for given result
   ///
+  /// Uses real AI evaluation data when available,
+  /// falls back to mock data otherwise.
+  ///
   /// TODO (Backend):
-  /// Replace with:
-  /// result.aiResult.topicRatios
+  /// Once all interviews flow through AI evaluation,
+  /// remove the mock fallback.
   Map<String, double> getTopicRatios(InterviewResult result) {
-    // 🔥 MOCK DATA (şimdilik sabit)
+    // 🔥 Use real AI data if available
+    if (result.aiResult != null) {
+      final tp = result.aiResult!.topicPercentage;
+      if (tp.isNotEmpty) {
+        return tp.map((key, value) => MapEntry(key, value / 100.0));
+      }
+    }
+
+    // 🔥 MOCK DATA fallback (until backend is connected)
     return {
       "react": 0.94,
       "typescript": 0.91,
