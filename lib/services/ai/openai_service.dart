@@ -476,6 +476,51 @@ class OpenAIService {
   }
 
   // ===============================================================
+  // 🔥 HR MESSAGE GENERATION
+  // ===============================================================
+
+  static Future<Map<String, dynamic>> generateHrMessage({
+    required String decision,
+    required String candidateName,
+    required String position,
+    required Map<String, dynamic> evaluationJson,
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    var tmpl = await rootBundle
+        .loadString('assets/prompts/InterviewHrMessage.yml');
+
+    tmpl = tmpl
+        .replaceFirst('{{DECISION}}', decision)
+        .replaceFirst('{{CANDIDATE_NAME}}', candidateName)
+        .replaceFirst('{{POSITION}}', position)
+        .replaceFirst('{{EVALUATION_JSON}}', jsonEncode(evaluationJson));
+
+    final body = {
+      "model": _model,
+      "temperature": 0.7,
+      "response_format": {"type": "json_object"},
+      "messages": [
+        {"role": "system", "content": "Output ONLY raw JSON."},
+        {"role": "user", "content": tmpl},
+      ],
+    };
+
+    final res = await _post(body, timeout: timeout);
+    final outer = jsonDecode(res.body);
+    final content = outer['choices']?[0]?['message']?['content'];
+    if (content == null) {
+      throw Exception("OpenAI returned empty content for HR message.");
+    }
+
+    final parsed = jsonDecode(content);
+    if (parsed is! Map<String, dynamic>) {
+      throw Exception("HR message result is not a JSON object.");
+    }
+
+    return parsed;
+  }
+
+  // ===============================================================
   // 🔥 INTERVIEW SECTION STRIPPING
   // ===============================================================
 

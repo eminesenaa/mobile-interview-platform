@@ -322,6 +322,55 @@ class GeminiService {
   }
 
   // ===============================================================
+  // 🔥 HR MESSAGE GENERATION
+  // ===============================================================
+
+  Future<Map<String, dynamic>> generateHrMessage({
+    required String decision,
+    required String candidateName,
+    required String position,
+    required Map<String, dynamic> evaluationJson,
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    try {
+      var tmpl = await rootBundle
+          .loadString('assets/prompts/InterviewHrMessage.yml');
+
+      tmpl = tmpl
+          .replaceFirst('{{DECISION}}', decision)
+          .replaceFirst('{{CANDIDATE_NAME}}', candidateName)
+          .replaceFirst('{{POSITION}}', position)
+          .replaceFirst('{{EVALUATION_JSON}}', jsonEncode(evaluationJson));
+
+      final model = GenerativeModel(
+        model: _modelName,
+        apiKey: _apiKey,
+        systemInstruction: Content.system("Output ONLY raw JSON."),
+      );
+
+      final resp = await model.generateContent(
+        [Content.text(tmpl)],
+        generationConfig: GenerationConfig(
+          temperature: 0.7,
+          responseMimeType: 'application/json',
+        ),
+      ).timeout(timeout);
+
+      final text = resp.text ?? '';
+      if (text.isEmpty) throw Exception("Gemini returned empty response");
+
+      final parsed = jsonDecode(text);
+      if (parsed is! Map<String, dynamic>) {
+        throw Exception("HR message result is not a JSON object.");
+      }
+      return parsed;
+    } catch (e) {
+      _handleQuotaError(e);
+      rethrow;
+    }
+  }
+
+  // ===============================================================
   // 🔥 INTERVIEW SECTION STRIPPING
   // ===============================================================
 

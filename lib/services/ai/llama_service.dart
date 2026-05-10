@@ -361,6 +361,55 @@ class LlamaService {
   }
 
   // ===============================================================
+  // 🔥 HR MESSAGE GENERATION
+  // ===============================================================
+
+  Future<Map<String, dynamic>> generateHrMessage({
+    required String decision,
+    required String candidateName,
+    required String position,
+    required Map<String, dynamic> evaluationJson,
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    try {
+      var tmpl = await rootBundle
+          .loadString('assets/prompts/InterviewHrMessage.yml');
+
+      tmpl = tmpl
+          .replaceFirst('{{DECISION}}', decision)
+          .replaceFirst('{{CANDIDATE_NAME}}', candidateName)
+          .replaceFirst('{{POSITION}}', position)
+          .replaceFirst('{{EVALUATION_JSON}}', jsonEncode(evaluationJson));
+
+      final body = {
+        "model": _model,
+        "temperature": 0.7,
+        "response_format": {"type": "json_object"},
+        "messages": [
+          {"role": "system", "content": "Output ONLY raw JSON."},
+          {"role": "user", "content": tmpl},
+        ],
+      };
+
+      final res = await _post(body, timeout);
+      final decoded = jsonDecode(res.body);
+      final content = decoded['choices']?[0]?['message']?['content'];
+      if (content == null) {
+        throw Exception("Llama returned empty content for HR message.");
+      }
+
+      final parsed = jsonDecode(content);
+      if (parsed is! Map<String, dynamic>) {
+        throw Exception("HR message result is not a JSON object.");
+      }
+      return parsed;
+    } catch (e) {
+      _handleException(e);
+      rethrow;
+    }
+  }
+
+  // ===============================================================
   // 🔥 INTERVIEW SECTION STRIPPING
   // ===============================================================
 

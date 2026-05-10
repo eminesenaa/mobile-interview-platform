@@ -7,6 +7,7 @@ import '../../models/interview.dart';
 import '../../models/question.dart';
 import '../../models/ai_interview_question_result.dart';
 import '../../models/ai_interview_result.dart';
+import '../../models/interview_result.dart';
 import 'ai_config.dart';
 import 'gemini_service.dart';
 import 'openai_service.dart';
@@ -317,6 +318,96 @@ class AiService {
 
     return AiInterviewResult.fromStages(questionResults, finalJson);
   }
+
+  // ===============================================================
+  // HR MESSAGE GENERATION
+  // ===============================================================
+  //
+  // Generates a personalized accept/reject message for HR to send
+  // to the candidate, based on their AI evaluation results.
+  // ===============================================================
+
+  Future<String> generateHrMessage({
+    required InterviewResult interviewResult,
+    required String candidateName,
+    required String position,
+    required bool isAccepted,
+  }) async {
+    final sw = Stopwatch()..start();
+    final decision = isAccepted ? 'ACCEPTED' : 'REJECTED';
+
+    print('');
+    print('📨 [HR MESSAGE] Generating $decision message for "$candidateName"...');
+
+    // Build evaluation context from the AI result
+    final evalData = <String, dynamic>{
+      'totalScore': interviewResult.aiResult?.totalScore ?? interviewResult.score,
+      'overallInterviewScore': interviewResult.aiResult?.overallInterviewScore ?? 0.0,
+      'finalDecision': interviewResult.aiResult?.finalDecision ?? 'unknown',
+      'executiveSummary': interviewResult.aiResult?.executiveSummary ?? '',
+      'globalStrengths': interviewResult.aiResult?.globalStrengths ?? [],
+      'globalWeaknesses': interviewResult.aiResult?.globalWeaknesses ?? [],
+      'criticalRedFlags': interviewResult.aiResult?.criticalRedFlags ?? [],
+      'recommendedRoleLevel': interviewResult.aiResult?.recommendedRoleLevel ?? 'none',
+      'topicPercentage': interviewResult.aiResult?.topicPercentage ?? {},
+      'correctCount': interviewResult.aiResult?.correctCount ?? interviewResult.correctCount,
+      'wrongCount': interviewResult.aiResult?.wrongCount ?? interviewResult.wrongCount,
+    };
+
+    try {
+      final provider = AiConfig.provider;
+
+      print('   🤖 Provider: $provider');
+
+      final resultJson = await switch (provider) {
+        AiProvider.openai => OpenAIService.generateHrMessage(
+          decision: decision,
+          candidateName: candidateName,
+          position: position,
+          evaluationJson: evalData,
+        ),
+        AiProvider.gemini => GeminiService().generateHrMessage(
+          decision: decision,
+          candidateName: candidateName,
+          position: position,
+          evaluationJson: evalData,
+        ),
+        AiProvider.anthropic => AnthropicService().generateHrMessage(
+          decision: decision,
+          candidateName: candidateName,
+          position: position,
+          evaluationJson: evalData,
+        ),
+        AiProvider.llama => LlamaService().generateHrMessage(
+          decision: decision,
+          candidateName: candidateName,
+          position: position,
+          evaluationJson: evalData,
+        ),
+      };
+
+      sw.stop();
+      final message = (resultJson['message'] as String?) ?? '';
+
+      print('✅ [HR MESSAGE] Generated in ${sw.elapsedMilliseconds}ms');
+      print('   📄 Message: ${message.length > 80 ? '${message.substring(0, 80)}...' : message}');
+      print('');
+
+      return message;
+    } catch (e, st) {
+      sw.stop();
+      print('❌ [HR MESSAGE] Failed: $e');
+      print(st);
+
+      // Fallback: return a generic message
+      if (isAccepted) {
+        return "Dear $candidateName, congratulations! We are pleased to inform you that you have been selected for the $position role. Your performance demonstrated strong technical abilities and we look forward to having you on the team.";
+      } else {
+        return "Dear $candidateName, thank you for taking the time to interview for the $position position. After careful consideration, we have decided to move forward with other candidates. We encourage you to continue developing your skills and welcome you to apply again in the future.";
+      }
+    }
+  }
+
 
 
   /// ✅ Paralel chunk değerlendirme (controller/firebase değişmeden)

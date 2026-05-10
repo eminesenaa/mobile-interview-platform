@@ -363,6 +363,51 @@ class AnthropicService {
   }
 
   // ===============================================================
+  // 🔥 HR MESSAGE GENERATION
+  // ===============================================================
+
+  Future<Map<String, dynamic>> generateHrMessage({
+    required String decision,
+    required String candidateName,
+    required String position,
+    required Map<String, dynamic> evaluationJson,
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    try {
+      var tmpl = await rootBundle
+          .loadString('assets/prompts/InterviewHrMessage.yml');
+
+      tmpl = tmpl
+          .replaceFirst('{{DECISION}}', decision)
+          .replaceFirst('{{CANDIDATE_NAME}}', candidateName)
+          .replaceFirst('{{POSITION}}', position)
+          .replaceFirst('{{EVALUATION_JSON}}', jsonEncode(evaluationJson));
+
+      final body = {
+        "model": _model,
+        "max_tokens": 1024,
+        "temperature": 0.7,
+        "system": "Output ONLY raw JSON.",
+        "messages": [
+          {"role": "user", "content": tmpl}
+        ]
+      };
+
+      final res = await _post(body, timeout);
+      final text = _extractTextFromResponse(res);
+
+      final parsed = jsonDecode(text);
+      if (parsed is! Map<String, dynamic>) {
+        throw Exception("HR message result is not a JSON object.");
+      }
+      return parsed;
+    } catch (e) {
+      _handleAnthropicError(e);
+      rethrow;
+    }
+  }
+
+  // ===============================================================
   // 🔥 INTERVIEW SECTION STRIPPING
   // ===============================================================
 
