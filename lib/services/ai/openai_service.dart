@@ -17,7 +17,9 @@ enum PromptType {
   codeWriting,
   training,
   interview,
-  detailedTraining
+  detailedTraining,
+  interviewQuestion,     // Stage 1: per-question interview eval
+  interviewFinalDecision // Stage 2: aggregated hiring decision
 }
 
 /// Basit sonuç modeli
@@ -126,6 +128,12 @@ class OpenAIService {
         print("Code Writing Promptu Kullanılacak");
         return await rootBundle
             .loadString('assets/prompts/CodeWritingTraining.yml');
+      case PromptType.interviewQuestion:
+        return await rootBundle
+            .loadString('assets/prompts/InterviewQuestionEvaluation.yml');
+      case PromptType.interviewFinalDecision:
+        return await rootBundle
+            .loadString('assets/prompts/InterviewFinalDecision.yml');
     }
   }
 
@@ -347,6 +355,10 @@ class OpenAIService {
           return GradeResultMapper.fromTraining(parsed);
         case PromptType.codeWriting:
           return GradeResultMapper.fromTraining(parsed);
+        case PromptType.interviewQuestion:
+        case PromptType.interviewFinalDecision:
+          // These types have dedicated grading methods, not used via gradeWithTemplate
+          return GradeResultMapper.fromTraining(parsed);
       }
     } catch (_) {
       return GradeResult.fromSafeFallback(raw);
@@ -364,5 +376,197 @@ class OpenAIService {
     );
 
     return prompt.replaceAll(pattern, '');
+  }
+
+  // ===============================================================
+  // 🔥 INTERVIEW GRADING — Stage 1: Single Question Evaluation
+  // ===============================================================
+
+  /// Evaluates a single interview question using InterviewQuestionEvaluation.yml.
+  /// Strips irrelevant rubric sections based on [questionTypeName] for token efficiency.
+  /// Returns the raw JSON Map matching the prompt's output schema.
+  static Future<Map<String, dynamic>> gradeInterviewQuestion({
+    required Map<String, String> qMeta,
+    required String candidateAnswer,
+    required String category,
+    required String questionTypeName, // e.g. 'mcq', 'coding', 'shortAnswer'
+    Duration timeout = const Duration(seconds: 45),
+  }) async {
+    // 1) Load prompt
+    var tmpl = await rootBundle
+        .loadString('assets/prompts/InterviewQuestionEvaluation.yml');
+
+    // 2) Strip irrelevant rubric sections
+    tmpl = _stripInterviewSections(tmpl, questionTypeName);
+
+    // 3) Render template variables
+    tmpl = _renderTemplate(tmpl, {
+      ...qMeta,
+      'Category': category,
+      'candidate_answer_or_choice': candidateAnswer,
+    });
+
+    // 4) API call
+    final body = {
+      "model": _model,
+      "temperature": 0.1,
+      "response_format": {"type": "json_object"},
+      "messages": [
+        {"role": "system", "content": "Output ONLY raw JSON."},
+        {"role": "user", "content": tmpl},
+      ],
+    };
+
+    final res = await _post(body, timeout: timeout);
+    final outer = jsonDecode(res.body);
+    final content = outer['choices']?[0]?['message']?['content'];
+    if (content == null) {
+      throw Exception("OpenAI returned empty content for interview question.");
+    }
+
+    final parsed = jsonDecode(content);
+    if (parsed is! Map<String, dynamic>) {
+      throw Exception("Interview question result is not a JSON object.");
+    }
+
+    return parsed;
+  }
+
+  // ===============================================================
+  // 🔥 INTERVIEW GRADING — Stage 2: Final Decision
+  // ===============================================================
+
+  /// Aggregates all Stage 1 results into a final hiring decision
+  /// using InterviewFinalDecision.yml.
+  static Future<Map<String, dynamic>> gradeInterviewFinal({
+    required List<Map<String, dynamic>> evaluationsJson,
+    Duration timeout = const Duration(seconds: 60),
+  }) async {
+    var tmpl = await rootBundle
+        .loadString('assets/prompts/InterviewFinalDecision.yml');
+
+    tmpl = tmpl.replaceFirst(
+      '{{EVALUATIONS_JSON}}',
+      jsonEncode(evaluationsJson),
+    );
+
+    final body = {
+      "model": _model,
+      "temperature": 0.2,
+      "response_format": {"type": "json_object"},
+      "messages": [
+        {"role": "system", "content": "Output ONLY raw JSON."},
+        {"role": "user", "content": tmpl},
+      ],
+    };
+
+    final res = await _post(body, timeout: timeout);
+    final outer = jsonDecode(res.body);
+    final content = outer['choices']?[0]?['message']?['content'];
+    if (content == null) {
+      throw Exception("OpenAI returned empty content for interview final.");
+    }
+
+    final parsed = jsonDecode(content);
+    if (parsed is! Map<String, dynamic>) {
+      throw Exception("Interview final result is not a JSON object.");
+    }
+
+    return parsed;
+  }
+
+  // ===============================================================
+  // 🔥 HR MESSAGE GENERATION
+  // ===============================================================
+
+  static Future<Map<String, dynamic>> generateHrMessage({
+    required String decision,
+    required String candidateName,
+    required String position,
+    required Map<String, dynamic> evaluationJson,
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    var tmpl = await rootBundle
+        .loadString('assets/prompts/InterviewHrMessage.yml');
+
+    tmpl = tmpl
+        .replaceFirst('{{DECISION}}', decision)
+        .replaceFirst('{{CANDIDATE_NAME}}', candidateName)
+        .replaceFirst('{{POSITION}}', position)
+        .replaceFirst('{{EVALUATION_JSON}}', jsonEncode(evaluationJson));
+
+    final body = {
+      "model": _model,
+      "temperature": 0.7,
+      "response_format": {"type": "json_object"},
+      "messages": [
+        {"role": "system", "content": "Output ONLY raw JSON."},
+        {"role": "user", "content": tmpl},
+      ],
+    };
+
+    final res = await _post(body, timeout: timeout);
+    final outer = jsonDecode(res.body);
+    final content = outer['choices']?[0]?['message']?['content'];
+    if (content == null) {
+      throw Exception("OpenAI returned empty content for HR message.");
+    }
+
+    final parsed = jsonDecode(content);
+    if (parsed is! Map<String, dynamic>) {
+      throw Exception("HR message result is not a JSON object.");
+    }
+
+    return parsed;
+  }
+
+  // ===============================================================
+  // 🔥 INTERVIEW SECTION STRIPPING
+  // ===============================================================
+
+  /// Strips all rubric sections EXCEPT the one matching [questionTypeName].
+  /// Since we evaluate one question at a time, we only keep the relevant rubric.
+  static String _stripInterviewSections(String tmpl, String questionTypeName) {
+    const allSections = [
+      'MCQ EVALUATION',
+      'FILL-IN-THE-BLANK (N = 1)',
+      'FILL-IN-THE-BLANK (N > 1)',
+      'SHORT ANSWER EVALUATION',
+      'CODING EVALUATION',
+      'BEHAVIORAL (STAR) EVALUATION',
+    ];
+
+    final Set<String> keepSections;
+    switch (questionTypeName.toLowerCase()) {
+      case 'mcq':
+        keepSections = {'MCQ EVALUATION'};
+        break;
+      case 'fillblank':
+      case 'fillBlanks':
+        keepSections = {
+          'FILL-IN-THE-BLANK (N = 1)',
+          'FILL-IN-THE-BLANK (N > 1)',
+        };
+        break;
+      case 'shortanswer':
+      case 'short_answer':
+        keepSections = {'SHORT ANSWER EVALUATION'};
+        break;
+      case 'coding':
+      case 'debugging':
+        keepSections = {'CODING EVALUATION'};
+        break;
+      default:
+        // behavioral or unknown → keep STAR
+        keepSections = {'BEHAVIORAL (STAR) EVALUATION'};
+    }
+
+    for (final section in allSections) {
+      if (!keepSections.contains(section)) {
+        tmpl = _removeSection(tmpl, section);
+      }
+    }
+
+    return tmpl;
   }
 }

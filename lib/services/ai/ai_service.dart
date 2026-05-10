@@ -3,7 +3,11 @@ import 'dart:async';
 import 'dart:collection';
 
 import '../../models/exam.dart';
+import '../../models/interview.dart';
 import '../../models/question.dart';
+import '../../models/ai_interview_question_result.dart';
+import '../../models/ai_interview_result.dart';
+import '../../models/interview_result.dart';
 import 'ai_config.dart';
 import 'gemini_service.dart';
 import 'openai_service.dart';
@@ -89,9 +93,322 @@ class AiService {
     required Exam exam,
     required Map<String, dynamic> userAnswers,
   }) async {
-    // Tüm çağrılar 5’li batch değerlendirmeye yönlensin
+    // Tüm çağrılar 5'li batch değerlendirmeye yönlensin
     return await evaluateExamBatched(exam: exam, userAnswers: userAnswers);
   }
+
+  // ===============================================================
+  // INTERVIEW EVALUATION (Two-Stage Pipeline)
+  // ===============================================================
+  //
+  // Stage 1: Evaluate each question individually
+  //   - Loads InterviewQuestionEvaluation.yml
+  //   - Strips irrelevant rubric sections per question type
+  //   - Returns rich JSON per question (subscores, STAR, coaching, etc.)
+  //
+  // Stage 2: Final hiring decision
+  //   - Sends all Stage 1 JSON outputs to InterviewFinalDecision.yml
+  //   - Returns executive summary, role recommendation, global patterns
+  // ===============================================================
+
+  Future<AiInterviewResult> evaluateInterview({
+    required Interview interview,
+    required Map<String, dynamic> userAnswers,
+  }) async {
+    final totalSw = Stopwatch()..start();
+
+    // ═══════════════════════════════════════
+    // STAGE 1: Per-Question Evaluation
+    // ═══════════════════════════════════════
+    final questionResults = <AiInterviewQuestionResult>[];
+    final rawJsonResults = <Map<String, dynamic>>[];
+
+    // Use _AsyncPool to limit concurrency (avoid rate limits)
+    final pool = _AsyncPool(3);
+    final futures = <Future<void>>[];
+
+    for (int i = 0; i < interview.questions.length; i++) {
+      final q = interview.questions[i];
+      final questionKey = q.id;
+      final rawAns = userAnswers[questionKey];
+
+      final safeAns =
+          (rawAns == null || (rawAns is String && rawAns.trim().isEmpty))
+              ? "noAnswerProvided"
+              : rawAns;
+
+      final int capturedIndex = i;
+
+      futures.add(pool.withResource(() async {
+        try {
+          final qSw = Stopwatch()..start();
+          final meta = _toMeta(q);
+          final candidate = _candidateFromAnswer(q, safeAns);
+          final category = _mapTopicToCategory(q.topic);
+          final provider =
+              AiConfig.chooseModel(questionType: q.type.name);
+
+          // Log question details before API call
+          final ansPreview = safeAns.toString().length > 50
+              ? '${safeAns.toString().substring(0, 50)}...'
+              : safeAns.toString();
+          print(
+            "📝 [INTERVIEW Q$capturedIndex] type=${q.type.name} "
+            "topic=${q.topic} category=$category provider=$provider",
+          );
+          print(
+            "   📎 [INTERVIEW Q$capturedIndex] answer=$ansPreview",
+          );
+
+          final resultJson = await switch (provider) {
+            AiProvider.openai => OpenAIService.gradeInterviewQuestion(
+              qMeta: meta,
+              candidateAnswer: candidate,
+              category: category,
+              questionTypeName: q.type.name,
+            ),
+            AiProvider.gemini => GeminiService().gradeInterviewQuestion(
+              qMeta: meta,
+              candidateAnswer: candidate,
+              category: category,
+              questionTypeName: q.type.name,
+            ),
+            AiProvider.anthropic =>
+                AnthropicService().gradeInterviewQuestion(
+              qMeta: meta,
+              candidateAnswer: candidate,
+              category: category,
+              questionTypeName: q.type.name,
+            ),
+            AiProvider.llama => LlamaService().gradeInterviewQuestion(
+              qMeta: meta,
+              candidateAnswer: candidate,
+              category: category,
+              questionTypeName: q.type.name,
+            ),
+          };
+
+          qSw.stop();
+
+          final parsed = AiInterviewQuestionResult.fromJson(
+            resultJson,
+            questionKey,
+            capturedIndex,
+          );
+
+          questionResults.add(parsed);
+          rawJsonResults.add(resultJson);
+
+          print(
+            "✅ [INTERVIEW Q$capturedIndex] "
+            "score=${parsed.overallScore} decision=${parsed.decision} "
+            "apiTime=${qSw.elapsedMilliseconds}ms "
+            "jsonKeys=${resultJson.keys.length}",
+          );
+        } catch (e, st) {
+          print("❌ [INTERVIEW Q$capturedIndex] error=$e");
+          print(st);
+
+          // Add a fallback result so we don't lose the question
+          questionResults.add(AiInterviewQuestionResult(
+            questionId: questionKey,
+            questionIndex: capturedIndex,
+            overallScore: 0.0,
+            decision: 'reject',
+            weaknesses: ['AI evaluation failed for this question.'],
+          ));
+          rawJsonResults.add({
+            'overall_score': 0.0,
+            'decision': 'reject',
+            'error': e.toString(),
+          });
+        }
+      }));
+    }
+
+    await Future.wait(futures);
+
+    // Sort by question index
+    questionResults
+        .sort((a, b) => a.questionIndex.compareTo(b.questionIndex));
+    // rawJsonResults doesn't need sorting — Stage 2 doesn't care about order
+
+    // Compute Stage 1 stats for logging
+    final advanceCount = questionResults.where((q) => q.decision == 'advance').length;
+    final rejectCount = questionResults.where((q) => q.decision == 'reject').length;
+    final borderlineCount = questionResults.where((q) => q.decision == 'borderline').length;
+    final avgS1Score = questionResults.isEmpty
+        ? 0.0
+        : questionResults.map((q) => q.overallScore).reduce((a, b) => a + b) /
+            questionResults.length;
+
+    print(
+      "📊 [INTERVIEW STAGE 1 DONE] "
+      "questions=${interview.questions.length} "
+      "results=${questionResults.length} "
+      "advance=$advanceCount borderline=$borderlineCount reject=$rejectCount "
+      "avgScore=${avgS1Score.toStringAsFixed(2)}",
+    );
+
+    // ═══════════════════════════════════════
+    // STAGE 2: Final Decision
+    // ═══════════════════════════════════════
+    Map<String, dynamic> finalJson;
+
+    try {
+      final stage2Sw = Stopwatch()..start();
+      final provider = AiConfig.provider;
+
+      print(
+        "🧠 [INTERVIEW STAGE 2] Sending ${rawJsonResults.length} evaluations "
+        "to final decision engine (provider=$provider)...",
+      );
+
+      finalJson = await switch (provider) {
+        AiProvider.openai => OpenAIService.gradeInterviewFinal(
+          evaluationsJson: rawJsonResults,
+        ),
+        AiProvider.gemini => GeminiService().gradeInterviewFinal(
+          evaluationsJson: rawJsonResults,
+        ),
+        AiProvider.anthropic => AnthropicService().gradeInterviewFinal(
+          evaluationsJson: rawJsonResults,
+        ),
+        AiProvider.llama => LlamaService().gradeInterviewFinal(
+          evaluationsJson: rawJsonResults,
+        ),
+      };
+
+      stage2Sw.stop();
+
+      print(
+        "✅ [INTERVIEW STAGE 2 DONE] "
+        "decision=${finalJson['final_decision']} "
+        "score=${finalJson['overall_interview_score']} "
+        "level=${finalJson['recommended_role_level']} "
+        "apiTime=${stage2Sw.elapsedMilliseconds}ms",
+      );
+    } catch (e, st) {
+      print("❌ [INTERVIEW STAGE 2 FAILED] error=$e");
+      print(st);
+
+      // Fallback: compute basic aggregation without AI
+      final avgScore = questionResults.isEmpty
+          ? 0.0
+          : questionResults.map((q) => q.overallScore).reduce((a, b) => a + b) /
+              questionResults.length;
+
+      finalJson = {
+        'final_decision': avgScore >= 3.5 ? 'advance' : 'reject',
+        'overall_interview_score': avgScore,
+        'executive_summary': 'Stage 2 AI evaluation failed. Scores aggregated manually.',
+        'global_strengths': <String>[],
+        'global_weaknesses': <String>[],
+        'critical_red_flags': <String>[],
+        'recommended_role_level': 'none',
+      };
+    }
+
+    totalSw.stop();
+    print(
+      "🏁 [INTERVIEW EVAL COMPLETE] "
+      "questions=${interview.questions.length} "
+      "totalTime=${totalSw.elapsedMilliseconds}ms",
+    );
+
+    return AiInterviewResult.fromStages(questionResults, finalJson);
+  }
+
+  // ===============================================================
+  // HR MESSAGE GENERATION
+  // ===============================================================
+  //
+  // Generates a personalized accept/reject message for HR to send
+  // to the candidate, based on their AI evaluation results.
+  // ===============================================================
+
+  Future<String> generateHrMessage({
+    required InterviewResult interviewResult,
+    required String candidateName,
+    required String position,
+    required bool isAccepted,
+  }) async {
+    final sw = Stopwatch()..start();
+    final decision = isAccepted ? 'ACCEPTED' : 'REJECTED';
+
+    print('');
+    print('📨 [HR MESSAGE] Generating $decision message for "$candidateName"...');
+
+    // Build evaluation context from the AI result
+    final evalData = <String, dynamic>{
+      'totalScore': interviewResult.aiResult?.totalScore ?? interviewResult.score,
+      'overallInterviewScore': interviewResult.aiResult?.overallInterviewScore ?? 0.0,
+      'finalDecision': interviewResult.aiResult?.finalDecision ?? 'unknown',
+      'executiveSummary': interviewResult.aiResult?.executiveSummary ?? '',
+      'globalStrengths': interviewResult.aiResult?.globalStrengths ?? [],
+      'globalWeaknesses': interviewResult.aiResult?.globalWeaknesses ?? [],
+      'criticalRedFlags': interviewResult.aiResult?.criticalRedFlags ?? [],
+      'recommendedRoleLevel': interviewResult.aiResult?.recommendedRoleLevel ?? 'none',
+      'topicPercentage': interviewResult.aiResult?.topicPercentage ?? {},
+      'correctCount': interviewResult.aiResult?.correctCount ?? interviewResult.correctCount,
+      'wrongCount': interviewResult.aiResult?.wrongCount ?? interviewResult.wrongCount,
+    };
+
+    try {
+      final provider = AiConfig.provider;
+
+      print('   🤖 Provider: $provider');
+
+      final resultJson = await switch (provider) {
+        AiProvider.openai => OpenAIService.generateHrMessage(
+          decision: decision,
+          candidateName: candidateName,
+          position: position,
+          evaluationJson: evalData,
+        ),
+        AiProvider.gemini => GeminiService().generateHrMessage(
+          decision: decision,
+          candidateName: candidateName,
+          position: position,
+          evaluationJson: evalData,
+        ),
+        AiProvider.anthropic => AnthropicService().generateHrMessage(
+          decision: decision,
+          candidateName: candidateName,
+          position: position,
+          evaluationJson: evalData,
+        ),
+        AiProvider.llama => LlamaService().generateHrMessage(
+          decision: decision,
+          candidateName: candidateName,
+          position: position,
+          evaluationJson: evalData,
+        ),
+      };
+
+      sw.stop();
+      final message = (resultJson['message'] as String?) ?? '';
+
+      print('✅ [HR MESSAGE] Generated in ${sw.elapsedMilliseconds}ms');
+      print('   📄 Message: ${message.length > 80 ? '${message.substring(0, 80)}...' : message}');
+      print('');
+
+      return message;
+    } catch (e, st) {
+      sw.stop();
+      print('❌ [HR MESSAGE] Failed: $e');
+      print(st);
+
+      // Fallback: return a generic message
+      if (isAccepted) {
+        return "Dear $candidateName, congratulations! We are pleased to inform you that you have been selected for the $position role. Your performance demonstrated strong technical abilities and we look forward to having you on the team.";
+      } else {
+        return "Dear $candidateName, thank you for taking the time to interview for the $position position. After careful consideration, we have decided to move forward with other candidates. We encourage you to continue developing your skills and welcome you to apply again in the future.";
+      }
+    }
+  }
+
+
 
   /// ✅ Paralel chunk değerlendirme (controller/firebase değişmeden)
   Future<AiExamEvaluateResult> evaluateExamBatched({
