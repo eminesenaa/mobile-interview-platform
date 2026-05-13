@@ -13,6 +13,8 @@ import 'pages/main_view.dart';
 import 'controllers/question_controller.dart';
 import 'controllers/auth_controller.dart';
 import 'services/ai/ai_service.dart';
+import 'pages/hr/dashboard/hr_dashboard_page.dart';
+import 'services/interview/job_application_service.dart';
 
 Future<void> _initAi() async {
   Get.put<AiService>(AiService(), permanent: true);
@@ -51,6 +53,7 @@ class MyApp extends StatelessWidget {
       initialBinding: BindingsBuilder(() {
         Get.put<AuthController>(AuthController(), permanent: true);
         Get.put<QuestionController>(QuestionController(), permanent: true);
+        Get.put<JobApplicationService>(JobApplicationService(), permanent: true);
       }),
       theme: ThemeData(
         scaffoldBackgroundColor: AppColors.background,
@@ -88,10 +91,8 @@ class MyApp extends StatelessWidget {
       // 🔹 Ana yönlendirme
       home: GetX<AuthController>(
         builder: (auth) {
-          // debug log
-          // ignore: avoid_print
           print(
-            "🔥 build çalıştı: isLoading=${auth.isLoading.value}, user=${auth.user?.email}",
+            "🔥 build çalıştı: isLoading=${auth.isLoading.value}, user=${auth.user?.email}, isHr=${auth.isHr.value}",
           );
 
           if (auth.isLoading.value) {
@@ -100,7 +101,11 @@ class MyApp extends StatelessWidget {
             );
           }
 
-          return auth.user != null ? MainView() : const LoginPage();
+          if (auth.user != null) {
+            return auth.isHr.value ? const HRDashboardPage() : MainView();
+          }
+
+          return const LoginPage();
         },
       ),
     );
