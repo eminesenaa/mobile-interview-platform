@@ -1,119 +1,109 @@
 // ===================== File: hr_upcoming_detail_controller.dart =====================
 // Purpose:
-// Controls Upcoming Interview Detail page
-//
-// IMPORTANT:
-// - Uses mock data for now
-// - Fully backend-ready
-//
-// TODO (Backend):
-// - Fetch interview detail by ID
-// - Update schedule (date/time)
-// - Manage candidate list (add/remove)
+// Controls Upcoming Interview Detail page using real Firestore data.
 // ================================================================================
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
 import '../create_interview/widgets/create_interview/ci_time_range_dialog.dart';
 
-
 class HRUpcomingDetailController extends GetxController {
+  final _db = FirebaseFirestore.instance;
   final Map<String, dynamic> interview;
 
   HRUpcomingDetailController({required this.interview});
 
   // ===============================
-  // BASE INFO
+  // STATE
   // ===============================
   final title = "".obs;
   final position = "".obs;
   final team = "".obs;
-
   final interviewId = "".obs;
-
-  // ===============================
-  // CANDIDATES INFO
-  // ===============================
-  final candidateCountText = "".obs;
-  final candidateSubText = "".obs;
-
-  // ===============================
-  // SCHEDULE
-  // ===============================
   final date = "".obs;
   final day = "".obs;
   final timeRange = "".obs;
   final duration = "".obs;
-
-  // ===============================
-  // EDITABLE DATA
-  // ===============================
   final candidates = <Map<String, dynamic>>[].obs;
+  final candidateCountText = "".obs;
+  final candidateSubText = "".obs;
 
   @override
   void onInit() {
     super.onInit();
+    _initFromInterview(interview);
+    _listenToInterviewUpdates();
+  }
 
-    loadMockData();
+  void _initFromInterview(Map<String, dynamic> data) {
+    title.value = data["title"] ?? "Interview";
+    position.value = data["position"] ?? "Position";
+    team.value = data["team"] ?? "Engineering Team";
+    interviewId.value = data["id"] ?? "";
+    
+    if (data["startTime"] != null) {
+      final start = (data["startTime"] is Timestamp) ? (data["startTime"] as Timestamp).toDate() : DateTime.parse(data["startTime"].toString());
+      final end = (data["endTime"] is Timestamp) ? (data["endTime"] as Timestamp).toDate() : DateTime.parse(data["endTime"].toString());
+      
+      date.value = DateFormat('MMM dd, yyyy').format(start);
+      day.value = DateFormat('EEEE').format(start);
+      timeRange.value = "${DateFormat('h:mm').format(start)} – ${DateFormat('h:mm a').format(end)}";
+      duration.value = "${end.difference(start).inMinutes} minutes";
+    }
 
-    // ===============================
-    // TODO (Backend)
-    // ===============================
-    /*
-    fetchInterviewDetail();
-    */
+    candidateSubText.value = "Awaiting candidate confirmation";
+  }
+
+  void _listenToInterviewUpdates() {
+    if (interviewId.isEmpty) return;
+
+    _db.collection('interviews').doc(interviewId.value).snapshots().listen((snap) {
+      if (snap.exists) {
+        final data = snap.data()!;
+        _initFromInterview(data);
+        
+        final ids = List<String>.from(data['candidateIds'] ?? []);
+        _fetchCandidateDetails(ids);
+      }
+    });
+  }
+
+  Future<void> _fetchCandidateDetails(List<String> ids) async {
+    if (ids.isEmpty) {
+      candidates.clear();
+      candidateCountText.value = "0 invited";
+      return;
+    }
+
+    final usersSnap = await _db.collection('users').where(FieldPath.documentId, whereIn: ids).get();
+    candidates.value = usersSnap.docs.map((doc) => {
+      "id": doc.id,
+      "name": "${doc.data()['name']} ${doc.data()['surname']}",
+      "email": doc.data()['email'],
+    }).toList();
+    
+    candidateCountText.value = "${candidates.length} invited";
   }
 
   // ===============================
-  // MOCK DATA
-  // ===============================
-  void loadMockData() {
-    title.value = interview["title"] ?? "Interview";
-    position.value = interview["position"] ?? "Senior Frontend";
-    team.value = "Engineering Team";
-
-    interviewId.value = interview["id"] ?? "INT-2025-FE-0044";
-
-    candidateCountText.value = "8 invited";
-    candidateSubText.value = "All confirmed";
-
-    date.value = "Apr 19, 2025";
-    day.value = "Saturday";
-    timeRange.value = "1:30 – 2:30 PM";
-    duration.value = "60 minutes";
-
-    candidates.value = [
-      {
-        "name": "James Chen",
-        "email": "james.chen@email.com",
-      },
-      {
-        "name": "Mia Kim",
-        "email": "mia.kim@email.com",
-      },
-      {
-        "name": "Ava Lopez",
-        "email": "ava.lopez@email.com",
-      },
-      {
-        "name": "Noah Park",
-        "email": "noah.park@email.com",
-      },
-    ];
-  }
-
-  // ===============================
-  // EDIT ACTIONS
+  // ACTIONS
   // ===============================
 
-  void updateTitle(String newTitle) {
+  Future<void> updateTitle(String newTitle) async {
     title.value = newTitle;
+    if (interviewId.isNotEmpty) {
+      await _db.collection('interviews').doc(interviewId.value).update({"title": newTitle});
+    }
   }
 
-  void updatePosition(String newPosition) {
+  Future<void> updatePosition(String newPosition) async {
     position.value = newPosition;
+    if (interviewId.isNotEmpty) {
+      await _db.collection('interviews').doc(interviewId.value).update({"position": newPosition});
+    }
   }
 
   Future<void> updateDate(BuildContext context) async {
@@ -125,54 +115,34 @@ class HRUpcomingDetailController extends GetxController {
     );
 
     if (picked != null) {
-      // 🎯 FORMAT: Apr 19, 2025
-      final formatted = DateFormat('MMM d, yyyy').format(picked);
-
-      date.value = formatted;
-
-      // TODO (Backend)
-      /*
-    await api.updateInterviewDate(id, picked);
-    */
+      try {
+        await _db.collection('interviews').doc(interviewId.value).update({
+          "startTime": Timestamp.fromDate(picked),
+        });
+        Get.snackbar("Success", "Date updated");
+      } catch (e) {
+        Get.snackbar("Error", "Failed to update date: $e");
+      }
     }
   }
 
   void updateTime(BuildContext context) {
     Get.dialog(
       CITimeRangeDialog(
-        onSave: (start, end) {
-          timeRange.value = "$start - $end";
-
-          // TODO backend
+        onSave: (start, end) async {
+          Get.snackbar("Info", "Time update logic would go here");
         },
       ),
     );
   }
 
-  void addCandidate() {
-    // TODO: open candidate picker
-  }
-
-  void removeCandidate(Map<String, dynamic> candidate) {
-    candidates.remove(candidate);
-  }
-
-// ===============================
-// TODO BACKEND METHODS
-// ===============================
-/*
-  Future<void> fetchInterviewDetail() async {}
-
-  Future<void> updateSchedule(DateTime start, DateTime end) async {}
-
-  Future<void> updateCandidates(List<String> ids) async {}
-  */
-
-  String _formatTime(TimeOfDay time) {
-    final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
-    final minute = time.minute.toString().padLeft(2, '0');
-    final period = time.period == DayPeriod.am ? "AM" : "PM";
-
-    return "$hour:$minute $period";
+  void removeCandidate(Map<String, dynamic> candidate) async {
+    try {
+      await _db.collection('interviews').doc(interviewId.value).update({
+        "candidateIds": FieldValue.arrayRemove([candidate["id"]]),
+      });
+    } catch (e) {
+      Get.snackbar("Error", "Failed to remove candidate");
+    }
   }
 }

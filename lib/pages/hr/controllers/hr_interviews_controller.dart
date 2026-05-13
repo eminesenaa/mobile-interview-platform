@@ -1,24 +1,11 @@
 // ===================== File: hr_interviews_controller.dart =====================
 // Purpose:
-// Controls data for HR Interviews page
-//
-// Responsibilities:
-// - Holds interview list
-// - Groups interviews by status
-// - Sorts by date/time
-// - Prepares UI-ready sections
-//
-// IMPORTANT:
-// - Currently uses mock data
-// - Fully ready for backend integration
-//
-// TODO (Backend):
-// - Replace mock list with Firestore/API data
-// - Add interviewId, candidate list, scores
-// - Add review status from backend
+// Controls data for HR Interviews page using real-time Firestore data.
 // ==============================================================================
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
+import '../../../models/interview.dart';
 
 import '../interviews/needs_review/hr_needs_review_detail_page.dart';
 import '../interviews/ongoing/hr_ongoing_interview_detail_page.dart';
@@ -27,18 +14,19 @@ import '../interviews/upcoming/hr_upcoming_interview_detail_page.dart';
 import 'hr_needs_review_detail_controller.dart';
 
 class HRInterviewsController extends GetxController {
+  final _db = FirebaseFirestore.instance;
+
   // ===============================
   // RAW INTERVIEW LIST
   // ===============================
-  /// All interviews (flat list)
-  final interviews = <Map<String, dynamic>>[].obs;
+  final interviews = <Interview>[].obs;
 
   // ===============================
   // GROUPED DATA (UI READY)
   // ===============================
-  final todayInterviews = <Map<String, dynamic>>[].obs;
-  final needsReviewInterviews = <Map<String, dynamic>>[].obs;
-  final reviewedInterviews = <Map<String, dynamic>>[].obs;
+  final todayInterviews = <Interview>[].obs;
+  final needsReviewInterviews = <Interview>[].obs;
+  final reviewedInterviews = <Interview>[].obs;
 
   // ===============================
   // STATS
@@ -50,244 +38,101 @@ class HRInterviewsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-
-    loadMockData();
-    processInterviews();
+    _listenToInterviews();
   }
 
   // ===============================
-  // MOCK DATA
+  // REAL-TIME INTERVIEWS
   // ===============================
-  void loadMockData() {
-    interviews.value = [
-      {
-        "id": "INT-2026-XXX-001",
-        "title": "Product Designer Interview",
-        "position": "Senior Product Designer",
-        "date": "2026-04-17",
-        "time": "10:00 AM",
-        "endTime": "11:00 AM",
-        "candidateCount": 6,
-        "status": "ongoing", // upcoming | ongoing | completed
-        "reviewStatus": "pending", // pending | reviewed
-      },
-      {
-        "id": "INT-2026-XXX-002",
-        "title": "Frontend Developer Interview",
-        "position": "Senior Frontend Engineer",
-        "date": "2026-04-17",
-        "time": "2:00 PM",
-        "endTime": "3:30 PM",
-        "candidateCount": 8,
-        "status": "upcoming",
-        "reviewStatus": "pending",
-      },
-      {
-        "id": "INT-2026-XXX-003",
-        "title": "Data Science Technical Round",
-        "position": "ML Engineer",
-        "date": "2026-04-17",
-        "time": "4:00 PM",
-        "endTime": "5:00 PM",
-        "candidateCount": 5,
-        "status": "upcoming",
-        "reviewStatus": "pending",
-      },
-      {
-        "id": "INT-2026-XXX-004",
-        "title": "Backend Engineering – Round 2",
-        "position": "Backend Engineer (Node.js)",
-        "date": "2026-04-15",
-        "time": "1:00 PM",
-        "endTime": "2:00 PM",
-        "candidateCount": 4,
-        "status": "completed",
-        "reviewStatus": "pending", // ❗ needs review
-      },
-      {
-        "id": "INT-2026-XXX-005",
-        "title": "iOS Developer Interview",
-        "position": "iOS Engineer – Swift",
-        "date": "2026-04-14",
-        "time": "11:00 AM",
-        "endTime": "12:00 PM",
-        "candidateCount": 3,
-        "status": "completed",
-        "reviewStatus": "reviewed", // ✅ fully done
-      },
-    ];
+  void _listenToInterviews() {
+    _db.collection('interviews').snapshots().listen((snap) {
+      interviews.value = snap.docs.map((doc) => Interview.fromJson(doc.data())).toList();
+      processInterviews();
+    });
   }
 
   // ===============================
   // PROCESS DATA FOR UI
   // ===============================
   void processInterviews() {
-    final today = "2026-04-17"; // mock today
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
 
-    // Clear old
     todayInterviews.clear();
     needsReviewInterviews.clear();
     reviewedInterviews.clear();
 
     for (final interview in interviews) {
-      final status = interview["status"];
-      final reviewStatus = interview["reviewStatus"];
-      final date = interview["date"];
+      final status = interview.status;
+      final reviewStatus = interview.reviewStatus;
+      final startTime = interview.startTime;
+      final interviewDate = DateTime(startTime.year, startTime.month, startTime.day);
 
-      // ===========================
       // TODAY (upcoming + ongoing)
-      // ===========================
-      if (date == today && (status == "upcoming" || status == "ongoing")) {
+      if (interviewDate.isAtSameMomentAs(today) && 
+         (status == InterviewStatus.scheduled || status == InterviewStatus.active)) {
         todayInterviews.add(interview);
       }
 
-      // ===========================
       // NEEDS REVIEW
-      // ===========================
-      if (status == "completed" && reviewStatus == "pending") {
+      if (status == InterviewStatus.completed && reviewStatus == ReviewStatus.pending) {
         needsReviewInterviews.add(interview);
       }
 
-      // ===========================
       // REVIEWED
-      // ===========================
-      if (status == "completed" && reviewStatus == "reviewed") {
+      if (status == InterviewStatus.completed && reviewStatus == ReviewStatus.reviewed) {
         reviewedInterviews.add(interview);
       }
     }
 
-    // ===============================
     // SORT BY TIME
-    // ===============================
-    todayInterviews
-        .sort((a, b) => _parseTime(a["time"]).compareTo(_parseTime(b["time"])));
-    needsReviewInterviews.sort((a, b) => b["date"].compareTo(a["date"]));
-    reviewedInterviews.sort((a, b) => b["date"].compareTo(a["date"]));
+    todayInterviews.sort((a, b) => a.startTime.compareTo(b.startTime));
+    needsReviewInterviews.sort((a, b) => b.startTime.compareTo(a.startTime));
+    reviewedInterviews.sort((a, b) => b.startTime.compareTo(a.startTime));
 
-    // ===============================
-    // STATS CALCULATION
-    // ===============================
+    // STATS
     totalCount.value = interviews.length;
-    ongoingCount.value =
-        interviews.where((i) => i["status"] == "ongoing").length;
-    completedCount.value =
-        interviews.where((i) => i["status"] == "completed").length;
-  }
-
-  // ===============================
-  // BACKEND FETCH (FUTURE)
-  // ===============================
-  /// Fetch interviews from backend
-  ///  IMPORTANT (Time Format):
-  /// - Backend MUST return startTime & endTime as DateTime
-  /// - UI will format to AM/PM using TimeOfDay.format()
-  /// - DO NOT send time as plain string
-  ///
-  /// Example:
-  /// {
-  ///   startTime: Timestamp,
-  ///   endTime: Timestamp
-  /// }
-  ///
-  /// TODO:
-  /// - Replace mock data
-  /// - Fetch from Firestore / API
-  /// - Include:
-  ///   - interviewId
-  ///   - candidate list
-  ///   - scores
-  ///   - timestamps
-  Future<void> fetchInterviewsFromBackend() async {
-    /*
-    final data = await api.getInterviews();
-
-    interviews.value = data;
-
-    processInterviews();
-    */
+    ongoingCount.value = interviews.where((i) => i.status == InterviewStatus.active).length;
+    completedCount.value = interviews.where((i) => i.status == InterviewStatus.completed).length;
   }
 
   // ===============================
   // ACTIONS
   // ===============================
 
-  /// Called when clicking "See All"
-  void openSeeAll(String section) {
-    // TODO: Navigate to filtered page
-    Get.snackbar("TODO", "Open $section full list");
-  }
+  void openInterviewDetail(Interview interview) {
+    final status = interview.status;
+    final reviewStatus = interview.reviewStatus;
+    final interviewMap = interview.toJson();
 
-  /// Called when clicking interview card
-  void openInterviewDetail(Map<String, dynamic> interview) {
-    final status = interview["status"];
-    final reviewStatus = interview["reviewStatus"];
-
-    // ===============================
-    // ONGOING
-    // ===============================
-    if (status == "ongoing") {
-      Get.to(() => HROngoingInterviewDetailPage(
-            interview: interview,
-          ));
+    if (status == InterviewStatus.active) {
+      Get.to(() => HROngoingInterviewDetailPage(interview: interviewMap));
       return;
     }
 
-    // ===============================
-    // UPCOMING
-    // ===============================
-    if (status == "upcoming") {
-      Get.to(() => HRUpcomingInterviewDetailPage(
-            interview: interview,
-          ));
+    if (status == InterviewStatus.scheduled) {
+      Get.to(() => HRUpcomingInterviewDetailPage(interview: interviewMap));
       return;
     }
 
-    // ===============================
-    // NEEDS REVIEW
-    // ===============================
-    if (status == "completed" && reviewStatus == "pending") {
+    if (status == InterviewStatus.completed && reviewStatus == ReviewStatus.pending) {
       Get.to(
-        () => HrNeedsReviewDetailPage(
-          interview: interview,
-        ),
+        () => HrNeedsReviewDetailPage(interview: interviewMap),
         binding: BindingsBuilder(() {
-          Get.put(HrNeedsReviewDetailController(
-            interview: interview,
-          ));
+          Get.put(HrNeedsReviewDetailController(interview: interviewMap));
         }),
       );
       return;
     }
 
-    // ===============================
-    // REVIEWED
-    // ===============================
-    if (status == "completed" && reviewStatus == "reviewed") {
+    if (status == InterviewStatus.completed && reviewStatus == ReviewStatus.reviewed) {
       Get.to(() => HrReviewedDetailPage(
         interview: {
-          ...interview,
-
-          /// 🔥 CANDIDATES EKLE
-          "candidates": interview["candidates"] ?? [],
+          ...interviewMap,
+          "candidates": interviewMap["candidates"] ?? [],
         },
       ));
       return;
     }
-  }
-
-  // ===============================
-  // TIME PARSER (AM/PM → DateTime)
-  // ===============================
-  DateTime _parseTime(String time) {
-    final parts = time.split(" ");
-    final hm = parts[0].split(":");
-    int hour = int.parse(hm[0]);
-    final minute = int.parse(hm[1]);
-    final isPm = parts[1] == "PM";
-
-    if (isPm && hour != 12) hour += 12;
-    if (!isPm && hour == 12) hour = 0;
-
-    return DateTime(0, 0, 0, hour, minute);
   }
 }

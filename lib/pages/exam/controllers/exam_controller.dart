@@ -15,6 +15,8 @@ import '../../../models/exam.dart';
 import '../../../models/interview.dart';
 import '../../../models/question.dart';
 import '../../../services/ai/ai_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../../services/interview/interview_service.dart';
 import '../../interview/pages/interview/submitted/interview_submitted_page.dart';
 import 'create_exam_controller.dart'; // ✅ düzeltildi
 import '../result/exam_result_page.dart'; // ✅ bir üst klasörde
@@ -422,22 +424,23 @@ class ExamController extends GetxController {
         print('');
 
         // =======================================================
-        // TODO (Backend Teammate):
-        // Save the interview result to the backend database.
-        // This should persist:
-        //   - interviewId, candidateId
-        //   - snapshotAnswers (the candidate's raw answers)
-        //   - aiResult (AiInterviewResult — full AI evaluation)
-        //   - submittedAt timestamp
-        //
-        // Example:
-        // await interviewService.saveInterviewResult(
-        //   interviewId: interview.id,
-        //   candidateId: currentUserId,
-        //   answers: snapshotAnswers,
-        //   aiResult: aiResult,
-        // );
+        // ✅ BACKEND: Save interview result to Firestore
         // =======================================================
+        try {
+          final interviewService = Get.find<InterviewService>();
+          final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+          
+          await interviewService.saveInterviewResult(
+            interviewId: exam.id,
+            userId: currentUserId,
+            answers: snapshotAnswers,
+            aiResult: aiResult,
+          );
+          print('✅ Interview result persisted to Firestore');
+        } catch (e) {
+          print('❌ Failed to save interview result: $e');
+          // We continue anyway to show the UI, but log the error
+        }
 
         // 🔊 Completion sound
         SoundService.play(SoundEffect.examComplete);
@@ -445,7 +448,7 @@ class ExamController extends GetxController {
         print('🔄 Navigating to InterviewSubmittedPage...');
 
         Get.offAll(
-              () => const InterviewSubmittedPage(),
+              () => InterviewSubmittedPage(),
           arguments: {
             'exam': resultExam,
             'aiResult': aiResult,
@@ -512,7 +515,7 @@ class ExamController extends GetxController {
       if (isInterview) {
         // AI evaluation failed — navigate without aiResult
         Get.offAll(
-              () => const InterviewSubmittedPage(),
+              () => InterviewSubmittedPage(),
           arguments: {
             'exam': resultExam,
             // aiResult is null — AI evaluation failed

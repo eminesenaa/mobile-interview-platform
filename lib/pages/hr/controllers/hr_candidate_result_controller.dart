@@ -1,24 +1,16 @@
 // ===================== File: hr_candidate_result_controller.dart =====================
 // Purpose:
-// Controls HR Candidate Result Page
-//
-// IMPORTANT:
-// - Uses mock data for now
-// - Backend-ready structure
-//
-// TODO (Backend):
-// - Fetch candidate interview result by ID
-// - Fetch topic scores
-// - Fetch detailed answers for review page
-// - Send evaluation decision (accept/reject)
+// Controls HR Candidate Result Page using real interview data.
 // ================================================================================
 
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../interviews/needs_review/hr_candidate_evaluation_page.dart';
 import 'hr_needs_review_detail_controller.dart';
 
 class HrCandidateResultController extends GetxController {
+  final _db = FirebaseFirestore.instance;
   final Map<String, dynamic>? candidate;
 
   HrCandidateResultController({this.candidate});
@@ -31,114 +23,71 @@ class HrCandidateResultController extends GetxController {
   final wrong = 0.obs;
   final unanswered = 0.obs;
   final candidateName = "".obs;
-
-  final decision = RxnString(); // "accepted" | "rejected" | null
+  final decision = RxnString(); 
 
   // ===============================
   // TOPIC DATA
   // ===============================
   final topicPercentages = <String, int>{}.obs;
 
-  // ===============================
-  // LIFECYCLE
-  // ===============================
   @override
   void onInit() {
     super.onInit();
 
     if (candidate != null) {
       _initFromCandidate(candidate!);
-    } else {
-      loadMockData();
+      _listenToResultUpdates();
     }
-
-    // ===============================
-    // TODO (Backend)
-    // ===============================
-    /*
-  fetchCandidateResult();
-  */
   }
 
-  // ===============================
-  // MOCK DATA
-  // ===============================
-  void loadMockData() {
-    score.value = 78;
-    correct.value = 18;
-    wrong.value = 6;
-    unanswered.value = 2;
-    candidateName.value = "John Doe";
-    decision.value = null; // test için
+  void _initFromCandidate(Map<String, dynamic> data) {
+    score.value = (data["score"] ?? 0).toInt();
+    
+    // In a real scenario, these counts would come from the detailed answer list
+    // For now, we use the values passed from the list or defaults
+    correct.value = (data["correct"] ?? 0).toInt();
+    wrong.value = (data["wrong"] ?? 0).toInt();
+    unanswered.value = (data["unanswered"] ?? 0).toInt();
 
-    topicPercentages.assignAll({
-      "SQL": 85,
-      "Machine Learning": 70,
-      "C": 60,
-      "Data Structures": 75,
+    candidateName.value = data["name"] ?? "Candidate";
+    decision.value = data["decision"];
+
+    final topics = data["topics"] as Map<String, dynamic>?;
+    if (topics != null) {
+      topicPercentages.assignAll(topics.map((key, value) => MapEntry(key, (value as num).toInt())));
+    }
+  }
+
+  void _listenToResultUpdates() {
+    final resultId = candidate?["resultId"];
+    if (resultId == null) return;
+
+    _db.collection('ai_interview_results').doc(resultId).snapshots().listen((snap) {
+      if (snap.exists) {
+        final data = snap.data()!;
+        decision.value = data['decision'];
+        
+        // Update local candidate map to keep it in sync
+        candidate?['decision'] = data['decision'];
+      }
     });
   }
 
-  void _initFromCandidate(Map<String, dynamic> candidate) {
-    score.value = candidate["score"] ?? 0;
-
-    /// 🔥 basit mock hesap (backend gelince değişir)
-    correct.value = 18;
-    wrong.value = 6;
-    unanswered.value = 2;
-
-    candidateName.value = candidate["name"] ?? "Candidate";
-
-    decision.value = candidate["decision"];
-
-    /// 🔥 topicleri direkt candidate’tan al
-    final topics = candidate["topics"] as Map<String, int>?;
-
-    if (topics != null) {
-      topicPercentages.assignAll(topics);
-    }
-  }
-
-  // ===============================
-  // DERIVED DATA (UI)
-  // ===============================
-
-  /// Topic ratios for charts (0.0 - 1.0)
   Map<String, double> get topicRatios {
     final result = <String, double>{};
-
     for (final entry in topicPercentages.entries) {
       result[entry.key] = (entry.value / 100).clamp(0.0, 1.0);
     }
-
     return result;
   }
 
-  // ===============================
-  // REVIEW DATA (for answer page)
-  // ===============================
-
-  /// ExamReviewPage'e gönderilecek mock data
   Map<String, dynamic> get reviewExamData {
     return {
       "correct": correct.value,
       "wrong": wrong.value,
       "unanswered": unanswered.value,
-
-      // TODO backend:
-      // full question/answer list
+      "questions": candidate?["questions"] ?? [],
     };
-  }
-
-  // ===============================
-  // ACTIONS
-  // ===============================
-
-  void openReviewPage() {
-    // TODO (Navigation)
-    /*
-    Get.toNamed('/candidate-review', arguments: reviewExamData);
-    */
   }
 
   void openEvaluationPage() {
@@ -146,47 +95,42 @@ class HrCandidateResultController extends GetxController {
       () => const HrCandidateEvaluationPage(),
       arguments: {
         ...?candidate,
-        "interview": {
-          "title": candidate?["interviewTitle"],
-          "date": candidate?["interviewDate"],
-        },
+        "interview": candidate?["interview"],
       },
     )?.then((result) {
       if (result != null && result["decision"] != null) {
-        decision.value = result["decision"];
-
-        /// 🔥 candidate içine de yaz (persist)
-        candidate?["decision"] = result["decision"];
-
-        /// 🔥 NeedsReview controller'ı bul
-        final parent = Get.find<HrNeedsReviewDetailController>();
-
-        /// 🔥 listede güncelle
-        final index = parent.candidates.indexWhere(
-              (c) => c["name"] == candidate?["name"],
-        );
-
-        if (index != -1) {
-          parent.candidates[index]["decision"] = result["decision"];
-          parent.candidates.refresh(); // 🔥 UI refresh
-        }
+        _updateDecision(result["decision"], result["message"] ?? "");
       }
     });
   }
 
-// ===============================
-// TODO BACKEND METHODS
-// ===============================
-/*
-  Future<void> fetchCandidateResult() async {}
+  Future<void> _updateDecision(String newDecision, String message) async {
+    final resultId = candidate?["resultId"];
+    if (resultId == null) return;
 
-  Future<void> fetchTopicScores() async {}
+    try {
+      await _db.collection('ai_interview_results').doc(resultId).update({
+        "decision": newDecision,
+        "hrComment": message,
+        "reviewedAt": FieldValue.serverTimestamp(),
+      });
+      
+      decision.value = newDecision;
+      candidate?["decision"] = newDecision;
 
-  Future<void> fetchAnswers() async {}
-
-  Future<void> sendEvaluation({
-    required bool accepted,
-    required String message,
-  }) async {}
-  */
+      // Notify parent controller if it exists
+      try {
+        final parent = Get.find<HrNeedsReviewDetailController>();
+        final index = parent.candidates.indexWhere((c) => c["resultId"] == resultId);
+        if (index != -1) {
+          parent.candidates[index]["decision"] = newDecision;
+          parent.candidates.refresh();
+        }
+      } catch (_) {
+        // Parent not found, ignore
+      }
+    } catch (e) {
+      Get.snackbar("Error", "Failed to update decision: $e");
+    }
+  }
 }

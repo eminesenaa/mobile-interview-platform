@@ -49,6 +49,14 @@ abstract class InterviewService {
       InterviewSession session,
       );
 
+  /// Submit interview → creates InterviewResult
+  Future<void> saveInterviewResult({
+    required String interviewId,
+    required String userId,
+    required Map<String, dynamic> answers,
+    required dynamic aiResult,
+  });
+
   // ===================== RESULTS =====================
 
   /// Get widgets for candidate

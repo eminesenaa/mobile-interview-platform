@@ -43,6 +43,12 @@ class JobApplication {
   /// 🔥 Embedded user (UI için hızlı erişim)
   final User? candidate;
 
+  /// 🔥 NEW: Convenience fields for dashboard
+  final String? candidateName;
+  final String? jobTitle;
+  final String? university;
+  final String? department;
+
   /// 🔹 Status
   final ApplicationStatus status;
 
@@ -61,6 +67,10 @@ class JobApplication {
     required this.jobPostingId,
     required this.candidateId,
     this.candidate,
+    this.candidateName,
+    this.jobTitle,
+    this.university,
+    this.department,
     this.status = ApplicationStatus.pending,
     required this.appliedAt,
     this.reviewedAt,
@@ -81,6 +91,10 @@ class JobApplication {
       candidateId: json['candidateId'] ?? '',
       candidate:
           json['candidate'] != null ? User.fromJson(json['candidate']) : null,
+      candidateName: json['candidateName'],
+      jobTitle: json['jobTitle'],
+      university: json['university'],
+      department: json['department'],
       status: ApplicationStatus.values.firstWhere(
         (e) => e.name == json['status'],
         orElse: () => ApplicationStatus.pending,
@@ -104,6 +118,10 @@ class JobApplication {
       'jobPostingId': jobPostingId,
       'candidateId': candidateId,
       if (candidate != null) 'candidate': candidate!.toJson(),
+      if (candidateName != null) 'candidateName': candidateName,
+      if (jobTitle != null) 'jobTitle': jobTitle,
+      if (university != null) 'university': university,
+      if (department != null) 'department': department,
       'status': status.name,
       'appliedAt': appliedAt.toIso8601String(),
       if (reviewedAt != null) 'reviewedAt': reviewedAt!.toIso8601String(),
@@ -123,12 +141,10 @@ class JobApplication {
     String? jobPostingId,
     String? candidateId,
     User? candidate,
-    String? name,
-    String? email,
-    String? phone,
+    String? candidateName,
+    String? jobTitle,
     String? university,
     String? department,
-    String? grade,
     ApplicationStatus? status,
     DateTime? appliedAt,
     DateTime? reviewedAt,
@@ -144,6 +160,10 @@ class JobApplication {
       jobPostingId: jobPostingId ?? this.jobPostingId,
       candidateId: candidateId ?? this.candidateId,
       candidate: candidate ?? this.candidate,
+      candidateName: candidateName ?? this.candidateName,
+      jobTitle: jobTitle ?? this.jobTitle,
+      university: university ?? this.university,
+      department: department ?? this.department,
       status: status ?? this.status,
       appliedAt: appliedAt ?? this.appliedAt,
       reviewedAt: reviewedAt ?? this.reviewedAt,

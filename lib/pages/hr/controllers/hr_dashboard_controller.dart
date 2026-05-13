@@ -1,24 +1,20 @@
 // ===================== File: hr_dashboard_controller.dart =====================
 // Purpose:
-// Controls HR Dashboard data (activities, stats)
-//
-// IMPORTANT:
-// - Uses mock data for now
-// - Structured for easy backend integration later
-//
-// TODO (Backend):
-// - Replace mock data with Firestore/API
-// - Fetch interview-based activities dynamically
+// Controls HR Dashboard data (activities, stats) using real-time Firestore data.
 // ============================================================================
 
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class HRDashboardController extends GetxController {
+  final _db = FirebaseFirestore.instance;
+
   // ===============================
   // STATS (TOP CARDS)
   // ===============================
-  final interviewCount = 5.obs;
-  final candidateCount = 34.obs;
+  final interviewCount = 0.obs;
+  final candidateCount = 0.obs;
 
   // ===============================
   // RECENT ACTIVITIES (INTERVIEW BASED)
@@ -28,102 +24,87 @@ class HRDashboardController extends GetxController {
   // ===============================
   // HR USER INFO (HEADER)
   // ===============================
-  /// Company name & initials (header için)
-  /// TODO: backend'den gelecek (HR user document)
-  final companyName = "TechCorp Inc.".obs;
+  final companyName = "Loading...".obs;
   final initials = "HR".obs;
 
   @override
   void onInit() {
     super.onInit();
-
-    // Load mock data initially
-    loadMockData();
-
-    // Prepare backend-ready function
-    fetchDashboardStats();
-
+    _listenToStats();
+    _listenToActivities();
     fetchHRUserInfo();
   }
 
   // ===============================
-  // MOCK DATA
+  // REAL-TIME STATS
   // ===============================
-  void loadMockData() {
-    // Activities
-    activities.value = [
-      {
-        "type": "pending",
-        "title": "Frontend interview ended",
-        "subtitle": "3 candidates awaiting review",
-      },
-      {
-        "type": "upcoming",
-        "title": "Backend interview scheduled",
-        "subtitle": "Thu 17 Apr — 14:00",
-      },
-      {
-        "type": "pending",
-        "title": "Mobile interview ended",
-        "subtitle": "1 candidate awaiting review",
-      },
-    ];
+  void _listenToStats() {
+    // 📊 Count interviews
+    _db.collection('interviews').snapshots().listen((snap) {
+      interviewCount.value = snap.docs.length;
+    });
 
-    // Stats (mock)
-    interviewCount.value = 5;
-    candidateCount.value = 34;
-
-    // ===============================
-    // MOCK HR USER INFO
-    // ===============================
-    companyName.value = "TechCorp Inc.";
-    initials.value = "HR";
+    // 👥 Count total job postings candidates
+    _db.collection('job_postings').snapshots().listen((snap) {
+      int total = 0;
+      for (var doc in snap.docs) {
+        final applicants = doc.data()['applicants'] as List?;
+        total += applicants?.length ?? 0;
+      }
+      candidateCount.value = total;
+    });
   }
 
   // ===============================
-  // FETCH STATS (BACKEND READY)
+  // REAL-TIME ACTIVITIES
   // ===============================
-  Future<void> fetchDashboardStats() async {
-    // TODO: Replace with backend call
+  void _listenToActivities() {
+    _db.collection('interviews')
+        .orderBy('startTime', descending: true)
+        .limit(5)
+        .snapshots()
+        .listen((snap) {
+          activities.value = snap.docs.map((doc) {
+            final data = doc.data();
+            final status = data['status'] ?? 'scheduled';
+            
+            String subtitle = "Interview ${status}";
+            if (status == "scheduled") {
+              subtitle = "Scheduled for Today";
+            } else if (status == "completed") {
+              subtitle = "Waiting for hr review";
+            }
 
-    /*
-    final result = await api.getDashboardStats();
-
-    interviewCount.value = result["interviewCount"];
-    candidateCount.value = result["candidateCount"];
-    */
-
-    // Mock fallback (şimdilik aynı kalır)
-    interviewCount.value = 5;
-    candidateCount.value = 34;
+            return {
+              "type": status == "completed" ? "pending" : "upcoming",
+              "title": data['title'] ?? "New Interview",
+              "subtitle": subtitle,
+            };
+          }).toList();
+    });
   }
 
-// ===============================
-// TODO: BACKEND INTEGRATION
-// ===============================
-/*
-  Future<void> fetchActivitiesFromBackend() async {
-    // Example:
-    // final data = await api.getActivities();
-    // activities.value = data;
-  }
-  */
-
   // ===============================
-  // FETCH HR USER INFO (BACKEND READY)
+  // FETCH HR USER INFO
   // ===============================
   Future<void> fetchHRUserInfo() async {
-    // TODO: Replace with backend call
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
 
-    /*
-    final user = await api.getHRUser();
-
-    companyName.value = user.companyName;
-    initials.value = user.initials;
-    */
-
-    // Mock fallback
-    companyName.value = "TechCorp Inc.";
-    initials.value = "HR";
+      final doc = await _db.collection('hr_users').doc(user.uid).get();
+      if (doc.exists) {
+        final data = doc.data()!;
+        companyName.value = data['companyName'] ?? "Company Name";
+        
+        final name = data['name'] ?? "";
+        final surname = data['surname'] ?? "";
+        if (name.isNotEmpty && surname.isNotEmpty) {
+          initials.value = "${name[0]}${surname[0]}".toUpperCase();
+        }
+      }
+    } catch (e) {
+      print("HRDashboardController: Error fetching HR info: $e");
+    }
   }
 }
