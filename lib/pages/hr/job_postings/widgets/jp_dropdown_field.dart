@@ -32,31 +32,9 @@ class JPDropdownField extends StatelessWidget {
       items: items.map((e) {
         return DropdownMenuItem<String>(
           value: e,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: e == items.last
-                    ? Center(
-                        child: Text(
-                          e,
-                          style: AppTextStyles.bodyStrong,
-                        ),
-                      )
-                    : Text(
-                        e,
-                        style: AppTextStyles.bodyStrong,
-                      ),
-              ),
-
-              if (e != items.last)
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: AppColors.border.withOpacity(0.5),
-                ),
-            ],
+          child: Text(
+            e,
+            style: AppTextStyles.bodyStrong,
           ),
         );
       }).toList(),

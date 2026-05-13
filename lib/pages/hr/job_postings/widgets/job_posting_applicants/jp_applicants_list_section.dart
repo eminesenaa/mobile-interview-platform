@@ -46,17 +46,15 @@ class JPApplicantsListSection extends StatelessWidget {
         ...applicants.map((a) {
           final controller = Get.find<HrJobPostingsController>();
 
-          final user = controller.getUserByName(a["name"]);
-
-          final subtitle = user != null
-              ? "${user.university ?? ''} · ${user.department ?? ''}"
+          final subtitle = (a["university"] != null && a["university"].toString().isNotEmpty)
+              ? "${a["university"]} · ${a["department"] ?? ''}"
               : "";
 
           return GestureDetector(
             onTap: () {
               controller.openCandidateDetail(
                 postingId,
-                a["userId"],
+                a["userId"] ?? "",
               );
             },
             child: JPApplicantCard(

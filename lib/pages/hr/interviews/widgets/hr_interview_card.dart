@@ -11,12 +11,14 @@
 // ======================================================================
 
 import 'package:flutter/material.dart';
+import 'package:interview_project/models/interview.dart';
 import 'package:interview_project/pages/hr/interviews/widgets/status_badge.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:intl/intl.dart';
 import '../../../../constants/constants.dart';
 
 class HRInterviewCard extends StatelessWidget {
-  final Map<String, dynamic> interview;
+  final Interview interview;
   final VoidCallback onTap;
   final bool isToday;
 
@@ -29,8 +31,8 @@ class HRInterviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = interview["status"];
-    final reviewStatus = interview["reviewStatus"];
+    final status = interview.status;
+    final reviewStatus = interview.reviewStatus;
 
     return GestureDetector(
       onTap: onTap,
@@ -82,7 +84,7 @@ class HRInterviewCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            interview["title"],
+                            interview.title,
                             style: AppTextStyles.title,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -101,7 +103,7 @@ class HRInterviewCard extends StatelessWidget {
                     // POSITION
                     // =========================
                     Text(
-                      interview["position"],
+                      interview.position,
                       style: AppTextStyles.bodySmall,
                     ),
 
@@ -122,8 +124,8 @@ class HRInterviewCard extends StatelessWidget {
                         const SizedBox(width: AppSpacing.xs),
                         Text(
                           isToday
-                              ? "${interview["time"]} - ${interview["endTime"]}"
-                              : _formatDate(interview["date"]),
+                              ? "${DateFormat('HH:mm').format(interview.startTime)} - ${DateFormat('HH:mm').format(interview.endTime)}"
+                              : DateFormat('MMM dd').format(interview.startTime),
                           style: AppTextStyles.bodySmall,
                         ),
                         const SizedBox(width: AppSpacing.md),
@@ -134,7 +136,7 @@ class HRInterviewCard extends StatelessWidget {
                         ),
                         const SizedBox(width: AppSpacing.xs),
                         Text(
-                          "${interview["candidateCount"]} candidates",
+                          "${interview.candidateIds.length} candidates",
                           style: AppTextStyles.bodySmall,
                         ),
                       ],
@@ -148,25 +150,4 @@ class HRInterviewCard extends StatelessWidget {
       ),
     );
   }
-}
-
-String _formatDate(String date) {
-  final d = DateTime.parse(date);
-
-  const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec"
-  ];
-
-  return "${months[d.month - 1]} ${d.day}";
 }

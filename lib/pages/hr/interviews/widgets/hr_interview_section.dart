@@ -16,11 +16,12 @@ import 'package:get/get.dart';
 import '../../../../constants/constants.dart';
 import '../../controllers/hr_interviews_controller.dart';
 import '../hr_interview_list_page.dart';
+import '../../../../models/interview.dart';
 import 'hr_interview_card.dart';
 
 class HRInterviewSection extends StatelessWidget {
   final String title;
-  final List<Map<String, dynamic>> interviews;
+  final List<Interview> interviews;
 
   /// Section key for navigation (today / review / reviewed)
   final String sectionKey;

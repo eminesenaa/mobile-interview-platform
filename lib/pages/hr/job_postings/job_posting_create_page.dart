@@ -78,9 +78,11 @@ class _JobPostingCreatePageState extends State<JobPostingCreatePage> {
               ),
               const SizedBox(height: AppSpacing.lg),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const JPSectionLabel(text: "Level"),
@@ -102,6 +104,7 @@ class _JobPostingCreatePageState extends State<JobPostingCreatePage> {
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const JPSectionLabel(text: "Work Type"),
@@ -119,9 +122,11 @@ class _JobPostingCreatePageState extends State<JobPostingCreatePage> {
               ),
               const SizedBox(height: AppSpacing.lg),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const JPSectionLabel(text: "Country"),
@@ -137,6 +142,7 @@ class _JobPostingCreatePageState extends State<JobPostingCreatePage> {
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const JPSectionLabel(text: "City"),
@@ -176,11 +182,10 @@ class _JobPostingCreatePageState extends State<JobPostingCreatePage> {
                 onChanged: (v) => c.requirements.value = v,
               ),
               const SizedBox(height: AppSpacing.xl),
-              JPPublishButton(
-                onTap: () {
-                  Get.snackbar("Posting", "Publish clicked (mock)");
-                },
-              ),
+              Obx(() => JPPublishButton(
+                onTap: c.submitPosting,
+                isEnabled: c.isFormValid,
+              )),
               const SizedBox(height: AppSpacing.xl),
             ],
           ),

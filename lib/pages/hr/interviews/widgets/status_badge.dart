@@ -3,11 +3,12 @@
 // Reusable status badge for all interview-related UI
 //
 // Usage:
-// StatusBadge.from(status: "ongoing", reviewStatus: "pending")
+// StatusBadge.from(status: InterviewStatus.active, reviewStatus: ReviewStatus.pending)
 //
 // ==================================================================
 
 import 'package:flutter/material.dart';
+import 'package:interview_project/models/interview.dart';
 
 import '../../../../constants/colors.dart';
 import '../../../../constants/constants.dart';
@@ -32,11 +33,15 @@ class StatusConfig {
 // ===============================
 class StatusMapper {
   static StatusConfig map({
-    required String status,
-    required String reviewStatus,
+    required dynamic status,
+    required dynamic reviewStatus,
   }) {
+    // Convert to string if enums are passed
+    final s = status is Enum ? status.name : status.toString();
+    final rs = reviewStatus is Enum ? reviewStatus.name : reviewStatus.toString();
+
     // ONGOING
-    if (status == "ongoing") {
+    if (s == "active" || s == "ongoing") {
       return const StatusConfig(
         label: "Ongoing",
         color: AppColors.strawberryRed,
@@ -44,7 +49,7 @@ class StatusMapper {
     }
 
     // UPCOMING
-    if (status == "upcoming") {
+    if (s == "scheduled" || s == "upcoming") {
       return const StatusConfig(
         label: "Upcoming",
         color: AppColors.topicTurquoise,
@@ -52,7 +57,7 @@ class StatusMapper {
     }
 
     // NEEDS REVIEW
-    if (status == "completed" && reviewStatus == "pending") {
+    if (s == "completed" && rs == "pending") {
       return const StatusConfig(
         label: "Needs Review",
         color: AppColors.honeyBronze,
@@ -60,7 +65,7 @@ class StatusMapper {
     }
 
     // REVIEWED
-    if (status == "completed" && reviewStatus == "reviewed") {
+    if (s == "completed" && rs == "reviewed") {
       return const StatusConfig(
         label: "Reviewed",
         color: AppColors.accentCeladon,
@@ -86,10 +91,10 @@ class StatusBadge extends StatelessWidget {
     required this.config,
   });
 
-  /// Shortcut constructor (çok önemli 🔥)
+  /// Shortcut constructor
   factory StatusBadge.from({
-    required String status,
-    required String reviewStatus,
+    required dynamic status,
+    required dynamic reviewStatus,
   }) {
     final config = StatusMapper.map(
       status: status,
