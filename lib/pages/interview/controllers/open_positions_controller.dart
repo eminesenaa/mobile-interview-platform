@@ -290,14 +290,21 @@ class OpenPositionsController extends GetxController {
 
       await _applicationService.submitApplication(application);
 
-      // Safer navigation to close the apply flow
-      if (Get.isOverlaysOpen) Get.back(); 
-      Get.back(); // Back from ApplyPage
-      
-      // Optionally back from JobDetailPage as well if it's still open
-      if (Get.currentRoute.contains('JobDetailPage') || Get.isOverlaysOpen) {
-        Get.back();
+      // 🔥 Safer navigation to close the apply flow
+      // Instead of multiple Get.back(), we return to the main dashboard or previous safe state
+      if (Get.isOverlaysOpen) {
+        Navigator.of(Get.overlayContext!).pop();
       }
+      
+      // Navigate back to the previous screen (JobDetail or OpenPositions)
+      Get.back();
+      
+      // Ensure we are back to a clean state
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (Get.currentRoute.contains('JobDetailPage')) {
+          Get.back();
+        }
+      });
       
       Future.delayed(const Duration(milliseconds: 300), () {
         Get.snackbar(

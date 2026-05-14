@@ -243,8 +243,22 @@ class PracticeController extends GetxController {
           .map((d) => TrainingModule.fromFirestore(d.data(), d.id))
           .toList();
 
-      if (modules.isEmpty) {
-        debugPrint('[Modules] ⚠️ Firestore\'dan hiç modül gelmedi!');
+      // 🔥 RELEVANCE SORTING (Sort by job title match)
+      final args = Get.arguments as Map<String, dynamic>?;
+      final targetJob = args?["targetJob"]?.toString().toLowerCase();
+
+      if (targetJob != null && targetJob.isNotEmpty) {
+        modules.sort((a, b) {
+          final aTitle = a.title.toLowerCase();
+          final bTitle = b.title.toLowerCase();
+          
+          bool aMatch = aTitle.contains(targetJob) || targetJob.contains(aTitle);
+          bool bMatch = bTitle.contains(targetJob) || targetJob.contains(bTitle);
+
+          if (aMatch && !bMatch) return -1;
+          if (!aMatch && bMatch) return 1;
+          return 0;
+        });
       }
 
       trainingModules.assignAll(modules);

@@ -73,33 +73,39 @@ class JobApplicationService {
         return;
       }
 
-      // NEW APPLICATION MODE
-      final docRef = _firestore.collection('applications').doc();
-      final id = docRef.id;
-      final appWithId = application.copyWith(id: id);
+      // Deterministic ID to prevent duplicates
+      final deterministicId = "${application.candidateId}_${application.jobPostingId}";
+      final docRef = _firestore.collection('applications').doc(deterministicId);
+      final appWithId = application.copyWith(id: deterministicId);
 
-      // 1. Save application document
-      await docRef.set(appWithId.toJson());
+      // 1. Save application document (using set to overwrite if exists, but we'll also check counters)
+      if (existing.docs.isEmpty) {
+        // NEW APPLICATION MODE
+        await docRef.set(appWithId.toJson());
 
-      // 2. Update Job Posting's applicant list & count
-      await postingRef.update({
-        'applicants': FieldValue.arrayUnion([
-          {
-            'userId': application.candidateId,
-            'name': application.candidateName ?? "Anonymous",
-            'university': application.university ?? "",
-            'department': application.department ?? "",
-            'status': 'pending',
-            'appliedAt': DateTime.now().toIso8601String(),
-          }
-        ]),
-        'applicantCount': FieldValue.increment(1),
-        'pending': FieldValue.increment(1),
-      });
+        // 2. Update Job Posting's applicant list & count
+        await postingRef.update({
+          'applicants': FieldValue.arrayUnion([
+            {
+              'userId': application.candidateId,
+              'name': application.candidateName ?? "Anonymous",
+              'university': application.university ?? "",
+              'department': application.department ?? "",
+              'status': 'pending',
+              'appliedAt': DateTime.now().toIso8601String(),
+            }
+          ]),
+          'applicantCount': FieldValue.increment(1),
+          'pending': FieldValue.increment(1),
+        });
+      } else {
+        // Already exists - update the data without incrementing counters
+        await docRef.update(application.toJson());
+      }
 
       // 3. Update User's application list
       await userRef.update({
-        'jobApplicationIds': FieldValue.arrayUnion([id]),
+        'jobApplicationIds': FieldValue.arrayUnion([deterministicId]),
       });
 
     } catch (e) {

@@ -5,6 +5,8 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
+import 'package:flutter/material.dart';
+import 'dart:math';
 import 'package:interview_project/models/user.dart';
 import '../job_postings/candidate_application_detail_page.dart';
 import '../job_postings/job_posting_applicants_page.dart';
@@ -59,6 +61,14 @@ class HrJobPostingsController extends GetxController {
         data['id'] = doc.id;
         return data;
       }).toList();
+
+      // 🔥 Sort by createdAt descending (latest on top)
+      all.sort((a, b) {
+        final aTime = a['createdAt'] as Timestamp?;
+        final bTime = b['createdAt'] as Timestamp?;
+        if (aTime == null || bTime == null) return 0;
+        return bTime.compareTo(aTime);
+      });
 
       activePostings.value = all.where((p) => p['status'] == 'active').toList();
       closedPostings.value = all.where((p) => p['status'] == 'closed').toList();
@@ -184,8 +194,16 @@ class HrJobPostingsController extends GetxController {
       await _db.collection('job_postings').add(newPosting);
 
       resetForm();
+      
+      // 🔥 Safer navigation
+      if (Get.isOverlaysOpen) {
+        Navigator.of(Get.overlayContext!).pop();
+      }
       Get.back();
-      Get.snackbar("Success", "Job posting published");
+
+      Future.delayed(const Duration(milliseconds: 300), () {
+        Get.snackbar("Success", "Job posting published", snackPosition: SnackPosition.BOTTOM);
+      });
     } catch (e) {
       Get.snackbar("Error", "Failed to create posting: $e");
     }
@@ -337,15 +355,29 @@ class HrJobPostingsController extends GetxController {
           .get();
       
       if (appSnap.docs.isNotEmpty) {
-        await appSnap.docs.first.reference.update({
+        final Map<String, dynamic> updateData = {
           'status': status,
-          'hrMessage': message, // 🔥 Add the feedback message
+          'hrMessage': message,
           'reviewedAt': FieldValue.serverTimestamp(),
-        });
+        };
+
+        // 🔥 3. If accepted, generate a unique interview code
+        if (status == 'accepted') {
+          final inviteCode = _generateUniqueCode();
+          updateData['inviteCode'] = inviteCode;
+        }
+
+        await appSnap.docs.first.reference.update(updateData);
       }
     } catch (e) {
       print("Error updating status with feedback: $e");
       rethrow;
     }
+  }
+
+  String _generateUniqueCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ234567890';
+    final random = Random();
+    return List.generate(6, (index) => chars[random.nextInt(chars.length)]).join();
   }
 }

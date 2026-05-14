@@ -44,11 +44,27 @@ class ApplicationsController extends GetxController {
         .where('candidateId', isEqualTo: user.uid)
         .snapshots()
         .listen((snap) {
-          applications.value = snap.docs.map((doc) {
+          final list = snap.docs.map((doc) {
             final data = doc.data();
             data['id'] = doc.id;
             return data;
           }).toList();
+
+          // 🔥 Sort by appliedAt descending
+          list.sort((a, b) {
+            final aTime = a['appliedAt'];
+            final bTime = b['appliedAt'];
+
+            DateTime parseTime(dynamic time) {
+              if (time is Timestamp) return time.toDate();
+              if (time is String) return DateTime.parse(time);
+              return DateTime(2000);
+            }
+
+            return parseTime(bTime).compareTo(parseTime(aTime));
+          });
+
+          applications.value = list;
           isLoading.value = false;
         });
   }

@@ -45,11 +45,21 @@ class InterviewDashboardController extends GetxController {
         .limit(10)
         .snapshots()
         .listen((snap) {
-          openPositions.value = snap.docs.map((doc) {
+          final list = snap.docs.map((doc) {
             final data = doc.data();
             data['id'] = doc.id;
             return data;
           }).toList();
+
+          // 🔥 Sort by createdAt descending
+          list.sort((a, b) {
+            final aTime = a['createdAt'] as Timestamp?;
+            final bTime = b['createdAt'] as Timestamp?;
+            if (aTime == null || bTime == null) return 0;
+            return bTime.compareTo(aTime);
+          });
+          
+          openPositions.value = list;
         });
 
     // 2. Listen to applications
@@ -78,6 +88,21 @@ class InterviewDashboardController extends GetxController {
             }
             updatedApps.add(data);
           }
+
+          // 🔥 Sort by appliedAt descending (latest first)
+          updatedApps.sort((a, b) {
+            final aTime = a['appliedAt'];
+            final bTime = b['appliedAt'];
+
+            DateTime parseTime(dynamic time) {
+              if (time is Timestamp) return time.toDate();
+              if (time is String) return DateTime.parse(time);
+              return DateTime(2000);
+            }
+
+            return parseTime(bTime).compareTo(parseTime(aTime));
+          });
+
           applications.value = updatedApps;
         });
 

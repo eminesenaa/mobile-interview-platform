@@ -20,6 +20,8 @@
 // ================================================================================
 
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // 🔥 MODEL IMPORT
 import '../../../models/exam.dart';
@@ -68,79 +70,72 @@ class InterviewResultsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    _listenToResults();
+  }
 
-    // =======================================================
-    // 🔥 MOCK DATA INIT
-    // =======================================================
-    // TODO (Backend):
-    // widgets.value = await api.fetchInterviewResults();
+  void _listenToResults() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-    results.value = [
-      {
-        // ================= UI FIELDS =================
-        "title": "Frontend Developer",
-        "company": "AppNova",
-        "location": "San Francisco",
-        "startTime": "2026-05-14T10:00:00",
-        "endTime": "2026-05-14T11:00:00",
+    FirebaseFirestore.instance
+        .collection('ai_interview_results')
+        .where('candidateId', isEqualTo: user.uid)
+        .snapshots()
+        .listen((snap) async {
+      final List<Map<String, dynamic>> updatedResults = [];
 
-        // ================= MODEL =================
-        "result": InterviewResult(
-          id: "1",
-          interviewId: "int_1",
-          candidateId: "user_1",
-          score: 95,
-          correctCount: 9,
-          wrongCount: 1,
-          unansweredCount: 0,
-          decision: InterviewDecisionStatus.accepted,
-          hrMessage: "Excellent performance! You stood out among candidates.",
-          isSubmitted: true,
-          isReviewed: true,
-          submittedAt: DateTime.now().subtract(const Duration(days: 2)),
-          reviewedAt: DateTime.now().subtract(const Duration(days: 1)),
-        ),
-      },
-      {
-        "title": "Backend Engineer",
-        "company": "Cloudify",
-        "location": "Berlin",
-        "startTime": "2026-05-10T14:00:00",
-        "endTime": "2026-05-10T15:00:00",
-        "result": InterviewResult(
-          id: "2",
-          interviewId: "int_2",
-          candidateId: "user_1",
-          score: 62,
-          correctCount: 6,
-          wrongCount: 4,
-          unansweredCount: 0,
-          decision: InterviewDecisionStatus.rejected,
-          hrMessage:
-              "You showed potential, but did not meet the required threshold.",
-          isSubmitted: true,
-          isReviewed: true,
-          submittedAt: DateTime.now().subtract(const Duration(days: 4)),
-          reviewedAt: DateTime.now().subtract(const Duration(days: 3)),
-        ),
-      },
-      {
-        "title": "Product Designer",
-        "company": "CreativeWorks",
-        "location": "Amsterdam",
-        "startTime": "2026-05-18T09:00:00",
-        "endTime": "2026-05-18T10:00:00",
-        "result": InterviewResult(
-          id: "3",
-          interviewId: "int_3",
-          candidateId: "user_1",
-          decision: InterviewDecisionStatus.pending,
-          isSubmitted: true,
-          isReviewed: false,
-          submittedAt: DateTime.now().subtract(const Duration(days: 1)),
-        ),
-      },
-    ];
+      for (var doc in snap.docs) {
+        final data = doc.data();
+        data['id'] = doc.id;
+
+        // Try to fetch related job posting info if missing
+        if (data['title'] == null) {
+          final applicationSnap = await FirebaseFirestore.instance
+              .collection('applications')
+              .where('candidateId', isEqualTo: user.uid)
+              .where('jobPostingId', isEqualTo: data['jobPostingId'])
+              .limit(1)
+              .get();
+
+          if (applicationSnap.docs.isNotEmpty) {
+            final appData = applicationSnap.docs.first.data();
+            data['title'] = appData['jobTitle'] ?? "Unknown Position";
+            data['company'] = appData['company'] ?? "Company";
+            data['location'] = appData['location'] ?? "";
+            data['startTime'] = appData['appliedAt'];
+          }
+        }
+
+        // Convert Firestore data to InterviewResult model if needed, 
+        // or just keep it as a map if the UI expects specific fields.
+        // For now, let's keep the structure the UI expects.
+        if (data['result'] == null) {
+          data['result'] = InterviewResult(
+            id: doc.id,
+            interviewId: data['interviewId'] ?? "",
+            candidateId: user.uid,
+            score: (data['score'] ?? 0).toInt(),
+            correctCount: (data['correctCount'] ?? 0).toInt(),
+            wrongCount: (data['wrongCount'] ?? 0).toInt(),
+            decision: _parseDecision(data['decision']),
+            hrMessage: data['hrMessage'],
+            isSubmitted: true,
+            isReviewed: data['isReviewed'] ?? true,
+          );
+        }
+
+        updatedResults.add(data);
+      }
+      results.value = updatedResults;
+    });
+  }
+
+  InterviewDecisionStatus _parseDecision(dynamic decision) {
+    if (decision == null) return InterviewDecisionStatus.pending;
+    final d = decision.toString().toLowerCase();
+    if (d == "accepted") return InterviewDecisionStatus.accepted;
+    if (d == "rejected") return InterviewDecisionStatus.rejected;
+    return InterviewDecisionStatus.pending;
   }
 
   // ===============================
