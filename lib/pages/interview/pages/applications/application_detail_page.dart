@@ -42,8 +42,11 @@ class ApplicationDetailPage extends StatelessWidget {
         Get.arguments as Map<String, dynamic>;
 
     final status = application["status"] ?? "pending";
-
     final controller = Get.put(ApplicationsController());
+
+    // 🔹 For data visibility: If application document is missing full job info,
+    // we can try to use a placeholder or better, let the UI handle it via fallbacks.
+    // However, the best way for detail page is to ensure JdJobInfoSection gets what it needs.
 
     return Scaffold(
       backgroundColor: AppColors.background,

@@ -47,7 +47,7 @@ class IdApplicationItem extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    application["title"] ?? "",
+                    application["jobTitle"] ?? application["title"] ?? "Unknown Position",
                     style: AppTextStyles.title,
                   ),
                   const SizedBox(height: AppSpacing.xs),
@@ -55,14 +55,14 @@ class IdApplicationItem extends StatelessWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          application["company"] ?? "",
+                          application["company"] ?? "Company",
                           style: AppTextStyles.bodySmall.copyWith(
                             fontWeight: FontWeight.w500,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (application["location"] != null) ...[
+                      if ((application["location"] ?? application["workType"]) != null) ...[
                         Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.xs,
@@ -76,7 +76,7 @@ class IdApplicationItem extends StatelessWidget {
                         ),
                         Flexible(
                           child: Text(
-                            application["location"],
+                            application["location"] ?? application["workType"] ?? "",
                             style: AppTextStyles.bodySmall,
                             overflow: TextOverflow.ellipsis,
                           ),

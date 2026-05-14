@@ -56,12 +56,29 @@ class InterviewDashboardController extends GetxController {
     _db.collection('applications')
         .where('candidateId', isEqualTo: user.uid)
         .snapshots()
-        .listen((snap) {
-          applications.value = snap.docs.map((doc) {
-            final data = doc.data();
+        .listen((snap) async {
+          final List<Map<String, dynamic>> updatedApps = [];
+          
+          for (var doc in snap.docs) {
+            Map<String, dynamic> data = doc.data();
             data['id'] = doc.id;
-            return data;
-          }).toList();
+            
+            // If missing info, fetch from job_postings
+            if (data['workType'] == null || data['location'] == null) {
+              final postingDoc = await _db.collection('job_postings').doc(data['jobPostingId']).get();
+              if (postingDoc.exists) {
+                final postingData = postingDoc.data()!;
+                data['workType'] = postingData['workType'];
+                data['location'] = postingData['location'];
+                data['company'] = postingData['company'] ?? "Company";
+                data['description'] = postingData['description'];
+                data['requirements'] = postingData['requirements'];
+                if (data['jobTitle'] == null) data['jobTitle'] = postingData['title'];
+              }
+            }
+            updatedApps.add(data);
+          }
+          applications.value = updatedApps;
         });
 
     // 3. Listen to upcoming interview

@@ -99,19 +99,30 @@ class HrJobPostingsController extends GetxController {
     if (applicant != null) {
       isLoading.value = true;
       try {
-        // 🔥 Fetch latest user profile from Firestore
-        final userDoc = await _db.collection("users").doc(userId).get();
-        Map<String, dynamic> mergedData = Map<String, dynamic>.from(applicant);
+        // 1. Fetch latest Application document
+        final appSnap = await _db.collection("applications")
+            .where("candidateId", isEqualTo: userId)
+            .where("jobPostingId", isEqualTo: postingId)
+            .limit(1)
+            .get();
 
+        Map<String, dynamic> mergedData = Map<String, dynamic>.from(applicant);
+        
+        if (appSnap.docs.isNotEmpty) {
+          mergedData.addAll(appSnap.docs.first.data());
+        }
+
+        // 2. Fetch latest User profile for core identity info
+        final userDoc = await _db.collection("users").doc(userId).get();
         if (userDoc.exists) {
           final userData = userDoc.data()!;
           
-          // Merge basic info
-          final firstName = userData['name'] ?? "";
-          final lastName = userData['surname'] ?? "";
-          final fullName = "$firstName $lastName".trim();
-          
+          // Identity merges (Users collection is the source of truth for these)
+          final fName = userData['name'] ?? "";
+          final lName = userData['surname'] ?? "";
+          final fullName = "$fName $lName".trim();
           mergedData['name'] = fullName.isNotEmpty ? fullName : (userData['displayName'] ?? mergedData['name']);
+          
           mergedData['email'] = userData['email'] ?? mergedData['email'];
           mergedData['phone'] = userData['phoneNumber'] ?? mergedData['phone'];
           mergedData['location'] = userData['location'] ?? mergedData['location'];
