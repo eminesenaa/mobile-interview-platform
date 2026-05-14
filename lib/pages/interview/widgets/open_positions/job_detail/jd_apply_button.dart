@@ -15,10 +15,12 @@ import '../../../../../constants/constants.dart';
 
 class JdApplyButton extends StatelessWidget {
   final VoidCallback onTap;
+  final bool isApplied;
 
   const JdApplyButton({
     super.key,
     required this.onTap,
+    this.isApplied = false,
   });
 
   @override
@@ -27,9 +29,9 @@ class JdApplyButton extends StatelessWidget {
       width: double.infinity,
       height: 48,
       child: ElevatedButton(
-        onPressed: onTap,
+        onPressed: isApplied ? null : onTap,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: isApplied ? AppColors.border : AppColors.primary,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
@@ -39,13 +41,17 @@ class JdApplyButton extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              "Apply Now",
-              style: AppTextStyles.button,
+              isApplied ? "Submitted" : "Apply Now",
+              style: AppTextStyles.button.copyWith(
+                color: isApplied ? AppColors.textMuted : Colors.white,
+              ),
             ),
             const SizedBox(width: AppSpacing.sm),
             Icon(
-              PhosphorIcons.arrowRight(PhosphorIconsStyle.bold),
-              color: Colors.white,
+              isApplied
+                  ? PhosphorIcons.checkCircle(PhosphorIconsStyle.bold)
+                  : PhosphorIcons.arrowRight(PhosphorIconsStyle.bold),
+              color: isApplied ? AppColors.textMuted : Colors.white,
               size: AppIconSizes.sm,
             ),
           ],

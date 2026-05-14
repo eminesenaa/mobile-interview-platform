@@ -28,6 +28,52 @@ class JobApplicationService {
   @override
   Future<void> submitApplication(JobApplication application) async {
     try {
+      // 1. Check for existing application
+      final existing = await _firestore
+          .collection('applications')
+          .where('candidateId', isEqualTo: application.candidateId)
+          .where('jobPostingId', isEqualTo: application.jobPostingId)
+          .limit(1)
+          .get();
+
+      final postingRef = _firestore.collection('job_postings').doc(application.jobPostingId);
+      final userRef = _firestore.collection('users').doc(application.candidateId);
+
+      if (existing.docs.isNotEmpty) {
+        // UPDATE MODE
+        final docId = existing.docs.first.id;
+        final oldData = existing.docs.first.data();
+        
+        // Update application document
+        await _firestore.collection('applications').doc(docId).update(application.toJson());
+
+        // Update Job Posting's applicant list (Replace old entry in array)
+        final postingSnap = await postingRef.get();
+        if (postingSnap.exists) {
+          final List applicants = List.from(postingSnap.data()?['applicants'] ?? []);
+          final index = applicants.indexWhere((a) => a['userId'] == application.candidateId);
+          
+          final updatedEntry = {
+            'userId': application.candidateId,
+            'name': application.candidateName ?? "Anonymous",
+            'university': application.university ?? "",
+            'department': application.department ?? "",
+            'status': oldData['status'] ?? 'pending', // Keep existing status
+            'appliedAt': oldData['appliedAt'] ?? DateTime.now().toIso8601String(),
+          };
+
+          if (index != -1) {
+            applicants[index] = updatedEntry;
+          } else {
+            applicants.add(updatedEntry);
+          }
+
+          await postingRef.update({'applicants': applicants});
+        }
+        return;
+      }
+
+      // NEW APPLICATION MODE
       final docRef = _firestore.collection('applications').doc();
       final id = docRef.id;
       final appWithId = application.copyWith(id: id);
@@ -36,7 +82,6 @@ class JobApplicationService {
       await docRef.set(appWithId.toJson());
 
       // 2. Update Job Posting's applicant list & count
-      final postingRef = _firestore.collection('job_postings').doc(application.jobPostingId);
       await postingRef.update({
         'applicants': FieldValue.arrayUnion([
           {
@@ -52,8 +97,7 @@ class JobApplicationService {
         'pending': FieldValue.increment(1),
       });
 
-      // 3. Update User's application list (Profile Sync)
-      final userRef = _firestore.collection('users').doc(application.candidateId);
+      // 3. Update User's application list
       await userRef.update({
         'jobApplicationIds': FieldValue.arrayUnion([id]),
       });

@@ -46,6 +46,9 @@ class JobApplication {
   /// 🔥 NEW: Convenience fields for dashboard
   final String? candidateName;
   final String? jobTitle;
+  final String? location;
+  final String? workType;
+  final String? company;
   final String? university;
   final String? department;
 
@@ -69,6 +72,9 @@ class JobApplication {
     this.candidate,
     this.candidateName,
     this.jobTitle,
+    this.location,
+    this.workType,
+    this.company,
     this.university,
     this.department,
     this.status = ApplicationStatus.pending,
@@ -93,6 +99,9 @@ class JobApplication {
           json['candidate'] != null ? User.fromJson(json['candidate']) : null,
       candidateName: json['candidateName'],
       jobTitle: json['jobTitle'],
+      location: json['location'],
+      workType: json['workType'],
+      company: json['company'],
       university: json['university'],
       department: json['department'],
       status: ApplicationStatus.values.firstWhere(
@@ -120,6 +129,9 @@ class JobApplication {
       if (candidate != null) 'candidate': candidate!.toJson(),
       if (candidateName != null) 'candidateName': candidateName,
       if (jobTitle != null) 'jobTitle': jobTitle,
+      if (location != null) 'location': location,
+      if (workType != null) 'workType': workType,
+      if (company != null) 'company': company,
       if (university != null) 'university': university,
       if (department != null) 'department': department,
       'status': status.name,
@@ -143,6 +155,9 @@ class JobApplication {
     User? candidate,
     String? candidateName,
     String? jobTitle,
+    String? location,
+    String? workType,
+    String? company,
     String? university,
     String? department,
     ApplicationStatus? status,
@@ -162,6 +177,9 @@ class JobApplication {
       candidate: candidate ?? this.candidate,
       candidateName: candidateName ?? this.candidateName,
       jobTitle: jobTitle ?? this.jobTitle,
+      location: location ?? this.location,
+      workType: workType ?? this.workType,
+      company: company ?? this.company,
       university: university ?? this.university,
       department: department ?? this.department,
       status: status ?? this.status,

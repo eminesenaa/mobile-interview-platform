@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../constants/constants.dart';
+import '../../controllers/open_positions_controller.dart';
 import '../../widgets/open_positions/job_detail/jd_apply_button.dart';
 import '../../widgets/open_positions/job_detail/jd_description_section.dart';
 import '../../widgets/open_positions/job_detail/jd_job_info_section.dart';
@@ -34,6 +35,9 @@ class JobDetailPage extends StatelessWidget {
     // ===============================
     // GET DATA FROM NAVIGATION
     // ===============================
+    final controller = Get.isRegistered<OpenPositionsController>()
+        ? Get.find<OpenPositionsController>()
+        : Get.put(OpenPositionsController());
     final Map<String, dynamic> job = Get.arguments as Map<String, dynamic>;
 
     return Scaffold(
@@ -77,14 +81,20 @@ class JobDetailPage extends StatelessWidget {
             const SizedBox(height: AppSpacing.xxl),
 
             // ================= APPLY BUTTON =================
-            JdApplyButton(
-              onTap: () {
-                Get.to(
-                  () => const ApplyPage(),
-                  arguments: job,
-                );
-              },
-            ),
+            Obx(() {
+              final jobId = job["id"] ?? "";
+              final isApplied = controller.appliedJobIds.contains(jobId);
+
+              return JdApplyButton(
+                isApplied: isApplied,
+                onTap: () {
+                  Get.to(
+                    () => const ApplyPage(),
+                    arguments: job,
+                  );
+                },
+              );
+            }),
           ],
         ),
       ),

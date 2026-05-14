@@ -26,6 +26,13 @@ class OpenPositionsController extends GetxController {
 
   final isLoading = false.obs;
 
+  /// User's applied job IDs
+  final appliedJobIds = <String>{}.obs;
+
+  /// Jobs split for UI
+  final availableJobs = <Map<String, dynamic>>[].obs;
+  final appliedJobs = <Map<String, dynamic>>[].obs;
+
   // ===============================
   // SEARCH & FILTER STATE
   // ===============================
@@ -78,6 +85,7 @@ class OpenPositionsController extends GetxController {
       selectedJob.value = Get.arguments;
     }
     _listenToJobs();
+    _listenToUserApplications(); // 🔥 NEW
     loadUserProfile();
   }
 
@@ -159,6 +167,24 @@ class OpenPositionsController extends GetxController {
         });
   }
 
+  void _listenToUserApplications() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    _db.collection('applications')
+        .where('candidateId', isEqualTo: user.uid)
+        .snapshots()
+        .listen((snap) {
+      appliedJobIds.value = snap.docs.map((doc) => doc.data()['jobPostingId'] as String).toSet();
+      _splitJobs();
+    });
+  }
+
+  void _splitJobs() {
+    availableJobs.value = filteredJobs.where((j) => !appliedJobIds.contains(j['id'])).toList();
+    appliedJobs.value = filteredJobs.where((j) => appliedJobIds.contains(j['id'])).toList();
+  }
+
   // ===============================
   // ACTIONS
   // ===============================
@@ -195,6 +221,8 @@ class OpenPositionsController extends GetxController {
 
       return matchesSearch && matchesFilter;
     }).toList();
+
+    _splitJobs(); // 🔥 Update split lists whenever filteredJobs changes
   }
 
   void addSkill() {
@@ -246,6 +274,9 @@ class OpenPositionsController extends GetxController {
         appliedAt: DateTime.now(),
         candidateName: user.displayName ?? "Anonymous",
         jobTitle: selectedJob.value?["title"] ?? "Unknown Position",
+        location: selectedJob.value?["location"],
+        workType: selectedJob.value?["workType"],
+        company: selectedJob.value?["company"] ?? "Unknown Company",
         university: universityCtrl.text,
         department: departmentCtrl.text,
         skills: skills.toList(),
@@ -255,17 +286,30 @@ class OpenPositionsController extends GetxController {
         resumeUrl: selectedResume.value,
       );
 
+      final isUpdate = appliedJobIds.contains(jobId);
+
       await _applicationService.submitApplication(application);
 
-      Get.back(); // Back from apply page
-      Get.back(); // Back from job detail
+      // Safer navigation to close the apply flow
+      if (Get.isOverlaysOpen) Get.back(); 
+      Get.back(); // Back from ApplyPage
       
-      Get.snackbar(
-        "Success", 
-        "Your application has been submitted!",
-        backgroundColor: Colors.green.withOpacity(0.1),
-        colorText: Colors.green[800],
-      );
+      // Optionally back from JobDetailPage as well if it's still open
+      if (Get.currentRoute.contains('JobDetailPage') || Get.isOverlaysOpen) {
+        Get.back();
+      }
+      
+      Future.delayed(const Duration(milliseconds: 300), () {
+        Get.snackbar(
+          "Success", 
+          isUpdate 
+              ? "Your application has been updated!" 
+              : "Your application has been submitted!",
+          backgroundColor: Colors.green.withOpacity(0.1),
+          colorText: Colors.green[800],
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      });
     } catch (e) {
       Get.snackbar("Error", "Failed to submit application: $e");
     } finally {

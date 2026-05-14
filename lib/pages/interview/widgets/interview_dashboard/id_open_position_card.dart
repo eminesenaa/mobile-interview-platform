@@ -24,11 +24,13 @@ import '../../../../constants/constants.dart';
 class IdOpenPositionCard extends StatelessWidget {
   final Map<String, dynamic> job;
   final VoidCallback onApply;
+  final bool isApplied;
 
   const IdOpenPositionCard({
     super.key,
     required this.job,
     required this.onApply,
+    this.isApplied = false,
   });
 
   @override
@@ -108,9 +110,9 @@ class IdOpenPositionCard extends StatelessWidget {
           SizedBox(
             height: 40,
             child: ElevatedButton(
-              onPressed: onApply,
+              onPressed: isApplied ? null : onApply,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: isApplied ? AppColors.border : AppColors.primary,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppRadius.md),
@@ -119,12 +121,19 @@ class IdOpenPositionCard extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text("Apply", style: AppTextStyles.button),
+                  Text(
+                    isApplied ? "Submitted" : "Apply",
+                    style: AppTextStyles.button.copyWith(
+                      color: isApplied ? AppColors.textMuted : Colors.white,
+                    ),
+                  ),
                   const SizedBox(width: AppSpacing.xs),
                   Icon(
-                    PhosphorIcons.arrowRight(PhosphorIconsStyle.bold),
+                    isApplied
+                        ? PhosphorIcons.checkCircle(PhosphorIconsStyle.bold)
+                        : PhosphorIcons.arrowRight(PhosphorIconsStyle.bold),
                     size: AppIconSizes.sm,
-                    color: Colors.white,
+                    color: isApplied ? AppColors.textMuted : Colors.white,
                   ),
                 ],
               ),
