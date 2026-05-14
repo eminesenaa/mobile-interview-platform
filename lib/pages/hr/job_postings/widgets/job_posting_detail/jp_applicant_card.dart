@@ -199,9 +199,14 @@ class JPApplicantCard extends StatelessWidget {
 
   /// ================= INITIALS =================
   String _initials(String name) {
-    final parts = name.split(" ");
-    if (parts.length == 1) return parts[0][0];
-    return parts[0][0] + parts[1][0];
+    if (name.isEmpty) return "?";
+    final parts = name.trim().split(" ");
+    if (parts.isEmpty || parts[0].isEmpty) return "?";
+    if (parts.length == 1) return parts[0][0].toUpperCase();
+    
+    final first = parts[0][0];
+    final last = parts.last.isNotEmpty ? parts.last[0] : "";
+    return (first + last).toUpperCase();
   }
 
   /// ================= STATUS LABEL =================
