@@ -21,6 +21,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'hr_job_postings_controller.dart';
 
 enum DecisionType { accept, reject }
 
@@ -30,12 +31,13 @@ class SendDecisionMessageController extends GetxController {
   // =========================
   final DecisionType decision;
   final Map<String, dynamic> application;
+  final String? postingId; // 🔥 Added postingId
   final RxString messageText = ''.obs;
-
 
   SendDecisionMessageController({
     required this.decision,
     required this.application,
+    this.postingId,
   });
 
   @override
@@ -65,11 +67,6 @@ class SendDecisionMessageController extends GetxController {
   // Can submit only if message is not empty
   bool get canSubmit => messageText.value.trim().isNotEmpty;
 
-  // UI helper (for title etc.)
-  String get decisionLabel {
-    return decision == DecisionType.accept ? "Accepted" : "Rejected";
-  }
-
   // =========================
   // AI GENERATION (STUB)
   // =========================
@@ -92,29 +89,29 @@ class SendDecisionMessageController extends GetxController {
 
     try {
       isLoading.value = true;
-
       final message = messageController.text.trim();
+      final userId = application["userId"];
+      final pId = postingId ?? application["jobPostingId"];
 
-      // =========================
-      // TODO: BACKEND INTEGRATION
-      // =========================
-      /*
-      await api.sendDecision(
-        decision: decision,
-        message: message,
+      if (userId == null || pId == null) {
+        throw "Missing user or posting ID";
+      }
+
+      // 🔥 1. Update status using HrJobPostingsController
+      final hrController = Get.find<HrJobPostingsController>();
+      final status = decision == DecisionType.accept ? "accepted" : "rejected";
+      
+      await hrController.updateApplicantStatusWithFeedback(
+        pId, 
+        userId, 
+        status, 
+        message
       );
-      */
-
-      // 🔥 mock delay
-      await Future.delayed(const Duration(milliseconds: 600));
 
       // =========================
       // SUCCESS
       // =========================
-      Get.back(result: {
-        "decision": decision,
-        "message": message,
-      });
+      Get.back(result: true);
 
       Get.snackbar(
         "Success",
@@ -124,7 +121,7 @@ class SendDecisionMessageController extends GetxController {
     } catch (e) {
       Get.snackbar(
         "Error",
-        "Failed to send decision",
+        "Failed to send decision: $e",
         snackPosition: SnackPosition.BOTTOM,
       );
     } finally {

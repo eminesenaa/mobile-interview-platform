@@ -87,6 +87,7 @@ class JPApplicantsListSection extends StatelessWidget {
                   name: name,
                   subtitle: subtitle,
                   status: a["status"],
+                  postingId: postingId, // 🔥 Pass postingId
                   application: a,
                 ),
               );

@@ -129,12 +129,32 @@ class ApplicationDetailPage extends StatelessWidget {
             ],
 
             // =====================================================
-            // INVITE CODE (ONLY ACCEPTED)
+            // INVITE CODE & TRAINING (ONLY ACCEPTED)
             // =====================================================
             if (status == "accepted") ...[
               const SizedBox(height: AppSpacing.md),
               AdInviteCodeCard(
                 code: application["inviteCode"] ?? "N/A",
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              
+              // 🔥 START TRAINING CTA
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Get.toNamed('/PracticePage'); // Assuming this route exists
+                  },
+                  icon: const Icon(Icons.school_outlined),
+                  label: const Text("Start Preparation Training"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                  ),
+                ),
               ),
             ],
           ],

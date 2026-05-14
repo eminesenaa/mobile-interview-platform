@@ -264,32 +264,88 @@ class HrJobPostingsController extends GetxController {
       final idx = applicants.indexWhere((a) => a['userId'] == userId);
       if (idx == -1) return;
 
-      final oldStatus = applicants[idx]['status'];
+      // Update the status in the array
       applicants[idx]['status'] = status;
 
-      // Update counters
-      int accepted = data['accepted'] ?? 0;
-      int rejected = data['rejected'] ?? 0;
-      int pending = data['pending'] ?? 0;
-
-      if (oldStatus == 'pending') pending--;
-      else if (oldStatus == 'accepted') accepted--;
-      else if (oldStatus == 'rejected') rejected--;
-
-      if (status == 'pending') pending++;
-      else if (status == 'accepted') accepted++;
-      else if (status == 'rejected') rejected++;
+      // 🔥 Recalculate counters from the entire array for total accuracy
+      int accepted = applicants.where((a) => a['status'] == 'accepted').length;
+      int rejected = applicants.where((a) => a['status'] == 'rejected').length;
+      int pending = applicants.where((a) => a['status'] == 'pending').length;
+      int total = applicants.length;
 
       await postingRef.update({
         'applicants': applicants,
         'accepted': accepted,
         'rejected': rejected,
         'pending': pending,
+        'applicantCount': total,
       });
+
+      // 🔥 2. Update the actual Application document in 'applications' collection
+      final appSnap = await _db.collection('applications')
+          .where('candidateId', isEqualTo: userId)
+          .where('jobPostingId', isEqualTo: postingId)
+          .limit(1)
+          .get();
+      
+      if (appSnap.docs.isNotEmpty) {
+        await appSnap.docs.first.reference.update({
+          'status': status,
+          'reviewedAt': FieldValue.serverTimestamp(),
+        });
+      }
 
       Get.snackbar("Success", "Status updated to $status");
     } catch (e) {
       Get.snackbar("Error", "Failed to update status: $e");
+    }
+  }
+  Future<void> updateApplicantStatusWithFeedback(String postingId, String userId, String status, String message) async {
+    try {
+      final postingRef = _db.collection('job_postings').doc(postingId);
+      final doc = await postingRef.get();
+      if (!doc.exists) return;
+
+      final data = doc.data()!;
+      final applicants = List<Map<String, dynamic>>.from(data['applicants'] ?? []);
+      
+      final idx = applicants.indexWhere((a) => a['userId'] == userId);
+      if (idx == -1) return;
+
+      // Update the status in the array
+      applicants[idx]['status'] = status;
+
+      // 🔥 Recalculate counters
+      int accepted = applicants.where((a) => a['status'] == 'accepted').length;
+      int rejected = applicants.where((a) => a['status'] == 'rejected').length;
+      int pending = applicants.where((a) => a['status'] == 'pending').length;
+      int total = applicants.length;
+
+      await postingRef.update({
+        'applicants': applicants,
+        'accepted': accepted,
+        'rejected': rejected,
+        'pending': pending,
+        'applicantCount': total,
+      });
+
+      // 🔥 2. Update the actual Application document in 'applications' collection
+      final appSnap = await _db.collection('applications')
+          .where('candidateId', isEqualTo: userId)
+          .where('jobPostingId', isEqualTo: postingId)
+          .limit(1)
+          .get();
+      
+      if (appSnap.docs.isNotEmpty) {
+        await appSnap.docs.first.reference.update({
+          'status': status,
+          'hrMessage': message, // 🔥 Add the feedback message
+          'reviewedAt': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (e) {
+      print("Error updating status with feedback: $e");
+      rethrow;
     }
   }
 }

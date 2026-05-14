@@ -19,6 +19,7 @@ class JPApplicantCard extends StatelessWidget {
   final String name;
   final String subtitle;
   final String status;
+  final String postingId; // 🔥 Added postingId
   final Map<String, dynamic> application;
 
   const JPApplicantCard({
@@ -26,6 +27,7 @@ class JPApplicantCard extends StatelessWidget {
     required this.name,
     required this.subtitle,
     required this.status,
+    required this.postingId,
     required this.application,
   });
 
@@ -104,6 +106,7 @@ class JPApplicantCard extends StatelessWidget {
                       Get.to(() => SendDecisionMessagePage(
                             decision: DecisionType.accept,
                             application: application,
+                            postingId: postingId, // 🔥 Pass postingId
                           ));
                     },
                     child: Container(
@@ -134,6 +137,7 @@ class JPApplicantCard extends StatelessWidget {
                       Get.to(() => SendDecisionMessagePage(
                             decision: DecisionType.reject,
                             application: application,
+                            postingId: postingId, // 🔥 Pass postingId
                           ));
                     },
                     child: Container(

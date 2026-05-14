@@ -23,11 +23,13 @@ import '../interviews/needs_review/widgets/nd_decision_selector.dart';
 class SendDecisionMessagePage extends StatelessWidget {
   final DecisionType decision;
   final Map<String, dynamic> application;
+  final String? postingId; // 🔥 Added postingId
 
   const SendDecisionMessagePage({
     super.key,
     required this.decision,
     required this.application,
+    this.postingId,
   });
 
   @override
@@ -36,6 +38,7 @@ class SendDecisionMessagePage extends StatelessWidget {
       SendDecisionMessageController(
         decision: decision,
         application: application,
+        postingId: postingId, // 🔥 Pass postingId
       ),
     );
 

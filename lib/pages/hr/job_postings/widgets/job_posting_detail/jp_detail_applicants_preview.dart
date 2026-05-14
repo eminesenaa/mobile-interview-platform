@@ -62,6 +62,7 @@ class JPDetailApplicantsPreview extends StatelessWidget {
               name: a["name"] ?? "",
               subtitle: subtitle,
               status: a["status"] ?? "pending",
+              postingId: postingId, // 🔥 Pass postingId
               application: a,
             ),
           );
