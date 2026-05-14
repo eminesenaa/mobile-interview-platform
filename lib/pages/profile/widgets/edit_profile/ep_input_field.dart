@@ -9,13 +9,13 @@ import '../../../../constants/constants.dart';
 
 class EpInputField extends StatelessWidget {
   final String label;
-  final String initialValue;
+  final TextEditingController? controller;
   final ValueChanged<String>? onChanged;
 
   const EpInputField({
     super.key,
     required this.label,
-    required this.initialValue,
+    this.controller,
     this.onChanged,
   });
 
@@ -33,7 +33,7 @@ class EpInputField extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         TextFormField(
-          initialValue: initialValue.isEmpty ? null : initialValue,
+          controller: controller,
           decoration: InputDecoration(
             hintText: "Enter $label",
             hintStyle: AppTextStyles.body.copyWith(

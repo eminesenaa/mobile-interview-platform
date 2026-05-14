@@ -97,13 +97,48 @@ class HrJobPostingsController extends GetxController {
     final applicant = applicants.firstWhereOrNull((a) => a['userId'] == userId);
     
     if (applicant != null) {
-      Get.to(() => CandidateApplicationDetailPage(
-        application: {
-          ...applicant,
-          'postingId': postingId,
-          'id': userId, // For consistency
-        },
-      ));
+      isLoading.value = true;
+      try {
+        // 🔥 Fetch latest user profile from Firestore
+        final userDoc = await _db.collection("users").doc(userId).get();
+        Map<String, dynamic> mergedData = Map<String, dynamic>.from(applicant);
+
+        if (userDoc.exists) {
+          final userData = userDoc.data()!;
+          
+          // Merge basic info
+          final firstName = userData['name'] ?? "";
+          final lastName = userData['surname'] ?? "";
+          final fullName = "$firstName $lastName".trim();
+          
+          mergedData['name'] = fullName.isNotEmpty ? fullName : (userData['displayName'] ?? mergedData['name']);
+          mergedData['email'] = userData['email'] ?? mergedData['email'];
+          mergedData['phone'] = userData['phoneNumber'] ?? mergedData['phone'];
+          mergedData['location'] = userData['location'] ?? mergedData['location'];
+          
+          // Education
+          mergedData['university'] = userData['school'] ?? userData['university'] ?? mergedData['university'];
+          mergedData['department'] = userData['department'] ?? mergedData['department'];
+          
+          // Links
+          mergedData['githubUrl'] = userData['githubUrl'] ?? mergedData['githubUrl'];
+          mergedData['linkedinUrl'] = userData['linkedinUrl'] ?? mergedData['linkedinUrl'];
+          mergedData['portfolioUrl'] = userData['website'] ?? mergedData['portfolioUrl'];
+        }
+
+        Get.to(() => CandidateApplicationDetailPage(
+          application: {
+            ...mergedData,
+            'position': posting['title'] ?? 'Unknown Position',
+            'postingId': postingId,
+            'id': userId,
+          },
+        ));
+      } catch (e) {
+        print("Error fetching candidate detail: $e");
+      } finally {
+        isLoading.value = false;
+      }
     }
   }
 

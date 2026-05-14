@@ -78,6 +78,66 @@ class OpenPositionsController extends GetxController {
       selectedJob.value = Get.arguments;
     }
     _listenToJobs();
+    loadUserProfile();
+  }
+
+  // ===============================
+  // AUTO-FILL PROFILE
+  // ===============================
+  Future<void> loadUserProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final doc = await _db.collection("users").doc(user.uid).get();
+      if (doc.exists) {
+        final data = doc.data()!;
+
+        // Fill controllers if they are empty
+        if (emailCtrl.text.isEmpty) {
+          emailCtrl.text = data["email"] ?? user.email ?? "";
+        }
+        if (phoneCtrl.text.isEmpty) {
+          phoneCtrl.text = data["phoneNumber"] ?? "";
+        }
+        
+        // Location mapping (Try multiple keys used across the app)
+        if (locationCtrl.text.isEmpty) {
+          final loc = data["location"] ?? data["city"] ?? data["country"];
+          if (loc != null) {
+            locationCtrl.text = loc.toString();
+          }
+        }
+        
+        // Education mapping
+        if (universityCtrl.text.isEmpty) {
+          final uni = data["school"] ?? data["university"];
+          if (uni != null) {
+            universityCtrl.text = uni.toString();
+          }
+        }
+        
+        if (departmentCtrl.text.isEmpty) {
+          final dept = data["department"] ?? data["role"] ?? data["major"];
+          if (dept != null) {
+            departmentCtrl.text = dept.toString();
+          }
+        }
+        
+        // Social links
+        if (githubCtrl.text.isEmpty) {
+          githubCtrl.text = data["githubUrl"] ?? "";
+        }
+        if (linkedinCtrl.text.isEmpty) {
+          linkedinCtrl.text = data["linkedinUrl"] ?? "";
+        }
+        if (portfolioCtrl.text.isEmpty) {
+          portfolioCtrl.text = data["website"] ?? data["portfolioUrl"] ?? "";
+        }
+      }
+    } catch (e) {
+      debugPrint("Error loading user profile for auto-fill: $e");
+    }
   }
 
   // ===============================
@@ -158,6 +218,7 @@ class OpenPositionsController extends GetxController {
 
   void setSelectedJob(Map<String, dynamic> job) {
     selectedJob.value = job;
+    loadUserProfile();
   }
 
   // ===============================
@@ -185,6 +246,8 @@ class OpenPositionsController extends GetxController {
         appliedAt: DateTime.now(),
         candidateName: user.displayName ?? "Anonymous",
         jobTitle: selectedJob.value?["title"] ?? "Unknown Position",
+        university: universityCtrl.text,
+        department: departmentCtrl.text,
         skills: skills.toList(),
         githubUrl: githubCtrl.text,
         linkedinUrl: linkedinCtrl.text,

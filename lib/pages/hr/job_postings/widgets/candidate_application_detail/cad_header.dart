@@ -98,8 +98,16 @@ class CADHeader extends StatelessWidget {
   }
 
   String _initials(String name) {
-    final parts = name.split(" ");
-    if (parts.length == 1) return parts[0][0];
-    return parts[0][0] + parts[1][0];
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return "?";
+    
+    final parts = trimmed.split(" ").where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return "?";
+    
+    if (parts.length == 1) {
+      return parts[0][0].toUpperCase();
+    }
+    
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 }
