@@ -73,7 +73,7 @@ class HrNeedsReviewDetailPage extends StatelessWidget {
               () => HRDetailHeader(
                 title: controller.title.value,
                 status: "completed",
-                reviewStatus: "pending",
+                reviewStatus: controller.overallReviewStatus,
               ),
             ),
 
@@ -121,6 +121,7 @@ class HrNeedsReviewDetailPage extends StatelessWidget {
                         name: c["name"],
                         initials: c["initials"],
                         score: c["score"],
+                        decision: c["decision"],
                         onReview: () => controller.openCandidateDetail(c),
                       ),
                     );

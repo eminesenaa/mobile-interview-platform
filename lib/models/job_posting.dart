@@ -10,6 +10,8 @@
 //
 // ============================================================================
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum JobPostingStatus {
   active, // ilan açık, başvuru alınabilir
   closed, // ilan kapalı, artık başvuru alınmaz
@@ -49,10 +51,16 @@ class JobPosting {
 
   /// 🔹 Description
   final String description; // uzun text
-  final String requirements; // bullet list gibi text
+  final List<String> requirements; // bullet list gibi text
 
   /// 🔹 Status
   final JobPostingStatus status;
+
+  /// 🔹 Stats (Sync with Firestore fields updated by HrJobPostingsController)
+  final int applicantCount;
+  final int acceptedCount;
+  final int rejectedCount;
+  final int pendingCount;
 
   /// 🔹 Applications
   final List<String> applicationIds;
@@ -79,6 +87,10 @@ class JobPosting {
     required this.description,
     required this.requirements,
     this.status = JobPostingStatus.active,
+    this.applicantCount = 0,
+    this.acceptedCount = 0,
+    this.rejectedCount = 0,
+    this.pendingCount = 0,
     this.applicationIds = const [],
     this.acceptedCandidateIds = const [],
     required this.createdAt,
@@ -88,6 +100,12 @@ class JobPosting {
   // ===================== JSON =====================
 
   factory JobPosting.fromJson(Map<String, dynamic> json) {
+    DateTime parseDateTime(dynamic value) {
+      if (value is Timestamp) return value.toDate();
+      if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
+      return DateTime.now();
+    }
+
     return JobPosting(
       id: json['id'] ?? '',
       companyId: json['companyId'] ?? '',
@@ -105,17 +123,20 @@ class JobPosting {
       city: json['city'] ?? '',
       salaryRange: json['salaryRange'],
       description: json['description'] ?? '',
-      requirements: json['requirements'] ?? '',
+      requirements: List<String>.from(json['requirements'] ?? []),
       status: JobPostingStatus.values.firstWhere(
         (e) => e.name == json['status'],
         orElse: () => JobPostingStatus.active,
       ),
+      applicantCount: json['applicantCount'] ?? 0,
+      acceptedCount: json['accepted'] ?? 0,
+      rejectedCount: json['rejected'] ?? 0,
+      pendingCount: json['pending'] ?? 0,
       applicationIds: List<String>.from(json['applicationIds'] ?? []),
       acceptedCandidateIds:
           List<String>.from(json['acceptedCandidateIds'] ?? []),
-      createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
-      closedAt:
-          json['closedAt'] != null ? DateTime.tryParse(json['closedAt']) : null,
+      createdAt: parseDateTime(json['createdAt']),
+      closedAt: json['closedAt'] != null ? parseDateTime(json['closedAt']) : null,
     );
   }
 
@@ -133,6 +154,10 @@ class JobPosting {
       'description': description,
       'requirements': requirements,
       'status': status.name,
+      'applicantCount': applicantCount,
+      'accepted': acceptedCount,
+      'rejected': rejectedCount,
+      'pending': pendingCount,
       'applicationIds': applicationIds,
       'acceptedCandidateIds': acceptedCandidateIds,
       'createdAt': createdAt.toIso8601String(),
@@ -153,8 +178,12 @@ class JobPosting {
     String? city,
     String? salaryRange,
     String? description,
-    String? requirements,
+    List<String>? requirements,
     JobPostingStatus? status,
+    int? applicantCount,
+    int? acceptedCount,
+    int? rejectedCount,
+    int? pendingCount,
     List<String>? applicationIds,
     List<String>? acceptedCandidateIds,
     DateTime? createdAt,
@@ -173,6 +202,10 @@ class JobPosting {
       description: description ?? this.description,
       requirements: requirements ?? this.requirements,
       status: status ?? this.status,
+      applicantCount: applicantCount ?? this.applicantCount,
+      acceptedCount: acceptedCount ?? this.acceptedCount,
+      rejectedCount: rejectedCount ?? this.rejectedCount,
+      pendingCount: pendingCount ?? this.pendingCount,
       applicationIds: applicationIds ?? this.applicationIds,
       acceptedCandidateIds: acceptedCandidateIds ?? this.acceptedCandidateIds,
       createdAt: createdAt ?? this.createdAt,
@@ -180,15 +213,16 @@ class JobPosting {
     );
   }
 
-
   // ===================== HELPERS =====================
 
   /// 🔥 Posting is ready for interview
   /// Condition:
   /// - Closed
-  /// - No pending applications left
+  /// - All applications reviewed (pendingCount == 0)
+  /// - At least one accepted
   bool get isReady {
     return status == JobPostingStatus.closed &&
-        applicationIds.length == acceptedCandidateIds.length;
+        pendingCount == 0 &&
+        acceptedCount > 0;
   }
 }

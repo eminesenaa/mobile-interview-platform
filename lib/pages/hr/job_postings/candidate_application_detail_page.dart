@@ -94,13 +94,19 @@ class CandidateApplicationDetailPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             /// ================= HEADER =================
-            Center(
-              child: CADHeader(
-                name: name,
-                position: position,
-                status: status,
-              ),
-            ),
+            Obx(() {
+              final currentStatus = c.getApplicantStatus(
+                application["postingId"],
+                application["id"],
+              );
+              return Center(
+                child: CADHeader(
+                  name: name,
+                  position: position,
+                  status: currentStatus,
+                ),
+              );
+            }),
 
             const SizedBox(height: AppSpacing.xl),
 
@@ -168,41 +174,35 @@ class CandidateApplicationDetailPage extends StatelessWidget {
             ],
 
             /// ================= ACTION =================
-            CADActionSection(
-              status: status,
-              onAccept: () async {
-                final result = await Get.to(() => SendDecisionMessagePage(
-                  decision: DecisionType.accept,
-                  application: application,
-                ));
+            Obx(() {
+              final currentStatus = c.getApplicantStatus(
+                application["postingId"],
+                application["id"],
+              );
+              return CADActionSection(
+                status: currentStatus,
+                onAccept: () async {
+                  final result = await Get.to(() => SendDecisionMessagePage(
+                        decision: DecisionType.accept,
+                        application: application,
+                      ));
 
-                if (result != null) {
-                  c.updateApplicantStatus(
-                    application["postingId"],
-                    application["id"],
-                    result["decision"] == DecisionType.accept
-                        ? "accepted"
-                        : "rejected",
-                  );
-                }
-              },
-              onReject: () async {
-                final result = await Get.to(() => SendDecisionMessagePage(
-                  decision: DecisionType.reject,
-                  application: application,
-                ));
+                  if (result == true) {
+                    // Update already handled in SendDecisionMessageController
+                  }
+                },
+                onReject: () async {
+                  final result = await Get.to(() => SendDecisionMessagePage(
+                        decision: DecisionType.reject,
+                        application: application,
+                      ));
 
-                if (result != null) {
-                  c.updateApplicantStatus(
-                    application["postingId"],
-                    application["id"],
-                    result["decision"] == DecisionType.accept
-                        ? "accepted"
-                        : "rejected",
-                  );
-                }
-              },
-            ),
+                  if (result == true) {
+                    // Update already handled in SendDecisionMessageController
+                  }
+                },
+              );
+            }),
 
             const SizedBox(height: AppSpacing.xl),
           ],

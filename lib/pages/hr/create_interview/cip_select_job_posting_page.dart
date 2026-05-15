@@ -113,15 +113,9 @@ class CipSelectJobPostingPage extends StatelessWidget {
                             return CipJobPostingCard(
                               posting: posting,
 
-                              // ================= STATS =================
-                              // TODO: replace with real computed values
-                              applicants:
-                                  controller.getApplicantsCount(posting.id),
-                              accepted: controller.getAcceptedCount(posting.id),
-                              rejected: controller.getRejectedCount(posting.id),
-
                               // ================= ACTION =================
                               onTap: () {
+                                controller.onPostingSelected(posting);
                                 Get.to(
                                   () => const CreateInterviewPage(),
                                 );

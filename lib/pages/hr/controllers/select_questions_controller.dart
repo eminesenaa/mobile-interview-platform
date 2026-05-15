@@ -62,8 +62,7 @@ class SelectQuestionsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    // loadQuestionsFromFirebase();
-    _loadMockQuestions();
+    loadQuestionsFromFirebase();
   }
 
   // MOCK DATA SİLİNECEK

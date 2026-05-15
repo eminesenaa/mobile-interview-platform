@@ -227,6 +227,15 @@ class HrNeedsReviewDetailController extends GetxController {
   void openAllCandidates() {
     Get.to(() => const HrCandidateListPage());
   }
+
+  // ===============================
+  // COMPUTED
+  // ===============================
+  String get overallReviewStatus {
+    if (candidates.isEmpty) return "pending";
+    final allReviewed = candidates.every((c) => c["decision"] != null);
+    return allReviewed ? "reviewed" : "pending";
+  }
 }
 
 class ActiveFilter {

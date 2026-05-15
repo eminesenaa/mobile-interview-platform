@@ -67,18 +67,32 @@ class HRDashboardController extends GetxController {
           activities.value = snap.docs.map((doc) {
             final data = doc.data();
             final status = data['status'] ?? 'scheduled';
+            final startTime = data['startTime'] as Timestamp?;
             
-            String subtitle = "Interview ${status}";
-            if (status == "scheduled") {
-              subtitle = "Scheduled for Today";
-            } else if (status == "completed") {
-              subtitle = "Waiting for hr review";
+            String subtitle = "";
+            
+            if (status == "completed") {
+              subtitle = "Waiting for HR review";
+            } else if (status == "ongoing") {
+              subtitle = "Interview is currently live";
+            } else if (startTime != null) {
+              final date = startTime.toDate();
+              final now = DateTime.now();
+              if (date.day == now.day && date.month == now.month && date.year == now.year) {
+                subtitle = "Scheduled for today at ${date.hour}:${date.minute.toString().padLeft(2, '0')}";
+              } else {
+                subtitle = "Scheduled for ${date.day}/${date.month}";
+              }
+            } else {
+              subtitle = "Interview ${status}";
             }
 
             return {
+              "id": doc.id,
               "type": status == "completed" ? "pending" : "upcoming",
               "title": data['title'] ?? "New Interview",
               "subtitle": subtitle,
+              "data": data, // Full interview data for navigation
             };
           }).toList();
     });

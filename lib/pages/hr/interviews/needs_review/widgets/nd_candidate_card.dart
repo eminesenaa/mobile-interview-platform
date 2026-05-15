@@ -15,6 +15,7 @@ class NdCandidateCard extends StatelessWidget {
   final String name;
   final String initials;
   final int score;
+  final String? decision; // 🔥 Added decision
   final Map<String, int>? topics;
   final VoidCallback onReview;
 
@@ -24,6 +25,7 @@ class NdCandidateCard extends StatelessWidget {
     required this.name,
     required this.initials,
     required this.score,
+    this.decision,
     this.topics,
     required this.onReview,
   });
@@ -35,7 +37,14 @@ class NdCandidateCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(
+          color: decision == "accepted"
+              ? AppColors.success.withOpacity(0.5)
+              : decision == "rejected"
+                  ? AppColors.error.withOpacity(0.5)
+                  : AppColors.border,
+          width: decision != null ? 1.5 : 1.0,
+        ),
         boxShadow: AppShadows.low,
       ),
 
@@ -72,10 +81,26 @@ class NdCandidateCard extends StatelessWidget {
 
                     /// Name
                     Expanded(
-                      child: Text(
-                        name,
-                        style: AppTextStyles.title,
-                        overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: AppTextStyles.title,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (decision != null)
+                            Text(
+                              decision == "accepted" ? "Accepted" : "Rejected",
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: decision == "accepted"
+                                    ? AppColors.success
+                                    : AppColors.error,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 11,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ],
@@ -99,8 +124,14 @@ class NdCandidateCard extends StatelessWidget {
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                     child: Text(
-                      "Review",
-                      style: AppTextStyles.textButton,
+                      decision != null ? "View Result" : "Review",
+                      style: AppTextStyles.textButton.copyWith(
+                        color: decision == "accepted"
+                            ? AppColors.success
+                            : decision == "rejected"
+                                ? AppColors.error
+                                : AppColors.primary,
+                      ),
                     ),
                   ),
                 ],

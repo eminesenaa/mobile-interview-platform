@@ -142,8 +142,8 @@ class JobPostingDetailPage extends StatelessWidget {
             // ================= ACTION =================
             if (isActive)
               JPClosePostingSection(
-                onClose: () {
-                  c.closePosting(posting["id"]);
+                onClose: () async {
+                  await c.closePosting(posting["id"]);
                   Get.back();
                 },
               )

@@ -4,6 +4,7 @@
 // ===============================================================================
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'dart:math';
@@ -15,6 +16,7 @@ import '../job_postings/job_posting_detail_page.dart';
 
 class HrJobPostingsController extends GetxController {
   final _db = FirebaseFirestore.instance;
+  final _auth = FirebaseAuth.instance;
 
   // ===============================
   // STATE
@@ -174,6 +176,9 @@ class HrJobPostingsController extends GetxController {
     }
 
     try {
+      final user = _auth.currentUser;
+      if (user == null) throw "User not logged in";
+
       final newPosting = {
         "title": jobTitle.value,
         "level": jobLevel.value,
@@ -183,12 +188,15 @@ class HrJobPostingsController extends GetxController {
         "description": description.value,
         "requirements": requirements.value.split('\n').where((s) => s.isNotEmpty).toList(),
         "status": "active",
+        "createdByHrId": user.uid,
+        "companyId": user.uid, // HR is company owner for now
         "createdAt": FieldValue.serverTimestamp(),
         "applicants": [],
         "applicantCount": 0,
         "accepted": 0,
         "rejected": 0,
         "pending": 0,
+        "acceptedCandidateIds": [],
       };
 
       await _db.collection('job_postings').add(newPosting);
@@ -212,7 +220,11 @@ class HrJobPostingsController extends GetxController {
   Future<void> closePosting(String id) async {
     try {
       await _db.collection('job_postings').doc(id).update({"status": "closed"});
-      Get.snackbar("Success", "Posting closed");
+      
+      // Ensure we have a context to show snackbar
+      if (Get.context != null) {
+        Get.snackbar("Success", "Posting closed", snackPosition: SnackPosition.BOTTOM);
+      }
     } catch (e) {
       Get.snackbar("Error", "Failed to close posting: $e");
     }
@@ -285,11 +297,14 @@ class HrJobPostingsController extends GetxController {
       // Update the status in the array
       applicants[idx]['status'] = status;
 
-      // 🔥 Recalculate counters from the entire array for total accuracy
-      int accepted = applicants.where((a) => a['status'] == 'accepted').length;
+      // 🔥 Recalculate counters and accepted IDs
+      final acceptedList = applicants.where((a) => a['status'] == 'accepted').toList();
+      int accepted = acceptedList.length;
       int rejected = applicants.where((a) => a['status'] == 'rejected').length;
       int pending = applicants.where((a) => a['status'] == 'pending').length;
       int total = applicants.length;
+      
+      final acceptedIds = acceptedList.map((a) => (a['userId'] ?? '').toString()).toList();
 
       await postingRef.update({
         'applicants': applicants,
@@ -297,6 +312,7 @@ class HrJobPostingsController extends GetxController {
         'rejected': rejected,
         'pending': pending,
         'applicantCount': total,
+        'acceptedCandidateIds': acceptedIds,
       });
 
       // 🔥 2. Update the actual Application document in 'applications' collection
@@ -334,10 +350,13 @@ class HrJobPostingsController extends GetxController {
       applicants[idx]['status'] = status;
 
       // 🔥 Recalculate counters
-      int accepted = applicants.where((a) => a['status'] == 'accepted').length;
+      final acceptedList = applicants.where((a) => a['status'] == 'accepted').toList();
+      int accepted = acceptedList.length;
       int rejected = applicants.where((a) => a['status'] == 'rejected').length;
       int pending = applicants.where((a) => a['status'] == 'pending').length;
       int total = applicants.length;
+      
+      final acceptedIds = acceptedList.map((a) => (a['userId'] ?? '').toString()).toList();
 
       await postingRef.update({
         'applicants': applicants,
@@ -345,6 +364,7 @@ class HrJobPostingsController extends GetxController {
         'rejected': rejected,
         'pending': pending,
         'applicantCount': total,
+        'acceptedCandidateIds': acceptedIds,
       });
 
       // 🔥 2. Update the actual Application document in 'applications' collection
