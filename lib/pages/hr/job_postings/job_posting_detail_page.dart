@@ -138,7 +138,7 @@ class JobPostingDetailPage extends StatelessWidget {
               JPDetailApplicantsPreview(
                 postingId: p["id"],
                 applicants: List<Map<String, dynamic>>.from(
-                  p["applicantsPreview"] ?? [],
+                  p["applicants"] ?? [],
                 ),
                 onSeeAll: () => c.openApplicants(p),
               ),

@@ -61,12 +61,14 @@ class CreateInterviewController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    generateInviteCode();
     _listenToReadyPostings();
     
     // Check if posting passed via arguments
     if (Get.arguments != null && Get.arguments is JobPosting) {
       onPostingSelected(Get.arguments as JobPosting);
+    } else {
+      // Only generate if no posting selected yet
+      generateInviteCode();
     }
   }
 
@@ -139,6 +141,26 @@ class CreateInterviewController extends GetxController {
       final accepted = applicants.where((a) => a['status'] == 'accepted').toList();
       
       selectedCandidates.assignAll(accepted);
+
+      // 🔥 UI SYNC: If candidates already have an inviteCode, use it in the UI
+      bool codeFound = false;
+      if (accepted.isNotEmpty) {
+        // Try to find the first candidate with a code
+        final candidateWithCode = accepted.firstWhereOrNull(
+          (a) => a['inviteCode'] != null && a['inviteCode'].toString().isNotEmpty
+        );
+
+        if (candidateWithCode != null) {
+          inviteCode.value = candidateWithCode['inviteCode'].toString();
+          codeFound = true;
+          debugPrint("Existing invite code found: ${inviteCode.value}");
+        }
+      }
+
+      // If no code found in applicants, and current code is placeholder or empty, generate one
+      if (!codeFound && (inviteCode.value == "—" || inviteCode.value.isEmpty)) {
+        generateInviteCode();
+      }
     } catch (e) {
       debugPrint("Error loading accepted candidates: $e");
     }
@@ -261,17 +283,21 @@ class CreateInterviewController extends GetxController {
       // 2. Prepare Interview Document
       final candidateIds = selectedCandidates.map((c) => (c['userId'] ?? '').toString()).toList();
       
+      // 🔥 LOGIC: Use the code shown in the UI (inviteCode.value).
+      // We already tried to pull it from candidates in _loadAcceptedCandidates.
+      final String finalCode = inviteCode.value;
+
       final interviewDoc = {
         "title": titleCtrl.text.trim(),
         "position": positionCtrl.text.trim(),
-        "companyId": user.uid, // HR is the company owner in this simple model
+        "companyId": user.uid,
         "createdByHrId": user.uid,
         "jobPostingId": selectedPosting.value?.id,
         "candidateIds": candidateIds,
         "questions": questions.map((q) => q.toJson()).toList(),
         "startTime": Timestamp.fromDate(startDateTime),
         "endTime": Timestamp.fromDate(endDateTime),
-        "joinCode": inviteCode.value,
+        "joinCode": finalCode,
         "status": "scheduled",
         "reviewStatus": "pending",
         "createdAt": FieldValue.serverTimestamp(),
@@ -280,11 +306,11 @@ class CreateInterviewController extends GetxController {
       // 3. Save to Firestore
       final docRef = await _db.collection('interviews').add(interviewDoc);
 
-      // 🔥 SYNC: Update all selected candidates' application docs with this NEW joinCode
+      // 🔥 SYNC: Ensure all selected candidates AND the Job Posting share this same code
       if (selectedPosting.value != null) {
         final postingId = selectedPosting.value!.id;
-        final syncCode = interviewDoc["joinCode"];
         
+        // A. Update individual application documents
         for (var userId in candidateIds) {
           final appSnap = await _db.collection('applications')
               .where('candidateId', isEqualTo: userId)
@@ -293,9 +319,33 @@ class CreateInterviewController extends GetxController {
               .get();
           
           if (appSnap.docs.isNotEmpty) {
-            await appSnap.docs.first.reference.update({
-              'inviteCode': syncCode, // Now they match perfectly!
-            });
+            final appDoc = appSnap.docs.first;
+            if (appDoc.data()['inviteCode'] != finalCode) {
+              await appDoc.reference.update({'inviteCode': finalCode});
+            }
+          }
+        }
+
+        // B. Update the Job Posting's applicants array for consistency
+        final postingRef = _db.collection('job_postings').doc(postingId);
+        final postingSnap = await postingRef.get();
+        if (postingSnap.exists) {
+          final postingData = postingSnap.data()!;
+          final applicants = List<Map<String, dynamic>>.from(postingData['applicants'] ?? []);
+          bool changed = false;
+
+          for (var applicant in applicants) {
+            final uId = applicant['userId']?.toString();
+            if (candidateIds.contains(uId)) {
+              if (applicant['inviteCode'] != finalCode) {
+                applicant['inviteCode'] = finalCode;
+                changed = true;
+              }
+            }
+          }
+
+          if (changed) {
+            await postingRef.update({'applicants': applicants});
           }
         }
       }

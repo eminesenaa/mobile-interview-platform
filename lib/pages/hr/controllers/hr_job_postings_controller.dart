@@ -76,7 +76,70 @@ class HrJobPostingsController extends GetxController {
       activePostings.value = all.where((p) => p['status'] == 'active').toList();
       closedPostings.value = all.where((p) => p['status'] == 'closed' || p['status'] == 'finalized').toList();
       isLoading.value = false;
+
+      // 🔥 BACKGROUND SYNC: Fix "Anonymous" names automatically
+      _autoFixAnonymousNames(all);
     });
+  }
+
+  /// Finds any candidate marked as "Anonymous" and resolves their real name from 'users' collection.
+  /// This fixes the database data so names appear correctly everywhere without manual intervention.
+  void _autoFixAnonymousNames(List<Map<String, dynamic>> postings) async {
+    for (var p in postings) {
+      final applicants = List<Map<String, dynamic>>.from(p['applicants'] ?? []);
+      bool changed = false;
+
+      for (var a in applicants) {
+        // If name is "Anonymous", try to fetch real name from users collection
+        if (a['name'] == 'Anonymous' || a['name'] == null || a['name'] == '') {
+          final userId = a['userId'];
+          if (userId == null) continue;
+
+          try {
+            final userDoc = await _db.collection('users').doc(userId).get();
+            if (userDoc.exists) {
+              final userData = userDoc.data()!;
+              final fName = userData['name'] ?? "";
+              final lName = userData['surname'] ?? "";
+              final fullName = "$fName $lName".trim();
+              final resolved = fullName.isNotEmpty ? fullName : (userData['displayName'] ?? "Anonymous");
+
+              if (resolved != "Anonymous" && resolved.isNotEmpty) {
+                a['name'] = resolved;
+                changed = true;
+                debugPrint("HR Sync: Resolved Anonymous -> $resolved");
+              }
+            }
+          } catch (e) {
+            debugPrint("HR Sync Error: $e");
+          }
+        }
+      }
+
+      // If we fixed any names, update the posting document in Firestore
+      if (changed) {
+        try {
+          await _db.collection('job_postings').doc(p['id']).update({
+            'applicants': applicants,
+          });
+          
+          // Also sync to 'applications' collection for consistency
+          for (var a in applicants) {
+            final appSnap = await _db.collection('applications')
+                .where('candidateId', isEqualTo: a['userId'])
+                .where('jobPostingId', isEqualTo: p['id'])
+                .limit(1)
+                .get();
+            
+            if (appSnap.docs.isNotEmpty) {
+              await appSnap.docs.first.reference.update({'candidateName': a['name']});
+            }
+          }
+        } catch (e) {
+          debugPrint("HR Database Update Error: $e");
+        }
+      }
+    }
   }
 
   // ===============================
@@ -134,8 +197,14 @@ class HrJobPostingsController extends GetxController {
           final fName = userData['name'] ?? "";
           final lName = userData['surname'] ?? "";
           final fullName = "$fName $lName".trim();
-          mergedData['name'] = fullName.isNotEmpty ? fullName : (userData['displayName'] ?? mergedData['name']);
+          final resolvedName = fullName.isNotEmpty ? fullName : (userData['displayName'] ?? mergedData['name']);
           
+          // 🔥 SYNC BACK TO JOB POSTING IF IT WAS ANONYMOUS
+          if (mergedData['name'] == 'Anonymous' && resolvedName != 'Anonymous') {
+            _syncNameBackToPosting(postingId, userId, resolvedName);
+          }
+          
+          mergedData['name'] = resolvedName;
           mergedData['email'] = userData['email'] ?? mergedData['email'];
           mergedData['phone'] = userData['phoneNumber'] ?? mergedData['phone'];
           mergedData['location'] = userData['location'] ?? mergedData['location'];
@@ -166,15 +235,49 @@ class HrJobPostingsController extends GetxController {
     }
   }
 
+  // 🔥 Helper to fix "Anonymous" names in the background
+  Future<void> _syncNameBackToPosting(String postingId, String userId, String name) async {
+    try {
+      final docRef = _db.collection('job_postings').doc(postingId);
+      final doc = await docRef.get();
+      if (!doc.exists) return;
+
+      final applicants = List<Map<String, dynamic>>.from(doc.data()?['applicants'] ?? []);
+      final idx = applicants.indexWhere((a) => a['userId'] == userId);
+      
+      if (idx != -1) {
+        applicants[idx]['name'] = name;
+        await docRef.update({'applicants': applicants});
+      }
+      
+      // Also update in 'applications' collection
+      final appSnap = await _db.collection('applications')
+          .where('candidateId', isEqualTo: userId)
+          .where('jobPostingId', isEqualTo: postingId)
+          .limit(1)
+          .get();
+      
+      if (appSnap.docs.isNotEmpty) {
+        await appSnap.docs.first.reference.update({'candidateName': name});
+      }
+    } catch (e) {
+      print("Error syncing name: $e");
+    }
+  }
+
   // ===============================
   // ACTIONS
   // ===============================
 
   Future<void> submitPosting() async {
+    if (isLoading.value) return; // 🔥 Mükerrer tıklamayı önle
+
     if (!isFormValid) {
       Get.snackbar("Error", "Please fill all required fields");
       return;
     }
+
+    isLoading.value = true;
 
     try {
       final user = _auth.currentUser;
@@ -215,6 +318,8 @@ class HrJobPostingsController extends GetxController {
       });
     } catch (e) {
       Get.snackbar("Error", "Failed to create posting: $e");
+    } finally {
+      isLoading.value = false;
     }
   }
 
@@ -371,9 +476,16 @@ class HrJobPostingsController extends GetxController {
       
       final idx = applicants.indexWhere((a) => a['userId'] == userId);
       if (idx == -1) return;
+      String? generatedInviteCode;
+      if (status == 'accepted') {
+        generatedInviteCode = _generateUniqueCode();
+      }
 
       // Update the status in the array
       applicants[idx]['status'] = status;
+      if (generatedInviteCode != null) {
+        applicants[idx]['inviteCode'] = generatedInviteCode; // 🔥 Save to array
+      }
 
       // 🔥 Recalculate counters
       final acceptedList = applicants.where((a) => a['status'] == 'accepted').toList();
@@ -407,10 +519,9 @@ class HrJobPostingsController extends GetxController {
           'reviewedAt': FieldValue.serverTimestamp(),
         };
 
-        // 🔥 3. If accepted, generate a unique interview code
-        if (status == 'accepted') {
-          final inviteCode = _generateUniqueCode();
-          updateData['inviteCode'] = inviteCode;
+        // 🔥 3. If accepted, use the ALREADY generated code
+        if (status == 'accepted' && generatedInviteCode != null) {
+          updateData['inviteCode'] = generatedInviteCode;
         }
 
         await appSnap.docs.first.reference.update(updateData);

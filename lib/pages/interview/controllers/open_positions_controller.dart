@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:overlay_support/overlay_support.dart';
 import '../../../models/job_application.dart';
 import '../../../services/interview/job_application_service.dart';
 
@@ -55,6 +56,7 @@ class OpenPositionsController extends GetxController {
   final skillCtrl = TextEditingController();
   final skills = <String>[].obs;
   final selectedResume = Rxn<String>();
+  final userName = "".obs;
 
   // ===============================
   // SELECTED JOB (DETAIL PAGE)
@@ -142,6 +144,12 @@ class OpenPositionsController extends GetxController {
         if (portfolioCtrl.text.isEmpty) {
           portfolioCtrl.text = data["website"] ?? data["portfolioUrl"] ?? "";
         }
+
+        // 🔥 Save user name for application
+        final fName = data['name'] ?? "";
+        final lName = data['surname'] ?? "";
+        final fullName = "$fName $lName".trim();
+        userName.value = fullName.isNotEmpty ? fullName : (data['displayName'] ?? "");
       }
     } catch (e) {
       debugPrint("Error loading user profile for auto-fill: $e");
@@ -254,9 +262,14 @@ class OpenPositionsController extends GetxController {
   // ===============================
 
   Future<void> submitApplication() async {
+    if (isLoading.value) return; // 🔥 Mükerrer tıklamayı önle
+
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      Get.snackbar("Error", "You must be logged in to apply");
+      showSimpleNotification(
+        const Text("You must be logged in to apply"),
+        background: Colors.redAccent,
+      );
       return;
     }
 
@@ -272,7 +285,7 @@ class OpenPositionsController extends GetxController {
         candidateId: user.uid,
         status: ApplicationStatus.pending,
         appliedAt: DateTime.now(),
-        candidateName: user.displayName ?? "Anonymous",
+        candidateName: userName.value.isNotEmpty ? userName.value : (user.displayName ?? "Anonymous"),
         jobTitle: selectedJob.value?["title"] ?? "Unknown Position",
         location: selectedJob.value?["location"],
         workType: selectedJob.value?["workType"],
@@ -307,18 +320,19 @@ class OpenPositionsController extends GetxController {
       });
       
       Future.delayed(const Duration(milliseconds: 300), () {
-        Get.snackbar(
-          "Success", 
-          isUpdate 
-              ? "Your application has been updated!" 
-              : "Your application has been submitted!",
-          backgroundColor: Colors.green.withOpacity(0.1),
-          colorText: Colors.green[800],
-          snackPosition: SnackPosition.BOTTOM,
+        showSimpleNotification(
+          Text(isUpdate
+              ? "Your application has been updated!"
+              : "Your application has been submitted!"),
+          background: Colors.green,
+          duration: const Duration(seconds: 3),
         );
       });
     } catch (e) {
-      Get.snackbar("Error", "Failed to submit application: $e");
+      showSimpleNotification(
+        Text("Failed to submit application: $e"),
+        background: Colors.redAccent,
+      );
     } finally {
       isLoading.value = false;
     }
