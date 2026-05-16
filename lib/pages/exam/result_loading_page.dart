@@ -158,7 +158,7 @@ class _ResultLoadingPageState extends State<ResultLoadingPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 OutlinedButton(
-                  onPressed: () => Get.back(),
+                  onPressed: () => Navigator.of(context).pop(),
                   child: const Text('Back'),
                 ),
                 const SizedBox(width: AppSpacing.sm),

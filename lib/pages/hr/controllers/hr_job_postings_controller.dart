@@ -13,6 +13,7 @@ import '../job_postings/candidate_application_detail_page.dart';
 import '../job_postings/job_posting_applicants_page.dart';
 import '../job_postings/job_posting_create_page.dart';
 import '../job_postings/job_posting_detail_page.dart';
+import '../../../constants/constants.dart';
 
 class HrJobPostingsController extends GetxController {
   final _db = FirebaseFirestore.instance;
@@ -73,7 +74,7 @@ class HrJobPostingsController extends GetxController {
       });
 
       activePostings.value = all.where((p) => p['status'] == 'active').toList();
-      closedPostings.value = all.where((p) => p['status'] == 'closed').toList();
+      closedPostings.value = all.where((p) => p['status'] == 'closed' || p['status'] == 'finalized').toList();
       isLoading.value = false;
     });
   }
@@ -207,7 +208,7 @@ class HrJobPostingsController extends GetxController {
       if (Get.isOverlaysOpen) {
         Navigator.of(Get.overlayContext!).pop();
       }
-      Get.back();
+      Navigator.of(Get.context!).pop();
 
       Future.delayed(const Duration(milliseconds: 300), () {
         Get.snackbar("Success", "Job posting published", snackPosition: SnackPosition.BOTTOM);
@@ -217,20 +218,45 @@ class HrJobPostingsController extends GetxController {
     }
   }
 
-  Future<void> closePosting(String id) async {
+  Future<bool> closePosting(String id) async {
     try {
       await _db.collection('job_postings').doc(id).update({"status": "closed"});
       
-      // Ensure we have a context to show snackbar
       if (Get.context != null) {
-        Get.snackbar("Success", "Posting closed", snackPosition: SnackPosition.BOTTOM);
+        Get.snackbar(
+          "Success", 
+          "Posting closed", 
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.success.withOpacity(0.1),
+          colorText: AppColors.success,
+        );
       }
+      return true;
     } catch (e) {
       Get.snackbar("Error", "Failed to close posting: $e");
+      return false;
     }
   }
 
-  Future<void> finalizePosting(String id) => closePosting(id);
+  Future<bool> finalizePosting(String id) async {
+    try {
+      await _db.collection('job_postings').doc(id).update({"status": "finalized"});
+      
+      if (Get.context != null) {
+        Get.snackbar(
+          "Success", 
+          "Evaluation finalized", 
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.primary.withOpacity(0.1),
+          colorText: AppColors.primary,
+        );
+      }
+      return true;
+    } catch (e) {
+      Get.snackbar("Error", "Failed to finalize: $e");
+      return false;
+    }
+  }
 
   void resetForm() {
     jobTitle.value = "";

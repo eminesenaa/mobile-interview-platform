@@ -238,7 +238,7 @@ class SelectQuestionsPage extends StatelessWidget {
                   final selectedIds = controller.selectedIds;
                   // TODO: pass selectedIds to interview creation flow
 
-                  Get.back(result: selectedIds);
+                  Navigator.of(context).pop(selectedIds);
                 },
                 child: Text(
                   "Add Questions",

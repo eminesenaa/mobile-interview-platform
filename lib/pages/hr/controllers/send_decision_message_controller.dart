@@ -111,7 +111,7 @@ class SendDecisionMessageController extends GetxController {
       // =========================
       // SUCCESS
       // =========================
-      Get.back(result: true);
+      Navigator.of(Get.context!).pop(true);
 
       Get.snackbar(
         "Success",

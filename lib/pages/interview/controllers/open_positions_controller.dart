@@ -297,12 +297,12 @@ class OpenPositionsController extends GetxController {
       }
       
       // Navigate back to the previous screen (JobDetail or OpenPositions)
-      Get.back();
+      Navigator.of(Get.context!).pop();
       
       // Ensure we are back to a clean state
       Future.delayed(const Duration(milliseconds: 100), () {
         if (Get.currentRoute.contains('JobDetailPage')) {
-          Get.back();
+          Navigator.of(Get.context!).pop();
         }
       });
       

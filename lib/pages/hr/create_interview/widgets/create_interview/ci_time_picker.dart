@@ -89,7 +89,7 @@ class CITimePicker {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         TextButton(
-                          onPressed: () => Get.back(),
+                          onPressed: () => Navigator.of(context).pop(),
                           child: const Text("Cancel"),
                         ),
                         TextButton(
@@ -103,7 +103,7 @@ class CITimePicker {
                             );
 
                             onSelected(time);
-                            Get.back();
+                            Navigator.of(context).pop();
                           },
                           child: const Text("OK"),
                         ),

@@ -96,7 +96,7 @@ class HrCandidateEvaluationController extends GetxController {
   void submitEvaluation() {
     final decisionResult = isAccepted.value == true ? "accepted" : "rejected";
 
-    Get.back(result: {
+    Navigator.of(Get.context!).pop({
       "decision": decisionResult,
       "message": messageController.text,
     });
