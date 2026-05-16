@@ -199,13 +199,14 @@ class CreateInterviewController extends GetxController {
     final random = Random();
     final part1 = List.generate(2, (_) => chars[random.nextInt(26)]).join();
     final part2 = List.generate(4, (_) => chars[random.nextInt(chars.length)]).join();
-    inviteCode.value = "$part1-$part2";
+    inviteCode.value = "$part1$part2"; // No hyphen
   }
 
   // ===============================
   // CREATE INTERVIEW
   // ===============================
   Future<void> createInterview() async {
+    if (isLoading.value) return; // 🔥 Mükerrer tıklamayı önle
     if (titleCtrl.text.isEmpty ||
         positionCtrl.text.isEmpty ||
         selectedDate.value == null ||
@@ -277,13 +278,33 @@ class CreateInterviewController extends GetxController {
       };
 
       // 3. Save to Firestore
-      await _db.collection('interviews').add(interviewDoc);
+      final docRef = await _db.collection('interviews').add(interviewDoc);
+
+      // 🔥 SYNC: Update all selected candidates' application docs with this NEW joinCode
+      if (selectedPosting.value != null) {
+        final postingId = selectedPosting.value!.id;
+        final syncCode = interviewDoc["joinCode"];
+        
+        for (var userId in candidateIds) {
+          final appSnap = await _db.collection('applications')
+              .where('candidateId', isEqualTo: userId)
+              .where('jobPostingId', isEqualTo: postingId)
+              .limit(1)
+              .get();
+          
+          if (appSnap.docs.isNotEmpty) {
+            await appSnap.docs.first.reference.update({
+              'inviteCode': syncCode, // Now they match perfectly!
+            });
+          }
+        }
+      }
 
       showSimpleNotification(
         const Text("Interview session created successfully"),
         background: Colors.green,
       );
-      Get.back();
+      Navigator.of(Get.context!).pop();
     } catch (e) {
       showSimpleNotification(
         Text("Failed to create interview: $e"),
