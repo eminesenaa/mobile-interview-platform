@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:overlay_support/overlay_support.dart';
 
 import '../create_interview/widgets/create_interview/ci_time_range_dialog.dart';
 
@@ -39,6 +40,8 @@ class HRUpcomingDetailController extends GetxController {
   }
 
   void _initFromInterview(Map<String, dynamic> data) {
+    debugPrint("Initializing HRUpcomingDetailController with ID: ${data['id']}");
+    
     title.value = data["title"] ?? "Interview";
     position.value = data["position"] ?? "Position";
     team.value = data["team"] ?? "Engineering Team";
@@ -58,12 +61,15 @@ class HRUpcomingDetailController extends GetxController {
   }
 
   void _listenToInterviewUpdates() {
-    if (interviewId.isEmpty) return;
+    if (interviewId.isEmpty) {
+      debugPrint("Warning: interviewId is empty, cannot listen to updates.");
+      return;
+    }
 
     _db.collection('interviews').doc(interviewId.value).snapshots().listen((snap) {
       if (snap.exists) {
         final data = snap.data()!;
-        _initFromInterview(data);
+        _initFromInterview({...data, 'id': snap.id});
         
         final ids = List<String>.from(data['candidateIds'] ?? []);
         _fetchCandidateDetails(ids);
@@ -93,56 +99,99 @@ class HRUpcomingDetailController extends GetxController {
   // ===============================
 
   Future<void> updateTitle(String newTitle) async {
-    title.value = newTitle;
-    if (interviewId.isNotEmpty) {
-      await _db.collection('interviews').doc(interviewId.value).update({"title": newTitle});
+    if (interviewId.isEmpty) {
+      showSimpleNotification(const Text("Error: Missing Interview ID"), background: Colors.red);
+      return;
     }
+    title.value = newTitle;
+    await _db.collection('interviews').doc(interviewId.value).update({"title": newTitle});
   }
 
   Future<void> updatePosition(String newPosition) async {
-    position.value = newPosition;
-    if (interviewId.isNotEmpty) {
-      await _db.collection('interviews').doc(interviewId.value).update({"position": newPosition});
+    if (interviewId.isEmpty) {
+      showSimpleNotification(const Text("Error: Missing Interview ID"), background: Colors.red);
+      return;
     }
+    position.value = newPosition;
+    await _db.collection('interviews').doc(interviewId.value).update({"position": newPosition});
   }
 
   Future<void> updateDate(BuildContext context) async {
+    if (interviewId.isEmpty) {
+      showSimpleNotification(const Text("Error: Missing Interview ID"), background: Colors.red);
+      return;
+    }
+    // Current date for initial picker
+    final current = date.value.isNotEmpty ? DateFormat('MMM dd, yyyy').parse(date.value) : DateTime.now();
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
+      initialDate: current,
       firstDate: DateTime.now(),
       lastDate: DateTime(2100),
     );
 
     if (picked != null) {
       try {
+        final doc = await _db.collection('interviews').doc(interviewId.value).get();
+        if (!doc.exists) return;
+        
+        final data = doc.data()!;
+        final oldStart = (data['startTime'] as Timestamp).toDate();
+        final oldEnd = (data['endTime'] as Timestamp).toDate();
+
+        // Preserve hours and minutes
+        final newStart = DateTime(picked.year, picked.month, picked.day, oldStart.hour, oldStart.minute);
+        final newEnd = DateTime(picked.year, picked.month, picked.day, oldEnd.hour, oldEnd.minute);
+
         await _db.collection('interviews').doc(interviewId.value).update({
-          "startTime": Timestamp.fromDate(picked),
+          "startTime": Timestamp.fromDate(newStart),
+          "endTime": Timestamp.fromDate(newEnd),
         });
-        Get.snackbar("Success", "Date updated");
+        
+        showSimpleNotification(const Text("Date updated"), background: Colors.green);
       } catch (e) {
-        Get.snackbar("Error", "Failed to update date: $e");
+        showSimpleNotification(Text("Failed to update date: $e"), background: Colors.red);
       }
     }
   }
 
   void updateTime(BuildContext context) {
+    if (interviewId.isEmpty) {
+      showSimpleNotification(const Text("Error: Missing Interview ID"), background: Colors.red);
+      return;
+    }
     Get.dialog(
       CITimeRangeDialog(
         onSave: (start, end) async {
-          Get.snackbar("Info", "Time update logic would go here");
+          try {
+            final currentDt = DateFormat('MMM dd, yyyy').parse(date.value);
+            
+            final newStart = DateTime(currentDt.year, currentDt.month, currentDt.day, start.hour, start.minute);
+            final newEnd = DateTime(currentDt.year, currentDt.month, currentDt.day, end.hour, end.minute);
+
+            await _db.collection('interviews').doc(interviewId.value).update({
+              "startTime": Timestamp.fromDate(newStart),
+              "endTime": Timestamp.fromDate(newEnd),
+            });
+
+            showSimpleNotification(const Text("Time updated"), background: Colors.green);
+          } catch (e) {
+            showSimpleNotification(Text("Failed to update time: $e"), background: Colors.red);
+          }
         },
       ),
     );
   }
 
   void removeCandidate(Map<String, dynamic> candidate) async {
+    if (interviewId.isEmpty) return;
     try {
       await _db.collection('interviews').doc(interviewId.value).update({
         "candidateIds": FieldValue.arrayRemove([candidate["id"]]),
       });
     } catch (e) {
-      Get.snackbar("Error", "Failed to remove candidate");
+      showSimpleNotification(const Text("Failed to remove candidate"), background: Colors.red);
     }
   }
 }

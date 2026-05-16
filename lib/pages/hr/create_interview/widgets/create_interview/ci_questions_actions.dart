@@ -47,8 +47,8 @@ class CIQuestionsActions extends StatelessWidget {
                   final controller = Get.find<CreateInterviewController>();
                   final selectedIds = await Get.to(() => const SelectQuestionsPage());
 
-                  if (selectedIds != null && selectedIds is List<String>) {
-                    controller.setQuestions(selectedIds);
+                  if (selectedIds != null && selectedIds is List) {
+                    controller.setQuestions(List<String>.from(selectedIds));
                   }
                 },
               ),

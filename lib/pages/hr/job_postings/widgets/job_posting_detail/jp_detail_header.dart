@@ -11,13 +11,13 @@ import '/../../../../constants/constants.dart';
 class JPDetailHeader extends StatefulWidget {
   final String title;
   final String meta;
-  final bool isActive;
+  final String status;
 
   const JPDetailHeader({
     super.key,
     required this.title,
     required this.meta,
-    required this.isActive,
+    required this.status,
   });
 
   @override
@@ -69,20 +69,29 @@ class _JPDetailHeaderState extends State<JPDetailHeader>
   }
 
   Widget _statusChip() {
-    final color = widget.isActive ? AppColors.success : AppColors.error;
-    final text = widget.isActive ? "Active" : "Closed";
+    final status = widget.status;
+    final isActive = status == "active";
+    final isFinalized = status == "finalized";
+    
+    final color = isActive 
+        ? AppColors.success 
+        : (isFinalized ? AppColors.success : AppColors.error);
+    final text = isActive 
+        ? "Active" 
+        : (isFinalized ? "Finalized" : "Closed");
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(14),
+        border: isFinalized ? Border.all(color: color.withOpacity(0.4)) : null,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           /// 🔥 BLINKING DOT (ONLY ACTIVE)
-          if (widget.isActive)
+          if (isActive)
             FadeTransition(
               opacity: _controller,
               child: Container(
@@ -95,7 +104,7 @@ class _JPDetailHeaderState extends State<JPDetailHeader>
               ),
             ),
 
-          if (widget.isActive) const SizedBox(width: 6),
+          if (isActive) const SizedBox(width: 6),
 
           /// TEXT
           Text(

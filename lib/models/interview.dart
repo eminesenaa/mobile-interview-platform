@@ -17,6 +17,7 @@
 // This is the central entity of the Interview module.
 // ==========================================================================
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'question.dart';
 
 enum InterviewStatus {
@@ -84,6 +85,12 @@ class Interview {
   // -------------------- JSON --------------------
 
   factory Interview.fromJson(Map<String, dynamic> json) {
+    DateTime parseDateTime(dynamic value) {
+      if (value is Timestamp) return value.toDate();
+      if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
+      return DateTime.now();
+    }
+
     return Interview(
       id: json['id'] ?? '',
       companyId: json['companyId'] ?? '',
@@ -94,8 +101,8 @@ class Interview {
           .map((q) => Question.fromFirestore(q, q['id'] ?? ''))
           .toList(),
       candidateIds: List<String>.from(json['candidateIds'] ?? []),
-      startTime: DateTime.tryParse(json['startTime'] ?? '') ?? DateTime.now(),
-      endTime: DateTime.tryParse(json['endTime'] ?? '') ?? DateTime.now(),
+      startTime: parseDateTime(json['startTime']),
+      endTime: parseDateTime(json['endTime']),
       joinCode: json['joinCode'] ?? '',
       jobPostingId: json['jobPostingId'],
       status: InterviewStatus.values.firstWhere(
@@ -106,7 +113,7 @@ class Interview {
         (e) => e.name == json['reviewStatus'],
         orElse: () => ReviewStatus.pending,
       ),
-      createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
+      createdAt: parseDateTime(json['createdAt']),
     );
   }
 

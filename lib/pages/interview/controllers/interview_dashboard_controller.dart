@@ -109,18 +109,33 @@ class InterviewDashboardController extends GetxController {
     // 3. Listen to upcoming interview
     _db.collection('interviews')
         .where('candidateIds', arrayContains: user.uid)
-        .where('status', isEqualTo: 'scheduled')
-        .orderBy('startTime', descending: false)
-        .limit(1)
         .snapshots()
         .listen((snap) {
+          print("Candidate Interviews found: ${snap.docs.length}");
           if (snap.docs.isNotEmpty) {
-            final data = snap.docs.first.data();
-            data['id'] = snap.docs.first.id;
-            upcomingInterview.value = data;
+            // Filter and sort in memory to avoid composite index requirements
+            final list = snap.docs.map((doc) {
+              final d = doc.data();
+              d['id'] = doc.id;
+              return d;
+            }).where((d) => d['status'] == 'scheduled').toList();
+
+            if (list.isNotEmpty) {
+              // Sort by startTime ascending
+              list.sort((a, b) {
+                final aStart = (a['startTime'] is Timestamp) ? (a['startTime'] as Timestamp).toDate() : DateTime.parse(a['startTime'].toString());
+                final bStart = (b['startTime'] is Timestamp) ? (b['startTime'] as Timestamp).toDate() : DateTime.parse(b['startTime'].toString());
+                return aStart.compareTo(bStart);
+              });
+              upcomingInterview.value = list.first;
+            } else {
+              upcomingInterview.value = null;
+            }
           } else {
             upcomingInterview.value = null;
           }
+        }, onError: (e) {
+          print("Error listening to interviews: $e");
         });
 
     // 4. Listen to results

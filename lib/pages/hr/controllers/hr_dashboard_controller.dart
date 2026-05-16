@@ -92,7 +92,7 @@ class HRDashboardController extends GetxController {
               "type": status == "completed" ? "pending" : "upcoming",
               "title": data['title'] ?? "New Interview",
               "subtitle": subtitle,
-              "data": data, // Full interview data for navigation
+              "data": {...data, "id": doc.id}, // Full interview data for navigation
             };
           }).toList();
     });

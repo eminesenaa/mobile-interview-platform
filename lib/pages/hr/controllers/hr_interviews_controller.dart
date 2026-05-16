@@ -46,7 +46,9 @@ class HRInterviewsController extends GetxController {
   // ===============================
   void _listenToInterviews() {
     _db.collection('interviews').snapshots().listen((snap) {
-      interviews.value = snap.docs.map((doc) => Interview.fromJson(doc.data())).toList();
+      interviews.value = snap.docs.map((doc) {
+        return Interview.fromJson({...doc.data(), 'id': doc.id});
+      }).toList();
       processInterviews();
     });
   }
