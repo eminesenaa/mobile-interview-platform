@@ -53,9 +53,27 @@ class _OngoingCandidateTileState extends State<OngoingCandidateTile>
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            backgroundColor: AppColors.primary,
-            child: Text(name[0]),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.primarySoftBackground,
+              border: Border.all(
+                color: Colors.white,
+                width: 2,
+              ),
+            ),
+            child: Center(
+              child: Text(
+                name.split(" ").map((e) => e[0]).take(2).join(),
+                style: AppTextStyles.bodyStrong.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
