@@ -86,6 +86,8 @@ class AnthropicService {
         "Question Text": qMeta["Question Text"] ?? "",
         "Question Format": qMeta["Question Format"] ?? "",
         "AI Prompt Helper": qMeta["AI Prompt Helper"] ?? "",
+        "Tags": qMeta["Tags"] ?? "",
+        "Code Template": qMeta["Code Template"] ?? "",
         "candidate_answer_or_choice": candidateAnswer,
       });
 

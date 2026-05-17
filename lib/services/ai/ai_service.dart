@@ -693,6 +693,11 @@ class AiService {
       "AI Prompt Helper": q.aiPromptHelper ?? '',
     };
 
+    // Code template (fill-blank / coding soruları için)
+    if ((q.codeTemplate ?? '').isNotEmpty) {
+      meta["Code Template"] = q.codeTemplate!;
+    }
+
     // MCQ opsiyonlarını yerleştir (varsa)
     final opts = q.options ?? const [];
     if (opts.isNotEmpty) {

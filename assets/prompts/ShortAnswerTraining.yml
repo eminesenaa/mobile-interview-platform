@@ -16,6 +16,7 @@ prompt_templates:
     QUESTION METADATA
     Question Text: {{Question Text}}
     Question Format: Short Answer
+    Code Template: {{Code Template}}
     Helper: {{AI Prompt Helper}}
     Tags: {{Tags}}
 
