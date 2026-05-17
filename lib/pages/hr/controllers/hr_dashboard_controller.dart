@@ -30,7 +30,7 @@ class HRDashboardController extends GetxController {
   // ===============================
   /// Company name & initials (header için)
   /// TODO: backend'den gelecek (HR user document)
-  final companyName = "TechCorp Inc.".obs;
+  final companyName = "Beyond Technologies".obs;
   final initials = "HR".obs;
 
   @override
@@ -76,7 +76,7 @@ class HRDashboardController extends GetxController {
     // ===============================
     // MOCK HR USER INFO
     // ===============================
-    companyName.value = "TechCorp Inc.";
+    companyName.value = "Beyond Technologies";
     initials.value = "HR";
   }
 
@@ -123,7 +123,7 @@ class HRDashboardController extends GetxController {
     */
 
     // Mock fallback
-    companyName.value = "TechCorp Inc.";
+    companyName.value = "Beyond Technologies";
     initials.value = "HR";
   }
 }

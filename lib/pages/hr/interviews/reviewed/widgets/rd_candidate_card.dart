@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '/../../../../constants/constants.dart';
+
 class RdCandidateCard extends StatelessWidget {
   final int rank;
   final String name;
@@ -52,15 +54,47 @@ class RdCandidateCard extends StatelessWidget {
                   const SizedBox(width: AppSpacing.sm),
 
                   /// Avatar
-                  CircleAvatar(
-                    radius: 20, // 🔥 biraz büyüttük
-                    backgroundColor: AppColors.primary,
-                    child: Text(
-                      initials,
-                      style: AppTextStyles.bodyStrong.copyWith(
-                        color: Colors.white,
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.primarySoftBackground,
+                          border: Border.all(
+                            color: Colors.white,
+                            width: 2,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            initials,
+                            style: AppTextStyles.bodyStrong.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+
+                      /// Crown
+                      if (rank == 1)
+                        Positioned(
+                          top: -12,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: Icon(
+                              PhosphorIcons.crownSimple(PhosphorIconsStyle.fill),
+                              size: 16,
+                              color: AppColors.rankGold,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
 
                   const SizedBox(width: AppSpacing.md),

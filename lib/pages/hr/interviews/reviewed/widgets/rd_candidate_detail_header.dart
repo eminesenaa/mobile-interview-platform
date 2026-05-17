@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '/../../../../constants/constants.dart';
 
 class RdCandidateDetailHeader extends StatelessWidget {
@@ -24,15 +25,33 @@ class RdCandidateDetailHeader extends StatelessWidget {
     return Column(
       children: [
         /// Avatar
-        CircleAvatar(
-          radius: 36,
-          backgroundColor: AppColors.primary,
-          child: Text(
-            initials,
-            style: AppTextStyles.headline.copyWith(
-              color: Colors.white,
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: 84,
+              height: 84,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.primarySoftBackground,
+                border: Border.all(
+                  color: Colors.white,
+                  width: 3,
+                ),
+                boxShadow: AppShadows.low,
+              ),
+              child: Center(
+                child: Text(
+                  initials,
+                  style: AppTextStyles.headline.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
 
         const SizedBox(height: AppSpacing.md),
