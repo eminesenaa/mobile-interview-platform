@@ -4,6 +4,7 @@ import 'package:confetti/confetti.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'package:interview_project/models/duel_result.dart';
+import 'package:interview_project/models/streak.dart';
 import 'package:interview_project/services/firebase/duel_service.dart';
 import 'package:interview_project/services/sfx/sound_service.dart';
 
@@ -96,8 +97,14 @@ class DuelResultController extends GetxController {
       xpApplyError.value = false;
       await DuelService().applyXpToUsers(result);
       print('✅ [RESULT] XP Firestore\'a başarıyla yazıldı.');
+
+      // 🔥 Duel oynayan yerel kullanıcının streak durumunu güncelle
+      if (localUserId.isNotEmpty) {
+        await Streak.updateStreak(localUserId);
+        print('✅ [RESULT] Streak başarıyla güncellendi.');
+      }
     } catch (e) {
-      print('❌ [RESULT] XP yazma hatası: $e');
+      print('❌ [RESULT] XP/Streak yazma hatası: $e');
       xpApplyError.value = true;
     } finally {
       isApplyingXp.value = false;
