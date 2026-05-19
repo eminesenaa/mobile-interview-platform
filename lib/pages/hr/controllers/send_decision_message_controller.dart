@@ -74,7 +74,7 @@ class SendDecisionMessageController extends GetxController {
     // 🔥 simple mock (backend gelince değişecek)
     if (decision == DecisionType.accept) {
       messageController.text =
-          "Congratulations! We are pleased to inform you that you have successfully passed the interview process.";
+          "We are happy to invite you to the interview stage of our hiring process.";
     } else {
       messageController.text =
           "Thank you for your interest. Unfortunately, we will not be moving forward with your application at this time.";
