@@ -1,11 +1,7 @@
-// ===================== File: hr_candidate_result_controller.dart =====================
-// Purpose:
-// Controls HR Candidate Result Page using real interview data.
-// ================================================================================
-
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+import '../../../models/exam.dart';
+import '../../../models/question.dart';
 import '../interviews/needs_review/hr_candidate_evaluation_page.dart';
 import 'hr_needs_review_detail_controller.dart';
 
@@ -81,13 +77,106 @@ class HrCandidateResultController extends GetxController {
     return result;
   }
 
-  Map<String, dynamic> get reviewExamData {
-    return {
-      "correct": correct.value,
-      "wrong": wrong.value,
-      "unanswered": unanswered.value,
-      "questions": candidate?["questions"] ?? [],
-    };
+  Exam get reviewExam {
+    final interviewData = candidate?["interview"] as Map<String, dynamic>? ?? {};
+    final List<dynamic> rawQuestions = interviewData["questions"] as List<dynamic>? ?? [];
+    
+    final List<Question> questionsList = [];
+    for (int i = 0; i < rawQuestions.length; i++) {
+      final q = rawQuestions[i] as Map<String, dynamic>;
+      final rawId = q['id']?.toString() ?? '';
+      final id = rawId.isNotEmpty ? rawId : 'q_$i';
+      questionsList.add(Question.fromFirestore(q, id));
+    }
+
+    final Map<String, dynamic> answersMap = {};
+    final rawAnswers = candidate?["answers"];
+    if (rawAnswers is Map) {
+      rawAnswers.forEach((key, value) {
+        answersMap[key.toString()] = value;
+      });
+    }
+
+    // Populate feedback and stats lists
+    final Map<String, String> feedbackMap = {};
+    final List<String> correctIds = [];
+    final List<String> wrongIds = [];
+    
+    final aiResult = candidate?['aiResult'];
+    if (aiResult is Map) {
+      final qResults = aiResult['questionResults'] as List?;
+      if (qResults != null) {
+        for (final qr in qResults) {
+          if (qr is Map) {
+            final qid = qr['questionId']?.toString();
+            if (qid != null) {
+              final qDecision = qr['decision']?.toString() ?? '';
+              final qScore = qr['overall_score']?.toString() ?? '0';
+              final strengths = List<String>.from(qr['strengths'] ?? []);
+              final weaknesses = List<String>.from(qr['weaknesses'] ?? []);
+              final redFlags = List<String>.from(qr['red_flags'] ?? []);
+              
+              final coaching = qr['coaching_tips'];
+              String personal = '';
+              if (coaching is Map) {
+                personal = coaching['personalized_feedback']?.toString() ?? '';
+              }
+
+              final buffer = StringBuffer();
+              buffer.writeln("Decision: ${qDecision.toUpperCase()} (Score: $qScore/5)\n");
+              if (personal.isNotEmpty) {
+                buffer.writeln("$personal\n");
+              }
+              if (strengths.isNotEmpty) {
+                buffer.writeln("Strengths:");
+                for (final s in strengths) {
+                  buffer.writeln("• $s");
+                }
+                buffer.writeln();
+              }
+              if (weaknesses.isNotEmpty) {
+                buffer.writeln("Weaknesses:");
+                for (final w in weaknesses) {
+                  buffer.writeln("• $w");
+                }
+                buffer.writeln();
+              }
+              if (redFlags.isNotEmpty) {
+                buffer.writeln("Red Flags:");
+                for (final rf in redFlags) {
+                  buffer.writeln("⚠️ $rf");
+                }
+              }
+              feedbackMap[qid] = buffer.toString().trim();
+
+              if (qDecision == 'advance') {
+                correctIds.add(qid);
+              } else if (qDecision == 'reject') {
+                wrongIds.add(qid);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return Exam(
+      id: candidate?["resultId"] ?? "review_exam",
+      title: candidate?["interviewTitle"] ?? "Candidate Review",
+      duration: Duration(minutes: questionsList.length),
+      questions: questionsList,
+      createdAt: DateTime.now(),
+      answers: answersMap,
+      aiFeedback: feedbackMap,
+      stats: {
+        'correct': correct.value,
+        'wrong': wrong.value,
+        'unanswered': unanswered.value,
+        'correctIds': correctIds,
+        'wrongIds': wrongIds,
+      },
+      isInterview: true,
+    );
   }
 
   void openEvaluationPage() {

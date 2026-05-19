@@ -140,7 +140,7 @@ class HrCandidateResultPage extends StatelessWidget {
                 onPressed: () {
                   Get.to(
                     () => const ExamReviewPage(),
-                    arguments: c.reviewExamData,
+                    arguments: c.reviewExam,
                   );
                 },
                 style: OutlinedButton.styleFrom(
