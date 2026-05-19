@@ -19,6 +19,7 @@ class HrCandidateResultController extends GetxController {
   final wrong = 0.obs;
   final unanswered = 0.obs;
   final candidateName = "".obs;
+  final interviewTitle = "".obs;
   final decision = RxnString(); 
 
   // ===============================
@@ -51,12 +52,61 @@ class HrCandidateResultController extends GetxController {
     }
 
     candidateName.value = data["name"] ?? "Candidate";
+    interviewTitle.value = data["interviewTitle"] ?? "";
     decision.value = data["decision"];
 
-    final topics = data["topics"];
-    if (topics is Map) {
-      topicPercentages.assignAll(topics.map((key, value) => MapEntry(key.toString(), (value as num).toInt())));
+    Map<String, int> finalTopics = {};
+    final rawTopics = data["topics"];
+    if (rawTopics is Map && rawTopics.isNotEmpty) {
+      finalTopics = Map<String, int>.from(rawTopics.map((key, value) => MapEntry(key.toString(), (value as num).toInt())));
     }
+
+    // If empty or only contains STAR keys (which are not technical topics), compute from questions
+    final isStarOnly = finalTopics.isNotEmpty && finalTopics.keys.every((k) => ['S', 'T', 'A', 'R'].contains(k.toUpperCase()));
+    
+    if (finalTopics.isEmpty || isStarOnly) {
+      // Compute from questions and aiResult scores
+      final interviewData = data["interview"] as Map<String, dynamic>? ?? {};
+      final rawQuestions = interviewData["questions"] as List<dynamic>? ?? [];
+      
+      final Map<String, List<double>> buckets = {};
+      
+      final aiResult = data['aiResult'];
+      List<dynamic> qResults = [];
+      if (aiResult is Map && aiResult['questionResults'] is List) {
+        qResults = aiResult['questionResults'];
+      }
+
+      for (int i = 0; i < rawQuestions.length; i++) {
+        final q = rawQuestions[i] as Map<String, dynamic>;
+        final topic = (q['topic']?.toString() ?? 'General').trim();
+        final actualTopic = topic.isNotEmpty ? topic : 'General';
+        
+        // Find score for this question if available
+        double score = 0.0;
+        final qid = q['id']?.toString() ?? '';
+        for (final qr in qResults) {
+          if (qr is Map && qr['questionId']?.toString() == qid) {
+            score = (qr['overall_score'] as num?)?.toDouble() ?? 0.0;
+            break;
+          }
+        }
+        
+        buckets.putIfAbsent(actualTopic, () => []).add(score);
+      }
+
+      final computedTopics = <String, int>{};
+      buckets.forEach((topic, scores) {
+        final avg = scores.reduce((a, b) => a + b) / scores.length;
+        computedTopics[topic] = (avg * 20).clamp(0, 100).round(); // 0-5 -> 0-100
+      });
+      
+      if (computedTopics.isNotEmpty) {
+        finalTopics = computedTopics;
+      }
+    }
+
+    topicPercentages.assignAll(finalTopics);
   }
 
   void _listenToResultUpdates() {
@@ -219,6 +269,16 @@ class HrCandidateResultController extends GetxController {
         if (index != -1) {
           parent.candidates[index]["decision"] = newDecision;
           parent.candidates.refresh();
+
+          // Check if all candidates are reviewed
+          if (parent.overallReviewStatus == "reviewed") {
+            final interviewId = parent.interviewId.value;
+            if (interviewId.isNotEmpty) {
+              await _db.collection('interviews').doc(interviewId).update({
+                "reviewStatus": "reviewed",
+              });
+            }
+          }
         }
       } catch (_) {
         // Parent not found, ignore

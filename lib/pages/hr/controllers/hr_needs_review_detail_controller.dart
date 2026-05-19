@@ -78,10 +78,12 @@ class HrNeedsReviewDetailController extends GetxController {
         .snapshots()
         .listen((snap) {
           final List<Map<String, dynamic>> parsedCandidates = [];
+          print("[HR_DEBUG] Feteched result count: ${snap.docs.length}");
           for (var doc in snap.docs) {
             try {
               final data = doc.data();
               data['id'] = doc.id;
+              print("[HR_DEBUG] Result doc ID: ${doc.id}, candidateId: ${data['candidateId']}, candidateName: ${data['candidateName']}, interviewId: ${data['interviewId']}");
               
               // Extract topics from topicPercentage (technical categories) or fallback to starAnalysis
               final topics = <String, int>{};
@@ -147,6 +149,16 @@ class HrNeedsReviewDetailController extends GetxController {
 
           processCandidates();
           applyFilters();
+
+          // AUTO-HEAL: If all candidates are reviewed, but the interview is still pending, fix it!
+          if (candidates.isNotEmpty && overallReviewStatus == "reviewed" && interview["reviewStatus"] != "reviewed") {
+             print("[HR_DEBUG] Auto-healing interview ${interviewId.value} to reviewed");
+             _db.collection('interviews').doc(interviewId.value).update({
+               "reviewStatus": "reviewed",
+             }).then((_) {
+               interview["reviewStatus"] = "reviewed";
+             });
+          }
         }, onError: (err) {
           print("HrNeedsReviewDetailController: Firestore listener error: $err");
         });

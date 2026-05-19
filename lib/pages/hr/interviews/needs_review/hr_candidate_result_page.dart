@@ -69,13 +69,16 @@ class HrCandidateResultPage extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Obx(
-                  () => Text(
-                    "You are reviewing ${c.candidateName.value}'s interview widgets.",
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.title.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  () {
+                    final pos = c.interviewTitle.value.isNotEmpty ? c.interviewTitle.value : "interview";
+                    return Text(
+                      "You are reviewing ${c.candidateName.value}'s $pos.",
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.title.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(

@@ -112,7 +112,7 @@ class ReviewNavigatorSheet extends StatelessWidget {
                       return GestureDetector(
                         onTap: () {
                           c.goToQuestion(index);
-                          Get.back();
+                          Navigator.of(context).pop();
                         },
                         child: Container(
                           decoration: BoxDecoration(

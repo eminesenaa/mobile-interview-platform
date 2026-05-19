@@ -118,7 +118,10 @@ class _ExamCodingEditorPageState extends State<ExamCodingEditorPage> {
                       PhosphorIcons.code(PhosphorIconsStyle.regular),
                       size: 22,
                     ),
-                    onPressed: Get.back,
+                    onPressed: () {
+                      FocusScope.of(context).unfocus();
+                      Navigator.of(context).pop();
+                    },
                   ),
                 ],
               ),
