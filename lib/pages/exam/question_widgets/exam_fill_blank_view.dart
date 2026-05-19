@@ -9,7 +9,7 @@ import '../../question_types/fill_blank/widgets/code_template_with_blanks.dart';
 import '../../question_types/fill_blank/widgets/text_with_blanks_view.dart';
 import '../controllers/exam_controller.dart';
 
-class ExamFillBlankView extends StatelessWidget {
+class ExamFillBlankView extends StatefulWidget {
   final Question question;
   final String examId;
 
@@ -25,47 +25,75 @@ class ExamFillBlankView extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final c = Get.find<ExamController>(tag: examId);
+  State<ExamFillBlankView> createState() => _ExamFillBlankViewState();
+}
 
-    // ===================================================
-    // BLANK COUNT (code template içinden)
-    // ===================================================
-    int _blankCount(String text) {
-      final regex = RegExp(r'___');
-      return regex.allMatches(text).length;
-    }
+class _ExamFillBlankViewState extends State<ExamFillBlankView> {
+  late final ExamController c;
+  late List<String> _answers;
 
-    // ===================================================
-    // ANSWERS RX (HER ZAMAN DOĞRU UZUNLUKTA)
-    // ===================================================
-    RxList<String> _buildAnswersRx(int blanks) {
-      final raw = c.answers[question.id];
+  @override
+  void initState() {
+    super.initState();
+    c = Get.find<ExamController>(tag: widget.examId);
+    _initAnswers();
+  }
 
-      if (raw is List) {
-        final list = List<String>.from(raw.map((e) => e.toString()));
-        while (list.length < blanks) {
-          list.add('');
-        }
-        return RxList<String>.from(list);
+  void _initAnswers() {
+    final raw = c.answers[widget.question.id];
+    final blanks = _totalBlankCount();
+
+    if (raw is List) {
+      final list = List<String>.from(raw.map((e) => e.toString()));
+      while (list.length < blanks) {
+        list.add('');
       }
-
-      return RxList<String>.filled(blanks, '');
+      _answers = list;
+    } else {
+      _answers = List<String>.filled(blanks, '');
     }
+  }
 
-    final hasTextBlanks = (question.description ?? '').contains('___');
+  int _blankCount(String text) {
+    final regex = RegExp(r'___');
+    return regex.allMatches(text).length;
+  }
 
-    final textBlankCount =
-        hasTextBlanks ? _blankCount(question.description!) : 0;
-
-    final codeBlankCount = (question.codeTemplate ?? '').isNotEmpty
-        ? _blankCount(question.codeTemplate!)
+  int _totalBlankCount() {
+    final hasTextBlanks = (widget.question.description ?? '').contains('___');
+    final textBlankCount = hasTextBlanks ? _blankCount(widget.question.description!) : 0;
+    final codeBlankCount = (widget.question.codeTemplate ?? '').isNotEmpty
+        ? _blankCount(widget.question.codeTemplate!)
         : 0;
+    return textBlankCount + codeBlankCount;
+  }
 
-    // ⚠️ Aynı answers listesi hem text hem code için
-    final answersRx = _buildAnswersRx(
-      textBlankCount + codeBlankCount,
-    );
+  @override
+  void didUpdateWidget(covariant ExamFillBlankView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.question.id != widget.question.id) {
+      setState(() {
+        _initAnswers();
+      });
+    }
+  }
+
+  void _onBlankChanged(int index, String value) {
+    setState(() {
+      _answers[index] = value;
+    });
+
+    final normalized = _answers.any((e) => e.trim().isNotEmpty)
+        ? List<String>.from(_answers)
+        : null;
+
+    c.saveAnswer(widget.question.id, normalized);
+    widget.onAnswerChanged(normalized);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasTextBlanks = (widget.question.description ?? '').contains('___');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -73,51 +101,33 @@ class ExamFillBlankView extends StatelessWidget {
         // ===================================================
         // QUESTION TEXT
         // ===================================================
-        if ((question.description ?? '').isNotEmpty && hasTextBlanks)
+        if ((widget.question.description ?? '').isNotEmpty && hasTextBlanks)
           TextWithBlanksView(
-            text: question.description!,
-            answers: answersRx,
+            text: widget.question.description!,
+            answers: _answers,
             locked: false,
-            onChanged: (index) => (value) {
-              answersRx[index] = value;
-
-              final normalized = answersRx.any((e) => e.trim().isNotEmpty)
-                  ? answersRx.toList()
-                  : null;
-
-              c.saveAnswer(question.id, normalized);
-              onAnswerChanged(normalized);
-            },
+            onChanged: (index) => (value) => _onBlankChanged(index, value),
           )
-        else if ((question.description ?? '').isNotEmpty)
+        else if ((widget.question.description ?? '').isNotEmpty)
           Text(
-            question.description!,
+            widget.question.description!,
             style: AppTextStyles.body.copyWith(
               fontSize: 16,
               color: AppColors.textPrimary,
             ),
           ),
 
-        if ((question.description ?? '').isNotEmpty)
+        if ((widget.question.description ?? '').isNotEmpty)
           const SizedBox(height: AppSpacing.lg),
 
         // ===================================================
         // CODE TEMPLATE WITH INLINE BLANKS (EXAM MODE)
         // ===================================================
-        if ((question.codeTemplate ?? '').isNotEmpty)
+        if ((widget.question.codeTemplate ?? '').isNotEmpty)
           CodeTemplateWithBlanksView(
-            codeTemplate: question.codeTemplate!,
-            answers: answersRx,
-            onChanged: (int index, String value) {
-              answersRx[index] = value;
-
-              final normalized = answersRx.any((e) => e.trim().isNotEmpty)
-                  ? answersRx.toList()
-                  : null;
-
-              c.saveAnswer(question.id, normalized);
-              onAnswerChanged(normalized);
-            },
+            codeTemplate: widget.question.codeTemplate!,
+            answers: _answers,
+            onChanged: _onBlankChanged,
           ),
       ],
     );

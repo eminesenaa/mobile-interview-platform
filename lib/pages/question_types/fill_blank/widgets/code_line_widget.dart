@@ -23,7 +23,7 @@ import 'code_template_with_blanks.dart';
 ///
 class CodeLineWidget extends StatelessWidget {
   final List<CodePart> parts;
-  final RxList<String> answers;
+  final List<String> answers;
   final void Function(int index, String value) onChanged;
 
   const CodeLineWidget({
