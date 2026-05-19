@@ -22,7 +22,7 @@ class IrEmptyState extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            "No interview widgets found",
+            "No interview results found",
             style: AppTextStyles.body.copyWith(
               color: AppColors.textMuted,
             ),

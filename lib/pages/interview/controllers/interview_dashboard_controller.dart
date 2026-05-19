@@ -224,10 +224,38 @@ class InterviewDashboardController extends GetxController {
                     .map((d) => d.id.replaceAll('_${user.uid}', ''))
                     .toSet();
 
+                final completedJobPostingIds = resultSnap.docs
+                    .map((d) => d.data()['jobPostingId']?.toString() ?? '')
+                    .where((id) => id.isNotEmpty)
+                    .toSet();
+
+                final completedTitles = resultSnap.docs
+                    .map((d) {
+                      final title = d.data()['title']?.toString() ?? '';
+                      return title.toLowerCase().replaceAll('interview', '').trim();
+                    })
+                    .where((t) => t.isNotEmpty)
+                    .toSet();
+
+                print("[Dashboard] debug list: $list");
+                print("[Dashboard] debug completedInterviewIds: $completedInterviewIds");
+                print("[Dashboard] debug completedJobPostingIds: $completedJobPostingIds");
+                print("[Dashboard] debug completedTitles: $completedTitles");
+
                 list = list.where((interview) {
                   final id = interview['id']?.toString() ?? '';
-                  return !completedInterviewIds.contains(id) &&
-                         !completedByDocId.contains(id);
+                  final jobPostingId = interview['jobPostingId']?.toString() ?? '';
+                  final title = (interview['title']?.toString() ?? '').toLowerCase().replaceAll('interview', '').trim();
+                  final position = (interview['position']?.toString() ?? '').toLowerCase().replaceAll('interview', '').trim();
+
+                  final isCompleted = completedInterviewIds.contains(id) ||
+                         completedByDocId.contains(id) ||
+                         (jobPostingId.isNotEmpty && completedJobPostingIds.contains(jobPostingId)) ||
+                         completedTitles.contains(title) ||
+                         completedTitles.contains(position);
+
+                  print("[Dashboard] checking interview id: $id, title: $title, isCompleted: $isCompleted");
+                  return !isCompleted;
                 }).toList();
 
                 print("After completion filter: ${list.length} upcoming interviews remain");
@@ -334,8 +362,35 @@ class InterviewDashboardController extends GetxController {
   // ===============================
   // DERIVED STATS
   // ===============================
+  Map<String, dynamic>? get upcomingInterviewFiltered {
+    final upcoming = upcomingInterview.value;
+    if (upcoming == null) return null;
+
+    final id = upcoming['id']?.toString() ?? '';
+    final jobPostingId = upcoming['jobPostingId']?.toString() ?? '';
+    final title = (upcoming['title']?.toString() ?? '').toLowerCase().replaceAll('interview', '').trim();
+    final position = (upcoming['position']?.toString() ?? '').toLowerCase().replaceAll('interview', '').trim();
+    
+    // Check if this id exists in results list
+    final hasResult = results.any((r) {
+      final rInterviewId = r['interviewId']?.toString() ?? '';
+      final rId = r['id']?.toString() ?? '';
+      final rJobPostingId = r['jobPostingId']?.toString() ?? '';
+      final rTitle = (r['title']?.toString() ?? '').toLowerCase().replaceAll('interview', '').trim();
+
+      return rInterviewId == id || 
+             rId.startsWith(id) || 
+             (jobPostingId.isNotEmpty && rJobPostingId == jobPostingId) ||
+             (title.isNotEmpty && rTitle == title) ||
+             (position.isNotEmpty && rTitle == position);
+    });
+
+    if (hasResult) return null;
+    return upcoming;
+  }
+
   int get activeApplicationsCount => applications.where((a) => a["status"] == "pending").length;
-  int get readyInterviewsCount => upcomingInterview.value != null ? 1 : 0;
+  int get readyInterviewsCount => upcomingInterviewFiltered != null ? 1 : 0;
   int get pendingResultsCount => results.where((r) => r["decision"] == "pending").length;
 
   // ===============================
