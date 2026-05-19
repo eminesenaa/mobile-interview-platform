@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import '/../../../../constants/constants.dart';
+import 'package:interview_project/constants/constants.dart';
 
 class RdCandidateCard extends StatelessWidget {
   final int rank;
@@ -19,6 +19,52 @@ class RdCandidateCard extends StatelessWidget {
     required this.decision,
     required this.onTap,
   });
+
+  Widget _buildScoreBadge(int score) {
+    Color color;
+    if (score >= 90) {
+      color = AppColors.success;
+    } else if (score >= 50) {
+      color = AppColors.warning;
+    } else {
+      color = AppColors.error;
+    }
+
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: color.withOpacity(0.3),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            "$score",
+            style: AppTextStyles.bodyStrong.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
+          Text(
+            "/100",
+            style: AppTextStyles.bodySmall.copyWith(
+              color: color.withOpacity(0.8),
+              fontSize: 9,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,12 +145,27 @@ class RdCandidateCard extends StatelessWidget {
 
                   const SizedBox(width: AppSpacing.md),
 
-                  /// Name
+                  /// Name & Decision (under name)
                   Expanded(
-                    child: Text(
-                      name,
-                      style: AppTextStyles.title,
-                      overflow: TextOverflow.ellipsis,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          name,
+                          style: AppTextStyles.title,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          isAccepted ? "Accepted" : "Rejected",
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: isAccepted ? AppColors.success : AppColors.error,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 11, // 🔥 Küçültüldü
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -112,52 +173,11 @@ class RdCandidateCard extends StatelessWidget {
             ),
 
             /// ================= RIGHT SIDE =================
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisAlignment: MainAxisAlignment.center,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 /// 🔥 Score (primary)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      "$score",
-                      style: AppTextStyles.bodyStrong.copyWith(
-                        fontSize: 18, // 🔥 daha büyük
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      "/100",
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: AppSpacing.xs),
-
-                /// 🔥 Decision chip (secondary)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isAccepted
-                        ? AppColors.success.withOpacity(0.12)
-                        : AppColors.error.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    isAccepted ? "Accepted" : "Rejected",
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: isAccepted ? AppColors.success : AppColors.error,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+                _buildScoreBadge(score),
               ],
             ),
 
