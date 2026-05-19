@@ -142,12 +142,71 @@ class InterviewDashboardController extends GetxController {
     _db.collection('ai_interview_results')
         .where('candidateId', isEqualTo: user.uid)
         .snapshots()
-        .listen((snap) {
-          results.value = snap.docs.map((doc) {
+        .listen((snap) async {
+          final List<Map<String, dynamic>> updatedResults = [];
+          for (var doc in snap.docs) {
             final data = doc.data();
             data['id'] = doc.id;
-            return data;
-          }).toList();
+
+            if (data['company'] == null || data['company'] == "Company" || data['startTime'] == null) {
+              final String? interviewId = data['interviewId'];
+              if (interviewId != null && interviewId.isNotEmpty) {
+                final interviewSnap = await _db
+                    .collection('interviews')
+                    .doc(interviewId)
+                    .get();
+
+                if (interviewSnap.exists) {
+                  final iData = interviewSnap.data();
+                  data['startTime'] = iData?['startTime'];
+                  data['endTime'] = iData?['endTime'];
+                  
+                  final String? jobPostingId = iData?['jobPostingId'] ?? data['jobPostingId'];
+                  if (jobPostingId != null && jobPostingId.isNotEmpty) {
+                    final postingSnap = await _db
+                        .collection('job_postings')
+                        .doc(jobPostingId)
+                        .get();
+
+                    if (postingSnap.exists) {
+                      final pData = postingSnap.data();
+                      data['company'] = pData?['company'] ?? data['company'] ?? "Company";
+                      data['location'] = pData?['location'] ?? data['location'] ?? "";
+                      data['title'] = pData?['title'] ?? data['title'] ?? "Interview";
+                    }
+                  }
+                }
+              }
+
+              // Fallback to applications if still missing
+              if (data['company'] == null) {
+                final applicationSnap = await _db
+                    .collection('applications')
+                    .where('candidateId', isEqualTo: user.uid)
+                    .where('jobPostingId', isEqualTo: data['jobPostingId'])
+                    .limit(1)
+                    .get();
+
+                if (applicationSnap.docs.isNotEmpty) {
+                  final appData = applicationSnap.docs.first.data();
+                  data['title'] = appData['jobTitle'] ?? data['title'] ?? "Unknown Position";
+                  data['company'] = appData['company'] ?? "Company";
+                  data['location'] = appData['location'] ?? "";
+                  if (data['startTime'] == null) {
+                    data['startTime'] = appData['appliedAt'];
+                  }
+                }
+              }
+            }
+
+            try {
+              data['result'] = InterviewResult.fromJson(data);
+            } catch (e) {
+              print("Error parsing interview result in dashboard controller: $e");
+            }
+            updatedResults.add(data);
+          }
+          results.value = updatedResults;
         });
 
     isLoading.value = false;

@@ -44,15 +44,6 @@ class _ExamShortAnswerViewState extends State<ExamShortAnswerView> {
     _controller = TextEditingController(
       text: prev is String ? prev : '',
     );
-
-    // 🔑 Her değişiklikte:
-    // - ExamController’a yaz
-    // - ExamPage’e bildir
-    _controller.addListener(() {
-      final value = _controller.text.trim();
-      widget.onAnswerChanged(value.isEmpty ? null : value);
-      c.saveAnswer(widget.question.id, value.isEmpty ? null : value);
-    });
   }
 
   @override
@@ -63,7 +54,9 @@ class _ExamShortAnswerViewState extends State<ExamShortAnswerView> {
     if (oldWidget.question.id != widget.question.id) {
       final prev = c.answers[widget.question.id];
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _controller.text = prev is String ? prev : '';
+        if (mounted) {
+          _controller.text = prev is String ? prev : '';
+        }
       });
     }
   }
@@ -113,6 +106,11 @@ class _ExamShortAnswerViewState extends State<ExamShortAnswerView> {
           controller: _controller,
           minLines: 3,
           maxLines: 6,
+          onChanged: (value) {
+            final val = value.trim();
+            widget.onAnswerChanged(val.isEmpty ? null : val);
+            c.saveAnswer(widget.question.id, val.isEmpty ? null : val);
+          },
           decoration: InputDecoration(
             hintText: 'Type your answer...',
             hintStyle: AppTextStyles.bodySmall.copyWith(

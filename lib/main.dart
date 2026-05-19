@@ -15,6 +15,8 @@ import 'controllers/auth_controller.dart';
 import 'services/ai/ai_service.dart';
 import 'pages/hr/dashboard/hr_dashboard_page.dart';
 import 'services/interview/job_application_service.dart';
+import 'services/interview/interview_service.dart';
+import 'services/interview/firebase_interview_service.dart';
 
 Future<void> _initAi() async {
   Get.put<AiService>(AiService(), permanent: true);
@@ -54,6 +56,7 @@ class MyApp extends StatelessWidget {
         Get.put<AuthController>(AuthController(), permanent: true);
         Get.put<QuestionController>(QuestionController(), permanent: true);
         Get.put<JobApplicationService>(JobApplicationService(), permanent: true);
+        Get.put<InterviewService>(FirebaseInterviewService(), permanent: true);
       }),
       theme: ThemeData(
         scaffoldBackgroundColor: AppColors.background,

@@ -27,13 +27,19 @@ class IdResultItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final decision = result["result"].decision;
+    String status = "pending";
 
-    final status = decision == InterviewDecisionStatus.accepted
-        ? "accepted"
-        : decision == InterviewDecisionStatus.rejected
-        ? "rejected"
-        : "pending";
+    if (result["result"] != null) {
+      final decision = result["result"].decision;
+      status = decision == InterviewDecisionStatus.accepted
+          ? "accepted"
+          : decision == InterviewDecisionStatus.rejected
+          ? "rejected"
+          : "pending";
+    } else if (result["decision"] != null) {
+      status = result["decision"].toString().toLowerCase();
+    }
+
     final config = _getStatusConfig(status);
 
     return GestureDetector(

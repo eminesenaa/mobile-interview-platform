@@ -1,4 +1,6 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../models/ai_interview_result.dart';
 import '../../models/interview.dart';
 import '../../models/interview_result.dart';
 import '../../models/interview_session.dart';
@@ -95,6 +97,14 @@ class FirebaseInterviewService implements InterviewService {
   }
 
   @override
+  Future<InterviewResult> submitInterview(InterviewSession session) async {
+    // This method is required by the interface but the actual submission
+    // and AI evaluation is handled via ExamController and saveInterviewResult.
+    // Providing a default implementation to satisfy the interface.
+    throw UnimplementedError('Use saveInterviewResult instead');
+  }
+
+  @override
   Future<void> saveInterviewResult({
     required String interviewId,
     required String userId,
@@ -104,17 +114,44 @@ class FirebaseInterviewService implements InterviewService {
     try {
       final resultId = '${interviewId}_$userId';
       
+      // Fetch interview title and jobPostingId for display/query
+      final interviewDoc = await _firestore.collection('interviews').doc(interviewId).get();
+      final title = interviewDoc.exists ? (interviewDoc.data()?['title'] ?? 'Interview') : 'Interview';
+      String? jobPostingId;
+      if (interviewDoc.exists) {
+        jobPostingId = interviewDoc.data()?['jobPostingId'] as String?;
+      }
+
+      // Fetch candidate name from /users/{userId} if displayName is null or empty
+      String candidateName = FirebaseAuth.instance.currentUser?.displayName ?? "Candidate";
+      if (candidateName == "Candidate" || candidateName.isEmpty) {
+        final userDoc = await _firestore.collection('users').doc(userId).get();
+        if (userDoc.exists) {
+          final userData = userDoc.data();
+          final firstName = userData?['name'] ?? '';
+          final lastName = userData?['surname'] ?? '';
+          if (firstName.isNotEmpty || lastName.isNotEmpty) {
+            candidateName = '$firstName $lastName'.trim();
+          }
+        }
+      }
+
       final data = {
         'interviewId': interviewId,
         'candidateId': userId,
+        'candidateName': candidateName,
+        'title': title,
+        if (jobPostingId != null) 'jobPostingId': jobPostingId,
         'answers': answers,
         'aiResult': aiResult.toJson(), // Assuming AiInterviewResult has toJson()
         'submittedAt': FieldValue.serverTimestamp(),
         'status': 'completed',
+        'decision': aiResult is AiInterviewResult ? aiResult.finalDecision : 'pending',
+        'totalScore': aiResult is AiInterviewResult ? aiResult.totalScore : 0,
         'starAnalysis': _extractStarAnalysis(aiResult), // Helper for easy filtering
       };
 
-      await _firestore.collection('interview_results').doc(resultId).set(data);
+      await _firestore.collection('ai_interview_results').doc(resultId).set(data);
 
       // Also update the interview status in the main collection if needed
       // (Optional based on how list screens query data)
@@ -164,8 +201,8 @@ class FirebaseInterviewService implements InterviewService {
   Future<List<InterviewResult>> getUserResults(String userId) async {
     try {
       final snapshot = await _firestore
-          .collection('interview_results')
-          .where('candidateId', valueEqualTo: userId)
+          .collection('ai_interview_results')
+          .where('candidateId', isEqualTo: userId)
           .get();
 
       return snapshot.docs.map((doc) => InterviewResult.fromJson(doc.data())).toList();

@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../../constants/constants.dart';
+import '../../../../models/interview_result.dart';
 import '../../pages/results/interview_result_detail_page.dart';
 import '../interview_dashboard/id_result_item.dart';
 import 'ir_section_label.dart';
@@ -23,20 +24,29 @@ class IrResultsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String getStatus(Map<String, dynamic> r) {
+      if (r["result"] is InterviewResult) {
+        final decision = (r["result"] as InterviewResult).decision;
+        return decision.toString().split('.').last.toLowerCase();
+      }
+      final dec = r["decision"]?.toString().toLowerCase() ?? "pending";
+      if (dec == "accepted" || dec == "rejected") {
+        return dec;
+      }
+      return "pending";
+    }
+
     // ================= GROUPING =================
     final accepted = results.where((r) {
-      final res = r["result"];
-      return res.decision.toString().split('.').last == "accepted";
+      return getStatus(r) == "accepted";
     }).toList();
 
     final pending = results.where((r) {
-      final res = r["result"];
-      return res.decision.toString().split('.').last == "pending";
+      return getStatus(r) == "pending";
     }).toList();
 
     final rejected = results.where((r) {
-      final res = r["result"];
-      return res.decision.toString().split('.').last == "rejected";
+      return getStatus(r) == "rejected";
     }).toList();
 
     return ListView(

@@ -67,16 +67,30 @@ class HROngoingDetailController extends GetxController {
         .listen((snap) {
           final all = snap.docs.map((doc) => doc.data()).toList();
           
-          completedCandidates.value = all.where((c) => c['status'] == 'completed').map((c) => {
-            "name": c['candidateName'] ?? "Candidate",
-            "subtitle": "Finished at ${DateFormat('h:mm a').format((c['submittedAt'] as Timestamp).toDate())}",
-            "status": "done"
+          completedCandidates.value = all.where((c) => c['status'] == 'completed').map((c) {
+            String sub = "Recently";
+            if (c['submittedAt'] != null) {
+              final dt = (c['submittedAt'] is Timestamp) ? (c['submittedAt'] as Timestamp).toDate() : DateTime.parse(c['submittedAt'].toString());
+              sub = "Finished at ${DateFormat('h:mm a').format(dt)}";
+            }
+            return {
+              "name": c['candidateName'] ?? "Candidate",
+              "subtitle": sub,
+              "status": "done"
+            };
           }).toList();
 
-          activeCandidates.value = all.where((c) => c['status'] == 'in_progress').map((c) => {
-            "name": c['candidateName'] ?? "Candidate",
-            "subtitle": "Started at ${DateFormat('h:mm a').format((c['startedAt'] as Timestamp).toDate())}",
-            "status": "active"
+          activeCandidates.value = all.where((c) => c['status'] == 'in_progress').map((c) {
+            String sub = "Recently";
+            if (c['startedAt'] != null) {
+              final dt = (c['startedAt'] is Timestamp) ? (c['startedAt'] as Timestamp).toDate() : DateTime.parse(c['startedAt'].toString());
+              sub = "Started at ${DateFormat('h:mm a').format(dt)}";
+            }
+            return {
+              "name": c['candidateName'] ?? "Candidate",
+              "subtitle": sub,
+              "status": "active"
+            };
           }).toList();
 
           // Waiting candidates would be (interview.candidateIds - (active + completed))

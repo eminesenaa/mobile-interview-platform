@@ -8,6 +8,7 @@
 //
 // ===============================================================================
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'user.dart';
 
 enum ApplicationStatus {
@@ -108,9 +109,15 @@ class JobApplication {
         (e) => e.name == json['status'],
         orElse: () => ApplicationStatus.pending,
       ),
-      appliedAt: DateTime.tryParse(json['appliedAt'] ?? '') ?? DateTime.now(),
+      appliedAt: json['appliedAt'] != null
+          ? (json['appliedAt'] is Timestamp
+              ? (json['appliedAt'] as Timestamp).toDate()
+              : DateTime.tryParse(json['appliedAt'].toString()) ?? DateTime.now())
+          : DateTime.now(),
       reviewedAt: json['reviewedAt'] != null
-          ? DateTime.tryParse(json['reviewedAt'])
+          ? (json['reviewedAt'] is Timestamp
+              ? (json['reviewedAt'] as Timestamp).toDate()
+              : DateTime.tryParse(json['reviewedAt'].toString()))
           : null,
     );
   }

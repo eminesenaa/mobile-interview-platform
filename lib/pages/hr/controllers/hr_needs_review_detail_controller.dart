@@ -58,7 +58,9 @@ class HrNeedsReviewDetailController extends GetxController {
     interviewId.value = interview["id"] ?? "";
     
     if (interview["startTime"] != null) {
-      final dt = (interview["startTime"] as Timestamp).toDate();
+      final dt = (interview["startTime"] is Timestamp)
+          ? (interview["startTime"] as Timestamp).toDate()
+          : DateTime.parse(interview["startTime"].toString());
       date.value = DateFormat('MMM dd, yyyy').format(dt);
     }
 
@@ -75,32 +77,43 @@ class HrNeedsReviewDetailController extends GetxController {
         .where('interviewId', isEqualTo: interviewId.value)
         .snapshots()
         .listen((snap) {
-          candidates.value = snap.docs.map((doc) {
-            final data = doc.data();
-            data['id'] = doc.id;
-            
-            // Extract topics from STAR analysis or scores
-            final topics = <String, int>{};
-            if (data['starAnalysis'] != null) {
-              final star = data['starAnalysis'] as Map<String, dynamic>;
-              star.forEach((key, value) {
-                topics[key] = (value as num).toInt();
+          final List<Map<String, dynamic>> parsedCandidates = [];
+          for (var doc in snap.docs) {
+            try {
+              final data = doc.data();
+              data['id'] = doc.id;
+              
+              // Extract topics from STAR analysis or scores
+              final topics = <String, int>{};
+              if (data['starAnalysis'] != null) {
+                final star = data['starAnalysis'];
+                if (star is Map) {
+                  star.forEach((key, value) {
+                    if (value != null) {
+                      topics[key.toString()] = (value as num).toInt();
+                    }
+                  });
+                }
+              }
+
+              final String name = data['candidateName'] ?? "Candidate";
+              parsedCandidates.add({
+                "name": name,
+                "initials": _getInitials(name),
+                "score": (data['totalScore'] ?? 0).toInt(),
+                "interviewTitle": title.value,
+                "interviewDate": date.value,
+                "decision": data['decision'],
+                "topics": topics,
+                "resultId": doc.id,
+                ...data,
               });
+            } catch (e) {
+              print("HrNeedsReviewDetailController: Error parsing result doc ${doc.id}: $e");
             }
+          }
 
-            return {
-              "name": data['candidateName'] ?? "Candidate",
-              "initials": _getInitials(data['candidateName'] ?? "C"),
-              "score": (data['totalScore'] ?? 0).toInt(),
-              "interviewTitle": title.value,
-              "interviewDate": date.value,
-              "decision": data['decision'],
-              "topics": topics,
-              "resultId": doc.id,
-              ...data,
-            };
-          }).toList();
-
+          candidates.value = parsedCandidates;
           candidatesCompletedText.value = "${candidates.length} completed";
           
           // Update topic keys for filters based on actual data
@@ -118,6 +131,8 @@ class HrNeedsReviewDetailController extends GetxController {
 
           processCandidates();
           applyFilters();
+        }, onError: (err) {
+          print("HrNeedsReviewDetailController: Firestore listener error: $err");
         });
   }
 

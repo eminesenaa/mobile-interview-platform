@@ -40,7 +40,7 @@ class HrNeedsReviewDetailPage extends StatelessWidget {
     /// =========================
     /// CONTROLLER INIT
     /// =========================
-    final controller = Get.find<HrNeedsReviewDetailController>();
+    final controller = Get.put(HrNeedsReviewDetailController(interview: interview));
 
     return Scaffold(
       backgroundColor: AppColors.background,

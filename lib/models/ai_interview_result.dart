@@ -106,8 +106,8 @@ class AiInterviewResult {
 
   factory AiInterviewResult.fromJson(Map<String, dynamic> json) {
     final qResults = (json['questionResults'] as List? ?? [])
-        .map((e) {
-          final m = e as Map<String, dynamic>;
+        .map<AiInterviewQuestionResult>((e) {
+          final m = Map<String, dynamic>.from(e as Map);
           return AiInterviewQuestionResult.fromJson(
             m,
             m['questionId'] ?? '',
@@ -121,8 +121,9 @@ class AiInterviewResult {
       correctCount: (json['correctCount'] as num?)?.toInt() ?? 0,
       wrongCount: (json['wrongCount'] as num?)?.toInt() ?? 0,
       unansweredCount: (json['unansweredCount'] as num?)?.toInt() ?? 0,
-      topicPercentage:
-          Map<String, int>.from(json['topicPercentage'] ?? {}),
+      topicPercentage: (json['topicPercentage'] as Map?)?.map(
+            (k, v) => MapEntry(k.toString(), (v as num).toInt()),
+          ) ?? const {},
       finalDecision: json['finalDecision'] ?? 'borderline',
       overallInterviewScore:
           (json['overallInterviewScore'] as num?)?.toDouble() ?? 0.0,
@@ -154,7 +155,7 @@ class AiInterviewResult {
   // ── Helpers ──
 
   static List<String> _toStringList(dynamic val) {
-    if (val is List) return val.map((e) => e.toString()).toList();
+    if (val is List) return val.map<String>((e) => e.toString()).toList();
     return const [];
   }
 }

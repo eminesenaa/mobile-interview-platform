@@ -83,7 +83,7 @@ class _ResultLoadingPageState extends State<ResultLoadingPage> {
 
             // Title
             Text(
-              c.exam.title == "Interview"
+              c.exam.isInterview
                   ? 'Submitting your interview.'
                   : 'Analyzing your answers.',
               textAlign: TextAlign.center,
@@ -97,7 +97,7 @@ class _ResultLoadingPageState extends State<ResultLoadingPage> {
 
             // Subtitle
             Text(
-              c.exam.title == "Interview"
+              c.exam.isInterview
                   ? 'Your answers are being sent to HR.\nPlease wait a moment.'
                   : 'This may take a few seconds.\nPlease keep the app open.',
               textAlign: TextAlign.center,
@@ -137,7 +137,7 @@ class _ResultLoadingPageState extends State<ResultLoadingPage> {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              c.exam.title == "Interview"
+              c.exam.isInterview
                   ? 'We couldn’t submit your interview.'
                   : 'We couldn’t finish evaluating your exam.',
               textAlign: TextAlign.center,

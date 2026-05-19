@@ -107,14 +107,16 @@ class IrDetailHeader extends StatelessWidget {
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
             children: [
-              _chip(
-                PhosphorIcons.calendar(),
-                date,
-              ),
-              _chip(
-                PhosphorIcons.clock(),
-                timeRange,
-              ),
+              if (date.isNotEmpty)
+                _chip(
+                  PhosphorIcons.calendar(),
+                  date,
+                ),
+              if (timeRange.isNotEmpty)
+                _chip(
+                  PhosphorIcons.clock(),
+                  timeRange,
+                ),
             ],
           ),
         ],

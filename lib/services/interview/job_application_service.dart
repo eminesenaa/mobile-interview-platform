@@ -25,7 +25,6 @@ class JobApplicationService {
     });
   }
 
-  @override
   Future<void> submitApplication(JobApplication application) async {
     try {
       // 1. Check for existing application

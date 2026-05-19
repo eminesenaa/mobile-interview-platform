@@ -15,6 +15,8 @@
 // This is similar to ExamStateModel BUT isolated for interview system.
 // ================================================================================
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class InterviewSession {
   final String id;
 
@@ -67,10 +69,14 @@ class InterviewSession {
       isStarted: json['isStarted'] ?? false,
       isFinished: json['isFinished'] ?? false,
       startedAt: json['startedAt'] != null
-          ? DateTime.tryParse(json['startedAt'])
+          ? (json['startedAt'] is Timestamp
+              ? (json['startedAt'] as Timestamp).toDate()
+              : DateTime.tryParse(json['startedAt'].toString()))
           : null,
       lastUpdatedAt: json['lastUpdatedAt'] != null
-          ? DateTime.tryParse(json['lastUpdatedAt'])
+          ? (json['lastUpdatedAt'] is Timestamp
+              ? (json['lastUpdatedAt'] as Timestamp).toDate()
+              : DateTime.tryParse(json['lastUpdatedAt'].toString()))
           : null,
     );
   }

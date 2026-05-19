@@ -74,13 +74,14 @@ class InterviewSessionController extends GetxController {
   Future<void> _loadInterviewData(String code) async {
     final inputCode = code.trim().toUpperCase();
     final inputCodeNoHyphen = inputCode.replaceAll("-", "");
-    
+
     print("InterviewSessionController: Aggressive Search for: $inputCode");
-    
+
     try {
       // Strategy 1: Search by Document ID directly (Fallback)
       try {
-        final docById = await _db.collection('interviews').doc(code.trim()).get();
+        final docById =
+            await _db.collection('interviews').doc(code.trim()).get();
         if (docById.exists) {
           print("InterviewSessionController: Match found by Document ID!");
           _processMatch(docById);
@@ -89,7 +90,8 @@ class InterviewSessionController extends GetxController {
       } catch (_) {}
 
       // Strategy 2: Direct joinCode match
-      var snap = await _db.collection('interviews')
+      var snap = await _db
+          .collection('interviews')
           .where('joinCode', isEqualTo: inputCode)
           .get();
 
@@ -100,21 +102,25 @@ class InterviewSessionController extends GetxController {
 
       // Strategy 3: Hyphen-insensitive search
       final allRecent = await _db.collection('interviews').get();
-      print("InterviewSessionController: Scanning ${allRecent.docs.length} documents...");
-      
+      print(
+          "InterviewSessionController: Scanning ${allRecent.docs.length} documents...");
+
       DocumentSnapshot? match;
       for (var doc in allRecent.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        final dbCode = (data['joinCode']?.toString() ?? "").replaceAll("-", "").toUpperCase();
-        
-        print("Comparing input '$inputCodeNoHyphen' with DB code '$dbCode' (Doc: ${doc.id})");
-        
+        final dbCode = (data['joinCode']?.toString() ?? "")
+            .replaceAll("-", "")
+            .toUpperCase();
+
+        print(
+            "Comparing input '$inputCodeNoHyphen' with DB code '$dbCode' (Doc: ${doc.id})");
+
         if (dbCode == inputCodeNoHyphen && inputCodeNoHyphen.isNotEmpty) {
           match = doc;
           break;
         }
       }
-      
+
       if (match != null) {
         _processMatch(match);
       } else {
@@ -131,20 +137,21 @@ class InterviewSessionController extends GetxController {
 
   void _processMatch(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    
+
     DateTime parseDate(dynamic value) {
       if (value is Timestamp) return value.toDate();
       if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
       return DateTime.now();
     }
-    
+
     final start = parseDate(data['startTime']);
     final end = parseDate(data['endTime']);
     final now = DateTime.now();
 
     // 🔥 Set values first so they are visible in UI
     date.value = DateFormat('MMM dd, yyyy').format(start);
-    time.value = "${DateFormat('h:mm').format(start)} – ${DateFormat('h:mm a').format(end)}";
+    time.value =
+        "${DateFormat('h:mm').format(start)} – ${DateFormat('h:mm a').format(end)}";
     sessionCode.value = doc.id;
 
     // 🔥 TIME RESTRICTIONS
@@ -160,10 +167,11 @@ class InterviewSessionController extends GetxController {
     if (now.isBefore(start)) {
       final formattedStart = DateFormat('HH:mm').format(start);
       showSimpleNotification(
-        Text("You've joined early! The interview will start at $formattedStart"),
+        Text(
+            "You've joined early! The interview will start at $formattedStart"),
         background: Colors.blue,
       );
-      
+
       // Calculate delay until start
       final delay = start.difference(now);
       startWaitingFlow(data, customDelay: delay);
@@ -182,13 +190,15 @@ class InterviewSessionController extends GetxController {
   // WAITING FLOW
   // ===============================
 
-  void startWaitingFlow(Map<String, dynamic> interviewData, {Duration? customDelay}) {
-    // If it's time or early, set a timer. 
+  void startWaitingFlow(Map<String, dynamic> interviewData,
+      {Duration? customDelay}) {
+    // If it's time or early, set a timer.
     // If early, wait until start time. If already time, wait 3 seconds for simulation.
     final delay = customDelay ?? const Duration(seconds: 3);
-    
-    print("InterviewSessionController: Starting in ${delay.inSeconds} seconds...");
-    
+
+    print(
+        "InterviewSessionController: Starting in ${delay.inSeconds} seconds...");
+
     _autoStartTimer?.cancel();
     _autoStartTimer = Timer(delay, () {
       startInterview(interviewData);
@@ -202,9 +212,14 @@ class InterviewSessionController extends GetxController {
   Future<void> startInterview(Map<String, dynamic> interviewData) async {
     isWaiting.value = false;
 
-    final List<Question> questions = (interviewData['questions'] as List<dynamic>? ?? [])
-        .map((q) => Question.fromFirestore(q, q['id'] ?? ''))
-        .toList();
+    final List<dynamic> rawQuestions = interviewData['questions'] as List<dynamic>? ?? [];
+    final List<Question> questions = [];
+    for (int i = 0; i < rawQuestions.length; i++) {
+      final q = rawQuestions[i] as Map<String, dynamic>;
+      final rawId = q['id']?.toString() ?? '';
+      final id = rawId.isNotEmpty ? rawId : 'q_$i';
+      questions.add(Question.fromFirestore(q, id));
+    }
 
     final exam = Exam(
       id: sessionCode.value,
@@ -212,6 +227,7 @@ class InterviewSessionController extends GetxController {
       duration: Duration(minutes: questions.length),
       createdAt: DateTime.now(),
       questions: questions,
+      isInterview: true,
     );
 
     Get.offAll(

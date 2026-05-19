@@ -142,7 +142,7 @@ class AiInterviewQuestionResult {
   // ── Helpers ──
 
   static List<String> _toStringList(dynamic val) {
-    if (val is List) return val.map((e) => e.toString()).toList();
+    if (val is List) return val.map<String>((e) => e.toString()).toList();
     return const [];
   }
 }

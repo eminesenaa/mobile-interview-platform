@@ -97,9 +97,17 @@ class Interview {
       createdByHrId: json['createdByHrId'] ?? '',
       title: json['title'] ?? '',
       position: json['position'] ?? '',
-      questions: (json['questions'] as List<dynamic>? ?? [])
-          .map((q) => Question.fromFirestore(q, q['id'] ?? ''))
-          .toList(),
+      questions: () {
+        final rawQs = json['questions'] as List<dynamic>? ?? [];
+        final List<Question> list = [];
+        for (int i = 0; i < rawQs.length; i++) {
+          final q = rawQs[i] as Map<String, dynamic>;
+          final rawId = q['id']?.toString() ?? '';
+          final id = rawId.isNotEmpty ? rawId : 'q_$i';
+          list.add(Question.fromFirestore(q, id));
+        }
+        return list;
+      }(),
       candidateIds: List<String>.from(json['candidateIds'] ?? []),
       startTime: parseDateTime(json['startTime']),
       endTime: parseDateTime(json['endTime']),

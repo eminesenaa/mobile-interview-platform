@@ -89,20 +89,54 @@ class InterviewResultsController extends GetxController {
         data['id'] = doc.id;
 
         // Try to fetch related job posting info if missing
-        if (data['title'] == null) {
-          final applicationSnap = await FirebaseFirestore.instance
-              .collection('applications')
-              .where('candidateId', isEqualTo: user.uid)
-              .where('jobPostingId', isEqualTo: data['jobPostingId'])
-              .limit(1)
-              .get();
+        if (data['company'] == null || data['company'] == "Company" || data['startTime'] == null) {
+          final String? interviewId = data['interviewId'];
+          if (interviewId != null && interviewId.isNotEmpty) {
+            final interviewSnap = await FirebaseFirestore.instance
+                .collection('interviews')
+                .doc(interviewId)
+                .get();
 
-          if (applicationSnap.docs.isNotEmpty) {
-            final appData = applicationSnap.docs.first.data();
-            data['title'] = appData['jobTitle'] ?? "Unknown Position";
-            data['company'] = appData['company'] ?? "Company";
-            data['location'] = appData['location'] ?? "";
-            data['startTime'] = appData['appliedAt'];
+            if (interviewSnap.exists) {
+              final iData = interviewSnap.data();
+              data['startTime'] = iData?['startTime'];
+              data['endTime'] = iData?['endTime'];
+              
+              final String? jobPostingId = iData?['jobPostingId'] ?? data['jobPostingId'];
+              if (jobPostingId != null && jobPostingId.isNotEmpty) {
+                final postingSnap = await FirebaseFirestore.instance
+                    .collection('job_postings')
+                    .doc(jobPostingId)
+                    .get();
+
+                if (postingSnap.exists) {
+                  final pData = postingSnap.data();
+                  data['company'] = pData?['company'] ?? data['company'] ?? "Company";
+                  data['location'] = pData?['location'] ?? data['location'] ?? "";
+                  data['title'] = pData?['title'] ?? data['title'] ?? "Interview";
+                }
+              }
+            }
+          }
+
+          // Fallback to applications if still missing
+          if (data['company'] == null) {
+            final applicationSnap = await FirebaseFirestore.instance
+                .collection('applications')
+                .where('candidateId', isEqualTo: user.uid)
+                .where('jobPostingId', isEqualTo: data['jobPostingId'])
+                .limit(1)
+                .get();
+
+            if (applicationSnap.docs.isNotEmpty) {
+              final appData = applicationSnap.docs.first.data();
+              data['title'] = appData['jobTitle'] ?? data['title'] ?? "Unknown Position";
+              data['company'] = appData['company'] ?? "Company";
+              data['location'] = appData['location'] ?? "";
+              if (data['startTime'] == null) {
+                data['startTime'] = appData['appliedAt'];
+              }
+            }
           }
         }
 
@@ -110,18 +144,11 @@ class InterviewResultsController extends GetxController {
         // or just keep it as a map if the UI expects specific fields.
         // For now, let's keep the structure the UI expects.
         if (data['result'] == null) {
-          data['result'] = InterviewResult(
-            id: doc.id,
-            interviewId: data['interviewId'] ?? "",
-            candidateId: user.uid,
-            score: (data['score'] ?? 0).toInt(),
-            correctCount: (data['correctCount'] ?? 0).toInt(),
-            wrongCount: (data['wrongCount'] ?? 0).toInt(),
-            decision: _parseDecision(data['decision']),
-            hrMessage: data['hrMessage'],
-            isSubmitted: true,
-            isReviewed: data['isReviewed'] ?? true,
-          );
+          try {
+            data['result'] = InterviewResult.fromJson(data);
+          } catch (e) {
+            print("Error parsing interview result in results controller: $e");
+          }
         }
 
         updatedResults.add(data);
@@ -158,7 +185,7 @@ class InterviewResultsController extends GetxController {
 
   /// Converts enum → string for UI usage
   String getStatus(Map<String, dynamic> item) {
-    final InterviewResult result = item["result"];
+    final InterviewResult result = item["result"] ?? InterviewResult.fromJson(item);
 
     switch (result.decision) {
       case InterviewDecisionStatus.accepted:
@@ -213,11 +240,20 @@ class InterviewResultsController extends GetxController {
   // FORMAT HELPERS
   // ===============================
 
+  DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+    return null;
+  }
+
   /// Formats time range from ISO strings
-  String formatTimeRange(String start, String end) {
+  String formatTimeRange(dynamic start, dynamic end) {
     try {
-      final startDt = DateTime.parse(start);
-      final endDt = DateTime.parse(end);
+      final startDt = _parseDateTime(start);
+      final endDt = _parseDateTime(end);
+      if (startDt == null || endDt == null) return "";
 
       String format(DateTime dt) {
         final hour = dt.hour > 12 ? dt.hour - 12 : dt.hour;
@@ -234,9 +270,10 @@ class InterviewResultsController extends GetxController {
   }
 
   /// Formats date from ISO string
-  String formatDate(String start) {
+  String formatDate(dynamic start) {
     try {
-      final dt = DateTime.parse(start);
+      final dt = _parseDateTime(start);
+      if (dt == null) return "";
       return "${_month(dt.month)} ${dt.day}, ${dt.year}";
     } catch (e) {
       return "";
@@ -302,7 +339,7 @@ class InterviewResultsController extends GetxController {
   /// - Fetch real interview exam by interviewId
   /// - Include questions, answers, aiFeedback, stats
   Future<Exam> buildInterviewReviewExam(Map<String, dynamic> item) async {
-    final InterviewResult result = item["result"];
+    final InterviewResult result = item["result"] ?? InterviewResult.fromJson(item);
 
     // =======================================================
     // 🔥 MOCK QUESTIONS (TEMPORARY)

@@ -14,7 +14,9 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:get/get.dart';
 
 import '../../../../../constants/constants.dart';
+import '../../../../main_view.dart';
 import '../../../pages/interview_dashboard_page.dart';
+import '../../../pages/results/interview_results_page.dart';
 
 class IsSubmitButton extends StatelessWidget {
   const IsSubmitButton({super.key});
@@ -25,7 +27,10 @@ class IsSubmitButton extends StatelessWidget {
       width: double.infinity,
       child: ElevatedButton(
         onPressed: () {
-          Get.offAll(() => const InterviewDashboardPage());
+          Get.offAll(() => const MainView(initialIndex: 4));
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Get.to(() => const InterviewDashboardPage());
+          });
         },
 
         style: ElevatedButton.styleFrom(

@@ -12,6 +12,7 @@
 // This model connects Interview ↔ Candidate ↔ hr
 // ================================================================================
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'user.dart';
 import 'ai_interview_result.dart';
 
@@ -80,36 +81,43 @@ class InterviewResult {
   // -------------------- JSON --------------------
 
   factory InterviewResult.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDateTime(dynamic value) {
+      if (value == null) return null;
+      if (value is Timestamp) return value.toDate();
+      if (value is String) return DateTime.tryParse(value);
+      return null;
+    }
+
     return InterviewResult(
       id: json['id'] ?? '',
       interviewId: json['interviewId'] ?? '',
       candidateId: json['candidateId'] ?? '',
       candidate: json['candidate'] != null
-          ? User.fromJson(json['candidate'])
+          ? (json['candidate'] is User
+              ? json['candidate'] as User
+              : User.fromJson(Map<String, dynamic>.from(json['candidate'])))
           : null,
       answers: json['answers'] != null
           ? Map<String, dynamic>.from(json['answers'])
           : {},
       aiResult: json['aiResult'] != null
-          ? AiInterviewResult.fromJson(json['aiResult'])
+          ? (json['aiResult'] is AiInterviewResult
+              ? json['aiResult'] as AiInterviewResult
+              : AiInterviewResult.fromJson(Map<String, dynamic>.from(json['aiResult'])))
           : null,
-      score: json['score'] ?? 0,
-      correctCount: json['correctCount'] ?? 0,
-      wrongCount: json['wrongCount'] ?? 0,
-      unansweredCount: json['unansweredCount'] ?? 0,
+      score: (json['score'] ?? json['totalScore'] ?? 0).toInt(),
+      correctCount: (json['correctCount'] ?? json['correct'] ?? 0).toInt(),
+      wrongCount: (json['wrongCount'] ?? json['wrong'] ?? 0).toInt(),
+      unansweredCount: (json['unansweredCount'] ?? json['unanswered'] ?? 0).toInt(),
       decision: InterviewDecisionStatus.values.firstWhere(
             (e) => e.name == json['decision'],
         orElse: () => InterviewDecisionStatus.pending,
       ),
-      hrMessage: json['hrMessage'],
+      hrMessage: json['hrMessage'] ?? json['hrComment'],
       isSubmitted: json['isSubmitted'] ?? false,
       isReviewed: json['isReviewed'] ?? false,
-      submittedAt: json['submittedAt'] != null
-          ? DateTime.tryParse(json['submittedAt'])
-          : null,
-      reviewedAt: json['reviewedAt'] != null
-          ? DateTime.tryParse(json['reviewedAt'])
-          : null,
+      submittedAt: parseDateTime(json['submittedAt']),
+      reviewedAt: parseDateTime(json['reviewedAt']),
     );
   }
 
