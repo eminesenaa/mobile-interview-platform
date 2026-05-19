@@ -171,6 +171,27 @@ class SignUpPage extends StatelessWidget {
                                       ),
                                       const SizedBox(height: AppSpacing.md),
 
+                                      // =========================
+                                      // COMPANY NAME (ONLY HR)
+                                      // =========================
+                                      Obx(
+                                        () => controller.isHrSignup.value
+                                            ? Column(
+                                                children: [
+                                                  AuthTextField(
+                                                    controller: controller
+                                                        .companyNameCtrl,
+                                                    hint: "Company name",
+                                                    icon:
+                                                        PhosphorIcons.buildings(),
+                                                  ),
+                                                  const SizedBox(
+                                                      height: AppSpacing.md),
+                                                ],
+                                              )
+                                            : const SizedBox.shrink(),
+                                      ),
+
                                       AuthTextField(
                                         controller: controller.usernameCtrl,
                                         hint: "Username",

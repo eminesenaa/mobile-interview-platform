@@ -89,7 +89,7 @@ class UDCandidatesEditPage extends StatelessWidget {
                         borderRadius: BorderRadius.circular(AppRadius.lg),
                       ),
                     ),
-                    onPressed: () => Get.back(),
+                    onPressed: () => Navigator.of(context).pop(),
                     child: const Text("Save Changes"),
                   ),
                 ],
@@ -227,7 +227,7 @@ class _AddCandidateDialogState extends State<_AddCandidateDialog> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 TextButton(
-                  onPressed: () => Get.back(),
+                  onPressed: () => Navigator.of(context).pop(),
                   child: const Text("Cancel"),
                 ),
                 const SizedBox(width: AppSpacing.sm),

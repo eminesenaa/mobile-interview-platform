@@ -4,6 +4,7 @@
 // ==============================================================================
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import '../../../models/interview.dart';
 
@@ -45,7 +46,12 @@ class HRInterviewsController extends GetxController {
   // REAL-TIME INTERVIEWS
   // ===============================
   void _listenToInterviews() {
-    _db.collection('interviews').snapshots().listen((snap) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    _db.collection('interviews')
+       .where('createdByHrId', isEqualTo: user.uid)
+       .snapshots().listen((snap) {
       interviews.value = snap.docs.map((doc) {
         return Interview.fromJson({...doc.data(), 'id': doc.id});
       }).toList();
@@ -68,22 +74,23 @@ class HRInterviewsController extends GetxController {
       final status = interview.status;
       final reviewStatus = interview.reviewStatus;
       final startTime = interview.startTime;
+      final endTime = interview.endTime;
       final interviewDate = DateTime(startTime.year, startTime.month, startTime.day);
 
-      // TODAY (upcoming + ongoing)
-      if (interviewDate.isAtSameMomentAs(today) && 
-         (status == InterviewStatus.scheduled || status == InterviewStatus.active)) {
-        todayInterviews.add(interview);
-      }
+      final isTimeCompleted = now.isAfter(endTime);
+      final hasCompletedCandidates = interview.completedCandidateIds.isNotEmpty;
+      final isCompleted = status == InterviewStatus.completed || isTimeCompleted || hasCompletedCandidates;
 
-      // NEEDS REVIEW
-      if (status == InterviewStatus.completed && reviewStatus == ReviewStatus.pending) {
-        needsReviewInterviews.add(interview);
-      }
-
-      // REVIEWED
-      if (status == InterviewStatus.completed && reviewStatus == ReviewStatus.reviewed) {
-        reviewedInterviews.add(interview);
+      if (isCompleted) {
+        if (reviewStatus == ReviewStatus.reviewed) {
+          reviewedInterviews.add(interview);
+        } else {
+          needsReviewInterviews.add(interview);
+        }
+      } else {
+        if (interviewDate.isAtSameMomentAs(today)) {
+          todayInterviews.add(interview);
+        }
       }
     }
 

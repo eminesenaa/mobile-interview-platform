@@ -40,7 +40,7 @@ class HRInterviewListPage extends StatelessWidget {
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
+          onPressed: () { if (Navigator.of(context).canPop()) Navigator.of(context).pop(); },
         ),
         title: Text(
           _getTitle(),

@@ -392,9 +392,10 @@ class ExamController extends GetxController {
           final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
           final interviewRef = _db.collection('interviews').doc(exam.id);
           
-          // Add this candidate to completedCandidateIds
+          // Add this candidate to completedCandidateIds AND ensure they are in candidateIds
           await interviewRef.update({
             'completedCandidateIds': FieldValue.arrayUnion([currentUserId]),
+            'candidateIds': FieldValue.arrayUnion([currentUserId]),
           });
           
           // Check if ALL candidates have completed → then mark the whole interview as 'completed'

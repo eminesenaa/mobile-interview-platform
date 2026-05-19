@@ -53,7 +53,6 @@ class HrResultsController extends GetxController {
           _resetStats();
           return;
         }
-
         int totalScore = 0;
         int maxS = 0;
         int minS = 100;
@@ -71,9 +70,15 @@ class HrResultsController extends GetxController {
 
         // For reviewedInterviews list aggregation
         Map<String, Map<String, dynamic>> agg = {};
+        
+        // Get hr's interview ids
+        final hrInterviewIds = interviewsCtrl.interviews.map((i) => i.id).toSet();
 
         for (var doc in snap.docs) {
           final data = doc.data();
+          final interviewId = data['interviewId']?.toString() ?? '';
+          if (!hrInterviewIds.contains(interviewId)) continue; // 🔥 Only HR's own interviews
+
           final decision = data['decision']?.toString() ?? 'pending';
           if (decision == 'pending') continue; // only count completed/reviewed
 
@@ -94,7 +99,6 @@ class HrResultsController extends GetxController {
           else dist["Below 60"] = dist["Below 60"]! + 1;
 
           // Aggregation by interview
-          final interviewId = data['interviewId']?.toString() ?? '';
           if (interviewId.isNotEmpty) {
              if (!agg.containsKey(interviewId)) {
                 agg[interviewId] = {

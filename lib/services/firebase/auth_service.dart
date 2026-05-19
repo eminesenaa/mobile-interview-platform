@@ -92,6 +92,47 @@ class AuthService {
     }
   }
 
+  /// 🔹 HR Kaydı (sign up)
+  Future<User?> signUpAsHR({
+    required String email,
+    required String password,
+    required String name,
+    required String surname,
+    required String username,
+    required String companyName,
+  }) async {
+    try {
+      final credential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final user = credential.user;
+
+      if (user != null) {
+        // ✅ hr_users koleksiyonuna kaydet
+        await _db.collection("hr_users").doc(user.uid).set({
+          "id": user.uid,
+          "email": email,
+          "name": name,
+          "surname": surname,
+          "companyName": companyName,
+          "username": username,
+          "role": "hr",
+          "createdAt": FieldValue.serverTimestamp(),
+        });
+      }
+
+      return user;
+    } on FirebaseAuthException catch (e) {
+      print("❌ HR SignUp error: ${e.code} - ${e.message}");
+      rethrow;
+    } catch (e) {
+      print("❌ Unexpected error: $e");
+      return null;
+    }
+  }
+
   /// 🔹 Kullanıcı girişi (sign in)
   Future<User?> signIn(String email, String password) async {
     try {

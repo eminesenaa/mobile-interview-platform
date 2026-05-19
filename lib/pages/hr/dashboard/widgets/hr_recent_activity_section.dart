@@ -22,6 +22,7 @@ import '../../controllers/hr_dashboard_controller.dart';
 import '../../interviews/needs_review/hr_needs_review_detail_page.dart';
 import '../../interviews/ongoing/hr_ongoing_interview_detail_page.dart';
 import '../../interviews/upcoming/hr_upcoming_interview_detail_page.dart';
+import '../../interviews/reviewed/hr_reviewed_detail_page.dart';
 
 class HRRecentActivitySection extends StatelessWidget {
   const HRRecentActivitySection({super.key});
@@ -106,12 +107,19 @@ class HRRecentActivitySection extends StatelessWidget {
     final data = Map<String, dynamic>.from(activity["data"]);
     data["id"] = activity["id"]; // Ensure ID is present
 
-    final status = data["status"] ?? "scheduled";
+    final type = activity["type"] ?? "upcoming";
 
-    if (status == "active" || status == "ongoing") {
-      Get.to(() => HROngoingInterviewDetailPage(interview: data));
-    } else if (status == "completed") {
+    if (type == "reviewed") {
+      Get.to(() => HrReviewedDetailPage(
+            interview: {
+              ...data,
+              "candidates": data["candidates"] ?? [],
+            },
+          ));
+    } else if (type == "pending") {
       Get.to(() => HrNeedsReviewDetailPage(interview: data));
+    } else if (type == "ongoing") {
+      Get.to(() => HROngoingInterviewDetailPage(interview: data));
     } else {
       Get.to(() => HRUpcomingInterviewDetailPage(interview: data));
     }

@@ -48,6 +48,9 @@ class Interview {
   /// Assigned candidates
   final List<String> candidateIds;
 
+  /// Completed candidates
+  final List<String> completedCandidateIds;
+
   /// Scheduling
   final DateTime startTime;
   final DateTime endTime;
@@ -73,6 +76,7 @@ class Interview {
     required this.position,
     required this.questions,
     required this.candidateIds,
+    this.completedCandidateIds = const [],
     required this.startTime,
     required this.endTime,
     required this.joinCode,
@@ -109,6 +113,7 @@ class Interview {
         return list;
       }(),
       candidateIds: List<String>.from(json['candidateIds'] ?? []),
+      completedCandidateIds: List<String>.from(json['completedCandidateIds'] ?? []),
       startTime: parseDateTime(json['startTime']),
       endTime: parseDateTime(json['endTime']),
       joinCode: json['joinCode'] ?? '',
@@ -134,6 +139,7 @@ class Interview {
       'position': position,
       'questions': questions.map((q) => q.toJson()).toList(),
       'candidateIds': candidateIds,
+      'completedCandidateIds': completedCandidateIds,
       'startTime': startTime.toIso8601String(),
       'endTime': endTime.toIso8601String(),
       'joinCode': joinCode,
@@ -154,6 +160,7 @@ class Interview {
     String? position,
     List<Question>? questions,
     List<String>? candidateIds,
+    List<String>? completedCandidateIds,
     DateTime? startTime,
     DateTime? endTime,
     String? joinCode,
@@ -170,6 +177,7 @@ class Interview {
       position: position ?? this.position,
       questions: questions ?? this.questions,
       candidateIds: candidateIds ?? this.candidateIds,
+      completedCandidateIds: completedCandidateIds ?? this.completedCandidateIds,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
       joinCode: joinCode ?? this.joinCode,

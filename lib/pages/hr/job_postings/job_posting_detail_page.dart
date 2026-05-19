@@ -151,7 +151,7 @@ class JobPostingDetailPage extends StatelessWidget {
                   onClose: () async {
                     final success = await c.closePosting(p["id"]);
                     if (success) {
-                      Navigator.of(context).pop();
+                      if (Navigator.of(context).canPop()) Navigator.of(context).pop();
                     }
                   },
                 )
@@ -160,7 +160,7 @@ class JobPostingDetailPage extends StatelessWidget {
                   onFinalize: () async {
                     final success = await c.finalizePosting(p["id"]);
                     if (success) {
-                      Navigator.of(context).pop();
+                      if (Navigator.of(context).canPop()) Navigator.of(context).pop();
                     }
                   },
                 )

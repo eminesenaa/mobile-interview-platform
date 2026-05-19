@@ -57,8 +57,14 @@ class HrJobPostingsController extends GetxController {
   // REAL-TIME POSTINGS
   // ===============================
   void _listenToPostings() {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    
     isLoading.value = true;
-    _db.collection('job_postings').snapshots().listen((snap) {
+    _db.collection('job_postings')
+       .where('createdByHrId', isEqualTo: user.uid)
+       .snapshots()
+       .listen((snap) {
       final all = snap.docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
@@ -79,6 +85,8 @@ class HrJobPostingsController extends GetxController {
 
       // 🔥 BACKGROUND SYNC: Fix "Anonymous" names automatically
       _autoFixAnonymousNames(all);
+      // 🔥 BACKGROUND SYNC: Fix "Unknown Company" postings
+      _autoFixUnknownCompany(all);
     });
   }
 
@@ -137,6 +145,55 @@ class HrJobPostingsController extends GetxController {
           }
         } catch (e) {
           debugPrint("HR Database Update Error: $e");
+        }
+      }
+    }
+  }
+
+  /// Finds any posting with "Unknown Company" and resolves the real company name from hr_users.
+  void _autoFixUnknownCompany(List<Map<String, dynamic>> postings) async {
+    for (var p in postings) {
+      if (p['company'] == 'Unknown Company' || p['company'] == null || (p['company'] as String? ?? '').isEmpty) {
+        final hrId = p['createdByHrId'];
+        if (hrId == null) continue;
+
+        try {
+          final hrDoc = await _db.collection('hr_users').doc(hrId).get();
+          if (!hrDoc.exists) continue;
+
+          final data = hrDoc.data()!;
+          final name = data['name'] ?? '';
+          final surname = data['surname'] ?? '';
+          final cName = (data['companyName'] ?? '').toString().trim();
+
+          String resolvedCompany;
+          if (cName.isNotEmpty && cName != 'Company') {
+            resolvedCompany = cName;
+          } else if (name.isNotEmpty) {
+            resolvedCompany = '$name $surname'.trim();
+          } else {
+            continue; // Can't resolve, skip
+          }
+
+          debugPrint('HR Sync: Fixing company "${p['company']}" -> "$resolvedCompany" for posting ${p['id']}');
+
+          // Update job_postings
+          await _db.collection('job_postings').doc(p['id']).update({'company': resolvedCompany});
+
+          // Update related application documents
+          final appSnap = await _db
+              .collection('applications')
+              .where('jobPostingId', isEqualTo: p['id'])
+              .get();
+
+          for (var appDoc in appSnap.docs) {
+            if (appDoc.data()['company'] == 'Unknown Company' ||
+                appDoc.data()['company'] == null) {
+              await appDoc.reference.update({'company': resolvedCompany});
+            }
+          }
+        } catch (e) {
+          debugPrint('HR Sync Error (company fix): $e');
         }
       }
     }
@@ -283,6 +340,26 @@ class HrJobPostingsController extends GetxController {
       final user = _auth.currentUser;
       if (user == null) throw "User not logged in";
 
+      // 🔥 Fetch Company Name for Job Posting
+      String companyName = "";
+      final hrDoc = await _db.collection('hr_users').doc(user.uid).get();
+      if (hrDoc.exists) {
+        final data = hrDoc.data()!;
+        final name = (data['name'] ?? '').toString().trim();
+        final surname = (data['surname'] ?? '').toString().trim();
+        final cName = (data['companyName'] ?? '').toString().trim();
+
+        if (cName.isNotEmpty && cName != 'Company') {
+          // Real company name exists
+          companyName = cName;
+        } else if (name.isNotEmpty) {
+          // Fallback: use HR user's full name
+          companyName = '$name $surname'.trim();
+        }
+      }
+
+      if (companyName.isEmpty) companyName = 'Unknown Company';
+
       final newPosting = {
         "title": jobTitle.value,
         "level": jobLevel.value,
@@ -294,6 +371,7 @@ class HrJobPostingsController extends GetxController {
         "status": "active",
         "createdByHrId": user.uid,
         "companyId": user.uid, // HR is company owner for now
+        "company": companyName, // 🔥 Added company name
         "createdAt": FieldValue.serverTimestamp(),
         "applicants": [],
         "applicantCount": 0,

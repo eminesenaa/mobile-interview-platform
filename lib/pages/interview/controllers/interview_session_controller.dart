@@ -20,7 +20,6 @@
 // ==============================================================================
 
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -152,6 +151,18 @@ class InterviewSessionController extends GetxController {
 
   void _processMatch(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+
+    // 🔥 Self-heal: add this candidate's UID to candidateIds
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId != null) {
+      final List<dynamic> candidateIds = data['candidateIds'] as List<dynamic>? ?? [];
+      if (!candidateIds.contains(currentUserId)) {
+        doc.reference.update({
+          'candidateIds': FieldValue.arrayUnion([currentUserId]),
+        });
+        print("Self-healed candidateIds upon joining: $currentUserId");
+      }
+    }
 
     DateTime parseDate(dynamic value) {
       if (value is Timestamp) return value.toDate();
