@@ -135,11 +135,12 @@ class SignupController extends GetxController {
 
     final name = nameCtrl.text.trim();
     final surname = surnameCtrl.text.trim();
+    final username = usernameCtrl.text.trim();
     final email = emailCtrl.text.trim();
     final password = passwordCtrl.text.trim();
     final companyName = companyNameCtrl.text.trim();
 
-    if (name.isEmpty || surname.isEmpty || email.isEmpty || password.isEmpty || companyName.isEmpty) {
+    if (name.isEmpty || surname.isEmpty || username.isEmpty || email.isEmpty || password.isEmpty || companyName.isEmpty) {
       Get.snackbar("Error", "Please fill all fields");
       return;
     }
@@ -152,7 +153,6 @@ class SignupController extends GetxController {
     isLoading.value = true;
 
     try {
-      final username = usernameCtrl.text.trim();
       final user = await _authService.signUpAsHR(
         email: email,
         password: password,

@@ -95,11 +95,27 @@ class LoginController extends GetxController {
       if (input.contains("@")) {
         email = input;
       } else {
-        final snapshot = await FirebaseFirestore.instance
+        var snapshot = await FirebaseFirestore.instance
             .collection("users")
             .where("username", isEqualTo: input)
             .limit(1)
             .get();
+
+        if (snapshot.docs.isEmpty) {
+          snapshot = await FirebaseFirestore.instance
+              .collection("users")
+              .where("username", isEqualTo: input.toLowerCase())
+              .limit(1)
+              .get();
+        }
+
+        if (snapshot.docs.isEmpty) {
+          snapshot = await FirebaseFirestore.instance
+              .collection("users")
+              .where("username", isEqualTo: input.toUpperCase())
+              .limit(1)
+              .get();
+        }
 
         if (snapshot.docs.isEmpty) {
           throw Exception("Username not found");
@@ -186,11 +202,27 @@ class LoginController extends GetxController {
 
       // Username check if input is not email
       if (!input.contains("@")) {
-        final snapshot = await FirebaseFirestore.instance
+        var snapshot = await FirebaseFirestore.instance
             .collection("hr_users")
             .where("username", isEqualTo: input)
             .limit(1)
             .get();
+
+        if (snapshot.docs.isEmpty) {
+          snapshot = await FirebaseFirestore.instance
+              .collection("hr_users")
+              .where("username", isEqualTo: input.toLowerCase())
+              .limit(1)
+              .get();
+        }
+
+        if (snapshot.docs.isEmpty) {
+          snapshot = await FirebaseFirestore.instance
+              .collection("hr_users")
+              .where("username", isEqualTo: input.toUpperCase())
+              .limit(1)
+              .get();
+        }
 
         if (snapshot.docs.isEmpty) {
           throw Exception("HR account not found");
