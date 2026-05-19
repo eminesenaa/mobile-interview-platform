@@ -96,7 +96,17 @@ class InterviewResult {
           ? (json['candidate'] is User
               ? json['candidate'] as User
               : User.fromJson(Map<String, dynamic>.from(json['candidate'])))
-          : null,
+          : (json['candidateName'] != null
+              ? User.initial(
+                  id: json['candidateId'] ?? '',
+                  name: json['candidateName'].split(' ').first,
+                  surname: json['candidateName'].split(' ').length > 1
+                      ? json['candidateName'].split(' ').sublist(1).join(' ')
+                      : '',
+                  username: '',
+                  email: '',
+                )
+              : null),
       answers: json['answers'] != null
           ? Map<String, dynamic>.from(json['answers'])
           : {},
