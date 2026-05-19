@@ -1,14 +1,22 @@
 import 'package:flutter/material.dart';
-import '/../../../../constants/constants.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
+
+import 'package:interview_project/constants/constants.dart';
 import 'nd_score_badge.dart';
 
 /// ===============================================================
-/// ND CANDIDATE CARD (FINAL VERSION)
+/// ND CANDIDATE CARD
 /// ---------------------------------------------------------------
-/// - Rank plain text
-/// - Progress bar yok
-/// - Clean layout
-/// - Topic chips destekli
+/// FEATURES:
+/// - Fully clickable card
+/// - Compact modern layout
+/// - Premium minimal avatar
+/// - Crown for top ranked candidate
+/// - Score badge + chevron navigation
+/// - Optional topic chips
+///
+/// DESIGN GOAL:
+/// Apple / Airbnb style clean recruiter dashboard UI
 /// ===============================================================
 class NdCandidateCard extends StatelessWidget {
   final int rank;
@@ -32,133 +40,149 @@ class NdCandidateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: decision == "accepted"
-              ? AppColors.success.withOpacity(0.5)
-              : decision == "rejected"
-                  ? AppColors.error.withOpacity(0.5)
-                  : AppColors.border,
-          width: (decision != null && decision != "pending") ? 1.5 : 1.0,
+    return GestureDetector(
+      onTap: onReview,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: 12,
         ),
-        boxShadow: AppShadows.low,
-      ),
-
-      /// 🔥 Column yaptık (chips için)
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          /// =========================
-          /// MAIN ROW
-          /// =========================
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              /// LEFT SIDE
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    /// Rank
-                    Text(
-                      "$rank",
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textMuted,
-                        fontWeight: FontWeight.w600,
-                       ),
-                    ),
-
-                    const SizedBox(width: AppSpacing.sm),
-
-                    /// Avatar
-                    _Avatar(initials: initials),
-
-                    const SizedBox(width: AppSpacing.sm),
-
-                    /// Name
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            name,
-                            style: AppTextStyles.title,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (decision != null)
-                            Text(
-                              decision == "accepted"
-                                  ? "Accepted"
-                                  : (decision == "rejected" ? "Rejected" : "Pending"),
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: decision == "accepted"
-                                    ? AppColors.success
-                                    : (decision == "rejected"
-                                        ? AppColors.error
-                                        : AppColors.textMuted),
-                                fontWeight: FontWeight.w600,
-                                fontSize: 11,
-                              ),
-                            ),
-                        ],
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(
+            color: decision == "accepted"
+                ? AppColors.success.withOpacity(0.5)
+                : decision == "rejected"
+                    ? AppColors.error.withOpacity(0.5)
+                    : AppColors.border,
+            width: (decision != null && decision != "pending") ? 1.5 : 1.0,
+          ),
+          boxShadow: AppShadows.low,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            /// ===================================================
+            /// MAIN CONTENT ROW
+            /// ===================================================
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                /// =================================================
+                /// LEFT SIDE
+                /// =================================================
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      /// Rank number
+                      Text(
+                        "$rank",
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textMuted,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                  ],
+
+                      const SizedBox(width: AppSpacing.sm),
+
+                      /// Avatar
+                      _Avatar(
+                        initials: initials,
+                        rank: rank,
+                      ),
+
+                      const SizedBox(width: AppSpacing.sm),
+
+                      /// Candidate name & decision label
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              name,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.title,
+                            ),
+                            if (decision != null && decision != "pending")
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  decision == "accepted" ? "Accepted" : "Rejected",
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: decision == "accepted"
+                                        ? AppColors.success
+                                        : AppColors.error,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
 
-              const SizedBox(width: AppSpacing.sm),
+                const SizedBox(width: AppSpacing.sm),
 
-              /// RIGHT SIDE
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  NdScoreBadge(score: score),
-                  const SizedBox(height: AppSpacing.sm),
-                  TextButton(
-                    onPressed: onReview,
-                    style: TextButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      minimumSize: const Size(0, 0),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: Text(
-                      (decision != null && decision != "pending") ? "View Result" : "Review",
-                      style: AppTextStyles.textButton.copyWith(
+                /// =================================================
+                /// RIGHT SIDE
+                /// =================================================
+                Row(
+                  children: [
+                    /// Score badge
+                    NdScoreBadge(score: score),
+
+                    const SizedBox(width: AppSpacing.sm),
+
+                    /// Action Text or Navigation chevron
+                    Text(
+                      (decision != null && decision != "pending") ? "View" : "Review",
+                      style: AppTextStyles.bodySmall.copyWith(
                         color: decision == "accepted"
                             ? AppColors.success
                             : decision == "rejected"
                                 ? AppColors.error
                                 : AppColors.primary,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.chevron_right,
+                      color: decision == "accepted"
+                          ? AppColors.success
+                          : decision == "rejected"
+                              ? AppColors.error
+                              : AppColors.textMuted,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            /// ===================================================
+            /// TOPIC CHIPS
+            /// ===================================================
+            if (topics != null && topics!.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                children: topics!.entries.map((e) {
+                  return _TopicChip(
+                    label: "${e.key} ${e.value}%",
+                  );
+                }).toList(),
               ),
             ],
-          ),
-
-          /// =========================
-          /// TOPIC CHIPS 🔥
-          /// =========================
-          if (topics != null && topics!.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Wrap(
-              spacing: AppSpacing.xs,
-              runSpacing: AppSpacing.xs,
-              children: topics!.entries.map((e) {
-                return _TopicChip(
-                  label: "${e.key} ${e.value}%",
-                );
-              }).toList(),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -166,34 +190,85 @@ class NdCandidateCard extends StatelessWidget {
 
 /// ===============================================================
 /// AVATAR
+/// ---------------------------------------------------------------
+/// - Soft premium background
+/// - Crown for #1 candidate
+/// - Minimal recruiter dashboard aesthetic
 /// ===============================================================
 class _Avatar extends StatelessWidget {
   final String initials;
+  final int rank;
 
-  const _Avatar({required this.initials});
+  const _Avatar({
+    required this.initials,
+    required this.rank,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return CircleAvatar(
-      radius: 18,
-      backgroundColor: AppColors.primary,
-      child: Text(
-        initials,
-        style: AppTextStyles.bodyStrong.copyWith(
-          color: Colors.white,
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        /// =======================================================
+        /// MAIN AVATAR
+        /// =======================================================
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.primarySoftBackground,
+            border: Border.all(
+              color: Colors.white,
+              width: 2,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              initials,
+              style: AppTextStyles.bodyStrong.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
         ),
-      ),
+
+        /// =======================================================
+        /// TOP CANDIDATE CROWN
+        /// =======================================================
+        if (rank == 1)
+          Positioned(
+            top: -10,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Icon(
+                PhosphorIcons.crownSimple(
+                  PhosphorIconsStyle.fill,
+                ),
+                size: 14,
+                color: AppColors.honeyBronze,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
 
 /// ===============================================================
 /// TOPIC CHIP
+/// ---------------------------------------------------------------
+/// Optional analytics/topic performance chips
 /// ===============================================================
 class _TopicChip extends StatelessWidget {
   final String label;
 
-  const _TopicChip({required this.label});
+  const _TopicChip({
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -203,8 +278,10 @@ class _TopicChip extends StatelessWidget {
         vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: AppColors.surfaceMuted, // 🔥 soft gri
-        borderRadius: BorderRadius.circular(AppRadius.md), // karemsi
+        color: AppColors.surfaceMuted,
+        borderRadius: BorderRadius.circular(
+          AppRadius.md,
+        ),
       ),
       child: Text(
         label,

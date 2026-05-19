@@ -14,7 +14,7 @@ class UDCandidatesPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final previewList =
-    candidates.length > 3 ? candidates.take(3).toList() : candidates;
+        candidates.length > 3 ? candidates.take(3).toList() : candidates;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -28,6 +28,7 @@ class UDCandidatesPreview extends StatelessWidget {
               style: AppTextStyles.label.copyWith(
                 color: AppColors.textMuted,
                 letterSpacing: 1,
+                fontSize: 12,
               ),
             ),
             GestureDetector(
@@ -73,9 +74,27 @@ class _CandidateTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            backgroundColor: AppColors.primary,
-            child: Text(name[0]),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.primarySoftBackground,
+              border: Border.all(
+                color: Colors.white,
+                width: 2,
+              ),
+            ),
+            child: Center(
+              child: Text(
+                name.split(" ").map((e) => e[0]).take(2).join(),
+                style: AppTextStyles.bodyStrong.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ),
           ),
           const SizedBox(width: AppSpacing.md),
           Column(

@@ -36,6 +36,7 @@ class UDInterviewDetailsCard extends StatelessWidget {
           style: AppTextStyles.label.copyWith(
             color: AppColors.textMuted,
             letterSpacing: 1,
+            fontSize: 12,
           ),
         ),
 
