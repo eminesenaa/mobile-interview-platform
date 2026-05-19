@@ -8,6 +8,7 @@
 //
 // ===============================================================================
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'user.dart';
 
 enum ApplicationStatus {
@@ -43,6 +44,15 @@ class JobApplication {
   /// 🔥 Embedded user (UI için hızlı erişim)
   final User? candidate;
 
+  /// 🔥 NEW: Convenience fields for dashboard
+  final String? candidateName;
+  final String? jobTitle;
+  final String? location;
+  final String? workType;
+  final String? company;
+  final String? university;
+  final String? department;
+
   /// 🔹 Status
   final ApplicationStatus status;
 
@@ -61,6 +71,13 @@ class JobApplication {
     required this.jobPostingId,
     required this.candidateId,
     this.candidate,
+    this.candidateName,
+    this.jobTitle,
+    this.location,
+    this.workType,
+    this.company,
+    this.university,
+    this.department,
     this.status = ApplicationStatus.pending,
     required this.appliedAt,
     this.reviewedAt,
@@ -81,13 +98,26 @@ class JobApplication {
       candidateId: json['candidateId'] ?? '',
       candidate:
           json['candidate'] != null ? User.fromJson(json['candidate']) : null,
+      candidateName: json['candidateName'],
+      jobTitle: json['jobTitle'],
+      location: json['location'],
+      workType: json['workType'],
+      company: json['company'],
+      university: json['university'],
+      department: json['department'],
       status: ApplicationStatus.values.firstWhere(
         (e) => e.name == json['status'],
         orElse: () => ApplicationStatus.pending,
       ),
-      appliedAt: DateTime.tryParse(json['appliedAt'] ?? '') ?? DateTime.now(),
+      appliedAt: json['appliedAt'] != null
+          ? (json['appliedAt'] is Timestamp
+              ? (json['appliedAt'] as Timestamp).toDate()
+              : DateTime.tryParse(json['appliedAt'].toString()) ?? DateTime.now())
+          : DateTime.now(),
       reviewedAt: json['reviewedAt'] != null
-          ? DateTime.tryParse(json['reviewedAt'])
+          ? (json['reviewedAt'] is Timestamp
+              ? (json['reviewedAt'] as Timestamp).toDate()
+              : DateTime.tryParse(json['reviewedAt'].toString()))
           : null,
     );
   }
@@ -104,6 +134,13 @@ class JobApplication {
       'jobPostingId': jobPostingId,
       'candidateId': candidateId,
       if (candidate != null) 'candidate': candidate!.toJson(),
+      if (candidateName != null) 'candidateName': candidateName,
+      if (jobTitle != null) 'jobTitle': jobTitle,
+      if (location != null) 'location': location,
+      if (workType != null) 'workType': workType,
+      if (company != null) 'company': company,
+      if (university != null) 'university': university,
+      if (department != null) 'department': department,
       'status': status.name,
       'appliedAt': appliedAt.toIso8601String(),
       if (reviewedAt != null) 'reviewedAt': reviewedAt!.toIso8601String(),
@@ -123,12 +160,13 @@ class JobApplication {
     String? jobPostingId,
     String? candidateId,
     User? candidate,
-    String? name,
-    String? email,
-    String? phone,
+    String? candidateName,
+    String? jobTitle,
+    String? location,
+    String? workType,
+    String? company,
     String? university,
     String? department,
-    String? grade,
     ApplicationStatus? status,
     DateTime? appliedAt,
     DateTime? reviewedAt,
@@ -144,6 +182,13 @@ class JobApplication {
       jobPostingId: jobPostingId ?? this.jobPostingId,
       candidateId: candidateId ?? this.candidateId,
       candidate: candidate ?? this.candidate,
+      candidateName: candidateName ?? this.candidateName,
+      jobTitle: jobTitle ?? this.jobTitle,
+      location: location ?? this.location,
+      workType: workType ?? this.workType,
+      company: company ?? this.company,
+      university: university ?? this.university,
+      department: department ?? this.department,
       status: status ?? this.status,
       appliedAt: appliedAt ?? this.appliedAt,
       reviewedAt: reviewedAt ?? this.reviewedAt,

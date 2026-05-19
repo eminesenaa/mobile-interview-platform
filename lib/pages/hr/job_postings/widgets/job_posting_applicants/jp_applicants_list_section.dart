@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../controllers/hr_job_postings_controller.dart';
 import 'jp_applicants_section_label.dart';
 import '../job_posting_detail/jp_applicant_card.dart';
@@ -45,26 +46,52 @@ class JPApplicantsListSection extends StatelessWidget {
         /// LIST
         ...applicants.map((a) {
           final controller = Get.find<HrJobPostingsController>();
+          final userId = a["userId"] ?? "";
 
-          final user = controller.getUserByName(a["name"]);
+          return FutureBuilder<DocumentSnapshot>(
+            future: FirebaseFirestore.instance.collection("users").doc(userId).get(),
+            builder: (context, snapshot) {
+              String name = a["name"] ?? "Anonymous";
+              String university = a["university"] ?? "";
+              String department = a["department"] ?? "";
 
-          final subtitle = user != null
-              ? "${user.university ?? ''} · ${user.department ?? ''}"
-              : "";
+              if (snapshot.hasData && snapshot.data!.exists) {
+                final userData = snapshot.data!.data() as Map<String, dynamic>;
+                // Use profile data if current data is placeholder or empty
+                if (name == "Anonymous" || name.isEmpty) {
+                  final fName = userData["name"] ?? "";
+                  final lName = userData["surname"] ?? "";
+                  final combined = "$fName $lName".trim();
+                  name = combined.isNotEmpty ? combined : (userData["displayName"] ?? name);
+                }
+                if (university.isEmpty) {
+                  university = userData["school"] ?? userData["university"] ?? "";
+                }
+                if (department.isEmpty) {
+                  department = userData["department"] ?? "";
+                }
+              }
 
-          return GestureDetector(
-            onTap: () {
-              controller.openCandidateDetail(
-                postingId,
-                a["userId"],
+              final subtitle = (university.isNotEmpty)
+                  ? "$university · $department"
+                  : department;
+
+              return GestureDetector(
+                onTap: () {
+                  controller.openCandidateDetail(
+                    postingId,
+                    userId,
+                  );
+                },
+                child: JPApplicantCard(
+                  name: name,
+                  subtitle: subtitle,
+                  status: a["status"],
+                  postingId: postingId, // 🔥 Pass postingId
+                  application: a,
+                ),
               );
             },
-            child: JPApplicantCard(
-              name: a["name"],
-              subtitle: subtitle,
-              status: a["status"],
-              application: a,
-            ),
           );
         }),
       ],

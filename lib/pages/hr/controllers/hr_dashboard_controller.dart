@@ -1,24 +1,20 @@
 // ===================== File: hr_dashboard_controller.dart =====================
 // Purpose:
-// Controls HR Dashboard data (activities, stats)
-//
-// IMPORTANT:
-// - Uses mock data for now
-// - Structured for easy backend integration later
-//
-// TODO (Backend):
-// - Replace mock data with Firestore/API
-// - Fetch interview-based activities dynamically
+// Controls HR Dashboard data (activities, stats) using real-time Firestore data.
 // ============================================================================
 
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class HRDashboardController extends GetxController {
+  final _db = FirebaseFirestore.instance;
+
   // ===============================
   // STATS (TOP CARDS)
   // ===============================
-  final interviewCount = 5.obs;
-  final candidateCount = 34.obs;
+  final interviewCount = 0.obs;
+  final candidateCount = 0.obs;
 
   // ===============================
   // RECENT ACTIVITIES (INTERVIEW BASED)
@@ -28,102 +24,143 @@ class HRDashboardController extends GetxController {
   // ===============================
   // HR USER INFO (HEADER)
   // ===============================
-  /// Company name & initials (header için)
-  /// TODO: backend'den gelecek (HR user document)
-  final companyName = "Beyond Technologies".obs;
+  final companyName = "Loading...".obs;
   final initials = "HR".obs;
 
   @override
   void onInit() {
     super.onInit();
-
-    // Load mock data initially
-    loadMockData();
-
-    // Prepare backend-ready function
-    fetchDashboardStats();
-
+    _listenToStats();
+    _listenToActivities();
     fetchHRUserInfo();
   }
 
   // ===============================
-  // MOCK DATA
+  // REAL-TIME STATS
   // ===============================
-  void loadMockData() {
-    // Activities
-    activities.value = [
-      {
-        "type": "pending",
-        "title": "Frontend interview ended",
-        "subtitle": "3 candidates awaiting review",
-      },
-      {
-        "type": "upcoming",
-        "title": "Backend interview scheduled",
-        "subtitle": "Thu 17 Apr — 14:00",
-      },
-      {
-        "type": "pending",
-        "title": "Mobile interview ended",
-        "subtitle": "1 candidate awaiting review",
-      },
-    ];
+  void _listenToStats() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final uid = user.uid;
 
-    // Stats (mock)
-    interviewCount.value = 5;
-    candidateCount.value = 34;
+    // 📊 Count interviews
+    _db.collection('interviews').where('createdByHrId', isEqualTo: uid).snapshots().listen((snap) {
+      interviewCount.value = snap.docs.length;
+    });
 
-    // ===============================
-    // MOCK HR USER INFO
-    // ===============================
-    companyName.value = "Beyond Technologies";
-    initials.value = "HR";
+    // 👥 Count total job postings candidates
+    _db.collection('job_postings').where('createdByHrId', isEqualTo: uid).snapshots().listen((snap) {
+      int total = 0;
+      for (var doc in snap.docs) {
+        final applicants = doc.data()['applicants'] as List?;
+        total += applicants?.length ?? 0;
+      }
+      candidateCount.value = total;
+    });
   }
 
   // ===============================
-  // FETCH STATS (BACKEND READY)
+  // REAL-TIME ACTIVITIES
   // ===============================
-  Future<void> fetchDashboardStats() async {
-    // TODO: Replace with backend call
+  void _listenToActivities() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final uid = user.uid;
 
-    /*
-    final result = await api.getDashboardStats();
+    _db.collection('interviews')
+        .where('createdByHrId', isEqualTo: uid)
+        .snapshots()
+        .listen((snap) {
+          final docs = snap.docs.toList();
+          // Client-side sort to avoid Firestore composite index requirement
+          docs.sort((a, b) {
+            final aTime = a.data()['startTime'] as Timestamp?;
+            final bTime = b.data()['startTime'] as Timestamp?;
+            if (aTime == null || bTime == null) return 0;
+            return bTime.compareTo(aTime);
+          });
 
-    interviewCount.value = result["interviewCount"];
-    candidateCount.value = result["candidateCount"];
-    */
+          final topDocs = docs.take(5);
 
-    // Mock fallback (şimdilik aynı kalır)
-    interviewCount.value = 5;
-    candidateCount.value = 34;
+          activities.value = topDocs.map((doc) {
+            final data = doc.data();
+            final status = data['status'] ?? 'scheduled';
+            final reviewStatus = data['reviewStatus'] ?? 'pending';
+            final startTime = data['startTime'] as Timestamp?;
+            final endTime = data['endTime'] as Timestamp?;
+            final completedCandidateIds = List<String>.from(data['completedCandidateIds'] ?? []);
+            
+            final now = DateTime.now();
+            final isTimeCompleted = endTime != null && now.isAfter(endTime.toDate());
+            final hasCompletedCandidates = completedCandidateIds.isNotEmpty;
+            
+            String subtitle = "";
+            String activityType = "upcoming";
+            
+            if (status == "completed" || isTimeCompleted || hasCompletedCandidates) {
+              if (reviewStatus == "reviewed") {
+                subtitle = "Review completed";
+                activityType = "reviewed";
+              } else {
+                subtitle = "Waiting for HR review";
+                activityType = "pending";
+              }
+            } else if (status == "ongoing" || (startTime != null && now.isAfter(startTime.toDate()) && endTime != null && now.isBefore(endTime.toDate()))) {
+              subtitle = "Interview is currently live";
+              activityType = "ongoing";
+            } else if (startTime != null) {
+              final date = startTime.toDate();
+              if (date.day == now.day && date.month == now.month && date.year == now.year) {
+                subtitle = "Scheduled for today at ${date.hour}:${date.minute.toString().padLeft(2, '0')}";
+              } else {
+                subtitle = "Scheduled for ${date.day}/${date.month}";
+              }
+              activityType = "upcoming";
+            } else {
+              subtitle = "Interview $status";
+            }
+
+            return {
+              "id": doc.id,
+              "type": activityType,
+              "title": data['title'] ?? "New Interview",
+              "subtitle": subtitle,
+              "data": {...data, "id": doc.id},
+            };
+          }).toList();
+    });
   }
 
-// ===============================
-// TODO: BACKEND INTEGRATION
-// ===============================
-/*
-  Future<void> fetchActivitiesFromBackend() async {
-    // Example:
-    // final data = await api.getActivities();
-    // activities.value = data;
-  }
-  */
-
   // ===============================
-  // FETCH HR USER INFO (BACKEND READY)
+  // FETCH HR USER INFO
   // ===============================
   Future<void> fetchHRUserInfo() async {
-    // TODO: Replace with backend call
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
 
-    /*
-    final user = await api.getHRUser();
+      final doc = await _db.collection('hr_users').doc(user.uid).get();
+      if (doc.exists) {
+        final data = doc.data()!;
+        
+        final name = data['name'] ?? "";
+        final surname = data['surname'] ?? "";
+        final cName = data['companyName'] ?? "";
 
-    companyName.value = user.companyName;
-    initials.value = user.initials;
-    */
-
-    // Mock fallback
-    companyName.value = "Beyond Technologies";
-    initials.value = "HR";
+        // Eger kullanici sirket adini varsayilan "Company" biraktiysa,
+        // Ekranda ad-soyad (Beyond Tech) gosterilsin
+        if (cName == "Company" && name.isNotEmpty) {
+           companyName.value = "$name $surname".trim();
+        } else {
+           companyName.value = cName.isNotEmpty ? cName : "Company Name";
+        }
+        
+        if (name.isNotEmpty && surname.isNotEmpty) {
+          initials.value = "${name[0]}${surname[0]}".toUpperCase();
+        }
+      }
+    } catch (e) {
+      print("HRDashboardController: Error fetching HR info: $e");
+    }
   }
 }

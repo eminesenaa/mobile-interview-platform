@@ -1,3 +1,8 @@
+// ===================== File: hr_candidate_evaluation_controller.dart =====================
+// Purpose:
+// Controls HR Candidate Evaluation Page using real data.
+// ================================================================================
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -13,10 +18,6 @@ class HrCandidateEvaluationController extends GetxController {
 
   HrCandidateEvaluationController({this.candidate});
 
-  // ===============================
-  // HEADER DATA (DYNAMIC FROM ARGS)
-  // ===============================
-
   final candidateName = "".obs;
   final interviewTitle = "".obs;
   final interviewDate = "".obs;
@@ -24,14 +25,11 @@ class HrCandidateEvaluationController extends GetxController {
   final score = 0.obs;
 
   final messageController = TextEditingController();
-
-  bool get isDecisionSelected => isAccepted.value != null;
-
   final messageText = "".obs;
   final isGeneratingMessage = false.obs;
 
-  bool get canSubmit =>
-      isDecisionSelected && messageText.value.trim().isNotEmpty;
+  bool get isDecisionSelected => isAccepted.value != null;
+  bool get canSubmit => isDecisionSelected && messageText.value.trim().isNotEmpty;
 
   @override
   void onInit() {
@@ -39,8 +37,6 @@ class HrCandidateEvaluationController extends GetxController {
 
     if (candidate != null) {
       _initFromCandidate(candidate!);
-    } else {
-      _loadMockData();
     }
 
     messageController.addListener(() {
@@ -48,54 +44,32 @@ class HrCandidateEvaluationController extends GetxController {
     });
   }
 
-  // ===============================
-  // ACTIONS
-  // ===============================
-
-  void _initFromCandidate(Map<String, dynamic> candidate) {
-    candidateName.value = candidate["name"] ?? "Candidate";
-    score.value = candidate["score"] ?? 0;
-
-    /// 🔥 şimdilik mock (backend gelince değişecek)
-    interviewTitle.value = "Frontend Developer Interview";
-    interviewDate.value = "Apr 14";
-
-    /// 🔥 rank hesap (sorted listten gelmeli aslında)
-    rank.value = candidate["rank"] ?? 0;
+  void _initFromCandidate(Map<String, dynamic> data) {
+    candidateName.value = data["name"] ?? "Candidate";
+    score.value = (data["score"] ?? 0).toInt();
+    interviewTitle.value = data["interviewTitle"] ?? "Interview Result";
+    interviewDate.value = data["interviewDate"] ?? "";
+    rank.value = data["rank"] ?? 0;
   }
 
   void selectDecision(bool value) {
     isAccepted.value = value;
   }
 
-  // ===============================================================
-  // 🔥 AI MESSAGE GENERATION
-  // ===============================================================
-
-  void generateAiMessage() async {
+  Future<void> generateAiMessage() async {
     if (isAccepted.value == null) return;
 
     isGeneratingMessage.value = true;
 
     try {
-      // TODO (Backend Teammate):
-      // Fetch the real InterviewResult from database using candidateId / interviewId.
-      // Example:
-      //   final interviewResult = await interviewService.getInterviewResult(
-      //     candidateId: candidate?["candidateId"],
-      //     interviewId: candidate?["interviewId"],
-      //   );
-      //
-      // For now, we build a minimal InterviewResult from the available candidate data.
-
       final interviewResult = InterviewResult(
-        id: candidate?["id"] ?? "",
+        id: candidate?["resultId"] ?? "",
         interviewId: candidate?["interviewId"] ?? "",
         candidateId: candidate?["candidateId"] ?? "",
         score: score.value,
-        correctCount: candidate?["correctCount"] ?? 0,
-        wrongCount: candidate?["wrongCount"] ?? 0,
-        unansweredCount: candidate?["unansweredCount"] ?? 0,
+        correctCount: (candidate?["correct"] ?? 0).toInt(),
+        wrongCount: (candidate?["wrong"] ?? 0).toInt(),
+        unansweredCount: (candidate?["unanswered"] ?? 0).toInt(),
         aiResult: candidate?["aiResult"],
       );
 
@@ -109,13 +83,10 @@ class HrCandidateEvaluationController extends GetxController {
       messageController.text = message;
     } catch (e) {
       print('❌ [HR MESSAGE] Error in controller: $e');
-      // Fallback to static messages
       if (isAccepted.value == true) {
-        messageController.text =
-            "We are pleased to inform you that you have successfully passed the interview. Welcome aboard!";
+        messageController.text = "Congratulations! You passed the interview.";
       } else {
-        messageController.text =
-            "Thank you for your time. Unfortunately, we will not be moving forward with your application.";
+        messageController.text = "Thank you for your time. Unfortunately, we are not moving forward.";
       }
     } finally {
       isGeneratingMessage.value = false;
@@ -125,23 +96,14 @@ class HrCandidateEvaluationController extends GetxController {
   void submitEvaluation() {
     final decisionResult = isAccepted.value == true ? "accepted" : "rejected";
 
-    Get.back(result: {
+    Navigator.of(Get.context!).pop({
       "decision": decisionResult,
+      "message": messageController.text,
     });
 
-    Get.to(
-      () => HrCandidateEvaluationSuccessPage(
-        candidateName: candidateName.value,
-        interview: candidate?["interview"],
-      ),
-    );
-  }
-
-  void _loadMockData() {
-    candidateName.value = "John Doe";
-    interviewTitle.value = "Frontend Developer Interview";
-    interviewDate.value = "Apr 14";
-    rank.value = 2;
-    score.value = 91;
+    Get.to(() => HrCandidateEvaluationSuccessPage(
+      candidateName: candidateName.value,
+      interview: candidate?["interview"] ?? {},
+    ));
   }
 }

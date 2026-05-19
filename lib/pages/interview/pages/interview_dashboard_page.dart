@@ -59,7 +59,7 @@ class InterviewDashboardPage extends StatelessWidget {
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
+          onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           "Interviews",
@@ -158,13 +158,13 @@ class InterviewDashboardPage extends StatelessWidget {
                 // =====================================================
                 // UPCOMING INTERVIEW
                 // =====================================================
-                if (controller.upcomingInterview.value != null) ...[
+                if (controller.upcomingInterviewFiltered != null) ...[
                   const IdSectionHeader(
                     title: "Upcoming Interview",
                   ),
                   const SizedBox(height: AppSpacing.md),
                   IdInterviewCard(
-                    interview: controller.upcomingInterview.value!,
+                    interview: controller.upcomingInterviewFiltered!,
                   ),
                   const SizedBox(height: AppSpacing.xl),
                 ],

@@ -15,6 +15,9 @@ class NdTopNSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final safeMax = max > 1 ? max : 1;
+    final safeValue = value.clamp(1, safeMax);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -30,7 +33,7 @@ class NdTopNSlider extends StatelessWidget {
               ),
             ),
             Text(
-              "Top $value".toUpperCase(),
+              "Top $safeValue".toUpperCase(),
               style: AppTextStyles.label.copyWith(
                 color: AppColors.textMuted,
                 fontSize: 12,
@@ -56,11 +59,11 @@ class NdTopNSlider extends StatelessWidget {
             overlayColor: AppColors.primary.withOpacity(0.15),
           ),
           child: Slider(
-            value: value.toDouble(),
+            value: safeValue.toDouble(),
             min: 1,
-            max: max.toDouble(),
-            divisions: max > 1 ? max - 1 : null,
-            onChanged: (v) => onChanged(v.toInt()),
+            max: safeMax.toDouble(),
+            divisions: safeMax > 1 ? safeMax - 1 : null,
+            onChanged: max > 1 ? (v) => onChanged(v.toInt()) : null,
           ),
         ),
       ],

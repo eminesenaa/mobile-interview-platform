@@ -179,6 +179,7 @@ class HrCandidateListPage extends StatelessWidget {
                         name: c["name"],
                         initials: c["initials"],
                         score: c["score"],
+                        decision: c["decision"],
                         topics: c["topics"],
                         onReview: () => controller.openCandidateDetail(c),
                       ),

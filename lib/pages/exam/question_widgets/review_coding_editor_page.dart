@@ -74,7 +74,7 @@ class ReviewCodingEditorPage extends StatelessWidget {
                 PhosphorIcons.code(PhosphorIconsStyle.bold),
                 size: 22,
               ),
-              onPressed: Get.back,
+              onPressed: () => Navigator.of(context).pop(),
             ),
           ],
         ),

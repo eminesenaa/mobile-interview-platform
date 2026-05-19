@@ -1,27 +1,19 @@
 // ===================== File: hr_needs_review_detail_controller.dart =====================
 // Purpose:
-// Controls Needs Review Interview Detail page
-//
-// IMPORTANT:
-// - Uses mock data for now
-// - Backend-ready structure
-//
-// TODO (Backend):
-// - Fetch interview result by ID
-// - Fetch candidate scores
-// - Sort & filter from backend
-// - Navigate to candidate result page
+// Controls Needs Review Interview Detail page using real Firestore results.
 // ================================================================================
 
 import 'dart:ui';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 
 import '../../../constants/colors.dart';
 import '../interviews/needs_review/hr_candidate_list_page.dart';
 import '../interviews/needs_review/hr_candidate_result_page.dart';
 
 class HrNeedsReviewDetailController extends GetxController {
+  final _db = FirebaseFirestore.instance;
   final Map<String, dynamic> interview;
 
   HrNeedsReviewDetailController({required this.interview});
@@ -31,7 +23,6 @@ class HrNeedsReviewDetailController extends GetxController {
   // ===============================
   final title = "".obs;
   final interviewId = "".obs;
-
   final date = "".obs;
   final candidatesCompletedText = "".obs;
 
@@ -39,39 +30,17 @@ class HrNeedsReviewDetailController extends GetxController {
   // CANDIDATES DATA
   // ===============================
   final candidates = <Map<String, dynamic>>[].obs;
-
-  // ===============================
-  // DERIVED DATA (UI için)
-  // ===============================
-
-  /// Sorted (high → low)
   final sortedCandidates = <Map<String, dynamic>>[].obs;
-
-  /// Top 5 preview
   final topCandidates = <Map<String, dynamic>>[].obs;
+  final filteredCandidates = <Map<String, dynamic>>[].obs;
 
   // ===============================
   // FILTER STATE
   // ===============================
-
-  /// Top N (default: 5)
   final topN = 5.obs;
-
-  /// Minimum score (null = Any)
   final minScore = Rxn<int>();
+  final topicThresholds = <String, double>{}.obs;
 
-  /// Topic thresholds (örn: SQL ≥ 80)
-  final topicThresholds = <String, double>{
-    "SQL": 0,
-    "ML": 0,
-    "C": 0,
-  }.obs;
-
-  // ===============================
-  // TOPIC COLOR PALETTE 🎨
-  // ===============================
-
-  /// Topic slider renkleri (sen burayı istediğin gibi değiştir)
   final topicColors = <Color>[
     AppColors.cinnabar,
     AppColors.accentRoyalPlum,
@@ -81,296 +50,212 @@ class HrNeedsReviewDetailController extends GetxController {
     AppColors.honeyBronze,
   ];
 
-  /// Filtered sonuç listesi (UI bunu kullanır)
-  final filteredCandidates = <Map<String, dynamic>>[].obs;
-
-  // ===============================
-  // LIFECYCLE
-  // ===============================
   @override
   void onInit() {
     super.onInit();
+    
+    title.value = interview["title"] ?? "Interview Result";
+    interviewId.value = interview["id"] ?? "";
+    
+    if (interview["startTime"] != null) {
+      final dt = (interview["startTime"] is Timestamp)
+          ? (interview["startTime"] as Timestamp).toDate()
+          : DateTime.parse(interview["startTime"].toString());
+      date.value = DateFormat('MMM dd, yyyy').format(dt);
+    }
 
-    loadMockData();
-    processCandidates();
-    applyFilters(); // ilk load’da çalıştır
-
-    // ===============================
-    // TODO (Backend)
-    // ===============================
-    /*
-    fetchInterviewResults();
-    */
+    _listenToResults();
   }
 
   // ===============================
-  // MOCK DATA
+  // REAL-TIME RESULTS
   // ===============================
-  void loadMockData() {
-    title.value = interview["title"] ?? "Frontend Developer Interview";
-    interviewId.value = interview["id"] ?? "INT-2025-FE-0044";
+  void _listenToResults() {
+    if (interviewId.isEmpty) return;
 
-    date.value = "Apr 14, 2025";
-    candidatesCompletedText.value = "8 completed";
+    _db.collection('ai_interview_results')
+        .where('interviewId', isEqualTo: interviewId.value)
+        .snapshots()
+        .listen((snap) {
+          final List<Map<String, dynamic>> parsedCandidates = [];
+          print("[HR_DEBUG] Feteched result count: ${snap.docs.length}");
+          for (var doc in snap.docs) {
+            try {
+              final data = doc.data();
+              data['id'] = doc.id;
+              print("[HR_DEBUG] Result doc ID: ${doc.id}, candidateId: ${data['candidateId']}, candidateName: ${data['candidateName']}, interviewId: ${data['interviewId']}");
+              
+              // Extract topics from topicPercentage (technical categories) or fallback to starAnalysis
+              final topics = <String, int>{};
+              final aiResult = data['aiResult'];
+              Map<String, dynamic>? topicPct;
+              
+              if (aiResult is Map) {
+                final pct = aiResult['topicPercentage'];
+                if (pct is Map && pct.isNotEmpty) {
+                  topicPct = Map<String, dynamic>.from(pct);
+                }
+              }
 
-    candidates.value = [
-      {
-        "name": "James Chen",
-        "initials": "JC",
-        "score": 96,
-        "interviewTitle": title.value,
-        "interviewDate": date.value,
-        "decision": null,
-        "topics": {
-          "SQL": 90,
-          "ML": 80,
-          "C": 85,
-        }
-      },
-      {
-        "name": "Mia Kim",
-        "initials": "MK",
-        "score": 91,
-        "interviewTitle": title.value,
-        "interviewDate": date.value,
-        "decision": null,
-        "topics": {
-          "SQL": 85,
-          "ML": 55,
-          "C": 72,
-        }
-      },
-      {
-        "name": "Ava Lopez",
-        "initials": "AL",
-        "score": 87,
-        "interviewTitle": title.value,
-        "interviewDate": date.value,
-        "decision": null,
-        "topics": {
-          "SQL": 60,
-          "ML": 90,
-          "C": 65,
-        }
-      },
-      {
-        "name": "Noah Park",
-        "initials": "NP",
-        "score": 79,
-        "interviewTitle": title.value,
-        "interviewDate": date.value,
-        "decision": null,
-        "topics": {
-          "SQL": 40,
-          "ML": 60,
-          "C": 70,
-        }
-      },
-      {
-        "name": "Tom Rivera",
-        "initials": "TR",
-        "score": 74,
-        "interviewTitle": title.value,
-        "interviewDate": date.value,
-        "decision": null,
-        "topics": {
-          "SQL": 75,
-          "ML": 30,
-          "C": 80,
-        }
-      },
-      {
-        "name": "Emma Stone",
-        "initials": "ES",
-        "score": 70,
-        "interviewTitle": title.value,
-        "interviewDate": date.value,
-        "decision": null,
-        "topics": {
-          "SQL": 50,
-          "ML": 45,
-          "C": 60,
-        }
-      },
-      {
-        "name": "Chris Lee",
-        "initials": "CL",
-        "score": 65,
-        "interviewTitle": title.value,
-        "interviewDate": date.value,
-        "decision": null,
-        "topics": {
-          "SQL": 30,
-          "ML": 20,
-          "C": 50,
-        }
-      },
-      {
-        "name": "Liam Brown",
-        "initials": "LB",
-        "score": 60,
-        "interviewTitle": title.value,
-        "interviewDate": date.value,
-        "decision": null,
-        "topics": {
-          "SQL": 20,
-          "ML": 35,
-          "C": 40,
-        }
-      },
-    ];
+              if (topicPct != null && topicPct.isNotEmpty) {
+                topicPct.forEach((key, value) {
+                  if (value != null) {
+                    topics[key.toString()] = (value as num).toInt();
+                  }
+                });
+              } else if (data['starAnalysis'] != null) {
+                final star = data['starAnalysis'];
+                if (star is Map) {
+                  star.forEach((key, value) {
+                    if (value != null) {
+                      topics[key.toString()] = ((value as num).toDouble() * 20).round();
+                    }
+                  });
+                }
+              }
+
+              final String name = data['candidateName'] ?? "Candidate";
+              parsedCandidates.add({
+                ...data,
+                "name": name,
+                "initials": _getInitials(name),
+                "score": (data['totalScore'] ?? 0).toInt(),
+                "interviewTitle": title.value,
+                "interviewDate": date.value,
+                "decision": data['decision'],
+                "topics": topics,
+                "resultId": doc.id,
+              });
+            } catch (e) {
+              print("HrNeedsReviewDetailController: Error parsing result doc ${doc.id}: $e");
+            }
+          }
+
+          candidates.value = parsedCandidates;
+          candidatesCompletedText.value = "${candidates.length} completed";
+          
+          // Update topic keys for filters based on actual data
+          final allTopics = <String>{};
+          for (var c in candidates) {
+            final t = c["topics"] as Map<String, int>?;
+            if (t != null) allTopics.addAll(t.keys);
+          }
+          
+          for (var t in allTopics) {
+            if (!topicThresholds.containsKey(t)) {
+              topicThresholds[t] = 0.0;
+            }
+          }
+
+          processCandidates();
+          applyFilters();
+
+          // AUTO-HEAL: If all candidates are reviewed, but the interview is still pending, fix it!
+          if (candidates.isNotEmpty && overallReviewStatus == "reviewed" && interview["reviewStatus"] != "reviewed") {
+             print("[HR_DEBUG] Auto-healing interview ${interviewId.value} to reviewed");
+             _db.collection('interviews').doc(interviewId.value).update({
+               "reviewStatus": "reviewed",
+             }).then((_) {
+               interview["reviewStatus"] = "reviewed";
+             });
+          }
+        }, onError: (err) {
+          print("HrNeedsReviewDetailController: Firestore listener error: $err");
+        });
   }
 
-  // ===============================
-  // DATA PROCESSING
-  // ===============================
+  String _getInitials(String name) {
+    final parts = name.split(" ");
+    if (parts.length >= 2) {
+      return "${parts[0][0]}${parts[1][0]}".toUpperCase();
+    }
+    return name.substring(0, name.length >= 2 ? 2 : 1).toUpperCase();
+  }
 
-  /// Sorting + Top5 çıkarma
   void processCandidates() {
     final sorted = List<Map<String, dynamic>>.from(candidates);
-
-    sorted.sort((a, b) => b["score"].compareTo(a["score"]));
+    sorted.sort((a, b) => (b["score"] as int).compareTo(a["score"] as int));
 
     for (int i = 0; i < sorted.length; i++) {
       sorted[i]["rank"] = i + 1;
     }
 
     sortedCandidates.value = sorted;
-
-    /// Top 5 preview
     topCandidates.value = sorted.take(5).toList();
   }
 
-  /// ===============================
-  /// GET TOPIC COLOR BY INDEX 🔥
-  /// ---------------------------------------------------------------
-  /// index'e göre renk döner
-  /// fazla topic varsa başa sarar (mod)
-  /// ===============================
   Color getTopicColor(int index) {
     return topicColors[index % topicColors.length];
   }
 
-  /// ===============================
-  /// APPLY FILTERS (CORE LOGIC 🔥)
-  /// ===============================
   void applyFilters() {
     var result = List<Map<String, dynamic>>.from(sortedCandidates);
 
-    /// -------- TOP N --------
     result = result.take(topN.value).toList();
 
-    /// -------- MIN SCORE --------
     if (minScore.value != null) {
-      result = result.where((c) => c["score"] >= minScore.value!).toList();
+      result = result.where((c) => (c["score"] as int) >= minScore.value!).toList();
     }
 
-    /// -------- TOPIC THRESHOLDS --------
-    /// ⚠️ Şu an mock data'da topic yok → backend gelince aktif olur
-    /*
-    /// -------- TOPIC THRESHOLDS --------
+    // Topic thresholds
     result = result.where((c) {
-      final topics = c["topics"] as Map<String, int>;
+      final topics = c["topics"];
+      if (topics is! Map) return true;
 
       for (var entry in topicThresholds.entries) {
-        if (topics[entry.key]! < entry.value) {
-          return false;
+        if (entry.value > 0) {
+          final candidateTopicScore = topics[entry.key] ?? 0;
+          if (candidateTopicScore < entry.value) {
+            return false;
+          }
         }
       }
       return true;
     }).toList();
-    */
 
     filteredCandidates.value = result;
   }
 
-  // ===============================
-  // UI HELPERS
-  // ===============================
-
-  /// ===============================
-  /// ACTIVE FILTER CHIPS (UI için)
-  /// ===============================
   List<ActiveFilter> get activeFilters {
     final List<ActiveFilter> filters = [];
 
-    /// Top N
     if (topN.value != 5) {
-      filters.add(
-        ActiveFilter(
-          label: "Top ${topN.value}",
-          onRemove: () {
-            topN.value = 5;
-            applyFilters();
-          },
-        ),
-      );
+      filters.add(ActiveFilter(
+        label: "Top ${topN.value}",
+        onRemove: () { topN.value = 5; applyFilters(); },
+      ));
     }
 
-    /// Min Score
     if (minScore.value != null) {
-      filters.add(
-        ActiveFilter(
-          label: "Score ≥ ${minScore.value}",
-          onRemove: () {
-            minScore.value = null;
-            applyFilters();
-          },
-        ),
-      );
+      filters.add(ActiveFilter(
+        label: "Score ≥ ${minScore.value}",
+        onRemove: () { minScore.value = null; applyFilters(); },
+      ));
     }
 
-    /// Topics
     for (var entry in topicThresholds.entries) {
       if (entry.value > 0) {
-        filters.add(
-          ActiveFilter(
-            label: "${entry.key} ≥ ${entry.value.toInt()}%",
-            onRemove: () {
-              topicThresholds[entry.key] = 0;
-              applyFilters();
-            },
-          ),
-        );
+        filters.add(ActiveFilter(
+          label: "${entry.key} ≥ ${entry.value.toInt()}%",
+          onRemove: () { topicThresholds[entry.key] = 0; applyFilters(); },
+        ));
       }
     }
 
     return filters;
   }
 
-  int get totalCandidateCount => candidates.length;
-
-  // ===============================
-  // ACTIONS
-  // ===============================
-
-  // ===============================
-  // FILTER ACTIONS
-  // ===============================
-
-  void updateTopN(int value) {
-    topN.value = value;
-    applyFilters();
-  }
-
-  void updateMinScore(int? value) {
-    minScore.value = value;
-    applyFilters();
-  }
-
-  void updateTopicThreshold(String topic, double value) {
-    topicThresholds[topic] = value;
-    applyFilters();
-  }
-
+  void updateTopN(int value) { topN.value = value; applyFilters(); }
+  void updateMinScore(int? value) { minScore.value = value; applyFilters(); }
+  void updateTopicThreshold(String topic, double value) { topicThresholds[topic] = value; applyFilters(); }
   void clearFilters() {
     topN.value = 5;
     minScore.value = null;
-
     topicThresholds.updateAll((key, value) => 0);
-
     applyFilters();
   }
+
+  int get totalCandidateCount => candidates.length;
 
   void openCandidateDetail(Map<String, dynamic> candidate) {
     Get.to(
@@ -383,32 +268,21 @@ class HrNeedsReviewDetailController extends GetxController {
   }
 
   void openAllCandidates() {
-    Get.to(
-      () => const HrCandidateListPage(),
-    );
+    Get.to(() => const HrCandidateListPage());
   }
 
-// ===============================
-// TODO BACKEND METHODS
-// ===============================
-/*
-  Future<void> fetchInterviewResults() async {}
-
-  Future<void> fetchCandidateScores() async {}
-
-  Future<void> applyFilters() async {}
-  */
+  // ===============================
+  // COMPUTED
+  // ===============================
+  String get overallReviewStatus {
+    if (candidates.isEmpty) return "pending";
+    final allReviewed = candidates.every((c) => c["decision"] != null && c["decision"] != "pending");
+    return allReviewed ? "reviewed" : "pending";
+  }
 }
 
-/// ===============================================================
-/// ACTIVE FILTER MODEL (UI için)
-/// ===============================================================
 class ActiveFilter {
   final String label;
   final VoidCallback onRemove;
-
-  ActiveFilter({
-    required this.label,
-    required this.onRemove,
-  });
+  ActiveFilter({required this.label, required this.onRemove});
 }

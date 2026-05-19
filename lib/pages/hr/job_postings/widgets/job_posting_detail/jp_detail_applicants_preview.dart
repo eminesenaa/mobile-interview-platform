@@ -47,10 +47,8 @@ class JPDetailApplicantsPreview extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         ...preview.map((a) {
-          final user = controller.getUserByName(a["name"]);
-
-          final subtitle = user != null
-              ? "${user.university ?? ''} · ${user.department ?? ''}"
+          final subtitle = (a["university"] != null && a["university"].toString().isNotEmpty)
+              ? "${a["university"]} · ${a["department"] ?? ''}"
               : "";
 
           return GestureDetector(
@@ -64,6 +62,7 @@ class JPDetailApplicantsPreview extends StatelessWidget {
               name: a["name"] ?? "",
               subtitle: subtitle,
               status: a["status"] ?? "pending",
+              postingId: postingId, // 🔥 Pass postingId
               application: a,
             ),
           );

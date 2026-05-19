@@ -29,17 +29,17 @@ class IdStatsRow extends StatelessWidget {
     return Wrap(
       spacing: AppSpacing.sm,
       runSpacing: AppSpacing.sm,
-      children: const [
+      children: [
         IdStatChip(
-          text: "2 applications active",
+          text: "$applications applications active",
           color: AppColors.topicTurquoise,
         ),
         IdStatChip(
-          text: "1 interview ready",
+          text: "$interviews interview ready",
           color: AppColors.darkCyan,
         ),
         IdStatChip(
-          text: "2 widgets pending",
+          text: "$results results pending",
           color: AppColors.honeyBronze,
         ),
       ],

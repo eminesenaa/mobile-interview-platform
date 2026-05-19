@@ -75,28 +75,23 @@ class EditProfilePage extends StatelessWidget {
                 children: [
                   EpInputField(
                     label: "First Name",
-                    initialValue: c.name.value,
-                    onChanged: (v) => c.name.value = v,
+                    controller: c.nameCtrl,
                   ),
                   EpInputField(
                     label: "Last Name",
-                    initialValue: c.surname.value,
-                    onChanged: (v) => c.surname.value = v,
+                    controller: c.surnameCtrl,
                   ),
                   EpInputField(
                     label: "Username",
-                    initialValue: c.username.value,
-                    onChanged: (v) => c.username.value = v,
+                    controller: c.usernameCtrl,
                   ),
                   EpInputField(
                     label: "Email",
-                    initialValue: c.email.value,
-                    onChanged: (v) => c.email.value = v,
+                    controller: c.emailCtrl,
                   ),
                   EpInputField(
                     label: "Phone",
-                    initialValue: c.phoneNumber.value,
-                    onChanged: (v) => c.phoneNumber.value = v,
+                    controller: c.phoneNumberCtrl,
                   ),
                 ],
               ),
@@ -111,20 +106,23 @@ class EditProfilePage extends StatelessWidget {
                 children: [
                   EpInputField(
                     label: "Role",
-                    initialValue: c.role.value,
-                    onChanged: (v) => c.role.value = v,
+                    controller: c.roleCtrl,
                   ),
                   EpInputField(
-                    label: "Location",
-                    initialValue: "${c.city.value}, ${c.country.value}".trim(),
-                    onChanged: (_) {},
+                    label: "Country",
+                    controller: c.countryCtrl,
                   ),
                   EpInputField(
-                    label: "Company / School",
-                    initialValue: c.company.value.isNotEmpty
-                        ? c.company.value
-                        : c.school.value,
-                    onChanged: (v) => c.company.value = v,
+                    label: "City",
+                    controller: c.cityCtrl,
+                  ),
+                  EpInputField(
+                    label: "School / University",
+                    controller: c.schoolCtrl,
+                  ),
+                  EpInputField(
+                    label: "Company",
+                    controller: c.companyCtrl,
                   ),
                 ],
               ),
@@ -137,20 +135,17 @@ class EditProfilePage extends StatelessWidget {
               EpGroupCard(
                 title: "SOCIAL LINKS",
                 children: [
-                  EpSocialRow(
-                    label: "GitHub",
-                    value: c.githubUrl.value,
-                    icon: PhosphorIcons.githubLogo(),
+                  EpInputField(
+                    label: "GitHub URL",
+                    controller: c.githubUrlCtrl,
                   ),
-                  EpSocialRow(
-                    label: "LinkedIn",
-                    value: c.linkedinUrl.value,
-                    icon: PhosphorIcons.linkedinLogo(),
+                  EpInputField(
+                    label: "LinkedIn URL",
+                    controller: c.linkedinUrlCtrl,
                   ),
-                  EpSocialRow(
-                    label: "Website",
-                    value: c.website.value,
-                    icon: PhosphorIcons.globe(),
+                  EpInputField(
+                    label: "Website / Portfolio",
+                    controller: c.websiteCtrl,
                   ),
                 ],
               ),

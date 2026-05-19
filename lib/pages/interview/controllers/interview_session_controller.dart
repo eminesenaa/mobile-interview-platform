@@ -20,14 +20,18 @@
 // ==============================================================================
 
 import 'dart:async';
-import 'dart:math';
 
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
+import 'package:overlay_support/overlay_support.dart';
 
 import '../../../models/exam.dart';
 import '../../../models/question.dart';
 import '../../exam/take/exam_page.dart'; // 🔥 REUSE
+import '../../../constants/constants.dart';
 
 class InterviewSessionController extends GetxController {
   // ===============================
@@ -60,101 +64,202 @@ class InterviewSessionController extends GetxController {
     super.onInit();
 
     final args = Get.arguments;
-
-    // ⚠️ IMPORTANT (TEMPORARY)
-    // - Currently generating mock Interview ID
-    // - Invite code and interview ID are DIFFERENT
-    // TODO (Backend):
-    // - Replace with real interview session ID from API
     if (args != null) {
-      date.value = args["date"] ?? "May 14, 2026";
-      time.value = args["time"] ?? "10:00 – 11:00";
-      // 🔥 Invite Code (user input)
-      final inviteCode = args["code"] ?? "TEMP";
+      final inviteCode = args["code"] ?? "";
+      _loadInterviewData(inviteCode);
+    }
+  }
 
-      // 🔥 Mock Interview ID (different from invite code)
-      sessionCode.value =
-          "INT-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}";
+  Future<void> _loadInterviewData(String code) async {
+    final inputCode = code.trim().toUpperCase();
+    final inputCodeNoHyphen = inputCode.replaceAll("-", "");
+
+    print("InterviewSessionController: Aggressive Search for: $inputCode");
+
+    try {
+      // Strategy 1: Search by Document ID directly (Fallback)
+      try {
+        final docById =
+            await _db.collection('interviews').doc(code.trim()).get();
+        if (docById.exists) {
+          print("InterviewSessionController: Match found by Document ID!");
+          _processMatch(docById);
+          return;
+        }
+      } catch (_) {}
+
+      // Strategy 2: Direct joinCode match
+      var snap = await _db
+          .collection('interviews')
+          .where('joinCode', isEqualTo: inputCode)
+          .get();
+
+      if (snap.docs.isNotEmpty) {
+        _processMatch(snap.docs.first);
+        return;
+      }
+
+      // Strategy 2b: inviteCode match
+      snap = await _db
+          .collection('interviews')
+          .where('inviteCode', isEqualTo: inputCode)
+          .get();
+
+      if (snap.docs.isNotEmpty) {
+        _processMatch(snap.docs.first);
+        return;
+      }
+
+      // Strategy 3: Hyphen-insensitive search across both fields
+      final allRecent = await _db.collection('interviews').get();
+      print(
+          "InterviewSessionController: Scanning ${allRecent.docs.length} documents...");
+
+      DocumentSnapshot? match;
+      for (var doc in allRecent.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final dbJoinCode = (data['joinCode']?.toString() ?? "")
+            .replaceAll("-", "")
+            .toUpperCase();
+        final dbInviteCode = (data['inviteCode']?.toString() ?? "")
+            .replaceAll("-", "")
+            .toUpperCase();
+
+        print(
+            "Comparing input '$inputCodeNoHyphen' with joinCode='$dbJoinCode' inviteCode='$dbInviteCode' (Doc: ${doc.id})");
+
+        if (inputCodeNoHyphen.isNotEmpty &&
+            (dbJoinCode == inputCodeNoHyphen || dbInviteCode == inputCodeNoHyphen)) {
+          match = doc;
+          break;
+        }
+      }
+
+      if (match != null) {
+        _processMatch(match);
+      } else {
+        showSimpleNotification(
+          Text("No interview found for '$inputCode'"),
+          background: Colors.red,
+        );
+      }
+    } catch (e) {
+      print("InterviewSessionController: Error: $e");
+      showSimpleNotification(Text("Search Error: $e"), background: Colors.red);
+    }
+  }
+
+  void _processMatch(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+
+    // 🔥 Self-heal: add this candidate's UID to candidateIds
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId != null) {
+      final List<dynamic> candidateIds = data['candidateIds'] as List<dynamic>? ?? [];
+      if (!candidateIds.contains(currentUserId)) {
+        doc.reference.update({
+          'candidateIds': FieldValue.arrayUnion([currentUserId]),
+        });
+        print("Self-healed candidateIds upon joining: $currentUserId");
+      }
     }
 
-    startWaitingFlow();
+    DateTime parseDate(dynamic value) {
+      if (value is Timestamp) return value.toDate();
+      if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
+      return DateTime.now();
+    }
+
+    final start = parseDate(data['startTime']);
+    final end = parseDate(data['endTime']);
+    final now = DateTime.now();
+
+    // 🔥 Set values first so they are visible in UI
+    date.value = DateFormat('MMM dd, yyyy').format(start);
+    time.value =
+        "${DateFormat('h:mm').format(start)} – ${DateFormat('h:mm a').format(end)}";
+    sessionCode.value = doc.id;
+
+    // 🔥 TIME RESTRICTIONS
+    if (now.isAfter(end)) {
+      showSimpleNotification(
+        Text("This interview session has already ended."),
+        background: AppColors.error,
+      );
+      Navigator.of(Get.context!).pop();
+      return;
+    }
+
+    if (now.isBefore(start)) {
+      final formattedStart = DateFormat('HH:mm').format(start);
+      showSimpleNotification(
+        Text(
+            "You've joined early! The interview will start at $formattedStart"),
+        background: Colors.blue,
+      );
+
+      // Calculate delay until start
+      final delay = start.difference(now);
+      startWaitingFlow(data, customDelay: delay);
+      return;
+    }
+
+    showSimpleNotification(
+      Text("Success! Joined ${data['title'] ?? 'Interview'}"),
+      background: Colors.green,
+    );
+
+    startWaitingFlow(data);
   }
 
   // ===============================
   // WAITING FLOW
   // ===============================
 
-  void startWaitingFlow() {
-    _autoStartTimer = Timer(
-      const Duration(seconds: 5),
-      () {
-        startInterview();
-      },
-    );
+  void startWaitingFlow(Map<String, dynamic> interviewData,
+      {Duration? customDelay}) {
+    // If it's time or early, set a timer.
+    // If early, wait until start time. If already time, wait 3 seconds for simulation.
+    final delay = customDelay ?? const Duration(seconds: 3);
+
+    print(
+        "InterviewSessionController: Starting in ${delay.inSeconds} seconds...");
+
+    _autoStartTimer?.cancel();
+    _autoStartTimer = Timer(delay, () {
+      startInterview(interviewData);
+    });
   }
 
   // ===============================
   // START INTERVIEW
   // ===============================
 
-  Future<void> startInterview() async {
+  Future<void> startInterview(Map<String, dynamic> interviewData) async {
     isWaiting.value = false;
 
-    final mockExam = await _createMockInterviewExam();
+    final List<dynamic> rawQuestions = interviewData['questions'] as List<dynamic>? ?? [];
+    final List<Question> questions = [];
+    for (int i = 0; i < rawQuestions.length; i++) {
+      final q = rawQuestions[i] as Map<String, dynamic>;
+      final rawId = q['id']?.toString() ?? '';
+      final id = rawId.isNotEmpty ? rawId : 'q_$i';
+      questions.add(Question.fromFirestore(q, id));
+    }
 
-    Get.offAll(
-      () => const ExamPage(),
-      arguments: mockExam,
-    );
-  }
-
-  // ===============================
-  // 🔥 MOCK EXAM BUILDER (FIRESTORE)
-  // ===============================
-
-  Future<Exam> _createMockInterviewExam() async {
-    // =======================================================
-    // ⚠️ IMPORTANT NOTE (VERY IMPORTANT)
-    // =======================================================
-    // 🔴 ASIL BACKEND GELENE KADAR GÖSTERMELİK ÇEKİLEN RASTGELE 10 SORU
-    //
-    // TODO (Backend):
-    // - Replace this logic with:
-    //   → API call using invite code
-    //   → Fetch questions selected by HR (by question IDs)
-    // - Example:
-    //   final questions = await fetchQuestionsByIds(ids);
-    // =======================================================
-
-    final questions = await _fetchRandomQuestions(limit: 10);
-
-    return Exam(
-      id: "interview_${DateTime.now().millisecondsSinceEpoch}",
-      title: "Interview",
+    final exam = Exam(
+      id: sessionCode.value,
+      title: interviewData['title'] ?? "Interview",
       duration: Duration(minutes: questions.length),
       createdAt: DateTime.now(),
       questions: questions,
+      isInterview: true,
     );
-  }
 
-  // ===============================
-  // 🔥 RANDOM QUESTION FETCH (REUSE LOGIC)
-  // ===============================
-
-  Future<List<Question>> _fetchRandomQuestions({int limit = 10}) async {
-    final col = _db.collection('questions');
-
-    // 🔹 Firestore'dan soru havuzunu çek
-    final snap = await col.limit(1000).get();
-
-    final allQuestions =
-        snap.docs.map((d) => Question.fromFirestore(d.data(), d.id)).toList();
-
-    // 🔹 Shuffle (rastgele karıştır)
-    allQuestions.shuffle(Random());
-
-    // 🔹 İlk 10 soruyu al
-    return allQuestions.take(limit).toList();
+    Get.offAll(
+      () => const ExamPage(),
+      arguments: exam,
+    );
   }
 
   // ===============================

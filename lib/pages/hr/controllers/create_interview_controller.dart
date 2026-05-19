@@ -10,12 +10,18 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:overlay_support/overlay_support.dart';
 
-import '../../../models/job_application.dart';
+import '../../../models/interview.dart';
 import '../../../models/job_posting.dart';
-
+import '../../../models/question.dart';
 
 class CreateInterviewController extends GetxController {
+  final _db = FirebaseFirestore.instance;
+  final _auth = FirebaseAuth.instance;
+
   // ===============================
   // TEXT FIELDS
   // ===============================
@@ -26,10 +32,8 @@ class CreateInterviewController extends GetxController {
   // DATE & TIME
   // ===============================
   final selectedDate = Rxn<DateTime>();
-
   final selectedStartTime = Rxn<TimeOfDay>();
   final selectedEndTime = Rxn<TimeOfDay>();
-
 
   // ===============================
   // INVITE CODE
@@ -37,183 +41,166 @@ class CreateInterviewController extends GetxController {
   final inviteCode = "—".obs;
 
   // ===============================
-  // QUESTION MODE
+  // QUESTIONS & CANDIDATES
   // ===============================
-  final isManual = false.obs;
+  final selectedQuestionIds = <String>[].obs;
+  final selectedCandidates = <Map<String, dynamic>>[].obs; // {userId, name, status}
+  final isLoading = false.obs;
 
   // ===============================
-  // SEARCH
+  // JOB POSTINGS
   // ===============================
+  final readyPostings = <JobPosting>[].obs;
   final searchQuery = "".obs;
-
-  // ===============================
-  // MOCK CANDIDATES
-  // ===============================
-  final selectedCandidates = <String>[].obs;
-
-  // ===============================
-  // ALL CANDIDATES (MOCK DATA)
-  // ===============================
-  /// TODO (Backend):
-  /// - Replace with Firestore users collection
-  /// - Should return List<User> instead of String
-  final allCandidates = <String>[
-    "James Anderson",
-    "Sophie Miller",
-    "Benjamin Clark",
-    "Elena Richardson",
-    "Oliver Bennett",
-  ].obs;
-
-
-  // ===============================
-  // JOB POSTINGS (MOCK)
-  // ===============================
-  /// TODO (Backend):
-  /// - Fetch from Firestore
-  /// - Include applications relation
-  final jobPostings = <JobPosting>[].obs;
-
-  // ===============================
-  // APPLICATIONS (MOCK)
-  // ===============================
-  /// TODO (Backend):
-  /// - Fetch applications by postingId
-  final applications = <JobApplication>[].obs;
 
   // ===============================
   // SELECTED JOB POSTING
   // ===============================
-  /// Selected posting from previous page
-  /// Passed via Get.arguments
   final selectedPosting = Rxn<JobPosting>();
 
   @override
   void onInit() {
     super.onInit();
-
-    // ===============================
-    // AUTO GENERATE INVITE CODE
-    // ===============================
-    generateInviteCode();
-
-    // ===============================
-    // RECEIVE SELECTED POSTING
-    // ===============================
+    _listenToReadyPostings();
+    
+    // Check if posting passed via arguments
     if (Get.arguments != null && Get.arguments is JobPosting) {
-      selectedPosting.value = Get.arguments as JobPosting;
-
-      // Auto-fill position
-      positionCtrl.text = selectedPosting.value!.title;
-
-      // Optional: title auto-fill
-      titleCtrl.text = "${selectedPosting.value!.title} Interview";
+      onPostingSelected(Get.arguments as JobPosting);
+    } else {
+      // Only generate if no posting selected yet
+      generateInviteCode();
     }
-
-    // ===============================
-    // AUTO LOAD ACCEPTED CANDIDATES
-    // ===============================
-    /// TODO (Backend):
-    /// - Fetch accepted candidates from JobPosting
-    /// - Replace candidateId list with full User objects
-    _loadAcceptedCandidates();
-
-    // ===============================
-    // MOCK JOB POSTINGS
-    // ===============================
-    jobPostings.value = [
-      JobPosting(
-        id: "1",
-        companyId: "c1",
-        createdByHrId: "hr1",
-        title: "Frontend Developer",
-        level: JobLevel.senior,
-        workType: WorkType.remote,
-        country: "Turkey",
-        city: "Istanbul",
-        description: "",
-        requirements: "",
-        status: JobPostingStatus.closed,
-        applicationIds: ["a1", "a2", "a3"],
-        acceptedCandidateIds: ["a1", "a2", "a3"],
-        createdAt: DateTime.now(),
-      ),
-      JobPosting(
-        id: "2",
-        companyId: "c1",
-        createdByHrId: "hr1",
-        title: "Backend Engineer",
-        level: JobLevel.mid,
-        workType: WorkType.hybrid,
-        country: "Germany",
-        city: "Berlin",
-        description: "",
-        requirements: "",
-        status: JobPostingStatus.closed,
-        applicationIds: ["a4", "a5"],
-        acceptedCandidateIds: ["a4", "a5"],
-        createdAt: DateTime.now(),
-      ),
-    ];
-    // ===============================
-// MOCK APPLICATIONS
-// ===============================
-    applications.value = [
-      JobApplication(
-        id: "a1",
-        jobPostingId: "1",
-        candidateId: "u1",
-        appliedAt: DateTime.now(),
-        status: ApplicationStatus.accepted,
-      ),
-      JobApplication(
-        id: "a2",
-        jobPostingId: "1",
-        candidateId: "u2",
-        appliedAt: DateTime.now(),
-        status: ApplicationStatus.accepted,
-      ),
-      JobApplication(
-        id: "a3",
-        jobPostingId: "1",
-        candidateId: "u3",
-        appliedAt: DateTime.now(),
-        status: ApplicationStatus.accepted,
-      ),
-      JobApplication(
-        id: "a4",
-        jobPostingId: "2",
-        candidateId: "u4",
-        appliedAt: DateTime.now(),
-        status: ApplicationStatus.accepted,
-      ),
-      JobApplication(
-        id: "a5",
-        jobPostingId: "2",
-        candidateId: "u5",
-        appliedAt: DateTime.now(),
-        status: ApplicationStatus.accepted,
-      ),
-    ];
   }
 
   // ===============================
-  // READY POSTINGS
+  // REAL-TIME POSTINGS
   // ===============================
-  List<JobPosting> get readyPostings {
-    return jobPostings.where((p) => p.isReady).toList();
+  void _listenToReadyPostings() {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    _db.collection('job_postings')
+        .snapshots()
+        .listen((snap) {
+          try {
+            final all = snap.docs.map((doc) {
+              return JobPosting.fromJson({...doc.data(), 'id': doc.id});
+            }).toList();
+
+            // Filter by owner (allow legacy empty ID for now)
+            final myPostings = all.where((p) {
+              final doc = snap.docs.firstWhere((d) => d.id == p.id).data();
+              final ownerId = doc['createdByHrId'] ?? '';
+              return ownerId == '' || ownerId == user.uid;
+            }).toList();
+
+            // A posting is "ready" for interview if it has at least one accepted candidate
+            readyPostings.value = myPostings.where((p) {
+              // Check acceptedCount first
+              if (p.acceptedCount > 0) return true;
+              
+              // Fallback: Check raw applicants array from document
+              final doc = snap.docs.firstWhere((d) => d.id == p.id).data();
+              final applicants = List<Map<String, dynamic>>.from(doc['applicants'] ?? []);
+              return applicants.any((a) => a['status'] == 'accepted');
+            }).toList();
+            
+            debugPrint("Loaded ${readyPostings.length} ready postings");
+          } catch (e) {
+            debugPrint("Error in _listenToReadyPostings: $e");
+          }
+        }, onError: (err) {
+          debugPrint("Firestore listener error: $err");
+        });
   }
 
-  // SEARCH
   List<JobPosting> get filteredPostings {
     final query = searchQuery.value.toLowerCase();
-
-    return readyPostings.where((p) {
-      return p.title.toLowerCase().contains(query);
-    }).toList();
+    if (query.isEmpty) return readyPostings;
+    return readyPostings.where((p) => p.title.toLowerCase().contains(query)).toList();
   }
+
   void setSearchQuery(String value) {
     searchQuery.value = value;
+  }
+
+  void onPostingSelected(JobPosting posting) {
+    selectedPosting.value = posting;
+    positionCtrl.text = posting.title;
+    titleCtrl.text = "${posting.title} Interview";
+    _loadAcceptedCandidates(posting);
+  }
+
+  void _loadAcceptedCandidates(JobPosting posting) async {
+    try {
+      final doc = await _db.collection('job_postings').doc(posting.id).get();
+      if (!doc.exists) return;
+
+      final data = doc.data()!;
+      final applicants = List<Map<String, dynamic>>.from(data['applicants'] ?? []);
+      final accepted = applicants.where((a) => a['status'] == 'accepted').toList();
+
+      debugPrint("[CreateInterview] Accepted candidates from applicants array: ${accepted.length}");
+      for (var a in accepted) {
+        debugPrint("  -> userId=${a['userId']}, candidateId=${a['candidateId']}, id=${a['id']}, name=${a['name']}");
+      }
+
+      // 🔥 FALLBACK: If any accepted candidate is missing userId, fetch from applications collection
+      final enriched = <Map<String, dynamic>>[];
+      for (var a in accepted) {
+        final rawId = (a['userId'] ?? a['candidateId'] ?? a['id'] ?? '').toString().trim();
+        if (rawId.isNotEmpty) {
+          enriched.add(a);
+        } else {
+          // Try to find candidate ID from applications collection by matching name or posting
+          debugPrint("  [!] Missing userId for applicant: ${a['name']} – trying applications fallback");
+          final appSnap = await _db.collection('applications')
+              .where('jobPostingId', isEqualTo: posting.id)
+              .where('status', isEqualTo: 'accepted')
+              .get();
+          for (var appDoc in appSnap.docs) {
+            final appData = appDoc.data();
+            final candidateId = appData['candidateId'] ?? '';
+            if (candidateId.isNotEmpty) {
+              // Check not already in list
+              final alreadyAdded = enriched.any((e) =>
+                (e['userId'] ?? e['candidateId'] ?? '') == candidateId);
+              if (!alreadyAdded) {
+                final enrichedEntry = Map<String, dynamic>.from(a);
+                enrichedEntry['userId'] = candidateId;
+                enriched.add(enrichedEntry);
+                debugPrint("  [✓] Recovered candidateId from applications: $candidateId");
+              }
+            }
+          }
+        }
+      }
+      
+      selectedCandidates.assignAll(enriched);
+      debugPrint("[CreateInterview] Final selectedCandidates count: ${enriched.length}");
+
+      // 🔥 UI SYNC: If candidates already have an inviteCode, use it in the UI
+      bool codeFound = false;
+      if (enriched.isNotEmpty) {
+        // Try to find the first candidate with a code
+        final candidateWithCode = enriched.firstWhereOrNull(
+          (a) => a['inviteCode'] != null && a['inviteCode'].toString().isNotEmpty
+        );
+
+        if (candidateWithCode != null) {
+          inviteCode.value = candidateWithCode['inviteCode'].toString();
+          codeFound = true;
+          debugPrint("Existing invite code found: ${inviteCode.value}");
+        }
+      }
+
+      // If no code found in applicants, and current code is placeholder or empty, generate one
+      if (!codeFound && (inviteCode.value == "—" || inviteCode.value.isEmpty)) {
+        generateInviteCode();
+      }
+    } catch (e) {
+      debugPrint("Error loading accepted candidates: $e");
+    }
   }
 
   // ===============================
@@ -226,169 +213,72 @@ class CreateInterviewController extends GetxController {
       firstDate: DateTime.now(),
       lastDate: DateTime(2100),
     );
-
     if (picked != null) selectedDate.value = picked;
   }
 
   void pickStartTime(BuildContext context) async {
     final picked = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.now(),
+      initialTime: const TimeOfDay(hour: 9, minute: 0),
     );
-
     if (picked != null) selectedStartTime.value = picked;
   }
 
   void pickEndTime(BuildContext context) async {
     final picked = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.now(),
+      initialTime: const TimeOfDay(hour: 10, minute: 0),
     );
-
     if (picked != null) selectedEndTime.value = picked;
   }
 
-  // ===============================
-  // SET START TIME
-  // ===============================
+  void setQuestions(List<String> ids) {
+    selectedQuestionIds.assignAll(ids);
+  }
+
   void setStartTime(TimeOfDay time) {
     selectedStartTime.value = time;
   }
 
-  // ===============================
-  // SET END TIME
-  // ===============================
   void setEndTime(TimeOfDay time) {
     selectedEndTime.value = time;
   }
 
-  // ===============================
-  // AUTO DURATION (READ ONLY)
-  // ===============================
   int get durationInMinutes {
-    if (selectedStartTime.value == null || selectedEndTime.value == null) {
-      return 0;
-    }
-
+    if (selectedStartTime.value == null || selectedEndTime.value == null) return 0;
     final start = selectedStartTime.value!;
     final end = selectedEndTime.value!;
-
     final startMinutes = start.hour * 60 + start.minute;
     final endMinutes = end.hour * 60 + end.minute;
-
     return endMinutes - startMinutes;
   }
 
-  // ===============================
-  // GENERATE UNIQUE INVITE CODE
-  // ===============================
-  /// Generates a random invite code like: FE-29A7
-  /// Called once when page opens
-  ///
-  /// TODO (Backend):
-  /// - Ensure uniqueness (check Firestore)
-  /// - Store under interview document
   void generateInviteCode() {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     final random = Random();
-
-    final part1 = String.fromCharCodes(
-      Iterable.generate(2, (_) => chars.codeUnitAt(random.nextInt(26))),
-    );
-
-    final part2 = String.fromCharCodes(
-      Iterable.generate(
-          4, (_) => chars.codeUnitAt(random.nextInt(chars.length))),
-    );
-
-    inviteCode.value = "$part1-$part2";
-  }
-
-  void toggleManual(bool value) {
-    isManual.value = value;
-  }
-
-  void addCandidate(String name) {
-    selectedCandidates.add(name);
-  }
-
-  void removeCandidate(String name) {
-    selectedCandidates.remove(name);
-  }
-
-  // ===============================
-  // LOAD ACCEPTED CANDIDATES
-  // ===============================
-  void _loadAcceptedCandidates() {
-    if (selectedPosting.value == null) return;
-
-    final postingId = selectedPosting.value!.id;
-
-    final acceptedApps = applications.where((a) =>
-    a.jobPostingId == postingId &&
-        a.status == ApplicationStatus.accepted);
-
-    // For now: just use candidateId as placeholder
-    selectedCandidates.value =
-        acceptedApps.map((a) => a.candidateId).toList();
-
-    /// TODO (Backend):
-    /// - Replace candidateId with full User model
-    /// - Example:
-    /// selectedCandidates.value = acceptedUsers;
-  }
-
-  // ===============================
-  // RESET STATE (OPTIONAL)
-  // ===============================
-  void clearSelectedPosting() {
-    selectedPosting.value = null;
-    selectedCandidates.clear();
-  }
-
-  // ===============================
-  // STATS HELPERS
-  // ===============================
-
-  int getApplicantsCount(String postingId) {
-    return applications
-        .where((a) => a.jobPostingId == postingId)
-        .length;
-  }
-
-  int getAcceptedCount(String postingId) {
-    return applications
-        .where((a) =>
-    a.jobPostingId == postingId &&
-        a.status == ApplicationStatus.accepted)
-        .length;
-  }
-
-  int getRejectedCount(String postingId) {
-    return applications
-        .where((a) =>
-    a.jobPostingId == postingId &&
-        a.status == ApplicationStatus.rejected)
-        .length;
+    final part1 = List.generate(2, (_) => chars[random.nextInt(26)]).join();
+    final part2 = List.generate(4, (_) => chars[random.nextInt(chars.length)]).join();
+    inviteCode.value = "$part1$part2"; // No hyphen
   }
 
   // ===============================
   // CREATE INTERVIEW
   // ===============================
-  void createInterview() {
+  Future<void> createInterview() async {
+    if (isLoading.value) return; // 🔥 Mükerrer tıklamayı önle
     if (titleCtrl.text.isEmpty ||
         positionCtrl.text.isEmpty ||
         selectedDate.value == null ||
         selectedStartTime.value == null ||
         selectedEndTime.value == null ||
-        inviteCode.value == "—") {
-      Get.snackbar("Error", "Fill all fields");
+        selectedQuestionIds.isEmpty) {
+      showSimpleNotification(
+        const Text("Please fill all fields and select questions"),
+        background: Colors.red,
+      );
       return;
     }
 
-    // ===============================
-    // BUILD DATETIME OBJECTS
-    // ===============================
     final startDateTime = DateTime(
       selectedDate.value!.year,
       selectedDate.value!.month,
@@ -405,21 +295,125 @@ class CreateInterviewController extends GetxController {
       selectedEndTime.value!.minute,
     );
 
-    // ===============================
-    // VALIDATE TIME RANGE
-    // ===============================
     if (endDateTime.isBefore(startDateTime)) {
-      Get.snackbar("Error", "End time must be after start time");
+      showSimpleNotification(
+        const Text("End time must be after start time"),
+        background: Colors.red,
+      );
       return;
     }
 
-    // TODO: Backend integration
-    /*
-    await api.createInterview(...)
-    */
+    try {
+      isLoading.value = true;
+      final user = _auth.currentUser;
+      if (user == null) throw "User not logged in";
 
-    Get.snackbar("Success", "Interview created (mock)");
-    Get.back();
+      // 1. Fetch Question objects for the selected IDs
+      final questionSnaps = await Future.wait(
+        selectedQuestionIds.map((id) => _db.collection('questions').doc(id).get())
+      );
+      
+      final questions = questionSnaps.map((s) {
+        return Question.fromFirestore(s.data()!, s.id);
+      }).toList();
+
+      // 2. Prepare Interview Document
+      final candidateIds = selectedCandidates.map((c) {
+        final rawId = c['userId'] ?? c['candidateId'] ?? c['id'] ?? '';
+        return rawId.toString().trim();
+      }).where((id) => id.isNotEmpty).toList();
+
+      debugPrint("[CreateInterview] candidateIds to be written: $candidateIds");
+      if (candidateIds.isEmpty) {
+        showSimpleNotification(
+          const Text("No valid candidate IDs found. Please re-select the job posting."),
+          background: Colors.red,
+        );
+        isLoading.value = false;
+        return;
+      }
+      
+      // 🔥 LOGIC: Use the code shown in the UI (inviteCode.value).
+      // We already tried to pull it from candidates in _loadAcceptedCandidates.
+      final String finalCode = inviteCode.value;
+
+      final interviewDoc = {
+        "title": titleCtrl.text.trim(),
+        "position": positionCtrl.text.trim(),
+        "companyId": user.uid,
+        "createdByHrId": user.uid,
+        "jobPostingId": selectedPosting.value?.id,
+        "candidateIds": candidateIds,
+        "questions": questions.map((q) => q.toJson()).toList(),
+        "startTime": Timestamp.fromDate(startDateTime),
+        "endTime": Timestamp.fromDate(endDateTime),
+        "joinCode": finalCode,
+        "inviteCode": finalCode,
+        "status": "scheduled",
+        "reviewStatus": "pending",
+        "createdAt": FieldValue.serverTimestamp(),
+      };
+
+      // 3. Save to Firestore
+      final docRef = await _db.collection('interviews').add(interviewDoc);
+
+      // 🔥 SYNC: Ensure all selected candidates AND the Job Posting share this same code
+      if (selectedPosting.value != null) {
+        final postingId = selectedPosting.value!.id;
+        
+        // A. Update individual application documents
+        for (var userId in candidateIds) {
+          final appSnap = await _db.collection('applications')
+              .where('candidateId', isEqualTo: userId)
+              .where('jobPostingId', isEqualTo: postingId)
+              .limit(1)
+              .get();
+          
+          if (appSnap.docs.isNotEmpty) {
+            final appDoc = appSnap.docs.first;
+            if (appDoc.data()['inviteCode'] != finalCode) {
+              await appDoc.reference.update({'inviteCode': finalCode});
+            }
+          }
+        }
+
+        // B. Update the Job Posting's applicants array for consistency
+        final postingRef = _db.collection('job_postings').doc(postingId);
+        final postingSnap = await postingRef.get();
+        if (postingSnap.exists) {
+          final postingData = postingSnap.data()!;
+          final applicants = List<Map<String, dynamic>>.from(postingData['applicants'] ?? []);
+          bool changed = false;
+
+          for (var applicant in applicants) {
+            final uId = applicant['userId']?.toString();
+            if (candidateIds.contains(uId)) {
+              if (applicant['inviteCode'] != finalCode) {
+                applicant['inviteCode'] = finalCode;
+                changed = true;
+              }
+            }
+          }
+
+          if (changed) {
+            await postingRef.update({'applicants': applicants});
+          }
+        }
+      }
+
+      showSimpleNotification(
+        const Text("Interview session created successfully"),
+        background: Colors.green,
+      );
+      Navigator.of(Get.context!).pop();
+    } catch (e) {
+      showSimpleNotification(
+        Text("Failed to create interview: $e"),
+        background: Colors.red,
+      );
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   @override

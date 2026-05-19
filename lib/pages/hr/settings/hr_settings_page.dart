@@ -20,6 +20,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../constants/constants.dart';
 import '../../auth/login_page.dart';
+import '../controllers/hr_settings_controller.dart';
 
 // REUSED SETTINGS WIDGETS
 import '../../profile/widgets/settings/st_action_tile.dart';
@@ -36,6 +37,8 @@ class HrSettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final controller = Get.put(HrSettingsController());
+
     return Scaffold(
       backgroundColor: AppColors.background,
 
@@ -52,7 +55,7 @@ class HrSettingsPage extends StatelessWidget {
         ),
         leading: IconButton(
           icon: Icon(PhosphorIcons.arrowLeft()),
-          onPressed: () => Get.back(),
+          onPressed: () { if (Navigator.of(context).canPop()) Navigator.of(context).pop(); },
         ),
       ),
 
@@ -71,12 +74,12 @@ class HrSettingsPage extends StatelessWidget {
               // =====================================================
               // HEADER (HR VERSION)
               // =====================================================
-              const Center(
+              Obx(() => Center(
                 child: HrHeaderSection(
-                  companyName: "Your Company",
+                  companyName: controller.companyName.value,
                   subtitle: "HR Panel",
                 ),
-              ),
+              )),
 
               const SizedBox(height: AppSpacing.xl),
 
@@ -108,12 +111,12 @@ class HrSettingsPage extends StatelessWidget {
 
                 const SizedBox(height: AppSpacing.md),
 
-                StActionTile(
+                Obx(() => StActionTile(
                   title: "Company Email",
-                  subtitle: "hr@company.com",
+                  subtitle: controller.companyEmail.value,
                   icon: PhosphorIcons.envelope(),
                   onTap: null,
-                ),
+                )),
               ]),
 
               const SizedBox(height: AppSpacing.lg),

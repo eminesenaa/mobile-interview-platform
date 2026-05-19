@@ -30,6 +30,7 @@ import '../../widgets/results/ir_empty_state.dart';
 import '../../widgets/results/ir_filter_row.dart';
 import '../../widgets/results/ir_results_list.dart';
 import '../../widgets/results/ir_search_bar.dart';
+import 'interview_result_detail_page.dart';
 
 // ================= WIDGETS =================
 
@@ -54,7 +55,7 @@ class InterviewResultsPage extends StatelessWidget {
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
+          onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           "Interview Results",
@@ -111,15 +112,10 @@ class InterviewResultsPage extends StatelessWidget {
                 return IrResultsList(
                   results: results,
                   onTap: (result) {
-                    // =====================================================
-                    // TODO: NAVIGATION TO DETAIL PAGE
-                    // =====================================================
-                    /*
                     Get.to(
-                      () => const InterviewResultDetailPage(),
+                      () => InterviewResultDetailPage(),
                       arguments: result,
                     );
-                    */
                   },
                 );
               }),

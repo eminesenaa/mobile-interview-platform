@@ -17,6 +17,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../main_view.dart';
 
 import '../../../../constants/constants.dart';
 
@@ -42,8 +44,11 @@ class ApplicationDetailPage extends StatelessWidget {
         Get.arguments as Map<String, dynamic>;
 
     final status = application["status"] ?? "pending";
-
     final controller = Get.put(ApplicationsController());
+
+    // 🔹 For data visibility: If application document is missing full job info,
+    // we can try to use a placeholder or better, let the UI handle it via fallbacks.
+    // However, the best way for detail page is to ensure JdJobInfoSection gets what it needs.
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -58,7 +63,7 @@ class ApplicationDetailPage extends StatelessWidget {
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
+          onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           "Application Details",
@@ -69,73 +74,92 @@ class ApplicationDetailPage extends StatelessWidget {
       // =====================================================
       // BODY
       // =====================================================
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          AppSpacing.md,
-          AppSpacing.lg,
-          AppSpacing.lg,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // =====================================================
-            // JOB INFO (REUSE)
-            // =====================================================
-            JdJobInfoSection(job: application),
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('applications')
+            .doc(application["id"])
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-            const SizedBox(height: AppSpacing.xl),
+          final appData = snapshot.data!.data() as Map<String, dynamic>?;
+          if (appData == null) return const Center(child: Text("Application not found"));
+          
+          final currentStatus = appData["status"] ?? "pending";
 
-            // =====================================================
-            // DESCRIPTION (REUSE)
-            // =====================================================
-            JdDescriptionSection(job: application),
-
-            const SizedBox(height: AppSpacing.xl),
-
-            // =====================================================
-            // STATUS CARD
-            // =====================================================
-            AdStatusCard(
-              status: status,
-              date: application["startTime"] != null
-                  ? controller.formatDate(application["startTime"])
-                  : null,
-              timeRange: application["startTime"] != null &&
-                  application["endTime"] != null
-                  ? controller.formatTimeRange(
-                application["startTime"],
-                application["endTime"],
-              )
-                  : null,
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.md,
+              AppSpacing.lg,
+              AppSpacing.lg,
             ),
-
-            const SizedBox(height: AppSpacing.lg),
-
-            // =====================================================
-            // HR MESSAGE (ACCEPTED / REJECTED)
-            // =====================================================
-            if (status == "accepted" || status == "rejected") ...[
-              AdHrMessageCard(
-                title: status == "accepted"
-                    ? "Message from HR"
-                    : "Feedback from HR",
-                message: application["hrMessage"] ?? "No message provided.",
-              ),
-              const SizedBox(height: AppSpacing.lg),
-            ],
-
-            // =====================================================
-            // INVITE CODE (ONLY ACCEPTED)
-            // =====================================================
-            if (status == "accepted") ...[
-              const SizedBox(height: AppSpacing.md),
-              AdInviteCodeCard(
-                code: application["inviteCode"] ?? "N/A",
-              ),
-            ],
-          ],
-        ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                JdJobInfoSection(job: appData),
+                const SizedBox(height: AppSpacing.xl),
+                JdDescriptionSection(job: appData),
+                const SizedBox(height: AppSpacing.xl),
+                AdStatusCard(
+                  status: currentStatus,
+                  date: appData["startTime"] != null
+                      ? controller.formatDate(appData["startTime"])
+                      : null,
+                  timeRange: appData["startTime"] != null &&
+                          appData["endTime"] != null
+                      ? controller.formatTimeRange(
+                          appData["startTime"],
+                          appData["endTime"],
+                        )
+                      : null,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                if (currentStatus == "accepted" || currentStatus == "rejected") ...[
+                  AdHrMessageCard(
+                    title: currentStatus == "accepted"
+                        ? "Message from HR"
+                        : "Feedback from HR",
+                    message: appData["hrMessage"] ?? "No message provided.",
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                ],
+                if (currentStatus == "accepted") ...[
+                  const SizedBox(height: AppSpacing.md),
+                  AdInviteCodeCard(
+                    code: appData["inviteCode"] ?? "N/A",
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Get.offAll(
+                          () => const MainView(initialIndex: 1),
+                          arguments: {
+                            "targetJob": appData["jobTitle"],
+                            "skills": appData["skills"],
+                          },
+                        );
+                      },
+                      icon: const Icon(Icons.school_outlined),
+                      label: const Text("Start Preparation Training"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
       ),
     );
   }

@@ -1,29 +1,22 @@
 // ===================== File: open_positions_controller.dart =====================
 // Purpose:
-// Controls Open Positions (Browse All) page
-//
-// Responsibilities:
-// - Provide job postings list
-// - Handle search (title-based)
-// - Handle filtering (level / type)
-// - Expose filtered list to UI
-//
-// IMPORTANT:
-// - Uses mock data for now
-// - Designed to be backend-ready
-//
-// TODO (Backend):
-// - Replace mock data with API call
-// - Move filtering to backend if needed
-// - Add pagination
+// Controls Open Positions (Browse All) page using real Firestore data.
 // ==============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:overlay_support/overlay_support.dart';
+import '../../../models/job_application.dart';
+import '../../../services/interview/job_application_service.dart';
 
 class OpenPositionsController extends GetxController {
+  final _db = FirebaseFirestore.instance;
+  final _applicationService = Get.find<JobApplicationService>();
+
   // ===============================
-  // DATA
+  // STATE
   // ===============================
 
   /// All jobs (raw)
@@ -31,6 +24,15 @@ class OpenPositionsController extends GetxController {
 
   /// Filtered jobs (UI uses this)
   final filteredJobs = <Map<String, dynamic>>[].obs;
+
+  final isLoading = false.obs;
+
+  /// User's applied job IDs
+  final appliedJobIds = <String>{}.obs;
+
+  /// Jobs split for UI
+  final availableJobs = <Map<String, dynamic>>[].obs;
+  final appliedJobs = <Map<String, dynamic>>[].obs;
 
   // ===============================
   // SEARCH & FILTER STATE
@@ -43,32 +45,23 @@ class OpenPositionsController extends GetxController {
   // APPLY FORM STATE
   // ===============================
 
-  // CONTACT
   final emailCtrl = TextEditingController();
   final phoneCtrl = TextEditingController();
   final locationCtrl = TextEditingController();
-
-  // APPLICATION INFO
   final universityCtrl = TextEditingController();
   final departmentCtrl = TextEditingController();
-
-  // LINKS (optional)
   final portfolioCtrl = TextEditingController();
   final githubCtrl = TextEditingController();
   final linkedinCtrl = TextEditingController();
-
-  // SKILLS
   final skillCtrl = TextEditingController();
   final skills = <String>[].obs;
-
-  // RESUME
-  final selectedResume = Rxn<String>(); // (şimdilik path/string)
+  final selectedResume = Rxn<String>();
+  final userName = "".obs;
 
   // ===============================
   // SELECTED JOB (DETAIL PAGE)
   // ===============================
 
-  /// Currently selected job (for detail page)
   final selectedJob = Rxn<Map<String, dynamic>>();
 
   // ===============================
@@ -90,130 +83,118 @@ class OpenPositionsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-
-    // ===============================
-    // GET JOB FROM NAVIGATION
-    // ===============================
     if (Get.arguments != null) {
       selectedJob.value = Get.arguments;
     }
-
-    loadMockData();
-    applyFilters();
-
-    // TODO: fetch from backend
-    fetchJobs();
+    _listenToJobs();
+    _listenToUserApplications(); // 🔥 NEW
+    loadUserProfile();
   }
 
   // ===============================
-  // MOCK DATA (RICH)
+  // AUTO-FILL PROFILE
   // ===============================
+  Future<void> loadUserProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-  void loadMockData() {
-    jobs.value = [
-      {
-        "id": "JP-1",
-        "title": "Frontend Developer",
-        "level": "Senior",
-        "location": "Istanbul, Turkey",
-        "workType": "Remote",
-        "description":
-            "Build and maintain modern, scalable, and high-performance user interfaces using React and TypeScript. Collaborate closely with designers and backend teams to deliver seamless user experiences. Optimize applications for speed and responsiveness, ensure cross-browser compatibility, and contribute to UI architecture decisions.",
-        "requirements": [
-          "4+ years of frontend development experience",
-          "Strong proficiency in React and TypeScript",
-          "Experience with state management libraries (Redux, Zustand, etc.)",
-          "Solid understanding of responsive design and UI/UX principles",
-          "Familiarity with REST APIs and modern frontend tooling",
-        ],
-        "salary": "\$4,000 - \$6,000",
-      },
-      {
-        "id": "JP-2",
-        "title": "Backend Engineer",
-        "level": "Mid-Level",
-        "location": "Berlin, Germany",
-        "workType": "Hybrid",
-        "description":
-            "Design, develop, and maintain scalable backend systems and APIs using Node.js. Work with microservice architectures, integrate third-party services, and ensure high availability and performance. Collaborate with frontend and DevOps teams to deliver end-to-end solutions.",
-        "requirements": [
-          "3+ years of backend development experience",
-          "Strong knowledge of Node.js and Express.js",
-          "Experience with RESTful API design and microservices",
-          "Familiarity with databases (PostgreSQL, MongoDB)",
-          "Understanding of authentication, security, and performance optimization",
-        ],
-        "salary": "\$3,500 - \$5,000",
-      },
-      {
-        "id": "JP-3",
-        "title": "ML Engineer Intern",
-        "level": "Intern",
-        "location": "San Francisco, US",
-        "workType": "On-site",
-        "description":
-            "Support the development of machine learning pipelines and assist in model training, evaluation, and deployment. Work with data scientists to preprocess datasets, experiment with models, and integrate ML solutions into production systems.",
-        "requirements": [
-          "Basic knowledge of machine learning concepts",
-          "Experience with Python and libraries like NumPy, Pandas",
-          "Familiarity with frameworks such as TensorFlow or PyTorch",
-          "Understanding of data preprocessing and model evaluation",
-          "Strong problem-solving and analytical thinking skills",
-        ],
-      },
-      {
-        "id": "JP-4",
-        "title": "Mobile Developer",
-        "level": "Mid-Level",
-        "location": "London, UK",
-        "workType": "Remote",
-        "description":
-            "Develop and maintain cross-platform mobile applications using Flutter. Ensure smooth performance, responsive UI, and seamless integration with backend services. Participate in code reviews and contribute to mobile architecture decisions.",
-        "requirements": [
-          "3+ years of mobile development experience",
-          "Strong experience with Flutter and Dart",
-          "Knowledge of REST API integration",
-          "Understanding of mobile UI/UX best practices",
-          "Experience with version control systems (Git)",
-        ],
-      },
-      {
-        "id": "JP-5",
-        "title": "DevOps Engineer",
-        "level": "Senior",
-        "location": "Amsterdam, NL",
-        "workType": "Hybrid",
-        "description":
-            "Design, implement, and maintain CI/CD pipelines and cloud infrastructure. Ensure system reliability, scalability, and security. Automate deployment processes and monitor system performance using modern DevOps tools.",
-        "requirements": [
-          "5+ years of experience in DevOps or related roles",
-          "Strong knowledge of CI/CD tools (GitHub Actions, Jenkins, etc.)",
-          "Experience with cloud platforms (AWS, Azure, or GCP)",
-          "Familiarity with containerization (Docker, Kubernetes)",
-          "Understanding of monitoring and logging systems",
-        ],
-      },
-      {
-        "id": "JP-6",
-        "title": "Data Scientist",
-        "level": "Senior",
-        "location": "Remote",
-        "workType": "Remote",
-        "description":
-            "Analyze large datasets to extract insights and build predictive models. Work closely with product and engineering teams to develop data-driven solutions. Communicate findings clearly and contribute to strategic decision-making.",
-        "requirements": [
-          "4+ years of experience in data science or analytics",
-          "Strong knowledge of Python, Pandas, NumPy, and scikit-learn",
-          "Experience with data visualization tools (Matplotlib, Tableau, etc.)",
-          "Understanding of statistical modeling and machine learning algorithms",
-          "Strong communication and storytelling skills with data",
-        ],
-      },
-    ];
+    try {
+      final doc = await _db.collection("users").doc(user.uid).get();
+      if (doc.exists) {
+        final data = doc.data()!;
+
+        // Fill controllers if they are empty
+        if (emailCtrl.text.isEmpty) {
+          emailCtrl.text = data["email"] ?? user.email ?? "";
+        }
+        if (phoneCtrl.text.isEmpty) {
+          phoneCtrl.text = data["phoneNumber"] ?? "";
+        }
+        
+        // Location mapping (Try multiple keys used across the app)
+        if (locationCtrl.text.isEmpty) {
+          final loc = data["location"] ?? data["city"] ?? data["country"];
+          if (loc != null) {
+            locationCtrl.text = loc.toString();
+          }
+        }
+        
+        // Education mapping
+        if (universityCtrl.text.isEmpty) {
+          final uni = data["school"] ?? data["university"];
+          if (uni != null) {
+            universityCtrl.text = uni.toString();
+          }
+        }
+        
+        if (departmentCtrl.text.isEmpty) {
+          final dept = data["department"] ?? data["role"] ?? data["major"];
+          if (dept != null) {
+            departmentCtrl.text = dept.toString();
+          }
+        }
+        
+        // Social links
+        if (githubCtrl.text.isEmpty) {
+          githubCtrl.text = data["githubUrl"] ?? "";
+        }
+        if (linkedinCtrl.text.isEmpty) {
+          linkedinCtrl.text = data["linkedinUrl"] ?? "";
+        }
+        if (portfolioCtrl.text.isEmpty) {
+          portfolioCtrl.text = data["website"] ?? data["portfolioUrl"] ?? "";
+        }
+
+        // 🔥 Save user name for application
+        final fName = data['name'] ?? "";
+        final lName = data['surname'] ?? "";
+        final fullName = "$fName $lName".trim();
+        userName.value = fullName.isNotEmpty ? fullName : (data['displayName'] ?? "");
+      }
+    } catch (e) {
+      debugPrint("Error loading user profile for auto-fill: $e");
+    }
   }
 
   // ===============================
-  // SEARCH
+  // REAL-TIME JOBS
+  // ===============================
+  void _listenToJobs() {
+    isLoading.value = true;
+    _db.collection('job_postings')
+        .where('status', isEqualTo: 'active')
+        .snapshots()
+        .listen((snap) {
+          jobs.value = snap.docs.map((doc) {
+            final data = doc.data();
+            data['id'] = doc.id;
+            return data;
+          }).toList();
+          applyFilters();
+          isLoading.value = false;
+        });
+  }
+
+  void _listenToUserApplications() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    _db.collection('applications')
+        .where('candidateId', isEqualTo: user.uid)
+        .snapshots()
+        .listen((snap) {
+      appliedJobIds.value = snap.docs.map((doc) => doc.data()['jobPostingId'] as String).toSet();
+      _splitJobs();
+    });
+  }
+
+  void _splitJobs() {
+    availableJobs.value = filteredJobs.where((j) => !appliedJobIds.contains(j['id'])).toList();
+    appliedJobs.value = filteredJobs.where((j) => appliedJobIds.contains(j['id'])).toList();
+  }
+
+  // ===============================
+  // ACTIONS
   // ===============================
 
   void setSearchQuery(String query) {
@@ -221,32 +202,21 @@ class OpenPositionsController extends GetxController {
     applyFilters();
   }
 
-  // ===============================
-  // FILTER
-  // ===============================
-
   void setFilter(String filter) {
     selectedFilter.value = filter;
     applyFilters();
   }
-
-  // ===============================
-  // APPLY FILTER LOGIC
-  // ===============================
 
   void applyFilters() {
     final query = searchQuery.value.toLowerCase();
     final filter = selectedFilter.value;
 
     filteredJobs.value = jobs.where((job) {
-      final title = job["title"].toString().toLowerCase();
+      final title = (job["title"] ?? "").toString().toLowerCase();
       final level = job["level"];
       final workType = job["workType"];
 
-      // 🔍 Search condition
       final matchesSearch = title.contains(query);
-
-      // 🎯 Filter condition
       bool matchesFilter = true;
 
       if (filter != "All Roles") {
@@ -259,31 +229,13 @@ class OpenPositionsController extends GetxController {
 
       return matchesSearch && matchesFilter;
     }).toList();
+
+    _splitJobs(); // 🔥 Update split lists whenever filteredJobs changes
   }
-
-  // ===============================
-  // BACKEND READY FETCH
-  // ===============================
-
-  Future<void> fetchJobs() async {
-    // TODO:
-    /*
-    final response = await api.getOpenPositions();
-
-    jobs.value = response.jobs;
-    applyFilters();
-    */
-  }
-
-  // ===============================
-  // SKILL ACTIONS
-  // ===============================
 
   void addSkill() {
     final skill = skillCtrl.text.trim();
-
     if (skill.isEmpty) return;
-
     skills.add(skill);
     skillCtrl.clear();
   }
@@ -292,84 +244,98 @@ class OpenPositionsController extends GetxController {
     skills.remove(skill);
   }
 
-  // ===============================
-  // RESUME ACTION
-  // ===============================
-
   void pickResume() {
-    // TODO: file picker eklenecek
-    selectedResume.value = "resume.pdf";
-
-    // Backend:
-    /*
-  final file = await FilePicker.pick();
-  uploadResume(file);
-  */
+    selectedResume.value = "resume_${DateTime.now().millisecondsSinceEpoch}.pdf";
   }
-
-  // ===============================
-  // ACTIONS
-  // ===============================
 
   void applyToJob(Map<String, dynamic> job) {
     setSelectedJob(job);
-
-    // ===============================
-    // TODO: NAVIGATE TO APPLY PAGE
-    // ===============================
-    /*
-  Get.to(() => ApplyPage(), arguments: job);
-  */
-
-    print("Applying to ${job["title"]}");
   }
-
-  // ===============================
-  // SELECT JOB (NAVIGATION SUPPORT)
-  // ===============================
 
   void setSelectedJob(Map<String, dynamic> job) {
     selectedJob.value = job;
-
-    // ===============================
-    // TODO (Backend)
-    // ===============================
-    /*
-  - Optionally fetch full job detail by ID
-  - Example:
-    final detail = await api.getJobDetail(job["id"]);
-    selectedJob.value = detail;
-  */
+    loadUserProfile();
   }
 
   // ===============================
-  // SUBMIT APPLICATION
+  // SUBMIT APPLICATION (BACKEND)
   // ===============================
 
-  void submitApplication() {
-    final data = {
-      "jobId": selectedJob.value?["id"],
-      "email": emailCtrl.text,
-      "phone": phoneCtrl.text,
-      "location": locationCtrl.text,
-      "university": universityCtrl.text,
-      "department": departmentCtrl.text,
-      "skills": skills,
-      "portfolio": portfolioCtrl.text,
-      "github": githubCtrl.text,
-      "linkedin": linkedinCtrl.text,
-      "resume": selectedResume.value,
-    };
+  Future<void> submitApplication() async {
+    if (isLoading.value) return; // 🔥 Mükerrer tıklamayı önle
 
-    print("APPLICATION DATA:");
-    print(data);
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      showSimpleNotification(
+        const Text("You must be logged in to apply"),
+        background: Colors.redAccent,
+      );
+      return;
+    }
 
-    // ===============================
-    // TODO (BACKEND)
-    // ===============================
-    /*
-  await api.submitApplication(data);
-  */
+    final jobId = selectedJob.value?["id"];
+    if (jobId == null) return;
+
+    isLoading.value = true;
+
+    try {
+      final application = JobApplication(
+        id: "", // Service will generate
+        jobPostingId: jobId,
+        candidateId: user.uid,
+        status: ApplicationStatus.pending,
+        appliedAt: DateTime.now(),
+        candidateName: userName.value.isNotEmpty ? userName.value : (user.displayName ?? "Anonymous"),
+        jobTitle: selectedJob.value?["title"] ?? "Unknown Position",
+        location: selectedJob.value?["location"],
+        workType: selectedJob.value?["workType"],
+        company: selectedJob.value?["company"] ?? "Unknown Company",
+        university: universityCtrl.text,
+        department: departmentCtrl.text,
+        skills: skills.toList(),
+        githubUrl: githubCtrl.text,
+        linkedinUrl: linkedinCtrl.text,
+        portfolioUrl: portfolioCtrl.text,
+        resumeUrl: selectedResume.value,
+      );
+
+      final isUpdate = appliedJobIds.contains(jobId);
+
+      await _applicationService.submitApplication(application);
+
+      // 🔥 Safer navigation to close the apply flow
+      // Instead of multiple Get.back(), we return to the main dashboard or previous safe state
+      if (Get.isOverlaysOpen) {
+        Navigator.of(Get.overlayContext!).pop();
+      }
+      
+      // Navigate back to the previous screen (JobDetail or OpenPositions)
+      Navigator.of(Get.context!).pop();
+      
+      // Ensure we are back to a clean state
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (Get.currentRoute.contains('JobDetailPage')) {
+          Navigator.of(Get.context!).pop();
+        }
+      });
+      
+      Future.delayed(const Duration(milliseconds: 300), () {
+        showSimpleNotification(
+          Text(isUpdate
+              ? "Your application has been updated!"
+              : "Your application has been submitted!"),
+          background: Colors.green,
+          duration: const Duration(seconds: 3),
+        );
+      });
+    } catch (e) {
+      showSimpleNotification(
+        Text("Failed to submit application: $e"),
+        background: Colors.redAccent,
+      );
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   @override
@@ -385,5 +351,4 @@ class OpenPositionsController extends GetxController {
     skillCtrl.dispose();
     super.onClose();
   }
-
 }

@@ -60,7 +60,7 @@ class ExamReviewPage extends StatelessWidget {
           leading: IconButton(
             tooltip: 'Back to Results',
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context).pop(),
           ),
           actions: [
             IconButton(

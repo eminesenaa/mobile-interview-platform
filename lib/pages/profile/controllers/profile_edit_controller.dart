@@ -14,23 +14,24 @@ import '../../home/controllers/home_controller.dart';
 
 class ProfileEditController extends GetxController {
   // ===================== USER FIELDS (Reactive) =====================
-  final name = ''.obs;
-  final surname = ''.obs;
-  final username = ''.obs;
-  final email = ''.obs;
+  // ===================== USER FIELDS (Controllers) =====================
+  final nameCtrl = TextEditingController();
+  final surnameCtrl = TextEditingController();
+  final usernameCtrl = TextEditingController();
+  final emailCtrl = TextEditingController();
 
-  final country = ''.obs; // NEW → separate from location
-  final city = ''.obs;
+  final countryCtrl = TextEditingController();
+  final cityCtrl = TextEditingController();
 
-  final school = ''.obs;
-  final company = ''.obs;
-  final role = ''.obs;
+  final schoolCtrl = TextEditingController();
+  final companyCtrl = TextEditingController();
+  final roleCtrl = TextEditingController();
 
-  final website = ''.obs;
-  final linkedinUrl = ''.obs;
-  final githubUrl = ''.obs;
+  final websiteCtrl = TextEditingController();
+  final linkedinUrlCtrl = TextEditingController();
+  final githubUrlCtrl = TextEditingController();
 
-  final phoneNumber = ''.obs;
+  final phoneNumberCtrl = TextEditingController();
   final phoneCountryCode = '+90'.obs;
   final phoneCountryIso = 'TR'.obs;
 
@@ -74,30 +75,33 @@ class ProfileEditController extends GetxController {
           await FirebaseFirestore.instance.collection("users").doc(uid).get();
       final data = snap.data() ?? {};
 
-      name.value = data['name'] ?? '';
-      surname.value = data['surname'] ?? '';
-      username.value = data['username'] ?? '';
-      email.value = data['email'] ?? '';
+      nameCtrl.text = data['name'] ?? '';
+      surnameCtrl.text = data['surname'] ?? '';
+      usernameCtrl.text = data['username'] ?? '';
+      emailCtrl.text = data['email'] ?? '';
 
       // location → split into country + city
       final loc = data['location'] ?? '';
       if (loc.contains(',')) {
         final p = loc.split(",").map((e) => e.trim()).toList();
-        country.value = p[0];
-        city.value = p.length > 1 ? p[1] : "";
+        countryCtrl.text = p[0];
+        cityCtrl.text = p.length > 1 ? p[1] : "";
+      } else {
+        countryCtrl.text = loc;
+        cityCtrl.text = "";
       }
 
-      school.value = data['school'] ?? '';
-      company.value = data['company'] ?? '';
-      role.value = data['role'] ?? '';
+      schoolCtrl.text = data['school'] ?? '';
+      companyCtrl.text = data['company'] ?? '';
+      roleCtrl.text = data['role'] ?? '';
 
-      website.value = data['website'] ?? '';
-      linkedinUrl.value = data['linkedinUrl'] ?? '';
-      githubUrl.value = data['githubUrl'] ?? '';
+      websiteCtrl.text = data['website'] ?? '';
+      linkedinUrlCtrl.text = data['linkedinUrl'] ?? '';
+      githubUrlCtrl.text = data['githubUrl'] ?? '';
 
       cvUrl.value = data['cvUrl'] ?? '';
 
-      phoneNumber.value = data['phoneNumber'] ?? '';
+      phoneNumberCtrl.text = data['phoneNumber'] ?? '';
       phoneCountryCode.value = data['phoneCountryCode'] ?? '+90';
       phoneCountryIso.value = data['phoneCountryIso'] ?? 'TR';
       // avatar (duelAvatar alanından çekiyoruz)
@@ -120,24 +124,24 @@ class ProfileEditController extends GetxController {
 
       // Build location string
       final combinedLocation = [
-        country.value.trim(),
-        city.value.trim(),
+        countryCtrl.text.trim(),
+        cityCtrl.text.trim(),
       ].where((e) => e.isNotEmpty).join(", ");
 
       final updateData = {
-        "name": name.value,
-        "surname": surname.value,
-        "username": username.value,
-        "email": email.value,
-        "school": school.value,
-        "company": company.value,
-        "role": role.value,
-        "website": website.value,
-        "linkedinUrl": linkedinUrl.value,
-        "githubUrl": githubUrl.value,
+        "name": nameCtrl.text,
+        "surname": surnameCtrl.text,
+        "username": usernameCtrl.text,
+        "email": emailCtrl.text,
+        "school": schoolCtrl.text,
+        "company": companyCtrl.text,
+        "role": roleCtrl.text,
+        "website": websiteCtrl.text,
+        "linkedinUrl": linkedinUrlCtrl.text,
+        "githubUrl": githubUrlCtrl.text,
         "location": combinedLocation,
         "cvUrl": cvUrl.value,
-        "phoneNumber": phoneNumber.value,
+        "phoneNumber": phoneNumberCtrl.text,
         "phoneCountryCode": phoneCountryCode.value,
         "phoneCountryIso": phoneCountryIso.value,
         "duelAvatar": avatarPath.value,
@@ -197,6 +201,24 @@ class ProfileEditController extends GetxController {
       return "Enter a valid $label URL";
     }
     return null;
+  }
+
+  @override
+  void onClose() {
+    nameCtrl.dispose();
+    surnameCtrl.dispose();
+    usernameCtrl.dispose();
+    emailCtrl.dispose();
+    countryCtrl.dispose();
+    cityCtrl.dispose();
+    schoolCtrl.dispose();
+    companyCtrl.dispose();
+    roleCtrl.dispose();
+    websiteCtrl.dispose();
+    linkedinUrlCtrl.dispose();
+    githubUrlCtrl.dispose();
+    phoneNumberCtrl.dispose();
+    super.onClose();
   }
 
   // ===================== INTERNAL TOAST HELPER =====================

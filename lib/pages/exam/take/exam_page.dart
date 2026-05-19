@@ -269,7 +269,7 @@ class _NoExamProvided extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.lg),
               FilledButton(
-                onPressed: () => Get.back(),
+                onPressed: () => Navigator.of(context).pop(),
                 child: const Text('Go Back'),
               ),
             ],

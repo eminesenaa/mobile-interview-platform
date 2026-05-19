@@ -66,92 +66,127 @@ class JobPostingDetailPage extends StatelessWidget {
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.textPrimary,
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: const Text("Posting Details"),
       ),
 
       /// ================= BODY =================
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, // left
-          AppSpacing.md, // top
-          AppSpacing.lg, // right
-          0, // bottom
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ================= HEADER =================
-            JPDetailHeader(
-              title: posting["title"],
-              meta: "Posted Apr 1 · ID: ${posting["id"] ?? "JP-0001"}",
-              isActive: isActive,
-            ),
+      body: Obx(() {
+        final p = c.getPostingById(posting["id"]) ?? posting;
+        final isActive = p["status"] == "active";
+        final isClosed = p["status"] == "closed";
+        final isFinalized = p["status"] == "finalized";
 
-            const SizedBox(height: AppSpacing.xl),
-
-            // ================= STATS =================
-            JPDetailStats(
-              applicants: posting["applicantCount"] ?? 0,
-              accepted: posting["accepted"] ?? 0,
-              rejected: posting["rejected"] ?? 0,
-              pending: posting["pending"] ?? 0,
-            ),
-
-            const SizedBox(height: AppSpacing.xl),
-
-            // ================= JOB INFO =================
-            Text("JOB INFO", style: AppTextStyles.label.copyWith(fontSize: 13)),
-            const SizedBox(height: AppSpacing.md),
-
-            JPDetailInfoSection(
-              info: {
-                "Position": posting["position"] ?? "-",
-                "Work Type": posting["workType"] ?? "-",
-                "Location": posting["location"] ?? "-",
-                if (posting["salary"] != null) "Salary": posting["salary"],
-              },
-            ),
-
-            const SizedBox(height: AppSpacing.xl),
-
-            // ================= DESCRIPTION =================
-            JPDetailDescription(
-              description: posting["description"] ?? "No description provided.",
-              requirements: List<String>.from(
-                posting["requirements"] ?? [],
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg, // left
+            AppSpacing.md, // top
+            AppSpacing.lg, // right
+            0, // bottom
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ================= HEADER =================
+              JPDetailHeader(
+                title: p["title"],
+                meta: "Posted Apr 1 · ID: ${p["id"] ?? "JP-0001"}",
+                status: p["status"] ?? "active",
               ),
-            ),
 
-            const SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: AppSpacing.xl),
 
-            // ================= APPLICANTS =================
-            JPDetailApplicantsPreview(
-              postingId: posting["id"],
-              applicants: List<Map<String, dynamic>>.from(
-                posting["applicantsPreview"] ?? [],
+              // ================= STATS =================
+              JPDetailStats(
+                applicants: p["applicantCount"] ?? 0,
+                accepted: p["accepted"] ?? 0,
+                rejected: p["rejected"] ?? 0,
+                pending: p["pending"] ?? 0,
               ),
-              onSeeAll: () => c.openApplicants(posting),
-            ),
 
-            const SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: AppSpacing.xl),
 
-            // ================= ACTION =================
-            if (isActive)
-              JPClosePostingSection(
-                onClose: () {
-                  c.closePosting(posting["id"]);
-                  Get.back();
+              // ================= JOB INFO =================
+              Text("JOB INFO", style: AppTextStyles.label.copyWith(fontSize: 13)),
+              const SizedBox(height: AppSpacing.md),
+
+              JPDetailInfoSection(
+                info: {
+                  "Position": p["position"] ?? "-",
+                  "Work Type": p["workType"] ?? "-",
+                  "Location": p["location"] ?? "-",
+                  if (p["salary"] != null) "Salary": p["salary"],
                 },
-              )
-            else if (isClosed)
-              JPFinalizePostingSection(
-                onFinalize: () => c.finalizePosting(posting["id"]),
               ),
 
-            const SizedBox(height: AppSpacing.xl),
-          ],
-        ),
-      ),
+              const SizedBox(height: AppSpacing.xl),
+
+              // ================= DESCRIPTION =================
+              JPDetailDescription(
+                description: p["description"] ?? "No description provided.",
+                requirements: List<String>.from(
+                  p["requirements"] ?? [],
+                ),
+              ),
+
+              const SizedBox(height: AppSpacing.xl),
+
+              // ================= APPLICANTS =================
+              JPDetailApplicantsPreview(
+                postingId: p["id"],
+                applicants: List<Map<String, dynamic>>.from(
+                  p["applicants"] ?? [],
+                ),
+                onSeeAll: () => c.openApplicants(p),
+              ),
+
+              const SizedBox(height: AppSpacing.xl),
+
+              // ================= ACTION =================
+              if (isActive)
+                JPClosePostingSection(
+                  onClose: () async {
+                    final success = await c.closePosting(p["id"]);
+                    if (success) {
+                      if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+                    }
+                  },
+                )
+              else if (isClosed)
+                JPFinalizePostingSection(
+                  onFinalize: () async {
+                    final success = await c.finalizePosting(p["id"]);
+                    if (success) {
+                      if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+                    }
+                  },
+                )
+              else if (isFinalized)
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle_outline, color: AppColors.success, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          "Evaluation Finalized",
+                          style: AppTextStyles.bodyStrong.copyWith(color: AppColors.success),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              const SizedBox(height: AppSpacing.xl),
+            ],
+          ),
+        );
+      }),
     );
   }
 }

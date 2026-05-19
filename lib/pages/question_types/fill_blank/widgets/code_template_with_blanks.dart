@@ -22,7 +22,7 @@ class CodeTemplateWithBlanksView extends StatelessWidget {
   final String codeTemplate;
 
   /// Reactive answers list from controller
-  final RxList<String> answers;
+  final List<String> answers;
 
   /// Callback when a blank input changes
   final void Function(int index, String value) onChanged;

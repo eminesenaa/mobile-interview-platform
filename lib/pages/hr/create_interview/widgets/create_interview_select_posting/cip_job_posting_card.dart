@@ -25,17 +25,11 @@ import 'cip_posting_stats_row.dart';
 
 class CipJobPostingCard extends StatelessWidget {
   final JobPosting posting;
-  final int applicants;
-  final int accepted;
-  final int rejected;
   final VoidCallback? onTap;
 
   const CipJobPostingCard({
     super.key,
     required this.posting,
-    required this.applicants,
-    required this.accepted,
-    required this.rejected,
     this.onTap,
   });
 
@@ -101,9 +95,9 @@ class CipJobPostingCard extends StatelessWidget {
 
             // ================= STATS =================
             CipPostingStatsRow(
-              applicants: applicants,
-              accepted: accepted,
-              rejected: rejected,
+              applicants: posting.applicantCount,
+              accepted: posting.acceptedCount,
+              rejected: posting.rejectedCount,
             ),
           ],
         ),

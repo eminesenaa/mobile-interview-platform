@@ -194,6 +194,7 @@ class AiService {
             resultJson,
             questionKey,
             capturedIndex,
+            q.topic,
           );
 
           questionResults.add(parsed);
@@ -213,6 +214,7 @@ class AiService {
           questionResults.add(AiInterviewQuestionResult(
             questionId: questionKey,
             questionIndex: capturedIndex,
+            topic: q.topic,
             overallScore: 0.0,
             decision: 'reject',
             weaknesses: ['AI evaluation failed for this question.'],
@@ -687,8 +689,10 @@ class AiService {
 
   Map<String, String> _toMeta(Question q) {
     final meta = <String, String>{
+      "Question Title": q.title,
       "Question Text": q.description ?? '',
       "Question Format": (q.type?.name ?? '').toUpperCase(),
+      "Correct Option": q.correctAnswer ?? '',
       "Tags": (q.tags?.join(', ') ?? ''),
       "AI Prompt Helper": q.aiPromptHelper ?? '',
     };
@@ -725,22 +729,28 @@ class AiService {
     if (t.isEmpty) return 'algorithm';
 
     if (t.contains('behavior') || t.contains('hr') || t.contains('star')) {
-      return 'Behavioral hr questions';
+      return 'behavioral hr questions';
     }
-    if (t.contains('data science')) return 'Data science';
-    if (t.contains('ml') || t.contains('machine learning')) return 'Ml basics';
-    if (t.contains('network')) return 'Network';
-    if (t.contains('java')) return 'Java';
-    if (t.contains('c/c++') || t.contains('c++') || t == 'c') return 'C/C++';
-    if (t.contains('python')) return 'Python';
-    if (t.contains('sql') || t.contains('database')) return 'Sql';
-    if (t.contains('git') || t.contains('version control')) return 'Git';
-    if (t.contains('oop') || t.contains('object oriented')) return 'Oop';
-    if (t.contains('data structure')) return 'Data Structures';
-    if (t.contains('algorithm')) return 'Algorithms';
+    if (t.contains('data science')) return 'data science';
+    if (t.contains('ml') || t.contains('machine learning')) return 'ml basics';
+    if (t.contains('network')) return 'network';
+    if (t.contains('java')) return 'java';
+    if (t.contains('c/c++') || t.contains('c++') || t == 'c') return 'c/c++';
+    if (t.contains('python')) return 'python';
+    if (t.contains('sql') || t.contains('database')) return 'sql';
+    if (t.contains('git') || t.contains('version control')) return 'git';
+    if (t.contains('oop') || t.contains('object oriented')) return 'oop';
+    if (t.contains('data structure')) return 'data structure';
+    if (t.contains('algorithm')) return 'algorithm';
 
-    // eşleşme yoksa güvenli varsayılan
-    return 'Algorithms';
+    // if it's a web/frontend technology, we can map to oop or algorithm
+    if (t.contains('react') || t.contains('angular') || t.contains('vue') || 
+        t.contains('css') || t.contains('html') || t.contains('javascript') || 
+        t.contains('typescript') || t.contains('flutter') || t.contains('dart')) {
+      return 'oop';
+    }
+
+    return 'algorithm';
   }
 }
 

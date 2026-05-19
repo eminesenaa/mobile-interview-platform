@@ -98,7 +98,7 @@ class ConfirmFinishDialog extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               TextButton(
-                onPressed: () => Get.back(result: false),
+                onPressed: () => Navigator.of(context).pop(false),
                 style: TextButton.styleFrom(
                   foregroundColor: AppColors.textSecondary,
                   textStyle: AppTextStyles.body.copyWith(
@@ -111,7 +111,7 @@ class ConfirmFinishDialog extends StatelessWidget {
               const SizedBox(width: AppSpacing.md), // 👈 yakın ama ayrı
 
               TextButton(
-                onPressed: () => Get.back(result: true),
+                onPressed: () => Navigator.of(context).pop(true),
                 style: TextButton.styleFrom(
                   foregroundColor: AppColors.primary,
                   textStyle: AppTextStyles.body.copyWith(

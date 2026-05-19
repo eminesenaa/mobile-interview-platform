@@ -137,10 +137,29 @@ class JPPostingCard extends StatelessWidget {
   Widget _statusChip() {
     final isActive = status == "active";
     final isClosed = status == "closed";
-    final isReady = isClosed && pending == 0;
+    final isFinalized = status == "finalized";
+    final isReady = (isClosed || isFinalized) && pending == 0;
 
     if (isActive) {
       return _BlinkingDotChip(); // 🔥 sadece active
+    }
+
+    if (isFinalized) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppColors.success.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.success.withOpacity(0.4)),
+        ),
+        child: Text(
+          "Finalized",
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.success,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
     }
 
     // 🔥 READY TO INTERVIEW (NEW STATE)
@@ -162,7 +181,7 @@ class JPPostingCard extends StatelessWidget {
       );
     }
 
-    // 🔥 CLOSED CHIP (UPDATED COLOR)
+    // 🔥 CLOSED CHIP (DEFAULT)
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(

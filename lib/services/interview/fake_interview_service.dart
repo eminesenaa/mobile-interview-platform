@@ -204,6 +204,17 @@ class FakeInterviewService implements InterviewService {
     return result;
   }
 
+  @override
+  Future<void> saveInterviewResult({
+    required String interviewId,
+    required String userId,
+    required Map<String, dynamic> answers,
+    required dynamic aiResult,
+  }) async {
+    print('FakeInterviewService: saving interview result for $interviewId');
+    await Future.delayed(const Duration(seconds: 1));
+  }
+
   // ===================== RESULTS =====================
 
   @override

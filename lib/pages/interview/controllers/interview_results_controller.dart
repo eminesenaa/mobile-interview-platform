@@ -20,6 +20,8 @@
 // ================================================================================
 
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // 🔥 MODEL IMPORT
 import '../../../models/exam.dart';
@@ -68,79 +70,99 @@ class InterviewResultsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    _listenToResults();
+  }
 
-    // =======================================================
-    // 🔥 MOCK DATA INIT
-    // =======================================================
-    // TODO (Backend):
-    // widgets.value = await api.fetchInterviewResults();
+  void _listenToResults() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-    results.value = [
-      {
-        // ================= UI FIELDS =================
-        "title": "Frontend Developer",
-        "company": "AppNova",
-        "location": "San Francisco",
-        "startTime": "2026-05-14T10:00:00",
-        "endTime": "2026-05-14T11:00:00",
+    FirebaseFirestore.instance
+        .collection('ai_interview_results')
+        .where('candidateId', isEqualTo: user.uid)
+        .snapshots()
+        .listen((snap) async {
+      final List<Map<String, dynamic>> updatedResults = [];
 
-        // ================= MODEL =================
-        "result": InterviewResult(
-          id: "1",
-          interviewId: "int_1",
-          candidateId: "user_1",
-          score: 95,
-          correctCount: 9,
-          wrongCount: 1,
-          unansweredCount: 0,
-          decision: InterviewDecisionStatus.accepted,
-          hrMessage: "Excellent performance! You stood out among candidates.",
-          isSubmitted: true,
-          isReviewed: true,
-          submittedAt: DateTime.now().subtract(const Duration(days: 2)),
-          reviewedAt: DateTime.now().subtract(const Duration(days: 1)),
-        ),
-      },
-      {
-        "title": "Backend Engineer",
-        "company": "Cloudify",
-        "location": "Berlin",
-        "startTime": "2026-05-10T14:00:00",
-        "endTime": "2026-05-10T15:00:00",
-        "result": InterviewResult(
-          id: "2",
-          interviewId: "int_2",
-          candidateId: "user_1",
-          score: 62,
-          correctCount: 6,
-          wrongCount: 4,
-          unansweredCount: 0,
-          decision: InterviewDecisionStatus.rejected,
-          hrMessage:
-              "You showed potential, but did not meet the required threshold.",
-          isSubmitted: true,
-          isReviewed: true,
-          submittedAt: DateTime.now().subtract(const Duration(days: 4)),
-          reviewedAt: DateTime.now().subtract(const Duration(days: 3)),
-        ),
-      },
-      {
-        "title": "Product Designer",
-        "company": "CreativeWorks",
-        "location": "Amsterdam",
-        "startTime": "2026-05-18T09:00:00",
-        "endTime": "2026-05-18T10:00:00",
-        "result": InterviewResult(
-          id: "3",
-          interviewId: "int_3",
-          candidateId: "user_1",
-          decision: InterviewDecisionStatus.pending,
-          isSubmitted: true,
-          isReviewed: false,
-          submittedAt: DateTime.now().subtract(const Duration(days: 1)),
-        ),
-      },
-    ];
+      for (var doc in snap.docs) {
+        final data = doc.data();
+        data['id'] = doc.id;
+
+        // Try to fetch related job posting info if missing
+        if (data['company'] == null || data['company'] == "Company" || data['startTime'] == null) {
+          final String? interviewId = data['interviewId'];
+          if (interviewId != null && interviewId.isNotEmpty) {
+            final interviewSnap = await FirebaseFirestore.instance
+                .collection('interviews')
+                .doc(interviewId)
+                .get();
+
+            if (interviewSnap.exists) {
+              final iData = interviewSnap.data();
+              data['startTime'] = iData?['startTime'];
+              data['endTime'] = iData?['endTime'];
+              
+              final String? jobPostingId = iData?['jobPostingId'] ?? data['jobPostingId'];
+              if (jobPostingId != null && jobPostingId.isNotEmpty) {
+                final postingSnap = await FirebaseFirestore.instance
+                    .collection('job_postings')
+                    .doc(jobPostingId)
+                    .get();
+
+                if (postingSnap.exists) {
+                  final pData = postingSnap.data();
+                  data['company'] = pData?['company'] ?? data['company'] ?? "Company";
+                  data['location'] = pData?['location'] ?? data['location'] ?? "";
+                  data['title'] = pData?['title'] ?? data['title'] ?? "Interview";
+                }
+              }
+            }
+          }
+
+          // Fallback to applications if still missing
+          if (data['company'] == null) {
+            final applicationSnap = await FirebaseFirestore.instance
+                .collection('applications')
+                .where('candidateId', isEqualTo: user.uid)
+                .where('jobPostingId', isEqualTo: data['jobPostingId'])
+                .limit(1)
+                .get();
+
+            if (applicationSnap.docs.isNotEmpty) {
+              final appData = applicationSnap.docs.first.data();
+              data['title'] = appData['jobTitle'] ?? data['title'] ?? "Unknown Position";
+              data['company'] = appData['company'] ?? "Company";
+              data['location'] = appData['location'] ?? "";
+              if (data['startTime'] == null) {
+                data['startTime'] = appData['appliedAt'];
+              }
+            }
+          }
+        }
+
+        // Convert Firestore data to InterviewResult model if needed, 
+        // or just keep it as a map if the UI expects specific fields.
+        // For now, let's keep the structure the UI expects.
+        if (data['result'] == null) {
+          try {
+            data['result'] = InterviewResult.fromJson(data);
+          } catch (e) {
+            print("Error parsing interview result in results controller: $e");
+          }
+        }
+
+        updatedResults.add(data);
+      }
+      results.value = updatedResults;
+    });
+  }
+
+  InterviewDecisionStatus _parseDecision(dynamic decision) {
+    if (decision == null) return InterviewDecisionStatus.pending;
+    final d = decision.toString().toLowerCase();
+    if (d == "accepted") return InterviewDecisionStatus.accepted;
+    if (d == "rejected") return InterviewDecisionStatus.rejected;
+    return InterviewDecisionStatus.pending;
   }
 
   // ===============================
@@ -163,7 +185,7 @@ class InterviewResultsController extends GetxController {
 
   /// Converts enum → string for UI usage
   String getStatus(Map<String, dynamic> item) {
-    final InterviewResult result = item["result"];
+    final InterviewResult result = item["result"] ?? InterviewResult.fromJson(item);
 
     switch (result.decision) {
       case InterviewDecisionStatus.accepted:
@@ -218,11 +240,20 @@ class InterviewResultsController extends GetxController {
   // FORMAT HELPERS
   // ===============================
 
+  DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+    return null;
+  }
+
   /// Formats time range from ISO strings
-  String formatTimeRange(String start, String end) {
+  String formatTimeRange(dynamic start, dynamic end) {
     try {
-      final startDt = DateTime.parse(start);
-      final endDt = DateTime.parse(end);
+      final startDt = _parseDateTime(start);
+      final endDt = _parseDateTime(end);
+      if (startDt == null || endDt == null) return "";
 
       String format(DateTime dt) {
         final hour = dt.hour > 12 ? dt.hour - 12 : dt.hour;
@@ -239,9 +270,10 @@ class InterviewResultsController extends GetxController {
   }
 
   /// Formats date from ISO string
-  String formatDate(String start) {
+  String formatDate(dynamic start) {
     try {
-      final dt = DateTime.parse(start);
+      final dt = _parseDateTime(start);
+      if (dt == null) return "";
       return "${_month(dt.month)} ${dt.day}, ${dt.year}";
     } catch (e) {
       return "";
@@ -307,16 +339,98 @@ class InterviewResultsController extends GetxController {
   /// - Fetch real interview exam by interviewId
   /// - Include questions, answers, aiFeedback, stats
   Future<Exam> buildInterviewReviewExam(Map<String, dynamic> item) async {
-    final InterviewResult result = item["result"];
+    final InterviewResult result = item["result"] ?? InterviewResult.fromJson(item);
 
     // =======================================================
-    // 🔥 MOCK QUESTIONS (TEMPORARY)
+    // 🔥 FETCH REAL QUESTIONS FROM FIRESTORE
     // =======================================================
-    // TODO (Backend):
-    // Replace with:
-    // final questions = await api.getInterviewQuestions(result.interviewId);
+    List<Question> questions = [];
+    try {
+      final interviewDoc = await FirebaseFirestore.instance
+          .collection('interviews')
+          .doc(result.interviewId)
+          .get();
+      if (interviewDoc.exists) {
+        final data = interviewDoc.data();
+        if (data != null) {
+          final rawQs = data['questions'] as List<dynamic>? ?? [];
+          for (int i = 0; i < rawQs.length; i++) {
+            final q = rawQs[i] as Map<String, dynamic>;
+            final rawId = q['id']?.toString() ?? '';
+            final id = rawId.isNotEmpty ? rawId : 'q_$i';
+            questions.add(Question.fromFirestore(q, id));
+          }
+        }
+      }
+    } catch (e) {
+      print("Error fetching real interview questions: $e");
+    }
 
-    final questions = await _getMockQuestions();
+    if (questions.isEmpty) {
+      questions = await _getMockQuestions();
+    }
+
+    // =======================================================
+    // 🔥 MAP CANDIDATE ANSWERS
+    // =======================================================
+    final Map<String, dynamic> answersMap = {};
+    if (result.answers.isNotEmpty) {
+      result.answers.forEach((key, value) {
+        answersMap[key.toString()] = value;
+      });
+    }
+
+    // =======================================================
+    // 🔥 MAP AI FEEDBACK / EXPLANATIONS
+    // =======================================================
+    final Map<String, String> feedbackMap = {};
+    final List<String> correctIds = [];
+    final List<String> wrongIds = [];
+
+    if (result.aiResult != null) {
+      for (final qr in result.aiResult!.questionResults) {
+        final qid = qr.questionId;
+        final qDecision = qr.decision;
+        final qScore = qr.overallScore.toStringAsFixed(1);
+        final strengths = qr.strengths;
+        final weaknesses = qr.weaknesses;
+        final redFlags = qr.redFlags;
+        final personal = qr.personalizedFeedback ?? '';
+
+        final buffer = StringBuffer();
+        buffer.writeln("Decision: ${qDecision.toUpperCase()} (Score: $qScore/5)\n");
+        if (personal.isNotEmpty) {
+          buffer.writeln("$personal\n");
+        }
+        if (strengths.isNotEmpty) {
+          buffer.writeln("Strengths:");
+          for (final s in strengths) {
+            buffer.writeln("• $s");
+          }
+          buffer.writeln();
+        }
+        if (weaknesses.isNotEmpty) {
+          buffer.writeln("Weaknesses:");
+          for (final w in weaknesses) {
+            buffer.writeln("• $w");
+          }
+          buffer.writeln();
+        }
+        if (redFlags.isNotEmpty) {
+          buffer.writeln("Red Flags:");
+          for (final rf in redFlags) {
+            buffer.writeln("⚠️ $rf");
+          }
+        }
+        feedbackMap[qid] = buffer.toString().trim();
+
+        if (qDecision == 'advance') {
+          correctIds.add(qid);
+        } else if (qDecision == 'reject') {
+          wrongIds.add(qid);
+        }
+      }
+    }
 
     // =======================================================
     // 🔥 BUILD EXAM
@@ -325,20 +439,16 @@ class InterviewResultsController extends GetxController {
       id: "interview_${result.id}",
       title: item["title"] ?? "Interview",
       duration: const Duration(minutes: 10),
-
       questions: questions,
-
-      // 🔥 VERY IMPORTANT FOR REVIEW PAGE
-      answers: {},
-      // TODO: backend will provide user answers
-      aiFeedback: {},
-      // TODO: backend will provide explanations
+      answers: answersMap,
+      aiFeedback: feedbackMap,
       stats: {
-        "correct": result.correctCount ?? 0,
-        "wrong": result.wrongCount ?? 0,
-        "unanswered": result.unansweredCount ?? 0,
+        "correct": result.correctCount,
+        "wrong": result.wrongCount,
+        "unanswered": result.unansweredCount,
+        "correctIds": correctIds,
+        "wrongIds": wrongIds,
       },
-
       createdAt: DateTime.now(),
     );
   }

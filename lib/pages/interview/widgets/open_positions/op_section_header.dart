@@ -13,12 +13,12 @@ import '../../../../constants/constants.dart';
 
 class OpSectionHeader extends StatelessWidget {
   final String title;
-  final int count;
+  final int? count;
 
   const OpSectionHeader({
     super.key,
     required this.title,
-    required this.count,
+    this.count,
   });
 
   @override
@@ -31,13 +31,15 @@ class OpSectionHeader extends StatelessWidget {
             fontSize: 13,
           ),
         ),
-        const Spacer(),
-        Text(
-          "$count openings",
-          style: AppTextStyles.bodySmall.copyWith(
-            fontSize: 13,
+        if (count != null) ...[
+          const Spacer(),
+          Text(
+            "$count results",
+            style: AppTextStyles.bodySmall.copyWith(
+              fontSize: 13,
+            ),
           ),
-        ),
+        ],
       ],
     );
   }

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:overlay_support/overlay_support.dart';
 
 import '../../../services/firebase/auth_service.dart';
 import '../../../services/sfx/sound_service.dart';
@@ -94,11 +95,27 @@ class LoginController extends GetxController {
       if (input.contains("@")) {
         email = input;
       } else {
-        final snapshot = await FirebaseFirestore.instance
+        var snapshot = await FirebaseFirestore.instance
             .collection("users")
             .where("username", isEqualTo: input)
             .limit(1)
             .get();
+
+        if (snapshot.docs.isEmpty) {
+          snapshot = await FirebaseFirestore.instance
+              .collection("users")
+              .where("username", isEqualTo: input.toLowerCase())
+              .limit(1)
+              .get();
+        }
+
+        if (snapshot.docs.isEmpty) {
+          snapshot = await FirebaseFirestore.instance
+              .collection("users")
+              .where("username", isEqualTo: input.toUpperCase())
+              .limit(1)
+              .get();
+        }
 
         if (snapshot.docs.isEmpty) {
           throw Exception("Username not found");
@@ -145,10 +162,20 @@ class LoginController extends GetxController {
         default:
           message = e.message ?? "Authentication failed.";
       }
-      Get.snackbar("Login Failed", message);
+      showSimpleNotification(
+        const Text("Login Failed", style: TextStyle(color: Colors.white)),
+        subtitle: Text(message, style: const TextStyle(color: Colors.white70)),
+        background: Colors.redAccent,
+        duration: const Duration(seconds: 3),
+      );
     } catch (e) {
-      Get.snackbar(
-          "Login failed", e.toString().replaceAll("Exception:", "").trim());
+      showSimpleNotification(
+        const Text("Login Failed", style: TextStyle(color: Colors.white)),
+        subtitle: Text(e.toString().replaceAll("Exception:", "").trim(),
+            style: const TextStyle(color: Colors.white70)),
+        background: Colors.redAccent,
+        duration: const Duration(seconds: 3),
+      );
     } finally {
       isLoading.value = false;
     }
@@ -156,34 +183,95 @@ class LoginController extends GetxController {
 
   // ===================== HR LOGIN (TEMP) =====================
 
+  // ===================== HR LOGIN =====================
   Future<void> loginAsHR() async {
     if (isLoading.value) return;
+
+    final input = emailOrUsernameCtrl.text.trim();
+    final password = passwordCtrl.text.trim();
+
+    if (input.isEmpty || password.isEmpty) {
+      Get.snackbar("Error", "Please fill all fields");
+      return;
+    }
 
     isLoading.value = true;
 
     try {
-      final input = emailOrUsernameCtrl.text.trim();
-      final password = passwordCtrl.text.trim();
+      String email = input;
 
-      if (input.isEmpty || password.isEmpty) {
-        Get.snackbar("Error", "Please fill all fields");
-        return;
+      // Username check if input is not email
+      if (!input.contains("@")) {
+        var snapshot = await FirebaseFirestore.instance
+            .collection("hr_users")
+            .where("username", isEqualTo: input)
+            .limit(1)
+            .get();
+
+        if (snapshot.docs.isEmpty) {
+          snapshot = await FirebaseFirestore.instance
+              .collection("hr_users")
+              .where("username", isEqualTo: input.toLowerCase())
+              .limit(1)
+              .get();
+        }
+
+        if (snapshot.docs.isEmpty) {
+          snapshot = await FirebaseFirestore.instance
+              .collection("hr_users")
+              .where("username", isEqualTo: input.toUpperCase())
+              .limit(1)
+              .get();
+        }
+
+        if (snapshot.docs.isEmpty) {
+          throw Exception("HR account not found");
+        }
+        email = snapshot.docs.first["email"];
       }
 
-      // 🔥 TEMP LOGIC (backend gelince değişecek)
-      if (!input.contains("hr")) {
-        Get.snackbar("Error", "This account is not an HR account");
-        return;
+      // 1. Sign In
+      final user = await _authService.signIn(email, password);
+
+      if (user == null) {
+        throw Exception("Invalid credentials");
+      }
+
+      // 2. Verify HR Role (Check hr_users collection)
+      final hrDoc = await FirebaseFirestore.instance
+          .collection("hr_users")
+          .doc(user.uid)
+          .get();
+
+      if (!hrDoc.exists) {
+        await _authService.signOut();
+        throw Exception(
+            "This account is not registered as a Company/HR account.");
       }
 
       // 🔊 sound (optional)
       SoundService.play(SoundEffect.loginSuccess);
 
-      // 🔥 TODO: HR Dashboard'a yönlendirilecek
-      Get.offAll(() => const HRDashboardPage());
+      await _saveInputIfRemembered();
 
+      // Go to HR Dashboard
+      Get.offAll(() => const HRDashboardPage());
+    } on FirebaseAuthException catch (e) {
+      showSimpleNotification(
+        const Text("HR Login Failed", style: TextStyle(color: Colors.white)),
+        subtitle: Text(e.message ?? "Authentication failed.",
+            style: const TextStyle(color: Colors.white70)),
+        background: Colors.redAccent,
+        duration: const Duration(seconds: 3),
+      );
     } catch (e) {
-      Get.snackbar("HR Login Failed", e.toString());
+      showSimpleNotification(
+        const Text("HR Login Failed", style: TextStyle(color: Colors.white)),
+        subtitle: Text(e.toString().replaceAll("Exception:", "").trim(),
+            style: const TextStyle(color: Colors.white70)),
+        background: Colors.redAccent,
+        duration: const Duration(seconds: 3),
+      );
     } finally {
       isLoading.value = false;
     }

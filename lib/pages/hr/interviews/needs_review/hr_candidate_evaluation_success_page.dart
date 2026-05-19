@@ -69,8 +69,9 @@ class HrCandidateEvaluationSuccessPage extends StatelessWidget {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: () {
-                    Get.back(); // success page
-                    Get.back(); // evaluation page
+                    Navigator.of(context)
+                      ..pop()
+                      ..pop();
                   },
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primary,

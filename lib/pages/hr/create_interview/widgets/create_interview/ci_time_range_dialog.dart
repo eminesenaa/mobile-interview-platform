@@ -4,7 +4,7 @@ import '/../../../../constants/constants.dart';
 import 'ci_time_picker.dart';
 
 class CITimeRangeDialog extends StatefulWidget {
-  final Function(String start, String end) onSave;
+  final Function(TimeOfDay start, TimeOfDay end) onSave;
 
   const CITimeRangeDialog({
     super.key,
@@ -16,8 +16,8 @@ class CITimeRangeDialog extends StatefulWidget {
 }
 
 class _CITimeRangeDialogState extends State<CITimeRangeDialog> {
-  String start = "1:30 PM";
-  String end = "2:30 PM";
+  TimeOfDay start = const TimeOfDay(hour: 13, minute: 30);
+  TimeOfDay end = const TimeOfDay(hour: 14, minute: 30);
 
   @override
   Widget build(BuildContext context) {
@@ -37,12 +37,12 @@ class _CITimeRangeDialogState extends State<CITimeRangeDialog> {
             // ================= START =================
             _TimeBox(
               label: "Start Time",
-              value: start,
+              value: _format(start),
               onTap: () {
                 CITimePicker.show(
                   context: context,
                   onSelected: (t) {
-                    setState(() => start = _format(t));
+                    setState(() => start = t);
                   },
                 );
               },
@@ -53,12 +53,12 @@ class _CITimeRangeDialogState extends State<CITimeRangeDialog> {
             // ================= END =================
             _TimeBox(
               label: "End Time",
-              value: end,
+              value: _format(end),
               onTap: () {
                 CITimePicker.show(
                   context: context,
                   onSelected: (t) {
-                    setState(() => end = _format(t));
+                    setState(() => end = t);
                   },
                 );
               },

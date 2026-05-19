@@ -42,6 +42,10 @@ class HrCandidateDetailPage extends StatelessWidget {
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.textPrimary,
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () { if (Navigator.of(context).canPop()) Navigator.of(context).pop(); },
+        ),
         title: const Text("Candidate Detail"),
       ),
 

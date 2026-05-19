@@ -9,11 +9,12 @@ class Exam {
   final List<Question> questions;
   final bool allowPause;
   final DateTime createdAt;
+  final bool isInterview;
 
   // 🔹 Kullanıcının sınav sonrası verileri (Review / Library kaydı için)
   final Map<String, dynamic>? answers; // questionId -> answer
   final Map<String, dynamic>? aiFeedback; // questionId -> AI explanation
-  final Map<String, int>? stats; // correct, wrong, unanswered
+  final Map<String, dynamic>? stats; // correct, wrong, unanswered
 
   final AiExamEvaluateResult? aiResult;
 
@@ -28,6 +29,7 @@ class Exam {
     this.aiFeedback,
     this.stats,
     this.aiResult,
+    this.isInterview = false,
   });
 
   // ✅ copyWith — review aşamasında transient değişiklikler için
@@ -39,8 +41,9 @@ class Exam {
     DateTime? createdAt,
     Map<String, dynamic>? answers,
     Map<String, dynamic>? aiFeedback,
-    Map<String, int>? stats,
+    Map<String, dynamic>? stats,
     AiExamEvaluateResult? aiResult,
+    bool? isInterview,
   }) {
     return Exam(
       id: id ?? this.id,
@@ -52,19 +55,26 @@ class Exam {
       aiFeedback: aiFeedback ?? this.aiFeedback,
       stats: stats ?? this.stats,
       aiResult: aiResult ?? this.aiResult, // 🔥
+      isInterview: isInterview ?? this.isInterview,
     );
   }
-
 
   factory Exam.fromFirestore(Map<String, dynamic> data) {
     return Exam(
       id: data['id'] ?? '',
       title: data['title'] ?? '',
       duration: Duration(minutes: (data['duration'] ?? 0) as int),
-      questions: (data['questions'] as List<dynamic>? ?? [])
-          .map((q) =>
-          Question.fromFirestore(q as Map<String, dynamic>, q['id'] ?? ''))
-          .toList(),
+      questions: () {
+        final rawQs = data['questions'] as List<dynamic>? ?? [];
+        final List<Question> list = [];
+        for (int i = 0; i < rawQs.length; i++) {
+          final q = rawQs[i] as Map<String, dynamic>;
+          final rawId = q['id']?.toString() ?? '';
+          final id = rawId.isNotEmpty ? rawId : 'q_$i';
+          list.add(Question.fromFirestore(q, id));
+        }
+        return list;
+      }(),
       createdAt: DateTime.tryParse(data['createdAt'] ?? '') ?? DateTime.now(),
       answers: data['answers'] != null
           ? Map<String, dynamic>.from(data['answers'])
@@ -73,7 +83,8 @@ class Exam {
           ? Map<String, dynamic>.from(data['aiFeedback'])
           : null,
       stats:
-      data['stats'] != null ? Map<String, int>.from(data['stats']) : null,
+          data['stats'] != null ? Map<String, dynamic>.from(data['stats']) : null,
+      isInterview: data['isInterview'] ?? false,
     );
   }
 
@@ -87,6 +98,7 @@ class Exam {
       if (answers != null) 'answers': answers,
       if (aiFeedback != null) 'aiFeedback': aiFeedback,
       if (stats != null) 'stats': stats,
+      'isInterview': isInterview,
     };
   }
 }

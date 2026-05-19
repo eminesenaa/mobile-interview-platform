@@ -18,8 +18,15 @@ class UDCandidatesEditPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text("Candidates"),
+        elevation: 0,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.textPrimary,
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text("Candidates"),
       ),
       body: Obx(() {
         return Column(
@@ -82,7 +89,7 @@ class UDCandidatesEditPage extends StatelessWidget {
                         borderRadius: BorderRadius.circular(AppRadius.lg),
                       ),
                     ),
-                    onPressed: () => Get.back(),
+                    onPressed: () => Navigator.of(context).pop(),
                     child: const Text("Save Changes"),
                   ),
                 ],
@@ -220,7 +227,7 @@ class _AddCandidateDialogState extends State<_AddCandidateDialog> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 TextButton(
-                  onPressed: () => Get.back(),
+                  onPressed: () => Navigator.of(context).pop(),
                   child: const Text("Cancel"),
                 ),
                 const SizedBox(width: AppSpacing.sm),

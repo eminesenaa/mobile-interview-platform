@@ -43,7 +43,7 @@ class JdJobInfoSection extends StatelessWidget {
         JdInfoRow(
           icon: Icons.work_outline,
           label: "Position",
-          value: job["title"] ?? "",
+          value: job["title"] ?? job["jobTitle"] ?? "",
         ),
 
         JdInfoRow(

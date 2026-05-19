@@ -28,7 +28,7 @@ class ExamCodingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 🔥 Controller BURADA oluşturulur
-    final codingCtrl = Get.put(
+    Get.put(
       ExamCodingController(),
       tag: question.id,
       permanent: true, // 🔑 exam bitene kadar yaşasın

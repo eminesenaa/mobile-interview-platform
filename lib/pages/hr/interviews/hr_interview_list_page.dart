@@ -11,6 +11,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:interview_project/models/interview.dart';
 import 'package:interview_project/pages/hr/interviews/widgets/hr_interview_card.dart';
 
 import '../../../../constants/constants.dart';
@@ -26,7 +27,7 @@ class HRInterviewListPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(HRInterviewsController());
+    final controller = Get.find<HRInterviewsController>();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -39,7 +40,7 @@ class HRInterviewListPage extends StatelessWidget {
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
+          onPressed: () { if (Navigator.of(context).canPop()) Navigator.of(context).pop(); },
         ),
         title: Text(
           _getTitle(),
@@ -71,7 +72,7 @@ class HRInterviewListPage extends StatelessWidget {
   // ===============================
   // GET LIST BASED ON SECTION
   // ===============================
-  RxList<Map<String, dynamic>> _getList(HRInterviewsController controller) {
+  List<Interview> _getList(HRInterviewsController controller) {
     switch (sectionKey) {
       case "today":
         return controller.todayInterviews;
@@ -83,7 +84,7 @@ class HRInterviewListPage extends StatelessWidget {
         return controller.reviewedInterviews;
 
       default:
-        return <Map<String, dynamic>>[].obs;
+        return <Interview>[];
     }
   }
 

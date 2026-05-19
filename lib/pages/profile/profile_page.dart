@@ -25,6 +25,7 @@ import '../../constants/constants.dart';
 // ================= CONTROLLER =================
 import 'controllers/profile_controller.dart';
 import 'controllers/profile_edit_controller.dart';
+import '../interview/controllers/interview_dashboard_controller.dart';
 
 // ================= NEW WIDGETS =================
 import 'widgets/profile/np_header_section.dart';
@@ -45,6 +46,7 @@ class ProfilePage extends StatelessWidget {
     // ================= INIT CONTROLLER =================
     final controller = Get.put(ProfileController());
     Get.lazyPut(() => ProfileEditController());
+    final dashboardController = Get.put(InterviewDashboardController());
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -110,13 +112,15 @@ class ProfilePage extends StatelessWidget {
                 // =====================================================
                 // INTERVIEW ENTRY CARD
                 // =====================================================
-                NpInterviewCard(
-                  upcoming: 0, // TODO (Backend): replace with real data
-                  completed: 0, // TODO (Backend): replace with real data
-                  onTap: () {
-                    Get.to(() => const InterviewDashboardPage());
-                  },
-                ),
+                Obx(() {
+                  return NpInterviewCard(
+                    upcoming: dashboardController.readyInterviewsCount,
+                    completed: dashboardController.results.length,
+                    onTap: () {
+                      Get.to(() => const InterviewDashboardPage());
+                    },
+                  );
+                }),
               ],
             ),
           ),

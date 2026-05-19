@@ -9,6 +9,7 @@ import 'package:get/get.dart';
 
 import '../../../constants/constants.dart';
 import '../controllers/hr_results_controller.dart';
+import '../controllers/hr_interviews_controller.dart';
 import '../interviews/hr_interview_list_page.dart';
 import '../interviews/reviewed/widgets/rd_insights_score_distribution.dart';
 import 'widgets/results_completed_interviews.dart';
@@ -32,6 +33,10 @@ class HrResultsPage extends StatelessWidget {
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.textPrimary,
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: const Text("Results"),
       ),
 
@@ -56,10 +61,10 @@ class HrResultsPage extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
 
               ResultsKeyMetrics(
-                avgScore: c.avgScore,
-                acceptRate: c.acceptRate,
-                highest: c.highestScore,
-                lowest: c.lowestScore,
+                avgScore: c.avgScore.value,
+                acceptRate: c.acceptRate.value,
+                highest: c.highestScore.value,
+                lowest: c.lowestScore.value,
               ),
 
               const SizedBox(height: AppSpacing.xl),
@@ -70,8 +75,8 @@ class HrResultsPage extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
 
               ResultsDecisionBreakdown(
-                accepted: c.acceptedCount,
-                rejected: c.rejectedCount,
+                accepted: c.acceptedCount.value,
+                rejected: c.rejectedCount.value,
               ),
 
               const SizedBox(height: AppSpacing.xl),
@@ -82,7 +87,7 @@ class HrResultsPage extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
 
               RdInsightsScoreDistribution(
-                distribution: c.scoreDistribution,
+                distribution: c.scoreDistribution.value,
               ),
 
               const SizedBox(height: AppSpacing.xl),
@@ -95,6 +100,7 @@ class HrResultsPage extends StatelessWidget {
                       style: AppTextStyles.label.copyWith(fontSize: 12)),
                   GestureDetector(
                     onTap: () {
+                      Get.put(HRInterviewsController()); // Ensure it exists
                       Get.to(() =>
                           const HRInterviewListPage(sectionKey: "reviewed"));
                     },

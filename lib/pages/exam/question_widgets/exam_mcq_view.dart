@@ -40,6 +40,18 @@ class _ExamMcqViewState extends State<ExamMcqView> {
     }
   }
 
+  @override
+  void didUpdateWidget(covariant ExamMcqView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.question.id != widget.question.id) {
+      final c = Get.find<ExamController>(tag: widget.examId);
+      final prev = c.answers[widget.question.id];
+      setState(() {
+        _selected = prev is String ? prev : null;
+      });
+    }
+  }
+
   void _select(String value) {
     setState(() => _selected = value);
     widget.onAnswer(value);

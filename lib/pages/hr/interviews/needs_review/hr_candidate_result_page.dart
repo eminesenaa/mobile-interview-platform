@@ -45,7 +45,7 @@ class HrCandidateResultPage extends StatelessWidget {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
 
@@ -69,13 +69,16 @@ class HrCandidateResultPage extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Obx(
-                  () => Text(
-                    "You are reviewing ${c.candidateName.value}'s interview widgets.",
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.title.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  () {
+                    final pos = c.interviewTitle.value.isNotEmpty ? c.interviewTitle.value : "interview";
+                    return Text(
+                      "You are reviewing ${c.candidateName.value}'s $pos.",
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.title.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
@@ -140,7 +143,7 @@ class HrCandidateResultPage extends StatelessWidget {
                 onPressed: () {
                   Get.to(
                     () => const ExamReviewPage(),
-                    arguments: c.reviewExamData,
+                    arguments: c.reviewExam,
                   );
                 },
                 style: OutlinedButton.styleFrom(
@@ -170,7 +173,7 @@ class HrCandidateResultPage extends StatelessWidget {
             /// 🔥 EVALUATE CANDIDATE
             Obx(() {
               /// 🔥 DOĞRU NULL CHECK
-              if (c.decision.value != null) {
+              if (c.decision.value != null && c.decision.value != "pending") {
                 final isAccepted = c.decision.value == "accepted";
 
                 return Container(

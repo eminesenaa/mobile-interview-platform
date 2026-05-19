@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-import '/../../../../constants/constants.dart';
+import 'package:interview_project/constants/constants.dart';
 import 'nd_score_badge.dart';
 
 /// ===============================================================
@@ -23,6 +23,7 @@ class NdCandidateCard extends StatelessWidget {
   final String name;
   final String initials;
   final int score;
+  final String? decision; // 🔥 Added decision
   final Map<String, int>? topics;
   final VoidCallback onReview;
 
@@ -32,6 +33,7 @@ class NdCandidateCard extends StatelessWidget {
     required this.name,
     required this.initials,
     required this.score,
+    this.decision,
     this.topics,
     required this.onReview,
   });
@@ -49,7 +51,12 @@ class NdCandidateCard extends StatelessWidget {
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(AppRadius.lg),
           border: Border.all(
-            color: AppColors.border,
+            color: decision == "accepted"
+                ? AppColors.success.withOpacity(0.5)
+                : decision == "rejected"
+                    ? AppColors.error.withOpacity(0.5)
+                    : AppColors.border,
+            width: (decision != null && decision != "pending") ? 1.5 : 1.0,
           ),
           boxShadow: AppShadows.low,
         ),
@@ -88,12 +95,32 @@ class NdCandidateCard extends StatelessWidget {
 
                       const SizedBox(width: AppSpacing.sm),
 
-                      /// Candidate name
+                      /// Candidate name & decision label
                       Expanded(
-                        child: Text(
-                          name,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.title,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              name,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.title,
+                            ),
+                            if (decision != null && decision != "pending")
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  decision == "accepted" ? "Accepted" : "Rejected",
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: decision == "accepted"
+                                        ? AppColors.success
+                                        : AppColors.error,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ],
@@ -112,10 +139,26 @@ class NdCandidateCard extends StatelessWidget {
 
                     const SizedBox(width: AppSpacing.sm),
 
-                    /// Navigation chevron
+                    /// Action Text or Navigation chevron
+                    Text(
+                      (decision != null && decision != "pending") ? "View" : "Review",
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: decision == "accepted"
+                            ? AppColors.success
+                            : decision == "rejected"
+                                ? AppColors.error
+                                : AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
                     Icon(
                       Icons.chevron_right,
-                      color: AppColors.textMuted,
+                      color: decision == "accepted"
+                          ? AppColors.success
+                          : decision == "rejected"
+                              ? AppColors.error
+                              : AppColors.textMuted,
                       size: 20,
                     ),
                   ],

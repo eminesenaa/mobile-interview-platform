@@ -17,6 +17,7 @@
 // This is the central entity of the Interview module.
 // ==========================================================================
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'question.dart';
 
 enum InterviewStatus {
@@ -47,6 +48,9 @@ class Interview {
   /// Assigned candidates
   final List<String> candidateIds;
 
+  /// Completed candidates
+  final List<String> completedCandidateIds;
+
   /// Scheduling
   final DateTime startTime;
   final DateTime endTime;
@@ -72,6 +76,7 @@ class Interview {
     required this.position,
     required this.questions,
     required this.candidateIds,
+    this.completedCandidateIds = const [],
     required this.startTime,
     required this.endTime,
     required this.joinCode,
@@ -84,18 +89,33 @@ class Interview {
   // -------------------- JSON --------------------
 
   factory Interview.fromJson(Map<String, dynamic> json) {
+    DateTime parseDateTime(dynamic value) {
+      if (value is Timestamp) return value.toDate();
+      if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
+      return DateTime.now();
+    }
+
     return Interview(
       id: json['id'] ?? '',
       companyId: json['companyId'] ?? '',
       createdByHrId: json['createdByHrId'] ?? '',
       title: json['title'] ?? '',
       position: json['position'] ?? '',
-      questions: (json['questions'] as List<dynamic>? ?? [])
-          .map((q) => Question.fromFirestore(q, q['id'] ?? ''))
-          .toList(),
+      questions: () {
+        final rawQs = json['questions'] as List<dynamic>? ?? [];
+        final List<Question> list = [];
+        for (int i = 0; i < rawQs.length; i++) {
+          final q = rawQs[i] as Map<String, dynamic>;
+          final rawId = q['id']?.toString() ?? '';
+          final id = rawId.isNotEmpty ? rawId : 'q_$i';
+          list.add(Question.fromFirestore(q, id));
+        }
+        return list;
+      }(),
       candidateIds: List<String>.from(json['candidateIds'] ?? []),
-      startTime: DateTime.tryParse(json['startTime'] ?? '') ?? DateTime.now(),
-      endTime: DateTime.tryParse(json['endTime'] ?? '') ?? DateTime.now(),
+      completedCandidateIds: List<String>.from(json['completedCandidateIds'] ?? []),
+      startTime: parseDateTime(json['startTime']),
+      endTime: parseDateTime(json['endTime']),
       joinCode: json['joinCode'] ?? '',
       jobPostingId: json['jobPostingId'],
       status: InterviewStatus.values.firstWhere(
@@ -106,7 +126,7 @@ class Interview {
         (e) => e.name == json['reviewStatus'],
         orElse: () => ReviewStatus.pending,
       ),
-      createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
+      createdAt: parseDateTime(json['createdAt']),
     );
   }
 
@@ -119,6 +139,7 @@ class Interview {
       'position': position,
       'questions': questions.map((q) => q.toJson()).toList(),
       'candidateIds': candidateIds,
+      'completedCandidateIds': completedCandidateIds,
       'startTime': startTime.toIso8601String(),
       'endTime': endTime.toIso8601String(),
       'joinCode': joinCode,
@@ -139,6 +160,7 @@ class Interview {
     String? position,
     List<Question>? questions,
     List<String>? candidateIds,
+    List<String>? completedCandidateIds,
     DateTime? startTime,
     DateTime? endTime,
     String? joinCode,
@@ -155,6 +177,7 @@ class Interview {
       position: position ?? this.position,
       questions: questions ?? this.questions,
       candidateIds: candidateIds ?? this.candidateIds,
+      completedCandidateIds: completedCandidateIds ?? this.completedCandidateIds,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
       joinCode: joinCode ?? this.joinCode,

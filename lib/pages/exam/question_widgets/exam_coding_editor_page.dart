@@ -57,13 +57,9 @@ class _ExamCodingEditorPageState extends State<ExamCodingEditorPage> {
     if (saved is String && saved.isNotEmpty) {
       codingCtrl.code.value = saved;
     } else {
-      final template = widget.question.codeTemplate ?? '';
-      if (codingCtrl.code.value.isEmpty && template.isNotEmpty) {
-        codingCtrl.code.value = template;
-      }
+      codingCtrl.code.value = widget.question.codeTemplate ?? '';
     }
 
-    final template = widget.question.codeTemplate ?? '';
 
     // 🔹 İlk açılışta:
     // - önceki kod varsa O
@@ -122,7 +118,10 @@ class _ExamCodingEditorPageState extends State<ExamCodingEditorPage> {
                       PhosphorIcons.code(PhosphorIconsStyle.regular),
                       size: 22,
                     ),
-                    onPressed: Get.back,
+                    onPressed: () {
+                      FocusScope.of(context).unfocus();
+                      Navigator.of(context).pop();
+                    },
                   ),
                 ],
               ),

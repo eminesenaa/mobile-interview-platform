@@ -44,7 +44,7 @@ class OpenPositionsPage extends StatelessWidget {
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
+          onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           "Open Positions",
@@ -82,10 +82,12 @@ class OpenPositionsPage extends StatelessWidget {
             // ================= LIST =================
             Expanded(
               child: Obx(() {
-                final jobs = controller.filteredJobs;
+                if (controller.isLoading.value) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
                 // ================= EMPTY =================
-                if (jobs.isEmpty) {
+                if (controller.jobs.isEmpty) {
                   return Center(
                     child: Text(
                       "No positions found",
@@ -94,38 +96,56 @@ class OpenPositionsPage extends StatelessWidget {
                   );
                 }
 
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                return ListView(
                   children: [
-                    // ================= HEADER =================
-                    OpSectionHeader(
-                      title: "Available Roles",
-                      count: jobs.length,
-                    ),
-
+                    // ================= AVAILABLE POSITIONS =================
+                    const OpSectionHeader(title: "Available Positions"),
                     const SizedBox(height: AppSpacing.md),
+                    
+                    if (controller.availableJobs.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 20),
+                        child: Center(
+                          child: Text(
+                            "No other positions available",
+                            style: AppTextStyles.bodySmall,
+                          ),
+                        ),
+                      )
+                    else
+                      ...controller.availableJobs.map((job) {
+                        return IdOpenPositionCard(
+                          job: job,
+                          isApplied: false,
+                          onApply: () {
+                            Get.to(
+                              () => const JobDetailPage(),
+                              arguments: job,
+                            );
+                          },
+                        );
+                      }),
 
-                    // ================= LIST =================
-                    Expanded(
-                      child: ListView.separated(
-                        itemCount: jobs.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: AppSpacing.md),
-                        itemBuilder: (context, index) {
-                          final job = jobs[index];
+                    const SizedBox(height: AppSpacing.xxl),
 
-                          return IdOpenPositionCard(
-                            job: job,
-                            onApply: () {
-                              Get.to(
-                                    () => const JobDetailPage(),
-                                arguments: job,
-                              );
-                            },
-                          );
-                        },
-                      ),
-                    ),
+                    // ================= MY APPLICATIONS =================
+                    if (controller.appliedJobs.isNotEmpty) ...[
+                      const OpSectionHeader(title: "Your Applications"),
+                      const SizedBox(height: AppSpacing.md),
+                      ...controller.appliedJobs.map((job) {
+                        return IdOpenPositionCard(
+                          job: job,
+                          isApplied: true,
+                          onApply: () {
+                            // Disabled or just view-only detail
+                            Get.to(
+                              () => const JobDetailPage(),
+                              arguments: job,
+                            );
+                          },
+                        );
+                      }),
+                    ],
                   ],
                 );
               }),

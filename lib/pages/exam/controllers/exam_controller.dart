@@ -15,8 +15,11 @@ import '../../../models/exam.dart';
 import '../../../models/interview.dart';
 import '../../../models/question.dart';
 import '../../../services/ai/ai_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../../services/interview/interview_service.dart';
 import '../../interview/pages/interview/submitted/interview_submitted_page.dart';
 import 'create_exam_controller.dart'; // ✅ düzeltildi
+import 'exam_coding_controller.dart';
 import '../result/exam_result_page.dart'; // ✅ bir üst klasörde
 import '../services/exam_xp_service.dart';
 import '../../../services/sfx/sound_service.dart';
@@ -142,7 +145,7 @@ class ExamController extends GetxController {
 
   Future<void> _loadSavedAnswers() async {
     final prefs = await SharedPreferences.getInstance();
-    final key = 'answers_${exam.id}';
+    final key = 'exam_${exam.id}_answers';
     final saved = prefs.getString(key);
     if (saved == null) return;
 
@@ -302,7 +305,7 @@ class ExamController extends GetxController {
       // TODO (Backend):
       // - Replace this flag with real interview session type
       // - Backend should determine if this is an interview
-      final bool isInterview = exam.title == "Interview";
+      final bool isInterview = exam.isInterview;
 
       // =======================================================
       // 🔥 INTERVIEW FLOW — AI EVALUATION
@@ -358,86 +361,88 @@ class ExamController extends GetxController {
         print('🚀 Sending to AI evaluation pipeline (2-stage)...');
         print('');
 
-        // 🔥 Call AI evaluation (two-stage pipeline)
-        final evalSw = Stopwatch()..start();
-        final aiService = Get.find<AiService>();
-        final aiResult = await aiService.evaluateInterview(
-          interview: interview,
-          userAnswers: snapshotAnswers,
+        // 🔥 Create a pending AI Result
+        final pendingAiResult = const AiInterviewResult(
+          finalDecision: "pending",
+          overallInterviewScore: 0.0,
         );
-        evalSw.stop();
-
-        // Log result summary
-        print('');
-        print('╔══════════════════════════════════════════════════════╗');
-        print('║       📊 INTERVIEW AI SCORING — RESULTS             ║');
-        print('╚══════════════════════════════════════════════════════╝');
-        print('⏱️  Total AI evaluation time: ${evalSw.elapsedMilliseconds}ms');
-        print('🏆 Final Decision: ${aiResult.finalDecision}');
-        print('📈 Overall Score: ${aiResult.overallInterviewScore}/5.0 (${aiResult.totalScore}/100)');
-        print('👤 Recommended Level: ${aiResult.recommendedRoleLevel}');
-        print('');
-
-        // Per-question breakdown
-        print('📝 Per-Question Breakdown:');
-        for (final qr in aiResult.questionResults) {
-          final emoji = qr.decision == 'advance' ? '✅' : (qr.decision == 'borderline' ? '⚠️' : '❌');
-          print('   $emoji Q${qr.questionIndex}: score=${qr.overallScore}/5.0 decision=${qr.decision}');
-          if (qr.strengths.isNotEmpty) {
-            print('      💪 Strengths: ${qr.strengths.take(2).join(', ')}');
-          }
-          if (qr.weaknesses.isNotEmpty) {
-            print('      ⚡ Weaknesses: ${qr.weaknesses.take(2).join(', ')}');
-          }
-          if (qr.redFlags.isNotEmpty) {
-            print('      🚩 Red Flags: ${qr.redFlags.join(', ')}');
-          }
-        }
-        print('');
-
-        // Global summary
-        if (aiResult.globalStrengths.isNotEmpty) {
-          print('💪 Global Strengths: ${aiResult.globalStrengths.join(', ')}');
-        }
-        if (aiResult.globalWeaknesses.isNotEmpty) {
-          print('⚡ Global Weaknesses: ${aiResult.globalWeaknesses.join(', ')}');
-        }
-        if (aiResult.criticalRedFlags.isNotEmpty) {
-          print('🚩 Critical Red Flags: ${aiResult.criticalRedFlags.join(', ')}');
-        }
-        if (aiResult.executiveSummary.isNotEmpty) {
-          print('📄 Executive Summary: ${aiResult.executiveSummary}');
-        }
-
-        // Topic percentages
-        final tp = aiResult.topicPercentage;
-        if (tp.isNotEmpty) {
-          print('📊 Topic Scores:');
-          tp.forEach((topic, pct) => print('   • $topic: $pct%'));
-        }
-
-        print('');
-        print('✅ Interview AI scoring pipeline completed successfully!');
-        print('═══════════════════════════════════════════════════════');
-        print('');
 
         // =======================================================
-        // TODO (Backend Teammate):
-        // Save the interview result to the backend database.
-        // This should persist:
-        //   - interviewId, candidateId
-        //   - snapshotAnswers (the candidate's raw answers)
-        //   - aiResult (AiInterviewResult — full AI evaluation)
-        //   - submittedAt timestamp
-        //
-        // Example:
-        // await interviewService.saveInterviewResult(
-        //   interviewId: interview.id,
-        //   candidateId: currentUserId,
-        //   answers: snapshotAnswers,
-        //   aiResult: aiResult,
-        // );
+        // ✅ BACKEND: Save "pending" interview result to Firestore immediately
         // =======================================================
+        try {
+          final interviewService = Get.find<InterviewService>();
+          final currentUserId =
+              FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+
+          await interviewService.saveInterviewResult(
+            interviewId: exam.id,
+            userId: currentUserId,
+            answers: snapshotAnswers,
+            aiResult: pendingAiResult,
+          );
+          print('✅ Pending interview result persisted to Firestore');
+        } catch (e) {
+          print('❌ Failed to save pending interview result: $e');
+        }
+
+        // 🔥 ALWAYS mark THIS CANDIDATE as completed (per-candidate tracking)
+        // Don't mark the whole interview as 'completed' — other candidates still need it!
+        try {
+          final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+          final interviewRef = _db.collection('interviews').doc(exam.id);
+          
+          // Add this candidate to completedCandidateIds AND ensure they are in candidateIds
+          await interviewRef.update({
+            'completedCandidateIds': FieldValue.arrayUnion([currentUserId]),
+            'candidateIds': FieldValue.arrayUnion([currentUserId]),
+          });
+          
+          // Check if ALL candidates have completed → then mark the whole interview as 'completed'
+          final interviewDoc = await interviewRef.get();
+          if (interviewDoc.exists) {
+            final data = interviewDoc.data()!;
+            final candidateIds = List<String>.from(data['candidateIds'] ?? []);
+            final completedIds = List<String>.from(data['completedCandidateIds'] ?? []);
+            
+            // Only mark as 'completed' if everyone is done
+            if (candidateIds.isNotEmpty &&
+                candidateIds.every((id) => completedIds.contains(id))) {
+              await interviewRef.update({'status': 'completed'});
+              print('✅ All candidates done — interview status set to completed');
+            } else {
+              print('✅ This candidate done. Waiting for ${candidateIds.length - completedIds.length} more candidate(s).');
+            }
+          }
+        } catch (e) {
+          print('❌ Failed to update per-candidate completion: $e');
+        }
+
+        // 🔥 Fire & Forget: Run AI Evaluation in Background
+        Future.microtask(() async {
+          try {
+            print('🚀 Sending to AI evaluation pipeline in background...');
+            final aiService = Get.find<AiService>();
+            final aiResult = await aiService.evaluateInterview(
+              interview: interview,
+              userAnswers: snapshotAnswers,
+            );
+            print('✅ Background AI evaluation completed!');
+            
+            // Save updated result
+            final interviewService = Get.find<InterviewService>();
+            final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+            await interviewService.saveInterviewResult(
+              interviewId: exam.id,
+              userId: currentUserId,
+              answers: snapshotAnswers,
+              aiResult: aiResult,
+            );
+            print('✅ Updated AI result saved to Firestore.');
+          } catch (e) {
+            print('❌ Background AI evaluation failed: $e');
+          }
+        });
 
         // 🔊 Completion sound
         SoundService.play(SoundEffect.examComplete);
@@ -445,10 +450,10 @@ class ExamController extends GetxController {
         print('🔄 Navigating to InterviewSubmittedPage...');
 
         Get.offAll(
-              () => const InterviewSubmittedPage(),
+              () => InterviewSubmittedPage(),
           arguments: {
             'exam': resultExam,
-            'aiResult': aiResult,
+            'aiResult': pendingAiResult,
           },
         );
 
@@ -507,12 +512,12 @@ class ExamController extends GetxController {
       // =======================================================
       // 🔥 ERROR CASE → INTERVIEW VS EXAM AYRIMI
       // =======================================================
-      final bool isInterview = exam.title == "Interview";
+      final bool isInterview = exam.isInterview;
 
       if (isInterview) {
         // AI evaluation failed — navigate without aiResult
         Get.offAll(
-              () => const InterviewSubmittedPage(),
+              () => InterviewSubmittedPage(),
           arguments: {
             'exam': resultExam,
             // aiResult is null — AI evaluation failed
@@ -532,6 +537,11 @@ class ExamController extends GetxController {
   @override
   void onClose() {
     _ticker?.cancel();
+    for (final q in exam.questions) {
+      if (q.type == QuestionType.coding) {
+        Get.delete<ExamCodingController>(tag: q.id, force: true);
+      }
+    }
     super.onClose();
   }
 }

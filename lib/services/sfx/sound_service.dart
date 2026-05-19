@@ -1116,6 +1116,10 @@ class SoundService {
     final effectiveVolume = (_masterVolume * config.volume).clamp(0.0, 1.0);
 
     try {
+      // 🔹 BACKEND NOTE: Safety check for missing assets (e.g. tab_switch.mp3)
+      // The try-catch block below ensures that if an asset is missing or 
+      // the audio engine fails, the app continues to function normally.
+      
       if (config.concurrent) {
         // ── Concurrent path: use pool player ──
         final poolPlayer = _AudioPool.acquire();
@@ -1144,9 +1148,8 @@ class SoundService {
         volume: effectiveVolume,
       ));
     } catch (e) {
-
-      // Never let audio errors bubble up to the UI layer!!
-      _SoundLogger.error('Failed to play ${effect.name}.', e);
+      // ❌ BACKEND: Explicitly log missing asset errors to Logcat
+      _SoundLogger.error('SoundService: Playback failed for ${effect.name}. Path: ${effect.path}', e);
 
       _playbackController.add(SoundPlaybackEvent(
         effect: effect,

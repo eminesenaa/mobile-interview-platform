@@ -1,0 +1,222 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../models/ai_interview_result.dart';
+import '../../models/interview.dart';
+import '../../models/interview_result.dart';
+import '../../models/interview_session.dart';
+import 'interview_service.dart';
+
+class FirebaseInterviewService implements InterviewService {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  @override
+  Future<List<Interview>> getUserInterviews(String userId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('interviews')
+          .where('candidateIds', arrayContains: userId)
+          .get();
+
+      return snapshot.docs.map((doc) => Interview.fromJson(doc.data())).toList();
+    } catch (e) {
+      print('FirebaseInterviewService: Error getting user interviews: $e');
+      return [];
+    }
+  }
+
+  @override
+  Future<Interview?> getInterviewById(String interviewId) async {
+    try {
+      final doc = await _firestore.collection('interviews').doc(interviewId).get();
+      if (!doc.exists) return null;
+      return Interview.fromJson(doc.data()!);
+    } catch (e) {
+      print('FirebaseInterviewService: Error getting interview by ID: $e');
+      return null;
+    }
+  }
+
+  @override
+  Future<InterviewSession> startSession({
+    required String interviewId,
+    required String userId,
+  }) async {
+    try {
+      final interview = await getInterviewById(interviewId);
+      if (interview == null) throw Exception("Interview not found");
+
+      final sessionDoc = _firestore.collection('interview_sessions').doc('${interviewId}_$userId');
+      final snapshot = await sessionDoc.get();
+
+      if (snapshot.exists) {
+        return InterviewSession.fromJson(snapshot.data()!);
+      }
+
+      final session = InterviewSession(
+        id: '${interviewId}_$userId',
+        interviewId: interviewId,
+        candidateId: userId,
+        secondsLeft: interview.duration.inSeconds,
+        isStarted: true,
+        startedAt: DateTime.now(),
+      );
+
+      await sessionDoc.set(session.toJson());
+      return session;
+    } catch (e) {
+      print('FirebaseInterviewService: Error starting session: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> updateSession(InterviewSession session) async {
+    try {
+      await _firestore
+          .collection('interview_sessions')
+          .doc(session.id)
+          .update(session.toJson());
+    } catch (e) {
+      print('FirebaseInterviewService: Error updating session: $e');
+    }
+  }
+
+  @override
+  Future<InterviewSession?> getSession(String interviewId, String userId) async {
+    try {
+      final doc = await _firestore
+          .collection('interview_sessions')
+          .doc('${interviewId}_$userId')
+          .get();
+      if (!doc.exists) return null;
+      return InterviewSession.fromJson(doc.data()!);
+    } catch (e) {
+      print('FirebaseInterviewService: Error getting session: $e');
+      return null;
+    }
+  }
+
+  @override
+  Future<InterviewResult> submitInterview(InterviewSession session) async {
+    // This method is required by the interface but the actual submission
+    // and AI evaluation is handled via ExamController and saveInterviewResult.
+    // Providing a default implementation to satisfy the interface.
+    throw UnimplementedError('Use saveInterviewResult instead');
+  }
+
+  @override
+  Future<void> saveInterviewResult({
+    required String interviewId,
+    required String userId,
+    required Map<String, dynamic> answers,
+    required dynamic aiResult,
+  }) async {
+    try {
+      final resultId = '${interviewId}_$userId';
+      
+      // Fetch interview title and jobPostingId for display/query
+      final interviewDoc = await _firestore.collection('interviews').doc(interviewId).get();
+      final title = interviewDoc.exists ? (interviewDoc.data()?['title'] ?? 'Interview') : 'Interview';
+      String? jobPostingId;
+      if (interviewDoc.exists) {
+        jobPostingId = interviewDoc.data()?['jobPostingId'] as String?;
+      }
+
+      // Fetch candidate name from /users/{userId} if displayName is null or empty
+      String candidateName = FirebaseAuth.instance.currentUser?.displayName ?? "Candidate";
+      if (candidateName == "Candidate" || candidateName.isEmpty) {
+        final userDoc = await _firestore.collection('users').doc(userId).get();
+        if (userDoc.exists) {
+          final userData = userDoc.data();
+          final firstName = userData?['name'] ?? '';
+          final lastName = userData?['surname'] ?? '';
+          if (firstName.isNotEmpty || lastName.isNotEmpty) {
+            candidateName = '$firstName $lastName'.trim();
+          }
+        }
+      }
+
+      // Get existing decision if document exists, to prevent overwriting HR's manual decision
+      String decisionStatus = 'pending';
+      String? existingHrComment;
+      try {
+        final existingDoc = await _firestore.collection('ai_interview_results').doc(resultId).get();
+        if (existingDoc.exists) {
+          decisionStatus = existingDoc.data()?['decision'] ?? 'pending';
+          existingHrComment = existingDoc.data()?['hrComment'] ?? existingDoc.data()?['hrMessage'];
+        }
+      } catch (e) {
+        print('FirebaseInterviewService: Error reading existing result: $e');
+      }
+
+      final data = {
+        'interviewId': interviewId,
+        'candidateId': userId,
+        'candidateName': candidateName,
+        'title': title,
+        if (jobPostingId != null) 'jobPostingId': jobPostingId,
+        'answers': answers,
+        'aiResult': aiResult.toJson(), // Assuming AiInterviewResult has toJson()
+        'submittedAt': FieldValue.serverTimestamp(),
+        'status': 'completed',
+        'decision': decisionStatus, // 🔑 Preserved (defaults to pending, not AI decision)
+        if (existingHrComment != null) 'hrComment': existingHrComment,
+        'totalScore': aiResult is AiInterviewResult ? aiResult.totalScore : 0,
+        'starAnalysis': _extractStarAnalysis(aiResult), // Helper for easy filtering
+      };
+
+      await _firestore.collection('ai_interview_results').doc(resultId).set(data);
+      
+    } catch (e) {
+      print('FirebaseInterviewService: Error saving interview result: $e');
+      rethrow;
+    }
+  }
+
+  Map<String, dynamic> _extractStarAnalysis(dynamic aiResult) {
+    // Extract STAR metrics from AI result for easier dashboard reporting
+    try {
+      if (aiResult is! AiInterviewResult) return {};
+      
+      final starAggregator = <String, List<double>>{
+        'S': [], 'T': [], 'A': [], 'R': []
+      };
+
+      for (final qResult in aiResult.questionResults) {
+        final coverage = qResult.starCoverage;
+        if (coverage != null) {
+          coverage.forEach((k, v) {
+            if (starAggregator.containsKey(k)) {
+              starAggregator[k]!.add(v);
+            }
+          });
+        }
+      }
+
+      // Calculate averages
+      return starAggregator.map((k, scores) {
+        if (scores.isEmpty) return MapEntry(k, 0.0);
+        final avg = scores.reduce((a, b) => a + b) / scores.length;
+        return MapEntry(k, double.parse(avg.toStringAsFixed(1)));
+      });
+    } catch (e) {
+      print('FirebaseInterviewService: Error extracting STAR analysis: $e');
+      return {};
+    }
+  }
+
+  @override
+  Future<List<InterviewResult>> getUserResults(String userId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('ai_interview_results')
+          .where('candidateId', isEqualTo: userId)
+          .get();
+
+      return snapshot.docs.map((doc) => InterviewResult.fromJson(doc.data())).toList();
+    } catch (e) {
+      print('FirebaseInterviewService: Error getting user results: $e');
+      return [];
+    }
+  }
+}

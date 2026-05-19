@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:overlay_support/overlay_support.dart';
 
 import '../../../services/firebase/auth_service.dart';
 import '../../main_view.dart';
@@ -14,6 +15,7 @@ class SignupController extends GetxController {
   final usernameCtrl = TextEditingController();
   final emailCtrl = TextEditingController();
   final passwordCtrl = TextEditingController();
+  final companyNameCtrl = TextEditingController();
 
   final isLoading = false.obs;
   final acceptedTerms = false.obs;
@@ -108,9 +110,19 @@ class SignupController extends GetxController {
         default:
           message = e.message ?? "Unknown error.";
       }
-      Get.snackbar("Sign Up Error", message);
+      showSimpleNotification(
+        const Text("Sign Up Error", style: TextStyle(color: Colors.white)),
+        subtitle: Text(message, style: const TextStyle(color: Colors.white70)),
+        background: Colors.redAccent,
+        duration: const Duration(seconds: 3),
+      );
     } catch (e) {
-      Get.snackbar("Error", e.toString().replaceAll("Exception:", "").trim());
+      showSimpleNotification(
+        const Text("Error", style: TextStyle(color: Colors.white)),
+        subtitle: Text(e.toString().replaceAll("Exception:", "").trim(), style: const TextStyle(color: Colors.white70)),
+        background: Colors.redAccent,
+        duration: const Duration(seconds: 3),
+      );
     } finally {
       isLoading.value = false;
     }
@@ -123,10 +135,12 @@ class SignupController extends GetxController {
 
     final name = nameCtrl.text.trim();
     final surname = surnameCtrl.text.trim();
+    final username = usernameCtrl.text.trim();
     final email = emailCtrl.text.trim();
     final password = passwordCtrl.text.trim();
+    final companyName = companyNameCtrl.text.trim();
 
-    if (name.isEmpty || surname.isEmpty || email.isEmpty || password.isEmpty) {
+    if (name.isEmpty || surname.isEmpty || username.isEmpty || email.isEmpty || password.isEmpty || companyName.isEmpty) {
       Get.snackbar("Error", "Please fill all fields");
       return;
     }
@@ -139,18 +153,16 @@ class SignupController extends GetxController {
     isLoading.value = true;
 
     try {
-      // 🔥 TEMP LOGIC
-      // Backend gelince:
-      // - HRUser oluşturulacak
-      // - Company oluşturulacak veya bağlanacak
+      final user = await _authService.signUpAsHR(
+        email: email,
+        password: password,
+        name: name,
+        surname: surname,
+        username: username,
+        companyName: companyName,
+      );
 
-      if (!email.contains("hr")) {
-        Get.snackbar("Error", "Use an HR email (e.g. hr@company.com)");
-        return;
-      }
-
-      // 🔥 Simülasyon
-      await Future.delayed(const Duration(seconds: 1));
+      if (user == null) throw Exception("HR Sign up failed");
 
       Get.defaultDialog(
         title: "HR Account Created",
@@ -166,7 +178,12 @@ class SignupController extends GetxController {
         },
       );
     } catch (e) {
-      Get.snackbar("HR Sign Up Failed", e.toString());
+      showSimpleNotification(
+        const Text("HR Sign Up Failed", style: TextStyle(color: Colors.white)),
+        subtitle: Text(e.toString().replaceAll("Exception:", "").trim(), style: const TextStyle(color: Colors.white70)),
+        background: Colors.redAccent,
+        duration: const Duration(seconds: 3),
+      );
     } finally {
       isLoading.value = false;
     }
@@ -221,6 +238,7 @@ class SignupController extends GetxController {
     usernameCtrl.dispose();
     emailCtrl.dispose();
     passwordCtrl.dispose();
+    companyNameCtrl.dispose();
     super.onClose();
   }
 }

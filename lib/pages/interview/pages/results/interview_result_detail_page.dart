@@ -44,8 +44,30 @@ class InterviewResultDetailPage extends StatelessWidget {
     final controller = Get.put(InterviewResultsController());
 
     // ================= ARGUMENT =================
-    final Map<String, dynamic> item = Get.arguments;
-    final InterviewResult result = item["result"];
+    final Map<String, dynamic> item = Get.arguments ?? {};
+    
+    InterviewResult? parsedResult;
+    if (item["result"] is InterviewResult) {
+      parsedResult = item["result"] as InterviewResult;
+    } else {
+      try {
+        parsedResult = InterviewResult.fromJson(item);
+      } catch (e) {
+        print("Error parsing InterviewResult in InterviewResultDetailPage: $e");
+      }
+    }
+
+    final result = parsedResult ?? InterviewResult(
+      id: item["id"] ?? "",
+      interviewId: item["interviewId"] ?? "",
+      candidateId: item["candidateId"] ?? "",
+      score: (item["score"] ?? item["totalScore"] ?? 0).toInt(),
+      decision: item["decision"] == "accepted"
+          ? InterviewDecisionStatus.accepted
+          : (item["decision"] == "rejected"
+              ? InterviewDecisionStatus.rejected
+              : InterviewDecisionStatus.pending),
+    );
 
     final status = controller.getStatus(item);
 
@@ -58,6 +80,10 @@ class InterviewResultDetailPage extends StatelessWidget {
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.textPrimary,
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: Text(
           item["title"] ?? "",
           style: AppTextStyles.title,
@@ -97,7 +123,7 @@ class InterviewResultDetailPage extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
 
               IrOverallScoreSection(
-                score: result.score ?? 0,
+                score: result.score,
                 status: status,
                 rank: result.correctCount, // veya gerçek rank
                 total: 100,

@@ -32,7 +32,7 @@ class ProfileEditAvatar extends StatelessWidget {
                 width: 3,
               ),
               color: avatarPath.isEmpty
-                  ? AvatarUtils.getColor(controller.username.value)
+                  ? AvatarUtils.getColor(controller.usernameCtrl.text)
                   : null,
               image: avatarPath.isNotEmpty
                   ? DecorationImage(
@@ -68,7 +68,7 @@ class ProfileEditAvatar extends StatelessWidget {
 Widget _buildInitialAvatar(ProfileEditController c, {bool small = false}) {
   return Center(
     child: Text(
-      AvatarUtils.getInitials(c.name.value, c.surname.value),
+      AvatarUtils.getInitials(c.nameCtrl.text, c.surnameCtrl.text),
       style: AppTextStyles.headline.copyWith(
         color: Colors.white,
         fontSize: small ? 16 : 28,

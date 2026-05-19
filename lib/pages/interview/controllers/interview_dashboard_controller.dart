@@ -1,430 +1,427 @@
 // ===================== File: interview_dashboard_controller.dart =====================
 // Purpose:
-// Controls Candidate Interview Dashboard
-//
-// Responsibilities:
-// - Fetch open job postings
-// - Manage user applications
-// - Provide upcoming interview data
-// - Provide interview widgets
-//
-// IMPORTANT:
-// - Uses mock data for now
-// - Fully backend-ready
-//
-// TODO (Backend):
-// - Replace all mock lists with API / Firestore calls
-// - Normalize data models (User, JobPosting, Interview, Result)
-// - Add pagination & filtering if needed
+// Controls Candidate Interview Dashboard using real-time Firestore data.
 // ===============================================================================
 
+import 'dart:async';
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
 import '../../../models/interview_result.dart';
 import '../pages/interview/waiting/interview_waiting_page.dart';
 
 class InterviewDashboardController extends GetxController {
+  final _db = FirebaseFirestore.instance;
+  final _auth = FirebaseAuth.instance;
+
   // ===============================
-  // OPEN POSITIONS (APPLY)
+  // STATE
   // ===============================
-  /// Jobs that candidate can apply to
   final openPositions = <Map<String, dynamic>>[].obs;
-
-  // ===============================
-  // MY APPLICATIONS
-  // ===============================
-  /// Candidate’s applications
-  /// Includes status: pending / accepted / rejected
   final applications = <Map<String, dynamic>>[].obs;
-
-  // ===============================
-  // UPCOMING INTERVIEW
-  // ===============================
-  /// Single upcoming interview (if exists)
   final upcomingInterview = Rxn<Map<String, dynamic>>();
-
-  // ===============================
-  // INTERVIEW RESULTS
-  // ===============================
-  /// Completed / pending interview widgets
   final results = <Map<String, dynamic>>[].obs;
-
-  // ===============================
-  // LOADING STATES
-  // ===============================
   final isLoading = false.obs;
 
   // ===============================
-  // LIFECYCLE
+  // SUBSCRIPTIONS
   // ===============================
+  StreamSubscription<User?>? _authSub;
+  final List<StreamSubscription> _firestoreSubs = [];
+
   @override
   void onInit() {
     super.onInit();
+    // 🔥 Auth state'ini dinle — kullanıcı login olunca dinleyicileri kur
+    _authSub = _auth.authStateChanges().listen((user) {
+      if (user != null) {
+        // Kullanıcı giriş yaptı: mevcut listener'ları iptal et, yeniden kur
+        _cancelFirestoreListeners();
+        _listenToDashboardData(user);
+      } else {
+        // Kullanıcı çıkış yaptı: temizle
+        _cancelFirestoreListeners();
+        openPositions.clear();
+        applications.clear();
+        upcomingInterview.value = null;
+        results.clear();
+      }
+    });
+  }
 
-    loadMockData();
+  void _cancelFirestoreListeners() {
+    for (final sub in _firestoreSubs) {
+      sub.cancel();
+    }
+    _firestoreSubs.clear();
+  }
 
-    // Backend-ready calls
-    fetchDashboardData();
+  @override
+  void onClose() {
+    _authSub?.cancel();
+    _cancelFirestoreListeners();
+    super.onClose();
   }
 
   // ===============================
-  // MOCK DATA (TEMPORARY)
+  // REAL-TIME DATA LISTENERS
   // ===============================
-  void loadMockData() {
-    // ================= OPEN POSITIONS =================
-    openPositions.value = [
-      {
-        "id": "JP-1",
-        "title": "Frontend Developer",
-        "level": "Senior",
-        "location": "Istanbul, Turkey",
-        "workType": "Remote",
-        "description":
-            "Build and maintain modern, scalable, and high-performance user interfaces using React and TypeScript. Collaborate closely with designers and backend teams to deliver seamless user experiences. Optimize applications for speed and responsiveness, ensure cross-browser compatibility, and contribute to UI architecture decisions.",
-        "requirements": [
-          "4+ years of frontend development experience",
-          "Strong proficiency in React and TypeScript",
-          "Experience with state management libraries (Redux, Zustand, etc.)",
-          "Solid understanding of responsive design and UI/UX principles",
-          "Familiarity with REST APIs and modern frontend tooling",
-        ],
-        "salary": "\$4,000 - \$6,000",
-      },
-      {
-        "id": "JP-2",
-        "title": "Backend Engineer",
-        "level": "Mid-Level",
-        "location": "Berlin, Germany",
-        "workType": "Hybrid",
-        "description":
-            "Design, develop, and maintain scalable backend systems and APIs using Node.js. Work with microservice architectures, integrate third-party services, and ensure high availability and performance. Collaborate with frontend and DevOps teams to deliver end-to-end solutions.",
-        "requirements": [
-          "3+ years of backend development experience",
-          "Strong knowledge of Node.js and Express.js",
-          "Experience with RESTful API design and microservices",
-          "Familiarity with databases (PostgreSQL, MongoDB)",
-          "Understanding of authentication, security, and performance optimization",
-        ],
-        "salary": "\$3,500 - \$5,000",
-      },
-    ];
-
-    // ================= APPLICATIONS =================
-    applications.value = [
-      {
-        "title": "Product Designer",
-        "position": "Product Designer",
-        "workType": "Remote",
-        "salary": "\$4,000 - \$6,000",
-        "description":
-            "Join our design team to create intuitive and user-friendly experiences. Collaborate with product managers and engineers to design seamless user journeys, improve usability, and contribute to design system consistency.",
-        "requirements": [
-          "3+ years experience in product design",
-          "Figma / Adobe XD knowledge",
-          "Strong UX thinking",
-        ],
-        "company": "CreativeWorks",
-        "location": "Berlin",
-        "status": "pending",
-        "message": "Waiting for HR review...",
-        "date": "May 12, 2026",
-        "startTime": "2026-05-12T14:00:00",
-        "endTime": "2026-05-12T15:00:00",
-        "inviteCode": "PQ-Z040",
-        "hrMessage":
-            "Your application is currently under review. If selected, you will receive an interview invitation with further details.",
-      },
-      {
-        "title": "iOS Engineer",
-        "position": "iOS Engineer",
-        "workType": "On-site",
-        "salary": "\$5,000 - \$7,000",
-        "description":
-            "Develop high-quality iOS applications using Swift and modern Apple frameworks. Work closely with cross-functional teams to build scalable, maintainable mobile solutions and deliver smooth user experiences.",
-        "requirements": [
-          "3+ years of iOS development experience",
-          "Strong knowledge of Swift and UIKit/SwiftUI",
-          "Experience with REST API integration",
-          "Understanding of mobile app architecture patterns",
-        ],
-        "company": "AppNova",
-        "location": "San Francisco",
-        "status": "accepted",
-        "message": "You have been accepted.",
-        "date": "May 14, 2026",
-        "startTime": "2026-05-14T10:00:00",
-        "endTime": "2026-05-14T11:00:00",
-        "inviteCode": "IO-A921",
-        "hrMessage":
-            "Hi! We are happy to inform you that you have been selected for an interview. Please be available at the scheduled time and use your invite code to join.",
-      },
-      {
-        "title": "Data Analyst",
-        "position": "Data Analyst",
-        "workType": "Remote",
-        "salary": "\$3,000 - \$4,500",
-        "description":
-            "Analyze datasets to generate actionable insights and support business decisions. Build dashboards, create reports, and collaborate with teams to identify trends and improve data-driven strategies.",
-        "requirements": [
-          "2+ years of experience in data analysis",
-          "Strong SQL and Excel skills",
-          "Experience with data visualization tools (Tableau, Power BI)",
-          "Basic knowledge of Python or R",
-        ],
-        "company": "Metrics Corp",
-        "location": "Remote",
-        "status": "rejected",
-        "message": "Application not progressed",
-        "date": "May 10, 2026",
-        "startTime": "2026-05-10T00:00:00",
-        "endTime": "2026-05-10T00:00:00",
-        "inviteCode": "—",
-        "hrMessage":
-            "Thank you for your interest. After careful consideration, we will not be moving forward with your application at this time.",
-      },
-      {
-        "title": "Backend Engineer",
-        "position": "Backend Engineer",
-        "workType": "Hybrid",
-        "salary": "\$4,000 - \$6,000",
-        "description":
-            "Design and maintain backend systems and APIs with a focus on scalability and performance. Work with distributed systems, integrate services, and ensure secure and efficient data handling.",
-        "requirements": [
-          "3+ years of backend development experience",
-          "Strong knowledge of Node.js or similar backend technologies",
-          "Experience with databases (SQL/NoSQL)",
-          "Understanding of API design and system architecture",
-        ],
-        "company": "Cloudify",
-        "location": "Berlin",
-        "status": "accepted",
-        "message": "You have been accepted.",
-        "date": "May 16, 2026",
-        "startTime": "2026-05-16T16:00:00",
-        "endTime": "2026-05-16T17:00:00",
-        "inviteCode": "BE-X552",
-        "hrMessage":
-            "Hi! We are happy to inform you that you have been selected for an interview. Please be available at the scheduled time and use your invite code to join.",
-      },
-    ];
-
-    // ================= UPCOMING INTERVIEW =================
-    upcomingInterview.value = {
-      "id": "INT-1",
-      "title": "iOS Engineer Interview",
-
-      // 🔥 REAL MODEL FORMAT
-      "startTime": DateTime(2025, 4, 28, 14, 0),
-      "endTime": DateTime(2025, 4, 28, 15, 0),
-
-      "joinCode": "PQ-Z04O",
-      "status": "scheduled",
-    };
-
-    // ================= RESULTS =================
-    results.value = [
-      {
-        "title": "Frontend Developer",
-        "company": "AppNova",
-        "location": "San Francisco",
-        "startTime": "2026-05-14T10:00:00",
-        "endTime": "2026-05-14T11:00:00",
-        "result": InterviewResult(
-          id: "1",
-          interviewId: "int_1",
-          candidateId: "user_1",
-          score: 95,
-          correctCount: 9,
-          wrongCount: 1,
-          unansweredCount: 0,
-          decision: InterviewDecisionStatus.accepted,
-          hrMessage: "Excellent performance!",
-          isSubmitted: true,
-          isReviewed: true,
-          submittedAt: DateTime.now().subtract(const Duration(days: 2)),
-          reviewedAt: DateTime.now().subtract(const Duration(days: 1)),
-        ),
-      },
-      {
-        "title": "Product Designer",
-        "company": "CreativeWorks",
-        "location": "Amsterdam",
-        "startTime": "2026-05-18T09:00:00",
-        "endTime": "2026-05-18T10:00:00",
-        "result": InterviewResult(
-          id: "2",
-          interviewId: "int_2",
-          candidateId: "user_1",
-          decision: InterviewDecisionStatus.pending,
-          isSubmitted: true,
-          isReviewed: false,
-          submittedAt: DateTime.now().subtract(const Duration(days: 1)),
-        ),
-      },
-      {
-        "title": "Backend Engineer",
-        "company": "Cloudify",
-        "location": "Berlin",
-        "startTime": "2026-05-10T14:00:00",
-        "endTime": "2026-05-10T15:00:00",
-        "result": InterviewResult(
-          id: "3",
-          interviewId: "int_3",
-          candidateId: "user_1",
-          score: 62,
-          correctCount: 6,
-          wrongCount: 4,
-          unansweredCount: 0,
-          decision: InterviewDecisionStatus.rejected,
-          hrMessage: "Did not meet expectations.",
-          isSubmitted: true,
-          isReviewed: true,
-          submittedAt: DateTime.now().subtract(const Duration(days: 4)),
-          reviewedAt: DateTime.now().subtract(const Duration(days: 3)),
-        ),
-      },
-    ];
-  }
-
-  // Normalize job model (backend ready)
-  Map<String, dynamic> normalizeJob(Map<String, dynamic> job) {
-    return {
-      "id": job["id"],
-      "title": job["title"],
-      "level": job["level"],
-      "location": job["location"],
-      "workType": job["workType"],
-      "description": job["description"],
-    };
-  }
-
-  // ===============================
-  // FETCH DASHBOARD DATA (BACKEND READY)
-  // ===============================
-  Future<void> fetchDashboardData() async {
+  void _listenToDashboardData(User user) {
     isLoading.value = true;
 
-    try {
-      // ===============================
-      // TODO: BACKEND INTEGRATION
-      // ===============================
+    // 1. Listen to open positions
+    _firestoreSubs.add(
+      _db.collection('job_postings')
+          .where('status', isEqualTo: 'active')
+          .limit(10)
+          .snapshots()
+          .listen((snap) {
+            final list = snap.docs.map((doc) {
+              final data = doc.data();
+              data['id'] = doc.id;
+              return data;
+            }).toList();
 
-      /*
-      final response = await api.getInterviewDashboard();
+            // 🔥 Sort by createdAt descending
+            list.sort((a, b) {
+              final aTime = a['createdAt'] as Timestamp?;
+              final bTime = b['createdAt'] as Timestamp?;
+              if (aTime == null || bTime == null) return 0;
+              return bTime.compareTo(aTime);
+            });
+            
+            openPositions.value = list;
+          })
+    );
 
-      openPositions.value = response.openPositions;
-      applications.value = response.applications;
-      upcomingInterview.value = response.upcomingInterview;
-      widgets.value = response.widgets;
-      */
-    } catch (e) {
-      // TODO: error handling
-    } finally {
-      isLoading.value = false;
-    }
+    // 2. Listen to applications
+    _firestoreSubs.add(
+      _db.collection('applications')
+          .where('candidateId', isEqualTo: user.uid)
+          .snapshots()
+          .listen((snap) async {
+            final List<Map<String, dynamic>> updatedApps = [];
+            
+            for (var doc in snap.docs) {
+              Map<String, dynamic> data = doc.data();
+              data['id'] = doc.id;
+              
+              // If missing info, fetch from job_postings
+              if (data['workType'] == null || data['location'] == null) {
+                final postingDoc = await _db.collection('job_postings').doc(data['jobPostingId']).get();
+                if (postingDoc.exists) {
+                  final postingData = postingDoc.data()!;
+                  data['workType'] = postingData['workType'];
+                  data['location'] = postingData['location'];
+                  data['company'] = postingData['company'] ?? "Company";
+                  data['description'] = postingData['description'];
+                  data['requirements'] = postingData['requirements'];
+                  if (data['jobTitle'] == null) data['jobTitle'] = postingData['title'];
+                }
+              }
+              updatedApps.add(data);
+            }
+
+            // 🔥 Sort by appliedAt descending (latest first)
+            updatedApps.sort((a, b) {
+              final aTime = a['appliedAt'];
+              final bTime = b['appliedAt'];
+
+              DateTime parseTime(dynamic time) {
+                if (time is Timestamp) return time.toDate();
+                if (time is String) return DateTime.parse(time);
+                return DateTime(2000);
+              }
+
+              return parseTime(bTime).compareTo(parseTime(aTime));
+            });
+
+            applications.value = updatedApps;
+          })
+    );
+
+    // 3. Listen to upcoming interview
+    _firestoreSubs.add(
+      _db.collection('interviews')
+          .where('candidateIds', arrayContains: user.uid)
+          .snapshots()
+          .listen((snap) async {
+            print("Candidate Interviews found by candidateIds: ${snap.docs.length}");
+
+            List<Map<String, dynamic>> list = snap.docs.map((doc) {
+              final d = doc.data();
+              d['id'] = doc.id;
+              return d;
+            }).where((d) {
+              // Must be scheduled (not all-done)
+              if (d['status'] != 'scheduled') return false;
+              // Must not have THIS candidate already completed it
+              final completed = List<String>.from(d['completedCandidateIds'] ?? []);
+              return !completed.contains(user.uid);
+            }).toList();
+
+            // 🔥 FALLBACK: If nothing found by candidateIds, try via inviteCode in applications
+            if (list.isEmpty) {
+              print("No interview found by candidateIds — trying inviteCode fallback...");
+              try {
+                final appSnap = await _db.collection('applications')
+                    .where('candidateId', isEqualTo: user.uid)
+                    .get();
+
+                final Set<String> checkedCodes = {};
+
+                for (var appDoc in appSnap.docs) {
+                  final appData = appDoc.data();
+                  final inviteCode = (appData['inviteCode'] ?? '').toString().trim();
+                  if (inviteCode.isEmpty || checkedCodes.contains(inviteCode)) continue;
+                  checkedCodes.add(inviteCode);
+
+                  print("Checking inviteCode from application: $inviteCode");
+
+                  // Search by joinCode
+                  var iSnap = await _db.collection('interviews')
+                      .where('joinCode', isEqualTo: inviteCode)
+                      .where('status', isEqualTo: 'scheduled')
+                      .get();
+
+                  // Also try inviteCode field
+                  if (iSnap.docs.isEmpty) {
+                    iSnap = await _db.collection('interviews')
+                        .where('inviteCode', isEqualTo: inviteCode)
+                        .where('status', isEqualTo: 'scheduled')
+                        .get();
+                  }
+
+                  for (var iDoc in iSnap.docs) {
+                    final d = iDoc.data();
+                    d['id'] = iDoc.id;
+                    // 🔥 Self-heal: add this candidate's UID to candidateIds
+                    _fixCandidateIdInInterview(iDoc.id, user.uid);
+                    list.add(d);
+                  }
+                }
+              } catch (e) {
+                print("inviteCode fallback error: $e");
+              }
+            }
+
+            // 🔥 SAFETY FILTER: Remove interviews the candidate already completed
+            // (in case Firestore status update failed/delayed)
+            if (list.isNotEmpty) {
+              try {
+                final resultSnap = await _db.collection('ai_interview_results')
+                    .where('candidateId', isEqualTo: user.uid)
+                    .get();
+                final completedInterviewIds = resultSnap.docs
+                    .map((d) => d.data()['interviewId']?.toString() ?? '')
+                    .where((id) => id.isNotEmpty)
+                    .toSet();
+
+                // Also check by document ID pattern: {interviewId}_{userId}
+                final completedByDocId = resultSnap.docs
+                    .map((d) => d.id.replaceAll('_${user.uid}', ''))
+                    .toSet();
+
+                final completedJobPostingIds = resultSnap.docs
+                    .map((d) => d.data()['jobPostingId']?.toString() ?? '')
+                    .where((id) => id.isNotEmpty)
+                    .toSet();
+
+                print("[Dashboard] debug list: $list");
+                print("[Dashboard] debug completedInterviewIds: $completedInterviewIds");
+                print("[Dashboard] debug completedJobPostingIds: $completedJobPostingIds");
+
+                list = list.where((interview) {
+                  final id = interview['id']?.toString() ?? '';
+                  final jobPostingId = interview['jobPostingId']?.toString() ?? '';
+
+                  final isCompleted = completedInterviewIds.contains(id) ||
+                         completedByDocId.contains(id) ||
+                         (jobPostingId.isNotEmpty && completedJobPostingIds.contains(jobPostingId));
+
+                  print("[Dashboard] checking interview id: $id, isCompleted: $isCompleted");
+                  return !isCompleted;
+                }).toList();
+
+                print("After completion filter: ${list.length} upcoming interviews remain");
+              } catch (e) {
+                print("Error filtering completed interviews: $e");
+              }
+            }
+
+            if (list.isNotEmpty) {
+              list.sort((a, b) {
+                try {
+                  final aStart = (a['startTime'] is Timestamp) ? (a['startTime'] as Timestamp).toDate() : DateTime.parse(a['startTime'].toString());
+                  final bStart = (b['startTime'] is Timestamp) ? (b['startTime'] as Timestamp).toDate() : DateTime.parse(b['startTime'].toString());
+                  return aStart.compareTo(bStart);
+                } catch (_) { return 0; }
+              });
+              upcomingInterview.value = list.first;
+              print("Upcoming interview set: ${list.first['title']}");
+            } else {
+              upcomingInterview.value = null;
+              print("No upcoming interview found for candidate.");
+            }
+          }, onError: (e) {
+            print("Error listening to interviews: $e");
+          })
+    );
+
+    // 4. Listen to results
+    _firestoreSubs.add(
+      _db.collection('ai_interview_results')
+          .where('candidateId', isEqualTo: user.uid)
+          .snapshots()
+          .listen((snap) async {
+            final List<Map<String, dynamic>> updatedResults = [];
+            for (var doc in snap.docs) {
+              final data = doc.data();
+              data['id'] = doc.id;
+
+              if (data['company'] == null || data['company'] == "Company" || data['startTime'] == null) {
+                final String? interviewId = data['interviewId'];
+                if (interviewId != null && interviewId.isNotEmpty) {
+                  final interviewSnap = await _db
+                      .collection('interviews')
+                      .doc(interviewId)
+                      .get();
+
+                  if (interviewSnap.exists) {
+                    final iData = interviewSnap.data();
+                    data['startTime'] = iData?['startTime'];
+                    data['endTime'] = iData?['endTime'];
+                    
+                    final String? jobPostingId = iData?['jobPostingId'] ?? data['jobPostingId'];
+                    if (jobPostingId != null && jobPostingId.isNotEmpty) {
+                      final postingSnap = await _db
+                          .collection('job_postings')
+                          .doc(jobPostingId)
+                          .get();
+
+                      if (postingSnap.exists) {
+                        final pData = postingSnap.data();
+                        data['company'] = pData?['company'] ?? data['company'] ?? "Company";
+                        data['location'] = pData?['location'] ?? data['location'] ?? "";
+                        data['title'] = pData?['title'] ?? data['title'] ?? "Interview";
+                      }
+                    }
+                  }
+                }
+
+                // Fallback to applications if still missing
+                if (data['company'] == null) {
+                  final applicationSnap = await _db
+                      .collection('applications')
+                      .where('candidateId', isEqualTo: user.uid)
+                      .where('jobPostingId', isEqualTo: data['jobPostingId'])
+                      .limit(1)
+                      .get();
+
+                  if (applicationSnap.docs.isNotEmpty) {
+                    final appData = applicationSnap.docs.first.data();
+                    data['title'] = appData['jobTitle'] ?? data['title'] ?? "Unknown Position";
+                    data['company'] = appData['company'] ?? "Company";
+                    data['location'] = appData['location'] ?? "";
+                    if (data['startTime'] == null) {
+                      data['startTime'] = appData['appliedAt'];
+                    }
+                  }
+                }
+              }
+
+              try {
+                data['result'] = InterviewResult.fromJson(data);
+              } catch (e) {
+                print("Error parsing interview result in dashboard controller: $e");
+              }
+              updatedResults.add(data);
+            }
+            results.value = updatedResults;
+          })
+    );
+
+    isLoading.value = false;
   }
 
   // ===============================
-  // DERIVED STATS (FOR UI CHIPS)
+  // DERIVED STATS
   // ===============================
+  Map<String, dynamic>? get upcomingInterviewFiltered {
+    final upcoming = upcomingInterview.value;
+    if (upcoming == null) return null;
 
-  int get activeApplicationsCount {
-    return applications.where((a) => a["status"] == "pending").length;
+    final id = upcoming['id']?.toString() ?? '';
+    final jobPostingId = upcoming['jobPostingId']?.toString() ?? '';
+    
+    // Check if this id exists in results list
+    final hasResult = results.any((r) {
+      final rInterviewId = r['interviewId']?.toString() ?? '';
+      final rId = r['id']?.toString() ?? '';
+      final rJobPostingId = r['jobPostingId']?.toString() ?? '';
+
+      return rInterviewId == id || 
+             rId.startsWith(id) || 
+             (jobPostingId.isNotEmpty && rJobPostingId == jobPostingId);
+    });
+
+    if (hasResult) return null;
+    return upcoming;
   }
 
-  int get readyInterviewsCount {
-    return upcomingInterview.value != null ? 1 : 0;
-  }
-
-  int get pendingResultsCount {
-    return results.where((r) => r["status"] == "pending").length;
-  }
+  int get activeApplicationsCount => applications.where((a) => a["status"] == "pending").length;
+  int get readyInterviewsCount => upcomingInterviewFiltered != null ? 1 : 0;
+  int get pendingResultsCount => results.where((r) => r["decision"] == "pending").length;
 
   // ===============================
   // ACTIONS
   // ===============================
-
-  void applyToJob(Map<String, dynamic> job) {
-    // ===============================
-    // TODO (Backend):
-    // ===============================
-    /*
-  await api.applyToJob(
-    jobId: job["id"],
-    candidateId: currentUserId,
-  );
-  */
-
-    applications.add({
-      "title": job["title"],
-      "company": job["company"] ?? "Unknown",
-      "status": "pending",
-      "message": "Waiting for HR review...",
-    });
-
-    Get.snackbar("Applied", "Application submitted successfully");
-  }
-
   void joinInterview(String inviteCode) {
-    // =======================================================
-    // 🔥 MOCK NAVIGATION (TEMPORARY)
-    // =======================================================
-    // TODO (Backend):
-    // - Validate invite code
-    // - Fetch real interview session data
-    // - Replace mock values below
-
     if (inviteCode.isEmpty) {
       Get.snackbar("Error", "Please enter invite code");
       return;
     }
 
+    // Navigation logic
     Get.to(
       () => const InterviewWaitingPage(),
       arguments: {
-        "date": "May 14, 2026",
-        "time": "10:00 – 11:00",
         "code": inviteCode,
       },
     );
   }
 
   // ===============================
-// 🕒 DATE FORMATTERS (UI READY)
-// ===============================
-
-  String formatDate(DateTime date) {
-    return "${_monthName(date.month)} ${date.day}, ${date.year}";
+  // DATE FORMATTERS
+  // ===============================
+  String formatDate(dynamic date) {
+    if (date == null) return "";
+    final dt = (date is Timestamp) ? date.toDate() : (date is DateTime ? date : DateTime.parse(date.toString()));
+    return DateFormat('MMM dd, yyyy').format(dt);
   }
 
-  String formatTimeRange(DateTime start, DateTime end) {
-    return "${_formatTime(start)} – ${_formatTime(end)}";
+  String formatTimeRange(dynamic start, dynamic end) {
+    if (start == null || end == null) return "";
+    final sDt = (start is Timestamp) ? start.toDate() : (start is DateTime ? start : DateTime.parse(start.toString()));
+    final eDt = (end is Timestamp) ? end.toDate() : (end is DateTime ? end : DateTime.parse(end.toString()));
+    return "${DateFormat('h:mm a').format(sDt)} – ${DateFormat('h:mm a').format(eDt)}";
   }
 
-  String _formatTime(DateTime time) {
-    final hour = time.hour % 12 == 0 ? 12 : time.hour % 12;
-    final minute = time.minute.toString().padLeft(2, '0');
-    final period = time.hour >= 12 ? "PM" : "AM";
-
-    return "$hour:$minute $period";
-  }
-
-  String _monthName(int month) {
-    const months = [
-      "",
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec"
-    ];
-    return months[month];
+  // ===============================
+  // SELF-HEALING: Fix candidateIds in Firestore
+  // ===============================
+  /// If an interview was created without this candidate's UID in candidateIds,
+  /// patch it automatically so future lookups work correctly.
+  Future<void> _fixCandidateIdInInterview(String interviewId, String userId) async {
+    try {
+      await _db.collection('interviews').doc(interviewId).update({
+        'candidateIds': FieldValue.arrayUnion([userId]),
+      });
+      print("[Dashboard] Self-healed: added $userId to candidateIds of interview $interviewId");
+    } catch (e) {
+      print("[Dashboard] Could not self-heal candidateIds: $e");
+    }
   }
 }

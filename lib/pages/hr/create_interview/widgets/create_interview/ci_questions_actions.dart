@@ -13,6 +13,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../controllers/create_interview_controller.dart';
 import '../../select_questions_page.dart';
 import '/../../../../constants/constants.dart';
 
@@ -43,11 +44,11 @@ class CIQuestionsActions extends StatelessWidget {
                 title: "From Database",
                 isPrimary: true,
                 onTap: () async {
+                  final controller = Get.find<CreateInterviewController>();
                   final selectedIds = await Get.to(() => const SelectQuestionsPage());
 
-                  if (selectedIds != null) {
-                    // TODO: burada selectedIds’i interview state’ine ekle
-                    print(selectedIds);
+                  if (selectedIds != null && selectedIds is List) {
+                    controller.setQuestions(List<String>.from(selectedIds));
                   }
                 },
               ),

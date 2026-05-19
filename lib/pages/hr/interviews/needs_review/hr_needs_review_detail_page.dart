@@ -40,7 +40,7 @@ class HrNeedsReviewDetailPage extends StatelessWidget {
     /// =========================
     /// CONTROLLER INIT
     /// =========================
-    final controller = Get.find<HrNeedsReviewDetailController>();
+    final controller = Get.put(HrNeedsReviewDetailController(interview: interview));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -53,6 +53,10 @@ class HrNeedsReviewDetailPage extends StatelessWidget {
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.textPrimary,
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: const Text("Interview"),
       ),
 
@@ -69,7 +73,7 @@ class HrNeedsReviewDetailPage extends StatelessWidget {
               () => HRDetailHeader(
                 title: controller.title.value,
                 status: "completed",
-                reviewStatus: "pending",
+                reviewStatus: controller.overallReviewStatus,
               ),
             ),
 
@@ -117,6 +121,7 @@ class HrNeedsReviewDetailPage extends StatelessWidget {
                         name: c["name"],
                         initials: c["initials"],
                         score: c["score"],
+                        decision: c["decision"],
                         onReview: () => controller.openCandidateDetail(c),
                       ),
                     );

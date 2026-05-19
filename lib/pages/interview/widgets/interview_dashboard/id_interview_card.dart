@@ -9,6 +9,7 @@
 // - Darker CTA color
 // ========================================================================
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/interview_dashboard_controller.dart';
@@ -29,8 +30,15 @@ class IdInterviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
 
     final controller = Get.find<InterviewDashboardController>();
-    final start = interview["startTime"] as DateTime;
-    final end = interview["endTime"] as DateTime;
+    
+    DateTime parseDateTime(dynamic value) {
+      if (value is Timestamp) return value.toDate();
+      if (value is DateTime) return value;
+      return DateTime.tryParse(value?.toString() ?? '') ?? DateTime.now();
+    }
+
+    final start = parseDateTime(interview["startTime"]);
+    final end = parseDateTime(interview["endTime"]);
 
     final dateText = controller.formatDate(start);
     final timeText = controller.formatTimeRange(start, end);

@@ -19,6 +19,7 @@ class JPApplicantCard extends StatelessWidget {
   final String name;
   final String subtitle;
   final String status;
+  final String postingId; // 🔥 Added postingId
   final Map<String, dynamic> application;
 
   const JPApplicantCard({
@@ -26,6 +27,7 @@ class JPApplicantCard extends StatelessWidget {
     required this.name,
     required this.subtitle,
     required this.status,
+    required this.postingId,
     required this.application,
   });
 
@@ -104,6 +106,7 @@ class JPApplicantCard extends StatelessWidget {
                       Get.to(() => SendDecisionMessagePage(
                             decision: DecisionType.accept,
                             application: application,
+                            postingId: postingId, // 🔥 Pass postingId
                           ));
                     },
                     child: Container(
@@ -134,6 +137,7 @@ class JPApplicantCard extends StatelessWidget {
                       Get.to(() => SendDecisionMessagePage(
                             decision: DecisionType.reject,
                             application: application,
+                            postingId: postingId, // 🔥 Pass postingId
                           ));
                     },
                     child: Container(
@@ -199,9 +203,14 @@ class JPApplicantCard extends StatelessWidget {
 
   /// ================= INITIALS =================
   String _initials(String name) {
-    final parts = name.split(" ");
-    if (parts.length == 1) return parts[0][0];
-    return parts[0][0] + parts[1][0];
+    if (name.isEmpty) return "?";
+    final parts = name.trim().split(" ");
+    if (parts.isEmpty || parts[0].isEmpty) return "?";
+    if (parts.length == 1) return parts[0][0].toUpperCase();
+    
+    final first = parts[0][0];
+    final last = parts.last.isNotEmpty ? parts.last[0] : "";
+    return (first + last).toUpperCase();
   }
 
   /// ================= STATUS LABEL =================

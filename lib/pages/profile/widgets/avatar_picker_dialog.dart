@@ -166,7 +166,7 @@ class _AvatarPreview extends StatelessWidget {
           width: 3,
         ),
         color:
-            avatarPath.isEmpty ? AvatarUtils.getColor(controller.username.value) : null,
+            avatarPath.isEmpty ? AvatarUtils.getColor(controller.usernameCtrl.text) : null,
         image: avatarPath.isNotEmpty
             ? DecorationImage(
                 image: AssetImage(avatarPath),
@@ -202,7 +202,7 @@ class _AvatarItem extends StatelessWidget {
           color: isSelected ? AppColors.primary : Colors.transparent,
           width: 3,
         ),
-        color: avatar.isEmpty ? AvatarUtils.getColor(controller.username.value) : null,
+        color: avatar.isEmpty ? AvatarUtils.getColor(controller.usernameCtrl.text) : null,
         image: avatar.isNotEmpty
             ? DecorationImage(
                 image: AssetImage(avatar),
@@ -223,7 +223,7 @@ class _AvatarItem extends StatelessWidget {
 Widget _buildInitialAvatar(ProfileEditController c, {bool small = false}) {
   return Center(
     child: Text(
-      AvatarUtils.getInitials(c.name.value, c.surname.value),
+      AvatarUtils.getInitials(c.nameCtrl.text, c.surnameCtrl.text),
       style: AppTextStyles.headline.copyWith(
         color: Colors.white,
         fontSize: small ? 16 : 28,

@@ -1,31 +1,24 @@
 // ===================== File: hr_job_postings_controller.dart =====================
 // Purpose:
-// Controls job postings (Applications system)
-//
-// Responsibilities:
-// - Manage active / closed postings
-// - Handle navigation
-// - Prepare data for UI
-//
-// IMPORTANT:
-// - Uses mock data for now
-// - Fully backend-ready structure
-//
-// TODO (Backend):
-// - Fetch postings list
-// - Update posting status (active → closed)
-// - Connect applicants
+// Controls job postings (Applications system) using real Firestore data.
 // ===============================================================================
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
-
-import '../../../models/user.dart';
+import 'package:flutter/material.dart';
+import 'dart:math';
+import 'package:interview_project/models/user.dart';
 import '../job_postings/candidate_application_detail_page.dart';
 import '../job_postings/job_posting_applicants_page.dart';
 import '../job_postings/job_posting_create_page.dart';
 import '../job_postings/job_posting_detail_page.dart';
+import '../../../constants/constants.dart';
 
 class HrJobPostingsController extends GetxController {
+  final _db = FirebaseFirestore.instance;
+  final _auth = FirebaseAuth.instance;
+
   // ===============================
   // STATE
   // ===============================
@@ -36,6 +29,7 @@ class HrJobPostingsController extends GetxController {
   /// postings lists
   final activePostings = <Map<String, dynamic>>[].obs;
   final closedPostings = <Map<String, dynamic>>[].obs;
+  final isLoading = false.obs;
 
   // ===============================
   // CREATE POSTING FORM STATE
@@ -46,10 +40,9 @@ class HrJobPostingsController extends GetxController {
   final workType = "".obs;
   final country = "".obs;
   final city = "".obs;
-  final salary = "".obs; // optional
+  final salary = "".obs; 
   final description = "".obs;
   final requirements = "".obs;
-
 
   // ===============================
   // LIFECYCLE
@@ -57,7 +50,153 @@ class HrJobPostingsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    loadMockData();
+    _listenToPostings();
+  }
+
+  // ===============================
+  // REAL-TIME POSTINGS
+  // ===============================
+  void _listenToPostings() {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    
+    isLoading.value = true;
+    _db.collection('job_postings')
+       .where('createdByHrId', isEqualTo: user.uid)
+       .snapshots()
+       .listen((snap) {
+      final all = snap.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return data;
+      }).toList();
+
+      // 🔥 Sort by createdAt descending (latest on top)
+      all.sort((a, b) {
+        final aTime = a['createdAt'] as Timestamp?;
+        final bTime = b['createdAt'] as Timestamp?;
+        if (aTime == null || bTime == null) return 0;
+        return bTime.compareTo(aTime);
+      });
+
+      activePostings.value = all.where((p) => p['status'] == 'active').toList();
+      closedPostings.value = all.where((p) => p['status'] == 'closed' || p['status'] == 'finalized').toList();
+      isLoading.value = false;
+
+      // 🔥 BACKGROUND SYNC: Fix "Anonymous" names automatically
+      _autoFixAnonymousNames(all);
+      // 🔥 BACKGROUND SYNC: Fix "Unknown Company" postings
+      _autoFixUnknownCompany(all);
+    });
+  }
+
+  /// Finds any candidate marked as "Anonymous" and resolves their real name from 'users' collection.
+  /// This fixes the database data so names appear correctly everywhere without manual intervention.
+  void _autoFixAnonymousNames(List<Map<String, dynamic>> postings) async {
+    for (var p in postings) {
+      final applicants = List<Map<String, dynamic>>.from(p['applicants'] ?? []);
+      bool changed = false;
+
+      for (var a in applicants) {
+        // If name is "Anonymous", try to fetch real name from users collection
+        if (a['name'] == 'Anonymous' || a['name'] == null || a['name'] == '') {
+          final userId = a['userId'];
+          if (userId == null) continue;
+
+          try {
+            final userDoc = await _db.collection('users').doc(userId).get();
+            if (userDoc.exists) {
+              final userData = userDoc.data()!;
+              final fName = userData['name'] ?? "";
+              final lName = userData['surname'] ?? "";
+              final fullName = "$fName $lName".trim();
+              final resolved = fullName.isNotEmpty ? fullName : (userData['displayName'] ?? "Anonymous");
+
+              if (resolved != "Anonymous" && resolved.isNotEmpty) {
+                a['name'] = resolved;
+                changed = true;
+                debugPrint("HR Sync: Resolved Anonymous -> $resolved");
+              }
+            }
+          } catch (e) {
+            debugPrint("HR Sync Error: $e");
+          }
+        }
+      }
+
+      // If we fixed any names, update the posting document in Firestore
+      if (changed) {
+        try {
+          await _db.collection('job_postings').doc(p['id']).update({
+            'applicants': applicants,
+          });
+          
+          // Also sync to 'applications' collection for consistency
+          for (var a in applicants) {
+            final appSnap = await _db.collection('applications')
+                .where('candidateId', isEqualTo: a['userId'])
+                .where('jobPostingId', isEqualTo: p['id'])
+                .limit(1)
+                .get();
+            
+            if (appSnap.docs.isNotEmpty) {
+              await appSnap.docs.first.reference.update({'candidateName': a['name']});
+            }
+          }
+        } catch (e) {
+          debugPrint("HR Database Update Error: $e");
+        }
+      }
+    }
+  }
+
+  /// Finds any posting with "Unknown Company" and resolves the real company name from hr_users.
+  void _autoFixUnknownCompany(List<Map<String, dynamic>> postings) async {
+    for (var p in postings) {
+      if (p['company'] == 'Unknown Company' || p['company'] == null || (p['company'] as String? ?? '').isEmpty) {
+        final hrId = p['createdByHrId'];
+        if (hrId == null) continue;
+
+        try {
+          final hrDoc = await _db.collection('hr_users').doc(hrId).get();
+          if (!hrDoc.exists) continue;
+
+          final data = hrDoc.data()!;
+          final name = data['name'] ?? '';
+          final surname = data['surname'] ?? '';
+          final cName = (data['companyName'] ?? '').toString().trim();
+
+          String resolvedCompany;
+          if (cName.isNotEmpty && cName != 'Company') {
+            resolvedCompany = cName;
+          } else if (name.isNotEmpty) {
+            resolvedCompany = '$name $surname'.trim();
+          } else {
+            continue; // Can't resolve, skip
+          }
+
+          debugPrint('HR Sync: Fixing company "${p['company']}" -> "$resolvedCompany" for posting ${p['id']}');
+
+          // Update job_postings
+          await _db.collection('job_postings').doc(p['id']).update({'company': resolvedCompany});
+
+          // Update related application documents
+          final appSnap = await _db
+              .collection('applications')
+              .where('jobPostingId', isEqualTo: p['id'])
+              .get();
+
+          for (var appDoc in appSnap.docs) {
+            if (appDoc.data()['company'] == 'Unknown Company' ||
+                appDoc.data()['company'] == null) {
+              await appDoc.reference.update({'company': resolvedCompany});
+            }
+          }
+        } catch (e) {
+          debugPrint('HR Sync Error (company fix): $e');
+        }
+      }
+    }
   }
 
   // ===============================
@@ -79,587 +218,229 @@ class HrJobPostingsController extends GetxController {
     Get.to(() => const JobPostingCreatePage());
   }
 
-
-  // ===============================
-  // OPEN APPLICANTS PAGE
-  // ===============================
   void openApplicants(Map<String, dynamic> posting) {
     Get.to(() => JobPostingApplicantsPage(posting: posting));
   }
 
-  // ===============================
-  // OPEN CANDIDATE DETAIL
-  // ===============================
-  void openCandidateDetail(String postingId, String userId) {
+  void openCandidateDetail(String postingId, String userId) async {
     final posting = getPostingById(postingId);
     if (posting == null) return;
 
-    final applicants = List<Map<String, dynamic>>.from(posting["applicants"]);
+    final applicants = List<Map<String, dynamic>>.from(posting['applicants'] ?? []);
+    final applicant = applicants.firstWhereOrNull((a) => a['userId'] == userId);
+    
+    if (applicant != null) {
+      isLoading.value = true;
+      try {
+        // 1. Fetch latest Application document
+        final appSnap = await _db.collection("applications")
+            .where("candidateId", isEqualTo: userId)
+            .where("jobPostingId", isEqualTo: postingId)
+            .limit(1)
+            .get();
 
-    final applicant =
-    applicants.firstWhere((a) => a["userId"] == userId, orElse: () => {});
+        Map<String, dynamic> mergedData = Map<String, dynamic>.from(applicant);
+        
+        if (appSnap.docs.isNotEmpty) {
+          mergedData.addAll(appSnap.docs.first.data());
+        }
 
-    if (applicant.isEmpty) return;
+        // 2. Fetch latest User profile for core identity info
+        final userDoc = await _db.collection("users").doc(userId).get();
+        if (userDoc.exists) {
+          final userData = userDoc.data()!;
+          
+          // Identity merges (Users collection is the source of truth for these)
+          final fName = userData['name'] ?? "";
+          final lName = userData['surname'] ?? "";
+          final fullName = "$fName $lName".trim();
+          final resolvedName = fullName.isNotEmpty ? fullName : (userData['displayName'] ?? mergedData['name']);
+          
+          // 🔥 SYNC BACK TO JOB POSTING IF IT WAS ANONYMOUS
+          if (mergedData['name'] == 'Anonymous' && resolvedName != 'Anonymous') {
+            _syncNameBackToPosting(postingId, userId, resolvedName);
+          }
+          
+          mergedData['name'] = resolvedName;
+          mergedData['email'] = userData['email'] ?? mergedData['email'];
+          mergedData['phone'] = userData['phoneNumber'] ?? mergedData['phone'];
+          mergedData['location'] = userData['location'] ?? mergedData['location'];
+          
+          // Education
+          mergedData['university'] = userData['school'] ?? userData['university'] ?? mergedData['university'];
+          mergedData['department'] = userData['department'] ?? mergedData['department'];
+          
+          // Links
+          mergedData['githubUrl'] = userData['githubUrl'] ?? mergedData['githubUrl'];
+          mergedData['linkedinUrl'] = userData['linkedinUrl'] ?? mergedData['linkedinUrl'];
+          mergedData['portfolioUrl'] = userData['website'] ?? mergedData['portfolioUrl'];
+        }
 
-    final user = getUserByName(applicant["name"]);
-
-    /// 🔥 PAGE'e gönderilecek data
-    final application = {
-      "id": userId,
-      "postingId": postingId,
-      "name": applicant["name"],
-      "status": applicant["status"],
-
-      /// user info
-      "email": user?.email ?? "-",
-      "phone": user?.phoneNumber ?? "-",
-      "location": user?.location ?? "-",
-
-      /// application data (şimdilik mock)
-      "position": posting["position"],
-      "skills": ["React", "TypeScript", "CSS"],
-      "coverLetter":
-      "I am passionate about building modern UI applications and would love to join your team.",
-      "portfolioUrl": "portfolio.com",
-      "githubUrl": "github.com/user",
-      "linkedinUrl": "linkedin.com/in/user",
-      "resumeUrl": "resume.pdf",
-    };
-
-    Get.to(() => CandidateApplicationDetailPage(application: application));
-  }
-
-  // ===============================
-  // ACCEPT APPLICANT
-  // ===============================
-  void acceptApplicant(String postingId, String userId) {
-    final posting = getPostingById(postingId);
-    if (posting == null) return;
-
-    final applicants = List<Map<String, dynamic>>.from(posting["applicants"]);
-
-    final index = applicants.indexWhere((a) => a["userId"] == userId);
-    if (index == -1) return;
-
-    applicants[index]["status"] = "accepted";
-
-    posting["pending"] = ((posting["pending"] ?? 1) - 1).clamp(0, 999);
-    posting["accepted"] = (posting["accepted"] ?? 0) + 1;
-
-    posting["applicants"] = applicants;
-
-    activePostings.refresh();
-    closedPostings.refresh();
-
-    Get.snackbar("Success", "Applicant accepted");
-  }
-
-  // ===============================
-  // REJECT APPLICANT
-  // ===============================
-  void rejectApplicant(String postingId, String userId) {
-    final posting = getPostingById(postingId);
-    if (posting == null) return;
-
-    final applicants = List<Map<String, dynamic>>.from(posting["applicants"]);
-
-    final index = applicants.indexWhere((a) => a["userId"] == userId);
-    if (index == -1) return;
-
-    applicants[index]["status"] = "rejected";
-
-    posting["pending"] = ((posting["pending"] ?? 1) - 1).clamp(0, 999);
-    posting["rejected"] = (posting["rejected"] ?? 0) + 1;
-
-    posting["applicants"] = applicants;
-
-    activePostings.refresh();
-    closedPostings.refresh();
-
-    Get.snackbar("Success", "Applicant rejected");
-  }
-
-  // =====================
-  // UPDATE APPLICANT STATUS (UI + Backend Ready)
-  // =====================
-  void updateApplicantStatus(String postingId, String userId, String status) {
-    final posting = getPostingById(postingId);
-    if (posting == null) return;
-
-    final applicants = List<Map<String, dynamic>>.from(posting["applicants"]);
-
-    final index = applicants.indexWhere((a) => a["userId"] == userId);
-    if (index == -1) return;
-
-    // 🔥 UPDATE STATUS
-    applicants[index]["status"] = status;
-
-    // 🔥 UPDATE COUNTS (VERY IMPORTANT)
-    if (status == "accepted") {
-      posting["accepted"] = (posting["accepted"] ?? 0) + 1;
-    } else {
-      posting["rejected"] = (posting["rejected"] ?? 0) + 1;
+        Get.to(() => CandidateApplicationDetailPage(
+          application: {
+            ...mergedData,
+            'position': posting['title'] ?? 'Unknown Position',
+            'postingId': postingId,
+            'id': userId,
+          },
+        ));
+      } catch (e) {
+        print("Error fetching candidate detail: $e");
+      } finally {
+        isLoading.value = false;
+      }
     }
-
-    posting["pending"] = ((posting["pending"] ?? 1) - 1).clamp(0, 999);
-
-    // 🔥 SAVE BACK
-    posting["applicants"] = applicants;
-
-    // 🔥 UI REFRESH
-    activePostings.refresh();
-    closedPostings.refresh();
-
-    // TODO (Backend):
-    // await api.updateApplicantStatus(
-    //   postingId: postingId,
-    //   userId: userId,
-    //   status: status,
-    // );
   }
 
-  String getApplicantStatus(String postingId, String userId) {
-    final posting = getPostingById(postingId);
-    if (posting == null) return "pending";
+  // 🔥 Helper to fix "Anonymous" names in the background
+  Future<void> _syncNameBackToPosting(String postingId, String userId, String name) async {
+    try {
+      final docRef = _db.collection('job_postings').doc(postingId);
+      final doc = await docRef.get();
+      if (!doc.exists) return;
 
-    final applicants = List<Map<String, dynamic>>.from(posting["applicants"]);
-
-    final applicant = applicants.firstWhere(
-          (a) => a["userId"] == userId,
-      orElse: () => {},
-    );
-
-    return applicant["status"] ?? "pending";
+      final applicants = List<Map<String, dynamic>>.from(doc.data()?['applicants'] ?? []);
+      final idx = applicants.indexWhere((a) => a['userId'] == userId);
+      
+      if (idx != -1) {
+        applicants[idx]['name'] = name;
+        await docRef.update({'applicants': applicants});
+      }
+      
+      // Also update in 'applications' collection
+      final appSnap = await _db.collection('applications')
+          .where('candidateId', isEqualTo: userId)
+          .where('jobPostingId', isEqualTo: postingId)
+          .limit(1)
+          .get();
+      
+      if (appSnap.docs.isNotEmpty) {
+        await appSnap.docs.first.reference.update({'candidateName': name});
+      }
+    } catch (e) {
+      print("Error syncing name: $e");
+    }
   }
 
-
   // ===============================
-  // MOCK DATA
+  // ACTIONS
   // ===============================
-  void loadMockData() {
-    activePostings.value = [
-      {
-        "id": "JP-0001",
-        "title": "Frontend Developer",
-        "position": "Senior Frontend Developer",
-        "level": "Senior",
-        "location": "Istanbul, Turkey",
-        "workType": "Remote",
-        "salary": "\$4,000 - \$6,000 / mo",
 
-        "applicantCount": 24,
-        "accepted": 7,
-        "rejected": 6,
-        "pending": 5,
-        "applicants": [
-          {"userId": "U1", "name": "James Chen", "status": "accepted"},
-          {"userId": "U2", "name": "Mia Kim", "status": "pending"},
-          {"userId": "U3", "name": "Sara Reyes", "status": "rejected"},
-        ],
+  Future<void> submitPosting() async {
+    if (isLoading.value) return; // 🔥 Mükerrer tıklamayı önle
 
-        "status": "active",
-
-        "description":
-        "We are looking for a talented frontend developer to join our team.",
-
-        "requirements": [
-          "5+ years React experience",
-          "TypeScript knowledge",
-          "Strong CSS skills",
-        ],
-
-        "applicantsPreview": [
-          {"userId": "U1", "name": "James Chen", "status": "accepted"},
-          {"userId": "U2", "name": "Mia Kim", "status": "pending"},
-          {"userId": "U3", "name": "Sara Reyes", "status": "rejected"},
-        ],
-      },
-
-      {
-        "id": "JP-0002",
-        "title": "Backend Engineer",
-        "position": "Mid-Level Backend Engineer",
-        "level": "Mid-Level",
-        "location": "Berlin, Germany",
-        "workType": "Hybrid",
-        "salary": "\$3,500 - \$5,000 / mo",
-
-        "applicantCount": 18,
-        "accepted": 4,
-        "rejected": 6,
-        "pending": 8,
-        "applicants": [
-          {"userId": "U4", "name": "Lukas Weber", "status": "accepted"},
-          {"userId": "U5", "name": "Anna Schmidt", "status": "pending"},
-          {"userId": "U6", "name": "Carlos Mendes", "status": "rejected"},
-        ],
-
-        "status": "active",
-
-        "description":
-        "Join our backend team to build scalable and robust APIs.",
-
-        "requirements": [
-          "3+ years backend experience",
-          "Node.js or Java",
-          "Database design knowledge",
-        ],
-
-        "applicantsPreview": [
-          {"userId": "U4", "name": "Lukas Weber", "status": "accepted"},
-          {"userId": "U5", "name": "Anna Schmidt", "status": "pending"},
-          {"userId": "U6", "name": "Carlos Mendes", "status": "rejected"},
-        ],
-      },
-
-      {
-        "id": "JP-0003",
-        "title": "ML Engineer Intern",
-        "position": "Machine Learning Intern",
-        "level": "Intern",
-        "location": "San Francisco, US",
-        "workType": "On-site",
-        "salary": "\$1,500 - \$2,000 / mo",
-
-        "applicantCount": 47,
-        "accepted": 0,
-        "rejected": 33,
-        "pending": 14,
-        "applicants": [
-          {"userId": "U7", "name": "Kevin Lee", "status": "pending"},
-          {"userId": "U8", "name": "Elena Petrova", "status": "pending"},
-          {"userId": "U9", "name": "David Park", "status": "rejected"},
-        ],
-
-        "status": "active",
-
-        "description":
-        "Work on real-world ML models and data pipelines.",
-
-        "requirements": [
-          "Python knowledge",
-          "Basic ML understanding",
-          "TensorFlow or PyTorch",
-        ],
-
-        "applicantsPreview": [
-          {"userId": "U7", "name": "Kevin Lee", "status": "pending"},
-          {"userId": "U8", "name": "Elena Petrova", "status": "pending"},
-          {"userId": "U9", "name": "David Park", "status": "rejected"},
-        ],
-      },
-
-      {
-        "id": "JP-0004",
-        "title": "Mobile Developer",
-        "position": "Junior Mobile Developer",
-        "level": "Junior",
-        "location": "Amsterdam, Netherlands",
-        "workType": "Hybrid",
-        "salary": "\$2,500 - \$3,500 / mo",
-
-        "applicantCount": 21,
-        "accepted": 6,
-        "rejected": 8,
-        "pending": 7,
-        "applicants": [
-          {"userId": "U10", "name": "Noah van Dijk", "status": "accepted"},
-          {"userId": "U11", "name": "Emma Janssen", "status": "pending"},
-          {"userId": "U12", "name": "Ali Demir", "status": "rejected"},
-        ],
-
-        "status": "active",
-
-        "description":
-        "Build cross-platform mobile apps using Flutter.",
-
-        "requirements": [
-          "Flutter knowledge",
-          "Dart basics",
-          "Mobile UI understanding",
-        ],
-
-        "applicantsPreview": [
-          {"userId": "U10", "name": "Noah van Dijk", "status": "accepted"},
-          {"userId": "U11", "name": "Emma Janssen", "status": "pending"},
-          {"userId": "U12", "name": "Ali Demir", "status": "rejected"},
-        ],
-      },
-
-      {
-        "id": "JP-0005",
-        "title": "DevOps Engineer",
-        "position": "Senior DevOps Engineer",
-        "level": "Senior",
-        "location": "Toronto, Canada",
-        "workType": "Remote",
-        "salary": "\$5,000 - \$7,000 / mo",
-
-        "applicantCount": 16,
-        "accepted": 5,
-        "rejected": 5,
-        "pending": 6,
-        "applicants": [
-          {"userId": "U13", "name": "Oliver Brown", "status": "accepted"},
-          {"userId": "U14", "name": "Sophie Martin", "status": "pending"},
-          {"userId": "U15", "name": "Raj Patel", "status": "rejected"},
-        ],
-
-        "status": "active",
-
-        "description":
-        "Manage CI/CD pipelines and cloud infrastructure.",
-
-        "requirements": [
-          "AWS/GCP experience",
-          "Docker & Kubernetes",
-          "CI/CD pipelines",
-        ],
-
-        "applicantsPreview": [
-          {"userId": "U13", "name": "Oliver Brown", "status": "accepted"},
-          {"userId": "U14", "name": "Sophie Martin", "status": "pending"},
-          {"userId": "U15", "name": "Raj Patel", "status": "rejected"},
-        ],
-      },
-    ];
-
-    closedPostings.value = [
-      {
-        "id": "JP-1001",
-        "title": "Product Designer",
-        "position": "Senior Product Designer",
-        "level": "Senior",
-        "location": "Remote Worldwide",
-        "workType": "Full Remote",
-        "salary": "\$4,500 - \$6,500 / mo",
-
-        "applicants": 31,
-        "accepted": 12,
-        "rejected": 19,
-        "pending": 0,
-
-        "status": "closed",
-
-        "description":
-        "Design intuitive and beautiful product experiences.",
-
-        "requirements": [
-          "5+ years design experience",
-          "Figma mastery",
-          "UX research knowledge",
-        ],
-
-        "applicantsPreview": [
-          {"userId": "U16", "name": "Laura Gomez", "status": "accepted"},
-          {"userId": "U17", "name": "Daniel Wu", "status": "accepted"},
-          {"userId": "U18", "name": "Anna Rossi", "status": "rejected"},
-        ],
-      },
-
-      {
-        "id": "JP-1002",
-        "title": "iOS Developer",
-        "position": "Junior iOS Developer",
-        "level": "Junior",
-        "location": "London, UK",
-        "workType": "Hybrid",
-        "salary": "\$3,000 - \$4,000 / mo",
-
-        "applicants": 20,
-        "accepted": 8,
-        "rejected": 12,
-        "pending": 0,
-
-        "status": "closed",
-
-        "description":
-        "Develop and maintain iOS applications using Swift.",
-
-        "requirements": [
-          "Swift knowledge",
-          "iOS fundamentals",
-          "UIKit or SwiftUI",
-        ],
-
-        "applicantsPreview": [
-          {"userId": "U19", "name": "Jack Wilson", "status": "accepted"},
-          {"userId": "U20", "name": "Emily Clark", "status": "accepted"},
-          {"userId": "U21", "name": "Leo Brown", "status": "rejected"},
-        ],
-      },
-
-      {
-        "id": "JP-1003",
-        "title": "QA Engineer",
-        "position": "Mid-Level QA Engineer",
-        "level": "Mid-Level",
-        "location": "Warsaw, Poland",
-        "workType": "On-site",
-        "salary": "\$2,800 - \$3,800 / mo",
-
-        "applicants": 26,
-        "accepted": 9,
-        "rejected": 17,
-        "pending": 0,
-
-        "status": "closed",
-
-        "description":
-        "Ensure product quality with automated and manual testing.",
-
-        "requirements": [
-          "Testing fundamentals",
-          "Automation tools",
-          "Attention to detail",
-        ],
-
-        "applicantsPreview": [
-          {"userId": "U22", "name": "Piotr Nowak", "status": "accepted"},
-          {"userId": "U23", "name": "Kasia Zielinska", "status": "accepted"},
-          {"userId": "U24", "name": "Ivan Petrov", "status": "rejected"},
-        ],
-      },
-
-      {
-        "id": "JP-1004",
-        "title": "Data Scientist",
-        "position": "Senior Data Scientist",
-        "level": "Senior",
-        "location": "New York, US",
-        "workType": "Hybrid",
-        "salary": "\$6,000 - \$8,000 / mo",
-
-        "applicants": 34,
-        "accepted": 11,
-        "rejected": 23,
-        "pending": 0,
-
-        "status": "closed",
-
-        "description":
-        "Analyze data and build predictive models for business insights.",
-
-        "requirements": [
-          "Python & ML",
-          "Statistics knowledge",
-          "Data visualization",
-        ],
-
-        "applicantsPreview": [
-          {"userId": "U25", "name": "Michael Scott", "status": "accepted"},
-          {"userId": "U26", "name": "Rachel Green", "status": "accepted"},
-          {"userId": "U27", "name": "Tom Harris", "status": "rejected"},
-        ],
-      },
-
-      {
-        "id": "JP-1005",
-        "title": "UI/UX Designer",
-        "position": "UI/UX Intern",
-        "level": "Intern",
-        "location": "Paris, France",
-        "workType": "On-site",
-        "salary": "\$1,200 - \$1,800 / mo",
-
-        "applicants": 15,
-        "accepted": 3,
-        "rejected": 12,
-        "pending": 0,
-
-        "status": "closed",
-
-        "description":
-        "Assist in UI/UX design tasks and improve user experience.",
-
-        "requirements": [
-          "Basic design tools",
-          "Creativity",
-          "UX fundamentals",
-        ],
-
-        "applicantsPreview": [
-          {"userId": "U28", "name": "Camille Dubois", "status": "accepted"},
-          {"userId": "U29", "name": "Lucas Martin", "status": "accepted"},
-          {"userId": "U30", "name": "Emma Laurent", "status": "rejected"},
-        ],
-      },
-    ];
-  }
-
-  /// ===============================
-  /// MOCK USERS (FOR APPLICANTS)
-  /// ===============================
-  final mockUsers = <User>[
-    User.initial(
-      id: "U1",
-      name: "James",
-      surname: "Chen",
-      username: "jchen",
-      email: "james@test.com",
-    ).copyWith(
-      university: "MIT",
-      department: "Computer Science",
-    ),
-
-    User.initial(
-      id: "U2",
-      name: "Mia",
-      surname: "Kim",
-      username: "mkim",
-      email: "mia@test.com",
-    ).copyWith(
-      university: "Seoul National",
-      department: "Software Eng.",
-    ),
-
-    User.initial(
-      id: "U3",
-      name: "Sara",
-      surname: "Reyes",
-      username: "sreyes",
-      email: "sara@test.com",
-    ).copyWith(
-      university: "Barcelona Tech",
-      department: "CS",
-    ),
-  ];
-
-  // ===============================
-  // CREATE POSTING (MOCK)
-  // ===============================
-  void submitPosting() {
     if (!isFormValid) {
       Get.snackbar("Error", "Please fill all required fields");
       return;
     }
 
-    final newPosting = {
-      "title": jobTitle.value,
-      "level": jobLevel.value,
-      "location": "${city.value}, ${country.value}",
-      "workType": workType.value,
-      "salary": salary.value, // optional (UI’da gösterirsin)
-      "applicants": 0,
-      "accepted": 0,
-      "pending": 0,
-      "status": "active",
-    };
+    isLoading.value = true;
 
-    // 👉 listeye ekle (en üste)
-    activePostings.insert(0, newPosting);
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw "User not logged in";
 
-    // 👉 formu temizle
-    resetForm();
+      // 🔥 Fetch Company Name for Job Posting
+      String companyName = "";
+      final hrDoc = await _db.collection('hr_users').doc(user.uid).get();
+      if (hrDoc.exists) {
+        final data = hrDoc.data()!;
+        final name = (data['name'] ?? '').toString().trim();
+        final surname = (data['surname'] ?? '').toString().trim();
+        final cName = (data['companyName'] ?? '').toString().trim();
 
-    // 👉 geri dön
-    Get.back();
+        if (cName.isNotEmpty && cName != 'Company') {
+          // Real company name exists
+          companyName = cName;
+        } else if (name.isNotEmpty) {
+          // Fallback: use HR user's full name
+          companyName = '$name $surname'.trim();
+        }
+      }
 
-    Get.snackbar("Success", "Job posting created");
+      if (companyName.isEmpty) companyName = 'Unknown Company';
+
+      final newPosting = {
+        "title": jobTitle.value,
+        "level": jobLevel.value,
+        "location": "${city.value}, ${country.value}",
+        "workType": workType.value,
+        "salary": salary.value,
+        "description": description.value,
+        "requirements": requirements.value.split('\n').where((s) => s.isNotEmpty).toList(),
+        "status": "active",
+        "createdByHrId": user.uid,
+        "companyId": user.uid, // HR is company owner for now
+        "company": companyName, // 🔥 Added company name
+        "createdAt": FieldValue.serverTimestamp(),
+        "applicants": [],
+        "applicantCount": 0,
+        "accepted": 0,
+        "rejected": 0,
+        "pending": 0,
+        "acceptedCandidateIds": [],
+      };
+
+      await _db.collection('job_postings').add(newPosting);
+
+      resetForm();
+      
+      // 🔥 Safer navigation
+      if (Get.isOverlaysOpen) {
+        Navigator.of(Get.overlayContext!).pop();
+      }
+      Navigator.of(Get.context!).pop();
+
+      Future.delayed(const Duration(milliseconds: 300), () {
+        Get.snackbar("Success", "Job posting published", snackPosition: SnackPosition.BOTTOM);
+      });
+    } catch (e) {
+      Get.snackbar("Error", "Failed to create posting: $e");
+    } finally {
+      isLoading.value = false;
+    }
   }
-  // ===============================
-  // RESET FORM
-  // ===============================
+
+  Future<bool> closePosting(String id) async {
+    try {
+      await _db.collection('job_postings').doc(id).update({"status": "closed"});
+      
+      if (Get.context != null) {
+        Get.snackbar(
+          "Success", 
+          "Posting closed", 
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.success.withOpacity(0.1),
+          colorText: AppColors.success,
+        );
+      }
+      return true;
+    } catch (e) {
+      Get.snackbar("Error", "Failed to close posting: $e");
+      return false;
+    }
+  }
+
+  Future<bool> finalizePosting(String id) async {
+    try {
+      await _db.collection('job_postings').doc(id).update({"status": "finalized"});
+      
+      if (Get.context != null) {
+        Get.snackbar(
+          "Success", 
+          "Evaluation finalized", 
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.primary.withOpacity(0.1),
+          colorText: AppColors.primary,
+        );
+      }
+      return true;
+    } catch (e) {
+      Get.snackbar("Error", "Failed to finalize: $e");
+      return false;
+    }
+  }
+
   void resetForm() {
     jobTitle.value = "";
     jobLevel.value = "";
@@ -671,128 +452,167 @@ class HrJobPostingsController extends GetxController {
     requirements.value = "";
   }
 
-  // ===============================
-  // GET POSTING BY ID
-  // ===============================
+  bool get isFormValid =>
+      jobTitle.isNotEmpty &&
+      jobLevel.isNotEmpty &&
+      workType.isNotEmpty &&
+      country.isNotEmpty &&
+      city.isNotEmpty &&
+      description.isNotEmpty &&
+      requirements.isNotEmpty;
+
   Map<String, dynamic>? getPostingById(String id) {
     try {
-      return [
-        ...activePostings,
-        ...closedPostings,
-      ].firstWhere((p) => p["id"] == id);
+      return [...activePostings, ...closedPostings].firstWhere((p) => p["id"] == id);
     } catch (e) {
       return null;
     }
   }
 
   // ===============================
-  // CLOSE POSTING (MOVE TO CLOSED)
+  // APPLICANT MANAGEMENT
   // ===============================
-  void closePosting(String id) {
-    final index = activePostings.indexWhere((p) => p["id"] == id);
 
-    if (index == -1) return;
+  String getApplicantStatus(String postingId, String userId) {
+    final posting = getPostingById(postingId);
+    if (posting == null) return 'pending';
 
-    final posting = activePostings[index];
-
-    activePostings.removeAt(index);
-
-    closedPostings.insert(0, {
-      ...posting,
-      "status": "closed",
-
-      /// 🔥 FIX: pending korunacak ama UI doğru çalışacak
-      "pending": posting["pending"] ?? 0,
-    });
-
-    Get.snackbar("Success", "Posting closed");
+    final applicants = List<dynamic>.from(posting['applicants'] ?? []);
+    final applicant = applicants.firstWhereOrNull((a) => a['userId'] == userId);
+    
+    return applicant?['status'] ?? 'pending';
   }
 
-  // ===============================
-// FINALIZE POSTING (READY FOR INTERVIEW)
-// ===============================
-  void finalizePosting(String id) {
-    final posting = getPostingById(id);
-    if (posting == null) return;
-
-    final pending = posting["pending"] ?? 0;
-
-    /// 🔥 VALIDATION
-    if (pending > 0) {
-      Get.snackbar(
-        "Cannot finalize",
-        "Please review all pending candidates first.",
-      );
-      return;
-    }
-
-    /// 🔥 TODO: backend → create interview
-    Get.snackbar(
-      "Ready",
-      "All candidates reviewed. Proceed to interview.",
-    );
-
-    /// 🔥 ileride:
-    /// - interview oluştur
-    /// - interview page’e yönlendir
+  List<Map<String, dynamic>> searchApplicants(List<dynamic> applicants, String query) {
+    if (query.isEmpty) return List<Map<String, dynamic>>.from(applicants);
+    return applicants
+        .where((a) => a['name'].toString().toLowerCase().contains(query.toLowerCase()))
+        .map((a) => Map<String, dynamic>.from(a))
+        .toList();
   }
 
-  /// ===============================
-  /// GET USER BY NAME (MOCK)
-  /// ===============================
-  User? getUserByName(String name) {
+  void updateApplicantStatus(String postingId, String userId, String status) async {
     try {
-      return mockUsers.firstWhere(
-            (u) => "${u.name} ${u.surname}" == name,
-      );
+      final postingRef = _db.collection('job_postings').doc(postingId);
+      final doc = await postingRef.get();
+      if (!doc.exists) return;
+
+      final data = doc.data()!;
+      final applicants = List<Map<String, dynamic>>.from(data['applicants'] ?? []);
+      
+      final idx = applicants.indexWhere((a) => a['userId'] == userId);
+      if (idx == -1) return;
+
+      // Update the status in the array
+      applicants[idx]['status'] = status;
+
+      // 🔥 Recalculate counters and accepted IDs
+      final acceptedList = applicants.where((a) => a['status'] == 'accepted').toList();
+      int accepted = acceptedList.length;
+      int rejected = applicants.where((a) => a['status'] == 'rejected').length;
+      int pending = applicants.where((a) => a['status'] == 'pending').length;
+      int total = applicants.length;
+      
+      final acceptedIds = acceptedList.map((a) => (a['userId'] ?? '').toString()).toList();
+
+      await postingRef.update({
+        'applicants': applicants,
+        'accepted': accepted,
+        'rejected': rejected,
+        'pending': pending,
+        'applicantCount': total,
+        'acceptedCandidateIds': acceptedIds,
+      });
+
+      // 🔥 2. Update the actual Application document in 'applications' collection
+      final appSnap = await _db.collection('applications')
+          .where('candidateId', isEqualTo: userId)
+          .where('jobPostingId', isEqualTo: postingId)
+          .limit(1)
+          .get();
+      
+      if (appSnap.docs.isNotEmpty) {
+        await appSnap.docs.first.reference.update({
+          'status': status,
+          'reviewedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      Get.snackbar("Success", "Status updated to $status");
     } catch (e) {
-      return null;
+      Get.snackbar("Error", "Failed to update status: $e");
+    }
+  }
+  Future<void> updateApplicantStatusWithFeedback(String postingId, String userId, String status, String message) async {
+    try {
+      final postingRef = _db.collection('job_postings').doc(postingId);
+      final doc = await postingRef.get();
+      if (!doc.exists) return;
+
+      final data = doc.data()!;
+      final applicants = List<Map<String, dynamic>>.from(data['applicants'] ?? []);
+      
+      final idx = applicants.indexWhere((a) => a['userId'] == userId);
+      if (idx == -1) return;
+      String? generatedInviteCode;
+      if (status == 'accepted') {
+        generatedInviteCode = _generateUniqueCode();
+      }
+
+      // Update the status in the array
+      applicants[idx]['status'] = status;
+      if (generatedInviteCode != null) {
+        applicants[idx]['inviteCode'] = generatedInviteCode; // 🔥 Save to array
+      }
+
+      // 🔥 Recalculate counters
+      final acceptedList = applicants.where((a) => a['status'] == 'accepted').toList();
+      int accepted = acceptedList.length;
+      int rejected = applicants.where((a) => a['status'] == 'rejected').length;
+      int pending = applicants.where((a) => a['status'] == 'pending').length;
+      int total = applicants.length;
+      
+      final acceptedIds = acceptedList.map((a) => (a['userId'] ?? '').toString()).toList();
+
+      await postingRef.update({
+        'applicants': applicants,
+        'accepted': accepted,
+        'rejected': rejected,
+        'pending': pending,
+        'applicantCount': total,
+        'acceptedCandidateIds': acceptedIds,
+      });
+
+      // 🔥 2. Update the actual Application document in 'applications' collection
+      final appSnap = await _db.collection('applications')
+          .where('candidateId', isEqualTo: userId)
+          .where('jobPostingId', isEqualTo: postingId)
+          .limit(1)
+          .get();
+      
+      if (appSnap.docs.isNotEmpty) {
+        final Map<String, dynamic> updateData = {
+          'status': status,
+          'hrMessage': message,
+          'reviewedAt': FieldValue.serverTimestamp(),
+        };
+
+        // 🔥 3. If accepted, use the ALREADY generated code
+        if (status == 'accepted' && generatedInviteCode != null) {
+          updateData['inviteCode'] = generatedInviteCode;
+        }
+
+        await appSnap.docs.first.reference.update(updateData);
+      }
+    } catch (e) {
+      print("Error updating status with feedback: $e");
+      rethrow;
     }
   }
 
-  // ===============================
-  // SEARCH APPLICANTS
-  // ===============================
-  List<Map<String, dynamic>> searchApplicants(
-      List<Map<String, dynamic>> applicants,
-      String query,
-      ) {
-    if (query.isEmpty) return applicants;
-
-    final q = query.toLowerCase();
-
-    return applicants.where((a) {
-      final name = (a["name"] ?? "").toLowerCase();
-
-      final user = getUserByName(a["name"] ?? "");
-      final email = user?.email.toLowerCase() ?? "";
-
-      return name.contains(q) || email.contains(q);
-    }).toList();
+  String _generateUniqueCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ234567890';
+    final random = Random();
+    return List.generate(6, (index) => chars[random.nextInt(chars.length)]).join();
   }
-
-
-  // ===============================
-  // VALIDATION
-  // ===============================
-  bool get isFormValid {
-    return jobTitle.isNotEmpty &&
-        jobLevel.isNotEmpty &&
-        workType.isNotEmpty &&
-        country.isNotEmpty &&
-        city.isNotEmpty &&
-        description.isNotEmpty &&
-        requirements.isNotEmpty;
-  }
-
-// ===============================
-// TODO: BACKEND METHODS
-// ===============================
-/*
-  Future<void> fetchPostings() async {}
-
-  Future<void> closePosting(String postingId) async {}
-
-  Future<void> fetchApplicants(String postingId) async {}
-  */
 }

@@ -37,6 +37,10 @@ class SelectQuestionsPage extends StatelessWidget {
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.textPrimary,
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: const Text("Select Questions"),
       ),
 
@@ -234,7 +238,7 @@ class SelectQuestionsPage extends StatelessWidget {
                   final selectedIds = controller.selectedIds;
                   // TODO: pass selectedIds to interview creation flow
 
-                  Get.back(result: selectedIds);
+                  Navigator.of(context).pop(selectedIds);
                 },
                 child: Text(
                   "Add Questions",
