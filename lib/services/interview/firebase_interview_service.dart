@@ -136,6 +136,19 @@ class FirebaseInterviewService implements InterviewService {
         }
       }
 
+      // Get existing decision if document exists, to prevent overwriting HR's manual decision
+      String decisionStatus = 'pending';
+      String? existingHrComment;
+      try {
+        final existingDoc = await _firestore.collection('ai_interview_results').doc(resultId).get();
+        if (existingDoc.exists) {
+          decisionStatus = existingDoc.data()?['decision'] ?? 'pending';
+          existingHrComment = existingDoc.data()?['hrComment'] ?? existingDoc.data()?['hrMessage'];
+        }
+      } catch (e) {
+        print('FirebaseInterviewService: Error reading existing result: $e');
+      }
+
       final data = {
         'interviewId': interviewId,
         'candidateId': userId,
@@ -146,18 +159,13 @@ class FirebaseInterviewService implements InterviewService {
         'aiResult': aiResult.toJson(), // Assuming AiInterviewResult has toJson()
         'submittedAt': FieldValue.serverTimestamp(),
         'status': 'completed',
-        'decision': aiResult is AiInterviewResult ? aiResult.finalDecision : 'pending',
+        'decision': decisionStatus, // 🔑 Preserved (defaults to pending, not AI decision)
+        if (existingHrComment != null) 'hrComment': existingHrComment,
         'totalScore': aiResult is AiInterviewResult ? aiResult.totalScore : 0,
         'starAnalysis': _extractStarAnalysis(aiResult), // Helper for easy filtering
       };
 
       await _firestore.collection('ai_interview_results').doc(resultId).set(data);
-
-      // Also update the interview status in the main collection if needed
-      // (Optional based on how list screens query data)
-      await _firestore.collection('interviews').doc(interviewId).update({
-        'status': 'completed',
-      });
       
     } catch (e) {
       print('FirebaseInterviewService: Error saving interview result: $e');

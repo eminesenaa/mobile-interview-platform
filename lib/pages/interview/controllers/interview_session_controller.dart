@@ -100,7 +100,18 @@ class InterviewSessionController extends GetxController {
         return;
       }
 
-      // Strategy 3: Hyphen-insensitive search
+      // Strategy 2b: inviteCode match
+      snap = await _db
+          .collection('interviews')
+          .where('inviteCode', isEqualTo: inputCode)
+          .get();
+
+      if (snap.docs.isNotEmpty) {
+        _processMatch(snap.docs.first);
+        return;
+      }
+
+      // Strategy 3: Hyphen-insensitive search across both fields
       final allRecent = await _db.collection('interviews').get();
       print(
           "InterviewSessionController: Scanning ${allRecent.docs.length} documents...");
@@ -108,14 +119,18 @@ class InterviewSessionController extends GetxController {
       DocumentSnapshot? match;
       for (var doc in allRecent.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        final dbCode = (data['joinCode']?.toString() ?? "")
+        final dbJoinCode = (data['joinCode']?.toString() ?? "")
+            .replaceAll("-", "")
+            .toUpperCase();
+        final dbInviteCode = (data['inviteCode']?.toString() ?? "")
             .replaceAll("-", "")
             .toUpperCase();
 
         print(
-            "Comparing input '$inputCodeNoHyphen' with DB code '$dbCode' (Doc: ${doc.id})");
+            "Comparing input '$inputCodeNoHyphen' with joinCode='$dbJoinCode' inviteCode='$dbInviteCode' (Doc: ${doc.id})");
 
-        if (dbCode == inputCodeNoHyphen && inputCodeNoHyphen.isNotEmpty) {
+        if (inputCodeNoHyphen.isNotEmpty &&
+            (dbJoinCode == inputCodeNoHyphen || dbInviteCode == inputCodeNoHyphen)) {
           match = doc;
           break;
         }

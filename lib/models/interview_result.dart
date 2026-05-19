@@ -106,11 +106,29 @@ class InterviewResult {
               : AiInterviewResult.fromJson(Map<String, dynamic>.from(json['aiResult'])))
           : null,
       score: (json['score'] ?? json['totalScore'] ?? 0).toInt(),
-      correctCount: (json['correctCount'] ?? json['correct'] ?? 0).toInt(),
-      wrongCount: (json['wrongCount'] ?? json['wrong'] ?? 0).toInt(),
-      unansweredCount: (json['unansweredCount'] ?? json['unanswered'] ?? 0).toInt(),
+      correctCount: (json['correctCount'] ??
+              json['correct'] ??
+              (json['aiResult'] is Map
+                  ? json['aiResult']['correctCount']
+                  : null) ??
+              0)
+          .toInt(),
+      wrongCount: (json['wrongCount'] ??
+              json['wrong'] ??
+              (json['aiResult'] is Map
+                  ? json['aiResult']['wrongCount']
+                  : null) ??
+              0)
+          .toInt(),
+      unansweredCount: (json['unansweredCount'] ??
+              json['unanswered'] ??
+              (json['aiResult'] is Map
+                  ? json['aiResult']['unansweredCount']
+                  : null) ??
+              0)
+          .toInt(),
       decision: InterviewDecisionStatus.values.firstWhere(
-            (e) => e.name == json['decision'],
+        (e) => e.name == json['decision'],
         orElse: () => InterviewDecisionStatus.pending,
       ),
       hrMessage: json['hrMessage'] ?? json['hrComment'],

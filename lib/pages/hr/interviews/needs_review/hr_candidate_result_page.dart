@@ -170,7 +170,7 @@ class HrCandidateResultPage extends StatelessWidget {
             /// 🔥 EVALUATE CANDIDATE
             Obx(() {
               /// 🔥 DOĞRU NULL CHECK
-              if (c.decision.value != null) {
+              if (c.decision.value != null && c.decision.value != "pending") {
                 final isAccepted = c.decision.value == "accepted";
 
                 return Container(

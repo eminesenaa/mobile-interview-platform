@@ -83,14 +83,30 @@ class HrNeedsReviewDetailController extends GetxController {
               final data = doc.data();
               data['id'] = doc.id;
               
-              // Extract topics from STAR analysis or scores
+              // Extract topics from topicPercentage (technical categories) or fallback to starAnalysis
               final topics = <String, int>{};
-              if (data['starAnalysis'] != null) {
+              final aiResult = data['aiResult'];
+              Map<String, dynamic>? topicPct;
+              
+              if (aiResult is Map) {
+                final pct = aiResult['topicPercentage'];
+                if (pct is Map && pct.isNotEmpty) {
+                  topicPct = Map<String, dynamic>.from(pct);
+                }
+              }
+
+              if (topicPct != null && topicPct.isNotEmpty) {
+                topicPct.forEach((key, value) {
+                  if (value != null) {
+                    topics[key.toString()] = (value as num).toInt();
+                  }
+                });
+              } else if (data['starAnalysis'] != null) {
                 final star = data['starAnalysis'];
                 if (star is Map) {
                   star.forEach((key, value) {
                     if (value != null) {
-                      topics[key.toString()] = (value as num).toInt();
+                      topics[key.toString()] = ((value as num).toDouble() * 20).round();
                     }
                   });
                 }
@@ -98,6 +114,7 @@ class HrNeedsReviewDetailController extends GetxController {
 
               final String name = data['candidateName'] ?? "Candidate";
               parsedCandidates.add({
+                ...data,
                 "name": name,
                 "initials": _getInitials(name),
                 "score": (data['totalScore'] ?? 0).toInt(),
@@ -106,7 +123,6 @@ class HrNeedsReviewDetailController extends GetxController {
                 "decision": data['decision'],
                 "topics": topics,
                 "resultId": doc.id,
-                ...data,
               });
             } catch (e) {
               print("HrNeedsReviewDetailController: Error parsing result doc ${doc.id}: $e");
@@ -171,8 +187,8 @@ class HrNeedsReviewDetailController extends GetxController {
 
     // Topic thresholds
     result = result.where((c) {
-      final topics = c["topics"] as Map<String, int>?;
-      if (topics == null) return true;
+      final topics = c["topics"];
+      if (topics is! Map) return true;
 
       for (var entry in topicThresholds.entries) {
         if (entry.value > 0) {
@@ -248,7 +264,7 @@ class HrNeedsReviewDetailController extends GetxController {
   // ===============================
   String get overallReviewStatus {
     if (candidates.isEmpty) return "pending";
-    final allReviewed = candidates.every((c) => c["decision"] != null);
+    final allReviewed = candidates.every((c) => c["decision"] != null && c["decision"] != "pending");
     return allReviewed ? "reviewed" : "pending";
   }
 }

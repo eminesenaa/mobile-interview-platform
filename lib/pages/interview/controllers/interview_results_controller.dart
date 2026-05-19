@@ -342,13 +342,95 @@ class InterviewResultsController extends GetxController {
     final InterviewResult result = item["result"] ?? InterviewResult.fromJson(item);
 
     // =======================================================
-    // 🔥 MOCK QUESTIONS (TEMPORARY)
+    // 🔥 FETCH REAL QUESTIONS FROM FIRESTORE
     // =======================================================
-    // TODO (Backend):
-    // Replace with:
-    // final questions = await api.getInterviewQuestions(result.interviewId);
+    List<Question> questions = [];
+    try {
+      final interviewDoc = await FirebaseFirestore.instance
+          .collection('interviews')
+          .doc(result.interviewId)
+          .get();
+      if (interviewDoc.exists) {
+        final data = interviewDoc.data();
+        if (data != null) {
+          final rawQs = data['questions'] as List<dynamic>? ?? [];
+          for (int i = 0; i < rawQs.length; i++) {
+            final q = rawQs[i] as Map<String, dynamic>;
+            final rawId = q['id']?.toString() ?? '';
+            final id = rawId.isNotEmpty ? rawId : 'q_$i';
+            questions.add(Question.fromFirestore(q, id));
+          }
+        }
+      }
+    } catch (e) {
+      print("Error fetching real interview questions: $e");
+    }
 
-    final questions = await _getMockQuestions();
+    if (questions.isEmpty) {
+      questions = await _getMockQuestions();
+    }
+
+    // =======================================================
+    // 🔥 MAP CANDIDATE ANSWERS
+    // =======================================================
+    final Map<String, dynamic> answersMap = {};
+    if (result.answers.isNotEmpty) {
+      result.answers.forEach((key, value) {
+        answersMap[key.toString()] = value;
+      });
+    }
+
+    // =======================================================
+    // 🔥 MAP AI FEEDBACK / EXPLANATIONS
+    // =======================================================
+    final Map<String, String> feedbackMap = {};
+    final List<String> correctIds = [];
+    final List<String> wrongIds = [];
+
+    if (result.aiResult != null) {
+      for (final qr in result.aiResult!.questionResults) {
+        final qid = qr.questionId;
+        final qDecision = qr.decision;
+        final qScore = qr.overallScore.toStringAsFixed(1);
+        final strengths = qr.strengths;
+        final weaknesses = qr.weaknesses;
+        final redFlags = qr.redFlags;
+        final personal = qr.personalizedFeedback ?? '';
+
+        final buffer = StringBuffer();
+        buffer.writeln("Decision: ${qDecision.toUpperCase()} (Score: $qScore/5)\n");
+        if (personal.isNotEmpty) {
+          buffer.writeln("$personal\n");
+        }
+        if (strengths.isNotEmpty) {
+          buffer.writeln("Strengths:");
+          for (final s in strengths) {
+            buffer.writeln("• $s");
+          }
+          buffer.writeln();
+        }
+        if (weaknesses.isNotEmpty) {
+          buffer.writeln("Weaknesses:");
+          for (final w in weaknesses) {
+            buffer.writeln("• $w");
+          }
+          buffer.writeln();
+        }
+        if (redFlags.isNotEmpty) {
+          buffer.writeln("Red Flags:");
+          for (final rf in redFlags) {
+            buffer.writeln("⚠️ $rf");
+          }
+        }
+        feedbackMap[qid] = buffer.toString().trim();
+
+        if (qDecision == 'advance') {
+          correctIds.add(qid);
+        } else if (qDecision == 'reject') {
+          wrongIds.add(qid);
+        }
+      }
+    }
 
     // =======================================================
     // 🔥 BUILD EXAM
@@ -357,20 +439,16 @@ class InterviewResultsController extends GetxController {
       id: "interview_${result.id}",
       title: item["title"] ?? "Interview",
       duration: const Duration(minutes: 10),
-
       questions: questions,
-
-      // 🔥 VERY IMPORTANT FOR REVIEW PAGE
-      answers: {},
-      // TODO: backend will provide user answers
-      aiFeedback: {},
-      // TODO: backend will provide explanations
+      answers: answersMap,
+      aiFeedback: feedbackMap,
       stats: {
-        "correct": result.correctCount ?? 0,
-        "wrong": result.wrongCount ?? 0,
-        "unanswered": result.unansweredCount ?? 0,
+        "correct": result.correctCount,
+        "wrong": result.wrongCount,
+        "unanswered": result.unansweredCount,
+        "correctIds": correctIds,
+        "wrongIds": wrongIds,
       },
-
       createdAt: DateTime.now(),
     );
   }

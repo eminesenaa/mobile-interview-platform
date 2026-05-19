@@ -62,13 +62,11 @@ class AiInterviewResult {
         stage1Results.where((q) => q.decision == 'reject').length;
     final borderlineCount = stage1Results.length - advanceCount - rejectCount;
 
-    // Compute topic percentages from per-question covered_tags
+    // Compute topic percentages from per-question actual topics
     final Map<String, List<double>> buckets = {};
     for (final q in stage1Results) {
-      for (final tag in q.coveredTags) {
-        final key = tag.toLowerCase();
-        buckets.putIfAbsent(key, () => []).add(q.overallScore);
-      }
+      final key = q.topic.trim().isNotEmpty ? q.topic.trim() : 'General';
+      buckets.putIfAbsent(key, () => []).add(q.overallScore);
     }
     final topicPct = <String, int>{};
     buckets.forEach((topic, scores) {

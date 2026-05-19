@@ -43,7 +43,7 @@ class NdCandidateCard extends StatelessWidget {
               : decision == "rejected"
                   ? AppColors.error.withOpacity(0.5)
                   : AppColors.border,
-          width: decision != null ? 1.5 : 1.0,
+          width: (decision != null && decision != "pending") ? 1.5 : 1.0,
         ),
         boxShadow: AppShadows.low,
       ),
@@ -69,7 +69,7 @@ class NdCandidateCard extends StatelessWidget {
                       style: AppTextStyles.bodySmall.copyWith(
                         color: AppColors.textMuted,
                         fontWeight: FontWeight.w600,
-                      ),
+                       ),
                     ),
 
                     const SizedBox(width: AppSpacing.sm),
@@ -91,11 +91,15 @@ class NdCandidateCard extends StatelessWidget {
                           ),
                           if (decision != null)
                             Text(
-                              decision == "accepted" ? "Accepted" : "Rejected",
+                              decision == "accepted"
+                                  ? "Accepted"
+                                  : (decision == "rejected" ? "Rejected" : "Pending"),
                               style: AppTextStyles.bodySmall.copyWith(
                                 color: decision == "accepted"
                                     ? AppColors.success
-                                    : AppColors.error,
+                                    : (decision == "rejected"
+                                        ? AppColors.error
+                                        : AppColors.textMuted),
                                 fontWeight: FontWeight.w600,
                                 fontSize: 11,
                               ),
@@ -124,7 +128,7 @@ class NdCandidateCard extends StatelessWidget {
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                     child: Text(
-                      decision != null ? "View Result" : "Review",
+                      (decision != null && decision != "pending") ? "View Result" : "Review",
                       style: AppTextStyles.textButton.copyWith(
                         color: decision == "accepted"
                             ? AppColors.success

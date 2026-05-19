@@ -386,6 +386,37 @@ class ExamController extends GetxController {
           print('❌ Failed to save pending interview result: $e');
         }
 
+        // 🔥 ALWAYS mark THIS CANDIDATE as completed (per-candidate tracking)
+        // Don't mark the whole interview as 'completed' — other candidates still need it!
+        try {
+          final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+          final interviewRef = _db.collection('interviews').doc(exam.id);
+          
+          // Add this candidate to completedCandidateIds
+          await interviewRef.update({
+            'completedCandidateIds': FieldValue.arrayUnion([currentUserId]),
+          });
+          
+          // Check if ALL candidates have completed → then mark the whole interview as 'completed'
+          final interviewDoc = await interviewRef.get();
+          if (interviewDoc.exists) {
+            final data = interviewDoc.data()!;
+            final candidateIds = List<String>.from(data['candidateIds'] ?? []);
+            final completedIds = List<String>.from(data['completedCandidateIds'] ?? []);
+            
+            // Only mark as 'completed' if everyone is done
+            if (candidateIds.isNotEmpty &&
+                candidateIds.every((id) => completedIds.contains(id))) {
+              await interviewRef.update({'status': 'completed'});
+              print('✅ All candidates done — interview status set to completed');
+            } else {
+              print('✅ This candidate done. Waiting for ${candidateIds.length - completedIds.length} more candidate(s).');
+            }
+          }
+        } catch (e) {
+          print('❌ Failed to update per-candidate completion: $e');
+        }
+
         // 🔥 Fire & Forget: Run AI Evaluation in Background
         Future.microtask(() async {
           try {

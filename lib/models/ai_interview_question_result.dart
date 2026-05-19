@@ -11,6 +11,7 @@ class AiInterviewQuestionResult {
   // ── Identity ──
   final String questionId;
   final int questionIndex;
+  final String topic; // ── Question Topic/Category ──
 
   // ── Core Score ──
   final double overallScore; // 0.0–5.0
@@ -41,6 +42,7 @@ class AiInterviewQuestionResult {
   const AiInterviewQuestionResult({
     required this.questionId,
     required this.questionIndex,
+    required this.topic,
     required this.overallScore,
     required this.decision,
     this.subscores = const {},
@@ -62,8 +64,9 @@ class AiInterviewQuestionResult {
   factory AiInterviewQuestionResult.fromJson(
     Map<String, dynamic> json,
     String questionId,
-    int questionIndex,
-  ) {
+    int questionIndex, [
+    String topic = 'General',
+  ]) {
     final subscoresRaw = json['subscores'] as Map<String, dynamic>? ?? {};
     final starRaw = subscoresRaw['star_coverage'] as Map<String, dynamic>?;
     final softRaw = json['soft_skills'] as Map<String, dynamic>? ?? {};
@@ -95,6 +98,7 @@ class AiInterviewQuestionResult {
     return AiInterviewQuestionResult(
       questionId: questionId,
       questionIndex: questionIndex,
+      topic: json['topic'] ?? topic,
       overallScore: (json['overall_score'] as num?)?.toDouble() ?? 0.0,
       decision: (json['decision'] as String?) ?? 'reject',
       subscores: subscores,
@@ -115,6 +119,7 @@ class AiInterviewQuestionResult {
   Map<String, dynamic> toJson() => {
         'questionId': questionId,
         'questionIndex': questionIndex,
+        'topic': topic,
         'overall_score': overallScore,
         'decision': decision,
         'subscores': {

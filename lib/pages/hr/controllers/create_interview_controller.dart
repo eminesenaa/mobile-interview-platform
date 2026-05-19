@@ -139,14 +139,51 @@ class CreateInterviewController extends GetxController {
       final data = doc.data()!;
       final applicants = List<Map<String, dynamic>>.from(data['applicants'] ?? []);
       final accepted = applicants.where((a) => a['status'] == 'accepted').toList();
+
+      debugPrint("[CreateInterview] Accepted candidates from applicants array: ${accepted.length}");
+      for (var a in accepted) {
+        debugPrint("  -> userId=${a['userId']}, candidateId=${a['candidateId']}, id=${a['id']}, name=${a['name']}");
+      }
+
+      // 🔥 FALLBACK: If any accepted candidate is missing userId, fetch from applications collection
+      final enriched = <Map<String, dynamic>>[];
+      for (var a in accepted) {
+        final rawId = (a['userId'] ?? a['candidateId'] ?? a['id'] ?? '').toString().trim();
+        if (rawId.isNotEmpty) {
+          enriched.add(a);
+        } else {
+          // Try to find candidate ID from applications collection by matching name or posting
+          debugPrint("  [!] Missing userId for applicant: ${a['name']} – trying applications fallback");
+          final appSnap = await _db.collection('applications')
+              .where('jobPostingId', isEqualTo: posting.id)
+              .where('status', isEqualTo: 'accepted')
+              .get();
+          for (var appDoc in appSnap.docs) {
+            final appData = appDoc.data();
+            final candidateId = appData['candidateId'] ?? '';
+            if (candidateId.isNotEmpty) {
+              // Check not already in list
+              final alreadyAdded = enriched.any((e) =>
+                (e['userId'] ?? e['candidateId'] ?? '') == candidateId);
+              if (!alreadyAdded) {
+                final enrichedEntry = Map<String, dynamic>.from(a);
+                enrichedEntry['userId'] = candidateId;
+                enriched.add(enrichedEntry);
+                debugPrint("  [✓] Recovered candidateId from applications: $candidateId");
+              }
+            }
+          }
+        }
+      }
       
-      selectedCandidates.assignAll(accepted);
+      selectedCandidates.assignAll(enriched);
+      debugPrint("[CreateInterview] Final selectedCandidates count: ${enriched.length}");
 
       // 🔥 UI SYNC: If candidates already have an inviteCode, use it in the UI
       bool codeFound = false;
-      if (accepted.isNotEmpty) {
+      if (enriched.isNotEmpty) {
         // Try to find the first candidate with a code
-        final candidateWithCode = accepted.firstWhereOrNull(
+        final candidateWithCode = enriched.firstWhereOrNull(
           (a) => a['inviteCode'] != null && a['inviteCode'].toString().isNotEmpty
         );
 
@@ -281,7 +318,20 @@ class CreateInterviewController extends GetxController {
       }).toList();
 
       // 2. Prepare Interview Document
-      final candidateIds = selectedCandidates.map((c) => (c['userId'] ?? '').toString()).toList();
+      final candidateIds = selectedCandidates.map((c) {
+        final rawId = c['userId'] ?? c['candidateId'] ?? c['id'] ?? '';
+        return rawId.toString().trim();
+      }).where((id) => id.isNotEmpty).toList();
+
+      debugPrint("[CreateInterview] candidateIds to be written: $candidateIds");
+      if (candidateIds.isEmpty) {
+        showSimpleNotification(
+          const Text("No valid candidate IDs found. Please re-select the job posting."),
+          background: Colors.red,
+        );
+        isLoading.value = false;
+        return;
+      }
       
       // 🔥 LOGIC: Use the code shown in the UI (inviteCode.value).
       // We already tried to pull it from candidates in _loadAcceptedCandidates.
@@ -298,6 +348,7 @@ class CreateInterviewController extends GetxController {
         "startTime": Timestamp.fromDate(startDateTime),
         "endTime": Timestamp.fromDate(endDateTime),
         "joinCode": finalCode,
+        "inviteCode": finalCode,
         "status": "scheduled",
         "reviewStatus": "pending",
         "createdAt": FieldValue.serverTimestamp(),

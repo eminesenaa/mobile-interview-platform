@@ -37,20 +37,25 @@ class HrCandidateResultController extends GetxController {
   }
 
   void _initFromCandidate(Map<String, dynamic> data) {
-    score.value = (data["score"] ?? 0).toInt();
+    score.value = (data["score"] ?? data["totalScore"] ?? 0).toInt();
     
-    // In a real scenario, these counts would come from the detailed answer list
-    // For now, we use the values passed from the list or defaults
-    correct.value = (data["correct"] ?? 0).toInt();
-    wrong.value = (data["wrong"] ?? 0).toInt();
-    unanswered.value = (data["unanswered"] ?? 0).toInt();
+    final aiResult = data["aiResult"];
+    if (aiResult is Map) {
+      correct.value = (aiResult["correctCount"] ?? 0).toInt();
+      wrong.value = (aiResult["wrongCount"] ?? 0).toInt();
+      unanswered.value = (aiResult["unansweredCount"] ?? 0).toInt();
+    } else {
+      correct.value = (data["correct"] ?? data["correctCount"] ?? 0).toInt();
+      wrong.value = (data["wrong"] ?? data["wrongCount"] ?? 0).toInt();
+      unanswered.value = (data["unanswered"] ?? data["unansweredCount"] ?? 0).toInt();
+    }
 
     candidateName.value = data["name"] ?? "Candidate";
     decision.value = data["decision"];
 
-    final topics = data["topics"] as Map<String, dynamic>?;
-    if (topics != null) {
-      topicPercentages.assignAll(topics.map((key, value) => MapEntry(key, (value as num).toInt())));
+    final topics = data["topics"];
+    if (topics is Map) {
+      topicPercentages.assignAll(topics.map((key, value) => MapEntry(key.toString(), (value as num).toInt())));
     }
   }
 
