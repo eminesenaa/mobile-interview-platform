@@ -136,7 +136,7 @@ class _JobPostingCreatePageState extends State<JobPostingCreatePage> {
                         const JPSectionLabel(text: "Country"),
                         const SizedBox(height: AppSpacing.sm),
                         JPTextField(
-                          hint: "e.g. Turkey",
+                          hint: "e.g. Turkiye",
                           value: c.country.value,
                           onChanged: (v) => c.country.value = v,
                         ),
